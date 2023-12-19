@@ -1,0 +1,3 @@
+[submodule "state-root-storage-foreign/lib/forge-std"]
+	path = state-root-storage-foreign/lib/forge-std
+	url = https://github.com/foundry-rs/forge-std
