@@ -3,33 +3,31 @@ use actix;
 use anyhow::Result;
 use clap::Parser;
 use tokio::sync::mpsc;
-// use tracing::info;
+use futures::future::join_all;
+use near_client::TxStatus;
 
 use configs::{Opts, SubCommand};
 use near_indexer;
+use near_indexer::IndexerTransactionWithOutcome;
 use near_indexer::near_primitives::types::AccountId;
 use near_indexer::near_primitives::views::ReceiptView;
+use near_o11y::WithSpanContextExt;
 use crate::configs::RunConfigArgs;
 
 mod configs;
 
-async fn listen_blocks(mut stream: mpsc::Receiver<near_indexer::StreamerMessage>, config: RunConfigArgs) {
+async fn request_final_tx(view_client:  actix::Addr<near_client::ViewClientActor>, mut receiver: mpsc::Receiver<near_client::TxStatus>) {
+    while let Some(tx_status) = receiver.recv().await {
+        // TODO: handle errors
+        let tx_status = view_client.send(tx_status.with_span_context()).await.unwrap().unwrap();
+        println!("execution_outcome: {:?} \n status{:?}", tx_status.execution_outcome, tx_status.status);
+    }
+}
+
+async fn listen_blocks(mut stream: mpsc::Receiver<near_indexer::StreamerMessage>, sender: mpsc::Sender<near_client::TxStatus>, config: RunConfigArgs) {
     while let Some(streamer_message) = stream.recv().await {
-        //println!("sum val: {}", streamer_message.shards.iter().map(|shard| if let Some(chunk) = &shard.chunk { chunk.transactions.len() } else { 0usize }).sum::<usize>());
-        let da_contract_id: AccountId = config.da_contract_id.parse().unwrap();
-
-        streamer_message.shards.iter().for_each(|shard| {
-            if let Some(chunk) = &shard.chunk {
-                chunk.receipts.iter().for_each(|receipt| {
-                    if receipt.receiver_id == da_contract_id {
-                        println!("receipt: {:?}", receipt)
-                    }
-                });
-            }
-        });
-
-
-        let asd: Vec<&ReceiptView> = streamer_message.shards
+        let da_contract_id: AccountId = config.da_contract_id.parse().expect("Can't parse da-contract-id");
+        let da_receipts: Vec<&ReceiptView> = streamer_message.shards
             .iter()
             .flat_map(|shard| shard.chunk.as_ref())
             .flat_map(|chunk| {
@@ -39,25 +37,24 @@ async fn listen_blocks(mut stream: mpsc::Receiver<near_indexer::StreamerMessage>
             })
             .collect();
 
-        asd.iter().for_each(|r| println!("other {:?}", r));
+        da_receipts.iter().for_each(|r| println!("{:?}", r));
 
-        streamer_message.shards.iter().for_each(|shard| {
-            if let Some(chunk) = &shard.chunk {
-                chunk.transactions.iter().for_each(|tx| println!("keke {:?}", tx));
-            }
-        });
+        let da_txs: Vec<&IndexerTransactionWithOutcome> = streamer_message.shards
+            .iter()
+            .flat_map(|shard| shard.chunk.as_ref())
+            .flat_map(|chunk| {
+                chunk.transactions
+                    .iter()
+                    .filter(|tx| tx.transaction.receiver_id == da_contract_id)
+            })
+            .collect();
 
-
-        // info!(
-        //     target: "indexer_example",
-        //     "#{} {} Shards: {}, Transactions: {}, Receipts: {}, ExecutionOutcomes: {}",
-        //     streamer_message.block.header.height,`
-        //     streamer_message.block.header.hash,
-        //     streamer_message.shards.len(),
-        //     streamer_message.shards.iter().map(|shard| if let Some(chunk) = &shard.chunk { chunk.transactions.len() } else { 0usize }).sum::<usize>(),
-        //     streamer_message.shards.iter().map(|shard| if let Some(chunk) = &shard.chunk { chunk.receipts.len() } else { 0usize }).sum::<usize>(),
-        //     streamer_message.shards.iter().map(|shard| shard.receipt_execution_outcomes.len()).sum::<usize>(),
-        // );
+        // TODO: process errs
+        join_all(da_txs.iter().map(|tx| sender.send(TxStatus {
+            tx_hash: tx.transaction.hash,
+            signer_account_id: tx.transaction.signer_id.clone(),
+            fetch_receipt: true
+        }))).await;
     }
 }
 
@@ -87,10 +84,15 @@ fn main() -> Result<()> {
             system.block_on(async move {
                 let indexer = near_indexer::Indexer::new(indexer_config).expect("Indexer::new()");
                 let stream = indexer.streamer();
-                // listen_blocks(stream, &config).await;
 
-                actix::spawn(listen_blocks(stream, config));
-                // actix::System::current().stop();
+                // TODO: define buffer: usize const
+                let (sender, receiver) = mpsc::channel::<near_client::TxStatus>(100);
+
+                let (view_client, _ ) = indexer.client_actors();
+                actix::spawn(request_final_tx(view_client, receiver));
+
+                listen_blocks(stream, sender, config).await;
+                actix::System::current().stop();
             });
 
             system.run()?;
