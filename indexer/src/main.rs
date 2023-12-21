@@ -5,7 +5,7 @@ use clap::Parser;
 use futures::future::join_all;
 use tokio::sync::mpsc;
 
-use crate::broadcaster::{listen_execution_outcomes, listen_tx_candidates};
+use crate::broadcaster::{listen_receipt_candidates, listen_tx_candidates};
 use crate::configs::RunConfigArgs;
 use configs::{Opts, SubCommand};
 use near_indexer;
@@ -20,7 +20,7 @@ mod configs;
 async fn listen_blocks(
     mut stream: mpsc::Receiver<near_indexer::StreamerMessage>,
     tx_sender: mpsc::Sender<near_client::TxStatus>,
-    outcome_sender: mpsc::Sender<near_client::GetExecutionOutcome>,
+    outcome_sender: mpsc::Sender<ReceiptView>,
     config: RunConfigArgs,
 ) {
     while let Some(streamer_message) = stream.recv().await {
@@ -64,14 +64,11 @@ async fn listen_blocks(
         // da_txs.iter().for_each(|tx| println!("tx: {:?}", tx));
         // da_receipts.iter().for_each(|r| println!("{:?}", r));
 
-        join_all(da_receipts.iter().map(|receipt| {
-            outcome_sender.send(near_client::GetExecutionOutcome {
-                id: TransactionOrReceiptId::Receipt {
-                    receiver_id: receipt.receiver_id.clone(),
-                    receipt_id: receipt.receipt_id.clone(),
-                },
-            })
-        }))
+        join_all(
+            da_receipts
+                .iter()
+                .map(|receipt| outcome_sender.send((*receipt).clone())),
+        )
         .await;
 
         // TODO: process errs
@@ -120,8 +117,8 @@ fn main() -> Result<()> {
                 actix::spawn(listen_tx_candidates(view_client.clone(), tx_receiver));
 
                 // TODO: define buffer: usize const
-                let (outcomes_sender, outcomes_receiver) = mpsc::channel::<near_client::GetExecutionOutcome>(100);
-                actix::spawn(listen_execution_outcomes(view_client, outcomes_receiver));
+                let (outcomes_sender, outcomes_receiver) = mpsc::channel::<ReceiptView>(100);
+                actix::spawn(listen_receipt_candidates(view_client, outcomes_receiver));
 
                 listen_blocks(stream, tx_sender, outcomes_sender, config).await;
 

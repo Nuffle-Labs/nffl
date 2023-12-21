@@ -22,17 +22,26 @@ pub(crate) async fn listen_tx_candidates(
     }
 }
 
-pub(crate) async fn listen_execution_outcomes(
+pub(crate) async fn listen_receipt_candidates(
     view_client: actix::Addr<near_client::ViewClientActor>,
-    mut receiver: mpsc::Receiver<near_client::GetExecutionOutcome>,
+    mut receiver: mpsc::Receiver<ReceiptView>,
 ) {
-    while let Some(execution_outcome) = receiver.recv().await {
+    while let Some(receipt) = receiver.recv().await {
         // TODO: handle errors
         let execution_outcome = view_client
-            .send(execution_outcome.with_span_context())
+            .send(
+                near_client::GetExecutionOutcome {
+                    id: TransactionOrReceiptId::Receipt {
+                        receipt_id: receipt.receipt_id,
+                        receiver_id: receipt.receiver_id,
+                    },
+                }
+                .with_span_context(),
+            )
             .await
             .unwrap()
             .unwrap();
+
         println!("listen_execution_outcomes {:?}", execution_outcome.outcome_proof);
     }
 }
