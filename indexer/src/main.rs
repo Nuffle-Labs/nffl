@@ -5,33 +5,22 @@ use clap::Parser;
 use futures::future::join_all;
 use tokio::sync::mpsc;
 
+use crate::broadcaster::{listen_execution_outcomes, listen_tx_candidates};
 use crate::configs::RunConfigArgs;
 use configs::{Opts, SubCommand};
 use near_indexer;
-use near_indexer::near_primitives::types::AccountId;
-use near_indexer::near_primitives::views::{ActionView, ReceiptView};
+use near_indexer::near_primitives::types::{AccountId, TransactionOrReceiptId};
+use near_indexer::near_primitives::views::{ActionView, ReceiptEnumView, ReceiptView};
 use near_indexer::IndexerTransactionWithOutcome;
 use near_o11y::WithSpanContextExt;
 
+mod broadcaster;
 mod configs;
-
-async fn request_final_tx(
-    view_client: actix::Addr<near_client::ViewClientActor>,
-    mut receiver: mpsc::Receiver<near_client::TxStatus>,
-) {
-    while let Some(tx_status) = receiver.recv().await {
-        // TODO: handle errors
-        let tx_status = view_client.send(tx_status.with_span_context()).await.unwrap().unwrap();
-        println!(
-            "execution_outcome: {:?} \n status{:?}",
-            tx_status.execution_outcome, tx_status.status
-        );
-    }
-}
 
 async fn listen_blocks(
     mut stream: mpsc::Receiver<near_indexer::StreamerMessage>,
-    sender: mpsc::Sender<near_client::TxStatus>,
+    tx_sender: mpsc::Sender<near_client::TxStatus>,
+    outcome_sender: mpsc::Sender<near_client::GetExecutionOutcome>,
     config: RunConfigArgs,
 ) {
     while let Some(streamer_message) = stream.recv().await {
@@ -41,14 +30,21 @@ async fn listen_blocks(
             .iter()
             .flat_map(|shard| shard.chunk.as_ref())
             .flat_map(|chunk| {
-                chunk
-                    .receipts
-                    .iter()
-                    .filter(|receipt| receipt.receiver_id == da_contract_id)
+                chunk.receipts.iter().filter(|receipt| {
+                    if receipt.receiver_id != da_contract_id {
+                        return false;
+                    }
+
+                    match &receipt.receipt {
+                        ReceiptEnumView::Action { actions, .. } => actions.iter().any(|action| match action {
+                            ActionView::FunctionCall { method_name, .. } => method_name == "submit",
+                            _ => false,
+                        }),
+                        _ => false,
+                    }
+                })
             })
             .collect();
-
-        da_receipts.iter().for_each(|r| println!("{:?}", r));
 
         let da_txs: Vec<&IndexerTransactionWithOutcome> = streamer_message
             .shards
@@ -65,11 +61,22 @@ async fn listen_blocks(
             })
             .collect();
 
-        da_txs.iter().for_each(|tx| println!("tx: {:?}", tx));
+        // da_txs.iter().for_each(|tx| println!("tx: {:?}", tx));
+        // da_receipts.iter().for_each(|r| println!("{:?}", r));
+
+        join_all(da_receipts.iter().map(|receipt| {
+            outcome_sender.send(near_client::GetExecutionOutcome {
+                id: TransactionOrReceiptId::Receipt {
+                    receiver_id: receipt.receiver_id.clone(),
+                    receipt_id: receipt.receipt_id.clone(),
+                },
+            })
+        }))
+        .await;
 
         // TODO: process errs
         join_all(da_txs.iter().map(|tx| {
-            sender.send(near_client::TxStatus {
+            tx_sender.send(near_client::TxStatus {
                 tx_hash: tx.transaction.hash,
                 signer_account_id: tx.transaction.signer_id.clone(),
                 fetch_receipt: true,
@@ -106,13 +113,19 @@ fn main() -> Result<()> {
                 let indexer = near_indexer::Indexer::new(indexer_config).expect("Indexer::new()");
                 let stream = indexer.streamer();
 
-                // TODO: define buffer: usize const
-                let (sender, receiver) = mpsc::channel::<near_client::TxStatus>(100);
-
                 let (view_client, _) = indexer.client_actors();
-                actix::spawn(request_final_tx(view_client, receiver));
 
-                listen_blocks(stream, sender, config).await;
+                // TODO: define buffer: usize const
+                let (tx_sender, tx_receiver) = mpsc::channel::<near_client::TxStatus>(100);
+                actix::spawn(listen_tx_candidates(view_client.clone(), tx_receiver));
+
+                // TODO: define buffer: usize const
+                let (outcomes_sender, outcomes_receiver) = mpsc::channel::<near_client::GetExecutionOutcome>(100);
+                actix::spawn(listen_execution_outcomes(view_client, outcomes_receiver));
+
+                listen_blocks(stream, tx_sender, outcomes_sender, config).await;
+
+                // TODO: at this point kill channels appropriately
                 actix::System::current().stop();
             });
 
