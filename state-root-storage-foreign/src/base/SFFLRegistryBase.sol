@@ -28,7 +28,7 @@ abstract contract SFFLRegistryBase {
         view
         returns (bool success)
     {
-        return _getStorageValue(
+        return getStorageValue(
             proofParams.target,
             proofParams.storageSlot,
             _stateRootBuffers[rollupId][blockHeight],
@@ -38,13 +38,13 @@ abstract contract SFFLRegistryBase {
     }
 
     // based on: https://github.com/ensdomains/arb-resolver/blob/a2ee680e4a62bb5a3f22fd9cfc4a1863504144d2/packages/contracts/contracts/l1/ArbitrumResolverStub.sol#L167C1-L194C1
-    function _getStorageValue(
+    function getStorageValue(
         address target,
         bytes32 slot,
         bytes32 stateRoot,
         bytes memory stateTrieWitness,
         bytes memory storageTrieWitness
-    ) internal pure returns (bytes32) {
+    ) public pure returns (bytes32) {
         (bool exists, bytes memory encodedResolverAccount) =
             Lib_SecureMerkleTrie.get(abi.encodePacked(target), stateTrieWitness, stateRoot);
 
