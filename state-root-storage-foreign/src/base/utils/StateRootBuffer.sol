@@ -41,11 +41,8 @@ library StateRootBuffer {
 
         require(_size > 0);
 
-        self.content[_cursor++] = value;
-
-        if (_cursor >= _size) {
-            self.header.cursor = 0;
-        }
+        self.content[_cursor] = value;
+        self.header.cursor = (_cursor + 1) % _size;
     }
 
     function size(Buffer storage self) internal view returns (uint256) {
