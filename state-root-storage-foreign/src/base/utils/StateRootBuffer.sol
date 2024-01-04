@@ -55,6 +55,8 @@ library StateRootBuffer {
     }
 
     function initialize(Buffer storage self, uint128 newSize) internal {
+        require(self.header.size == 0);
+
         self.header = BufferHeader(0, newSize);
     }
 }
