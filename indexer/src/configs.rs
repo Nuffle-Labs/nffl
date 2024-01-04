@@ -1,9 +1,7 @@
 use near_indexer::near_primitives::types::Gas;
 
-/// NEAR Indexer Example
-/// Watches for stream of blocks from the chain
 #[derive(clap::Parser, Debug)]
-#[clap(version = "0.1", author = "Near Inc. <hello@nearprotocol.com>")]
+#[clap(version = "0.0.1")]
 #[clap(subcommand_required = true, arg_required_else_help = true)]
 pub(crate) struct Opts {
     /// Sets a custom config dir. Defaults to ~/.near/
