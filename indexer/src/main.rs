@@ -1,26 +1,21 @@
-use actix;
-
 use anyhow::Result;
 use clap::Parser;
+use configs::{Opts, SubCommand};
 use futures::future::join_all;
+use near_indexer::near_primitives::{
+    types::AccountId,
+    views::{ActionView, ReceiptEnumView, ReceiptView},
+};
 use tokio::sync::mpsc;
 
-use crate::broadcaster::{listen_receipt_candidates, listen_tx_candidates};
-use crate::configs::RunConfigArgs;
-use configs::{Opts, SubCommand};
-use near_indexer;
-use near_indexer::near_primitives::types::{AccountId, TransactionOrReceiptId};
-use near_indexer::near_primitives::views::{ActionView, ReceiptEnumView, ReceiptView};
-use near_indexer::IndexerTransactionWithOutcome;
-use near_o11y::WithSpanContextExt;
+use crate::{broadcaster::listen_receipt_candidates, configs::RunConfigArgs};
 
 mod broadcaster;
 mod configs;
 
 async fn listen_blocks(
     mut stream: mpsc::Receiver<near_indexer::StreamerMessage>,
-    tx_sender: mpsc::Sender<near_client::TxStatus>,
-    outcome_sender: mpsc::Sender<ReceiptView>,
+    receipt_sender: mpsc::Sender<ReceiptView>,
     config: RunConfigArgs,
 ) {
     while let Some(streamer_message) = stream.recv().await {
@@ -46,40 +41,18 @@ async fn listen_blocks(
             })
             .collect();
 
-        let da_txs: Vec<&IndexerTransactionWithOutcome> = streamer_message
-            .shards
-            .iter()
-            .flat_map(|shard| shard.chunk.as_ref())
-            .flat_map(|chunk| {
-                chunk.transactions.iter().filter(|tx| {
-                    tx.transaction.receiver_id == da_contract_id
-                        && tx.transaction.actions.iter().any(|action| match action {
-                            ActionView::FunctionCall { method_name, .. } => method_name == "submit",
-                            _ => false,
-                        })
-                })
-            })
-            .collect();
-
-        // da_txs.iter().for_each(|tx| println!("tx: {:?}", tx));
-        // da_receipts.iter().for_each(|r| println!("{:?}", r));
-
-        join_all(
+        let results = join_all(
             da_receipts
                 .iter()
-                .map(|receipt| outcome_sender.send((*receipt).clone())),
+                .map(|receipt| receipt_sender.send((*receipt).clone())),
         )
         .await;
 
-        // TODO: process errs
-        join_all(da_txs.iter().map(|tx| {
-            tx_sender.send(near_client::TxStatus {
-                tx_hash: tx.transaction.hash,
-                signer_account_id: tx.transaction.signer_id.clone(),
-                fetch_receipt: true,
-            })
-        }))
-        .await;
+        // Receiver dropped or closed
+        if let Some(err) = results.iter().find_map(|result| result.as_ref().err()) {
+            eprintln!("{}", err);
+            break;
+        }
     }
 }
 
@@ -113,16 +86,11 @@ fn main() -> Result<()> {
                 let (view_client, _) = indexer.client_actors();
 
                 // TODO: define buffer: usize const
-                let (tx_sender, tx_receiver) = mpsc::channel::<near_client::TxStatus>(100);
-                actix::spawn(listen_tx_candidates(view_client.clone(), tx_receiver));
+                let (sender, receiver) = mpsc::channel::<ReceiptView>(100);
 
-                // TODO: define buffer: usize const
-                let (outcomes_sender, outcomes_receiver) = mpsc::channel::<ReceiptView>(100);
-                actix::spawn(listen_receipt_candidates(view_client, outcomes_receiver));
+                actix::spawn(listen_receipt_candidates(view_client, receiver));
+                listen_blocks(stream, sender, config).await;
 
-                listen_blocks(stream, tx_sender, outcomes_sender, config).await;
-
-                // TODO: at this point kill channels appropriately
                 actix::System::current().stop();
             });
 

@@ -3,32 +3,12 @@ use near_indexer::near_primitives::views::ReceiptView;
 use near_o11y::WithSpanContextExt;
 use tokio::sync::mpsc;
 
-pub(crate) async fn listen_tx_candidates(
-    view_client: actix::Addr<near_client::ViewClientActor>,
-    mut receiver: mpsc::Receiver<near_client::TxStatus>,
-) {
-    while let Some(tx_status) = receiver.recv().await {
-        // TODO: handle errors
-        let tx_status = view_client.send(tx_status.with_span_context()).await.unwrap().unwrap();
-
-        // let execution_outcome = if let Some(execution_outcome) = tx_status.execution_outcome {
-        //     return execution_outcome
-        // }
-
-        println!(
-            "execution_outcome: {:?} \n status {:?}",
-            tx_status.execution_outcome, tx_status.status
-        );
-    }
-}
-
 pub(crate) async fn listen_receipt_candidates(
     view_client: actix::Addr<near_client::ViewClientActor>,
     mut receiver: mpsc::Receiver<ReceiptView>,
 ) {
-    while let Some(receipt) = receiver.recv().await {
-        // TODO: handle errors
-        let execution_outcome = view_client
+    'main: while let Some(receipt) = receiver.recv().await {
+        let execution_outcome = match view_client
             .send(
                 near_client::GetExecutionOutcome {
                     id: TransactionOrReceiptId::Receipt {
@@ -39,9 +19,23 @@ pub(crate) async fn listen_receipt_candidates(
                 .with_span_context(),
             )
             .await
-            .unwrap()
-            .unwrap();
+        {
+            Ok(Ok(response)) => response,
+            Ok(Err(err)) => {
+                eprintln!("{}", err.to_string());
+                receiver.close();
+                break 'main;
+            }
+            Err(err) => {
+                eprintln!("{}", err);
+                receiver.close();
+                break 'main;
+            },
+        };
 
         println!("listen_execution_outcomes {:?}", execution_outcome.outcome_proof);
     }
+
+    // Drain messages
+    while let Some(_) = receiver.recv().await {}
 }
