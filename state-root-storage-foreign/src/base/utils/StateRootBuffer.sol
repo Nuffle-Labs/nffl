@@ -2,6 +2,8 @@
 pragma solidity ^0.8.12;
 
 library StateRootBuffer {
+    uint256 constant MAX_BUFFER_SIZE = 10000;
+
     struct BufferHeader {
         uint128 cursor;
         uint128 size;
@@ -9,7 +11,7 @@ library StateRootBuffer {
 
     struct Buffer {
         BufferHeader header;
-        bytes32[] content;
+        bytes32[MAX_BUFFER_SIZE] content;
     }
 
     function at(Buffer storage self, uint256 idx) internal view returns (bytes32) {
@@ -56,6 +58,7 @@ library StateRootBuffer {
 
     function initialize(Buffer storage self, uint128 newSize) internal {
         require(self.header.size == 0);
+        require(newSize <= MAX_BUFFER_SIZE);
 
         self.header = BufferHeader(0, newSize);
     }
