@@ -168,8 +168,6 @@ contract SFFLRegistryRollup is SFFLRegistryBase {
         _verifyUpdateStateRoot(rollupId, stateRoot, signatureInfo);
 
         _pushStateRoot(rollupId, stateRoot);
-
-        emit StateRootUpdated(rollupId, stateRoot);
     }
 
     function _verifyUpdateStateRoot(uint32 rollupId, bytes32 stateRoot, SignatureInfo calldata signatureInfo)

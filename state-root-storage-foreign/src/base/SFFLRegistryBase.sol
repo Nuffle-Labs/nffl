@@ -76,5 +76,7 @@ abstract contract SFFLRegistryBase {
 
     function _pushStateRoot(uint32 rollupId, bytes32 stateRoot) internal {
         _stateRootBuffers[rollupId].insert(stateRoot);
+
+        emit StateRootUpdated(rollupId, stateRoot);
     }
 }
