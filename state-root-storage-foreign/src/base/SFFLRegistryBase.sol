@@ -6,18 +6,13 @@ import {Lib_OVMCodec} from "@eth-optimism/contracts/libraries/codec/Lib_OVMCodec
 import {Lib_SecureMerkleTrie} from "@eth-optimism/contracts/libraries/trie/Lib_SecureMerkleTrie.sol";
 import {Lib_RLPReader} from "@eth-optimism/contracts/libraries/rlp/Lib_RLPReader.sol";
 
-import {StateRootBuffer} from "./utils/StateRootBuffer.sol";
-
 abstract contract SFFLRegistryBase {
-    using StateRootBuffer for StateRootBuffer.Buffer;
-
-    mapping(uint32 => StateRootBuffer.Buffer) internal _stateRootBuffers;
+    mapping(uint32 => mapping(uint64 => bytes32)) internal _stateRootBuffers;
 
     event StateRootUpdated(uint32 indexed rollupId, bytes32 stateRoot);
-    event RollupInitialized(uint32 indexed rollupId);
 
-    function latestStateRoot(uint32 rollupId) external view returns (uint256 slot, bytes32 stateRoot) {
-        return _stateRootBuffers[rollupId].latestValue();
+    function getStateRoot(uint32 rollupId, uint64 blockHeight) external view returns (bytes32) {
+        return _stateRootBuffers[rollupId][blockHeight];
     }
 
     struct ProofParams {
@@ -28,7 +23,7 @@ abstract contract SFFLRegistryBase {
         bytes storageTrieWitness;
     }
 
-    function verifyStorage(uint32 rollupId, uint256 stateRootSlot, ProofParams calldata proofParams)
+    function verifyStorage(uint32 rollupId, uint64 blockHeight, ProofParams calldata proofParams)
         external
         view
         returns (bool success)
@@ -36,7 +31,7 @@ abstract contract SFFLRegistryBase {
         return _getStorageValue(
             proofParams.target,
             proofParams.storageSlot,
-            _stateRootBuffers[rollupId].atSlot(stateRootSlot),
+            _stateRootBuffers[rollupId][blockHeight],
             proofParams.stateTrieWitness,
             proofParams.storageTrieWitness
         ) == proofParams.expectedStorageValue;
@@ -75,15 +70,9 @@ abstract contract SFFLRegistryBase {
         return ret;
     }
 
-    function _pushStateRoot(uint32 rollupId, bytes32 stateRoot) internal {
-        _stateRootBuffers[rollupId].insert(stateRoot);
+    function _pushStateRoot(uint32 rollupId, uint64 blockHeight, bytes32 stateRoot) internal {
+        _stateRootBuffers[rollupId][blockHeight] = stateRoot;
 
         emit StateRootUpdated(rollupId, stateRoot);
-    }
-
-    function _initializeRollup(uint32 rollupId, uint128 bufferSize) internal {
-        _stateRootBuffers[rollupId].initialize(bufferSize);
-
-        emit RollupInitialized(rollupId);
     }
 }
