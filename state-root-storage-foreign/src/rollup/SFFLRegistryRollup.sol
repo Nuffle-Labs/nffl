@@ -164,19 +164,19 @@ contract SFFLRegistryRollup is SFFLRegistryBase {
         _checkSignatures(msgHash, signatureInfo);
     }
 
-    function updateStateRoot(uint32 rollupId, bytes32 blockHash, SignatureInfo calldata signatureInfo) external {
-        _verifyUpdateStateRoot(rollupId, blockHash, signatureInfo);
+    function updateStateRoot(uint32 rollupId, bytes32 stateRoot, SignatureInfo calldata signatureInfo) external {
+        _verifyUpdateStateRoot(rollupId, stateRoot, signatureInfo);
 
-        _blockHashes[rollupId] = blockHash;
+        _pushStateRoot(rollupId, stateRoot);
 
-        emit StateRootUpdated(rollupId, blockHash);
+        emit StateRootUpdated(rollupId, stateRoot);
     }
 
-    function _verifyUpdateStateRoot(uint32 rollupId, bytes32 blockHash, SignatureInfo calldata signatureInfo)
+    function _verifyUpdateStateRoot(uint32 rollupId, bytes32 stateRoot, SignatureInfo calldata signatureInfo)
         internal
         view
     {
-        bytes32 msgHash = keccak256(abi.encode(rollupId, blockHash));
+        bytes32 msgHash = keccak256(abi.encode(rollupId, stateRoot));
 
         _checkSignatures(msgHash, signatureInfo);
     }
