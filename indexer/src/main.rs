@@ -1,4 +1,5 @@
-use anyhow::Result;
+extern crate core;
+
 use clap::Parser;
 use configs::{Opts, SubCommand};
 use futures::future::join_all;
@@ -8,17 +9,23 @@ use near_indexer::near_primitives::{
 };
 use tokio::sync::mpsc;
 
-use crate::{broadcaster::listen_receipt_candidates, configs::RunConfigArgs};
+use crate::{
+    broadcaster::listen_receipt_candidates,
+    configs::RunConfigArgs,
+    errors::{Error, Result},
+};
 
 mod broadcaster;
 mod configs;
+mod errors;
 
 async fn listen_blocks(
     mut stream: mpsc::Receiver<near_indexer::StreamerMessage>,
     receipt_sender: mpsc::Sender<ReceiptView>,
     config: RunConfigArgs,
-) {
+) -> Result<()> {
     while let Some(streamer_message) = stream.recv().await {
+        // TODO: prepare data outside
         let da_contract_id: AccountId = config.da_contract_id.parse().expect("Can't parse da-contract-id");
         let da_receipts: Vec<&ReceiptView> = streamer_message
             .shards
@@ -48,12 +55,13 @@ async fn listen_blocks(
         )
         .await;
 
-        // Receiver dropped or closed
-        if let Some(err) = results.iter().find_map(|result| result.as_ref().err()) {
-            eprintln!("{}", err);
-            break;
+        // Receiver dropped or closed.
+        if let Some(_) = results.iter().find_map(|result| result.as_ref().err()) {
+            return Err(Error::SendError);
         }
     }
+
+    Ok(())
 }
 
 fn main() -> Result<()> {
@@ -89,7 +97,9 @@ fn main() -> Result<()> {
                 let (sender, receiver) = mpsc::channel::<ReceiptView>(100);
 
                 actix::spawn(listen_receipt_candidates(view_client, receiver));
-                listen_blocks(stream, sender, config).await;
+                if let Err(err) = listen_blocks(stream, sender, config).await {
+                    eprintln!("{}", err.to_string());
+                }
 
                 actix::System::current().stop();
             });
@@ -98,5 +108,6 @@ fn main() -> Result<()> {
         }
         SubCommand::Init(config) => near_indexer::indexer_init_configs(&home_dir, config.into())?,
     }
+
     Ok(())
 }

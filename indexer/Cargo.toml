@@ -25,6 +25,7 @@ tokio = { version = "1.28", features = [
     "time",
 ] }
 tracing = { version = "0.1.36", features = ["std"] }
+thiserror = "1.0.56"
 
 near-indexer = { git = "https://github.com/near/nearcore", rev = "4fce209e78fd1008c3a779101d080fe1570bbfe9" }
 near-client = { git = "https://github.com/near/nearcore", rev = "4fce209e78fd1008c3a779101d080fe1570bbfe9" }

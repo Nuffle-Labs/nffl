@@ -30,7 +30,7 @@ pub(crate) async fn listen_receipt_candidates(
                 eprintln!("{}", err);
                 receiver.close();
                 break 'main;
-            },
+            }
         };
 
         println!("listen_execution_outcomes {:?}", execution_outcome.outcome_proof);
