@@ -179,6 +179,21 @@ contract SFFLRegistryRollup is SFFLRegistryBase {
         _checkSignatures(msgHash, signatureInfo);
     }
 
+    function initializeRollup(uint32 rollupId, uint128 bufferSize, SignatureInfo calldata signatureInfo) external {
+        _verifyInitializeRollup(rollupId, bufferSize, signatureInfo);
+
+        _initializeRollup(rollupId, bufferSize);
+    }
+
+    function _verifyInitializeRollup(uint32 rollupId, uint128 bufferSize, SignatureInfo calldata signatureInfo)
+        internal
+        view
+    {
+        bytes32 msgHash = keccak256(abi.encode(rollupId, bufferSize));
+
+        _checkSignatures(msgHash, signatureInfo);
+    }
+
     function _checkSignatures(bytes32 msgHash, SignatureInfo calldata signatureInfo) internal view {
         BN254.G1Point memory apk = BN254.G1Point(0, 0);
         uint256 weight = 0;

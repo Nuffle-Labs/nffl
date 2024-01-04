@@ -14,6 +14,7 @@ abstract contract SFFLRegistryBase {
     mapping(uint32 => StateRootBuffer.Buffer) internal _stateRootBuffers;
 
     event StateRootUpdated(uint32 indexed rollupId, bytes32 stateRoot);
+    event RollupInitialized(uint32 indexed rollupId);
 
     function latestStateRoot(uint32 rollupId) external view returns (uint256 slot, bytes32 stateRoot) {
         return _stateRootBuffers[rollupId].latestValue();
@@ -78,5 +79,11 @@ abstract contract SFFLRegistryBase {
         _stateRootBuffers[rollupId].insert(stateRoot);
 
         emit StateRootUpdated(rollupId, stateRoot);
+    }
+
+    function _initializeRollup(uint32 rollupId, uint128 bufferSize) internal {
+        _stateRootBuffers[rollupId].initialize(bufferSize);
+
+        emit RollupInitialized(rollupId);
     }
 }
