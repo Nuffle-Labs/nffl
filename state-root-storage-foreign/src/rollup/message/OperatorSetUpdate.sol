@@ -5,6 +5,7 @@ import {Operators} from "../utils/Operators.sol";
 
 library OperatorSetUpdate {
     struct Message {
+        uint64 id;
         Operators.Operator[] operators;
     }
 

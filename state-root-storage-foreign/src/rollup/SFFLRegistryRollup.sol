@@ -15,16 +15,22 @@ contract SFFLRegistryRollup is SFFLRegistryBase {
     using StateRootUpdate for StateRootUpdate.Message;
 
     Operators.OperatorSet internal _operatorSet;
+    uint64 public lastOperatorUpdateId;
 
-    constructor(Operators.Operator[] memory operators, uint128 weightThreshold) {
+    constructor(Operators.Operator[] memory operators, uint128 weightThreshold, uint64 operatorUpdateId) {
         _operatorSet.initialize(operators, weightThreshold);
+
+        lastOperatorUpdateId = operatorUpdateId;
     }
 
     function updateOperatorSet(
         OperatorSetUpdate.Message calldata message,
         Operators.SignatureInfo calldata signatureInfo
     ) external {
+        require(message.id == lastOperatorUpdateId + 1, "Wrong message ID");
         require(_operatorSet.verifyCalldata(message.hashCalldata(), signatureInfo), "Not enough quorum");
+
+        lastOperatorUpdateId = message.id;
 
         _operatorSet.update(message.operators);
     }
