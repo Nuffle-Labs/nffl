@@ -11,7 +11,6 @@ library Operators {
 
     struct Operator {
         BN254.G1Point pubkey;
-        uint8 quorumCount;
         uint128 weight;
     }
 
@@ -28,7 +27,7 @@ library Operators {
         BN254.G1Point sigma;
     }
 
-    event OperatorUpdated(bytes32 indexed pubkeyHash, uint8 quorumCount, uint128 weight);
+    event OperatorUpdated(bytes32 indexed pubkeyHash, uint128 weight);
 
     function initialize(OperatorSet storage self, Operator[] memory operators, uint128 weightThreshold) internal {
         update(self, operators);
@@ -49,28 +48,21 @@ library Operators {
             operator = operators[i];
 
             bytes32 pubkeyHash = operator.pubkey.hashG1Point();
-
-            uint8 currentQuorumCount = self.pubkeyHashToOperator[pubkeyHash].quorumCount;
             uint128 currentWeight = self.pubkeyHashToOperator[pubkeyHash].weight;
 
-            if (operator.quorumCount != currentQuorumCount) {
-                if (currentQuorumCount > operator.quorumCount) {
-                    newApk = newApk.plus(operator.pubkey.scalar_mul_tiny(currentQuorumCount - operator.quorumCount));
-                } else {
-                    newApk =
-                        newApk.plus(operator.pubkey.scalar_mul_tiny(operator.quorumCount - currentQuorumCount).negate());
-                }
+            require(operator.weight != currentWeight, "Operator is up to date");
 
-                self.pubkeyHashToOperator[pubkeyHash].quorumCount = operator.quorumCount;
+            newTotalWeight = newTotalWeight + currentWeight - operator.weight;
+
+            if (currentWeight == 0) {
+                newApk = newApk.plus(operator.pubkey);
+            } else if (operator.weight == 0) {
+                newApk = newApk.plus(operator.pubkey.negate());
             }
 
-            if (operator.weight != currentWeight) {
-                newTotalWeight = newTotalWeight + currentWeight - operator.weight;
+            self.pubkeyHashToOperator[pubkeyHash].weight = operator.weight;
 
-                self.pubkeyHashToOperator[pubkeyHash].weight = operator.weight;
-            }
-
-            emit OperatorUpdated(pubkeyHash, operator.quorumCount, operator.weight);
+            emit OperatorUpdated(pubkeyHash, operator.weight);
         }
     }
 
@@ -94,7 +86,7 @@ library Operators {
 
             operator = self.pubkeyHashToOperator[signatureInfo.nonSignerPubkeyHashes[i]];
 
-            apk = apk.plus(operator.pubkey.scalar_mul_tiny(operator.quorumCount));
+            apk = apk.plus(operator.pubkey);
             weight += operator.weight;
         }
 
