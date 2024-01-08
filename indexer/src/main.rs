@@ -22,11 +22,10 @@ mod errors;
 async fn listen_blocks(
     mut stream: mpsc::Receiver<near_indexer::StreamerMessage>,
     receipt_sender: mpsc::Sender<ReceiptView>,
-    config: RunConfigArgs,
+    da_contract_id: AccountId,
 ) -> Result<()> {
     while let Some(streamer_message) = stream.recv().await {
         // TODO: prepare data outside
-        let da_contract_id: AccountId = config.da_contract_id.parse().expect("Can't parse da-contract-id");
         let da_receipts: Vec<&ReceiptView> = streamer_message
             .shards
             .iter()
@@ -72,12 +71,11 @@ fn main() -> Result<()> {
     let _subscriber = near_o11y::default_subscriber(env_filter, &Default::default()).global();
     let opts: Opts = Opts::parse();
 
-    // TODO: hardcoded
-    let addr = std::env::var("AMQP_ADDR").unwrap_or_else(|_| "amqp://rmq:rmq@127.0.0.1:5672/%2f".into());
     let home_dir = opts.home_dir.unwrap_or(near_indexer::get_default_home());
 
     match opts.subcmd {
         SubCommand::Run(config) => {
+            let da_contract_id: AccountId = config.da_contract_id.parse()?;
             let indexer_config = near_indexer::IndexerConfig {
                 home_dir,
                 sync_mode: near_indexer::SyncModeEnum::FromInterruption,
@@ -87,7 +85,7 @@ fn main() -> Result<()> {
 
             let system = actix::System::new();
             system.block_on(async move {
-                let connection_pool = create_connection_pool(addr)?;
+                let connection_pool = create_connection_pool(config.rmq_address)?;
 
                 let indexer = near_indexer::Indexer::new(indexer_config).expect("Indexer::new()");
                 let stream = indexer.streamer();
@@ -98,7 +96,7 @@ fn main() -> Result<()> {
 
                 // TODO handl error
                 actix::spawn(process_receipt_candidates(view_client, receiver, connection_pool));
-                if let Err(err) = listen_blocks(stream, sender, config).await {
+                if let Err(err) = listen_blocks(stream, sender, da_contract_id).await {
                     eprintln!("{}", err.to_string());
                 }
 

@@ -24,6 +24,9 @@ pub(crate) struct RunConfigArgs {
     /// Data availability contract
     #[clap(short, long)]
     pub da_contract_id: String,
+    /// Rabbit mq address
+    #[clap(long)]
+    pub rmq_address: String
 }
 
 #[derive(clap::Parser, Debug)]

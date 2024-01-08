@@ -16,8 +16,6 @@ pub(crate) async fn process_receipt_candidates(
     connection_pool: Pool,
 ) -> Result<()> {
     'main: while let Some(receipt) = receiver.recv().await {
-        println!("receipt: {:?}", serde_json::to_string(&receipt).unwrap());
-
         let execution_outcome = match view_client
             .send(
                 near_client::GetExecutionOutcome {
@@ -42,11 +40,6 @@ pub(crate) async fn process_receipt_candidates(
                 break 'main;
             }
         };
-
-        println!(
-            "listen_execution_outcomes {:?}",
-            serde_json::to_string(&execution_outcome.outcome_proof).unwrap()
-        );
 
         let payloads = if let ExecutionStatusView::SuccessValue(_) = execution_outcome.outcome_proof.outcome.status {
             if let ReceiptEnumView::Action { actions, .. } = &receipt.receipt {
