@@ -1,5 +1,3 @@
-extern crate core;
-
 use clap::Parser;
 use configs::{Opts, SubCommand};
 use futures::future::join_all;
@@ -9,10 +7,16 @@ use near_indexer::near_primitives::{
 };
 use tokio::sync::mpsc;
 
-use crate::{broadcaster::listen_receipt_candidates, configs::RunConfigArgs, errors::Result};
+use crate::{
+    broadcaster::process_receipt_candidates,
+    configs::RunConfigArgs,
+    connection::create_connection_pool,
+    errors::{Error, Result},
+};
 
 mod broadcaster;
 mod configs;
+mod connection;
 mod errors;
 
 async fn listen_blocks(
@@ -68,6 +72,8 @@ fn main() -> Result<()> {
     let _subscriber = near_o11y::default_subscriber(env_filter, &Default::default()).global();
     let opts: Opts = Opts::parse();
 
+    // TODO: hardcoded
+    let addr = std::env::var("AMQP_ADDR").unwrap_or_else(|_| "amqp://rmq:rmq@127.0.0.1:5672/%2f".into());
     let home_dir = opts.home_dir.unwrap_or(near_indexer::get_default_home());
 
     match opts.subcmd {
@@ -81,21 +87,25 @@ fn main() -> Result<()> {
 
             let system = actix::System::new();
             system.block_on(async move {
+                let connection_pool = create_connection_pool(addr)?;
+
                 let indexer = near_indexer::Indexer::new(indexer_config).expect("Indexer::new()");
                 let stream = indexer.streamer();
-
                 let (view_client, _) = indexer.client_actors();
 
                 // TODO: define buffer: usize const
                 let (sender, receiver) = mpsc::channel::<ReceiptView>(100);
 
-                actix::spawn(listen_receipt_candidates(view_client, receiver));
+                // TODO handl error
+                actix::spawn(process_receipt_candidates(view_client, receiver, connection_pool));
                 if let Err(err) = listen_blocks(stream, sender, config).await {
                     eprintln!("{}", err.to_string());
                 }
 
                 actix::System::current().stop();
-            });
+
+                Ok::<(), Error>(())
+            })?;
 
             system.run()?;
         }

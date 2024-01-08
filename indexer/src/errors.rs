@@ -8,6 +8,12 @@ pub enum Error {
     IoError(#[from] std::io::Error),
     #[error("anyhow error")]
     AnyhowError(#[from] anyhow::Error),
+    #[error(transparent)]
+    LapinError(#[from] lapin::Error),
+    #[error(transparent)]
+    LapinBuildError(#[from] deadpool::managed::BuildError),
+    #[error("rmq pool error: {0}")]
+    RMQPoolError(#[from] deadpool_lapin::PoolError),
 }
 
 impl<T> From<SendError<T>> for Error {
