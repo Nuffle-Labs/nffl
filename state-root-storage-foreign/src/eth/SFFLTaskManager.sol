@@ -168,10 +168,6 @@ contract SFFLTaskManager is
         emit CheckpointTaskChallengedSuccessfully(referenceTaskIndex, msg.sender);
     }
 
-    function getTaskResponseWindowBlock() external view returns (uint32) {
-        return TASK_RESPONSE_WINDOW_BLOCK;
-    }
-
     function checkQuorum(
         bytes32 messageHash,
         bytes calldata quorumNumbers,
