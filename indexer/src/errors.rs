@@ -15,7 +15,7 @@ pub enum Error {
     #[error("rmq pool error: {0}")]
     RMQPoolError(#[from] deadpool_lapin::PoolError),
     #[error(transparent)]
-    ParseAccountError(#[from] near_indexer::near_primitives::account::id::ParseAccountError)
+    ParseAccountError(#[from] near_indexer::near_primitives::account::id::ParseAccountError),
 }
 
 impl<T> From<SendError<T>> for Error {

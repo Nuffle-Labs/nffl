@@ -60,6 +60,38 @@ async fn listen_blocks(
     Ok(())
 }
 
+use std::cell::RefCell;
+use std::rc::Rc;
+use std::time::Duration;
+
+use actix::prelude::*;
+
+struct A(Rc<RefCell<usize>>);
+
+impl Actor for A {
+    type Context = Context<Self>;
+}
+
+struct Msg;
+
+impl Message for Msg {
+    type Result = ();
+}
+
+impl Handler<Msg> for A {
+    type Result = ();
+
+    fn handle(&mut self, _: Msg, ctx: &mut Self::Context) -> Self::Result {
+        let a = self.0.clone();
+        async move {
+            let mut borrowed = a.borrow_mut();
+            *borrowed += 1;
+        }
+        .into_actor(self)
+        .wait(ctx);
+    }
+}
+
 fn main() -> Result<()> {
     // We use it to automatically search the for root certificates to perform HTTPS calls
     // (sending telemetry and downloading genesis)

@@ -1,5 +1,5 @@
-use std::ops::Deref;
 use crate::errors::Result;
+use std::ops::Deref;
 
 use deadpool_lapin::Pool;
 use lapin::options::BasicPublishOptions;
@@ -79,3 +79,10 @@ pub(crate) async fn process_receipt_candidates(
 
     Ok(())
 }
+
+// architecture:
+// async task is getting data
+// this data is sent for confirmation
+// Once data is confirmed -> put on MQ
+// Need to put messages in sequence on MQ
+// If

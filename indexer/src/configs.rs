@@ -26,7 +26,7 @@ pub(crate) struct RunConfigArgs {
     pub da_contract_id: String,
     /// Rabbit mq address
     #[clap(long)]
-    pub rmq_address: String
+    pub rmq_address: String,
 }
 
 #[derive(clap::Parser, Debug)]
