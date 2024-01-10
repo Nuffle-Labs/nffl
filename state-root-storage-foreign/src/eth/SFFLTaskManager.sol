@@ -72,7 +72,7 @@ contract SFFLTaskManager is
         generator = _generator;
     }
 
-    function createNewCheckpointTask(
+    function createCheckpointTask(
         uint64 fromNearBlock,
         uint64 toNearBlock,
         uint32 quorumThresholdPercentage,
