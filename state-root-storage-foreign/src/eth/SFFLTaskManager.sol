@@ -37,7 +37,7 @@ contract SFFLTaskManager is
     mapping(uint32 => bytes32) public allCheckpointTaskResponses;
     mapping(uint32 => bool) public checkpointTaskSuccesfullyChallenged;
 
-    event NewCheckpointTaskCreated(uint32 indexed taskIndex, Checkpoint.Task task);
+    event CheckpointTaskCreated(uint32 indexed taskIndex, Checkpoint.Task task);
     event CheckpointTaskResponded(
         Checkpoint.TaskResponse taskResponse, Checkpoint.TaskResponseMetadata taskResponseMetadata
     );
@@ -87,7 +87,7 @@ contract SFFLTaskManager is
         });
 
         allCheckpointTaskHashes[latestCheckpointTaskNum] = newTask.hash();
-        emit NewCheckpointTaskCreated(latestCheckpointTaskNum, newTask);
+        emit CheckpointTaskCreated(latestCheckpointTaskNum, newTask);
         latestCheckpointTaskNum = latestCheckpointTaskNum + 1;
     }
 
