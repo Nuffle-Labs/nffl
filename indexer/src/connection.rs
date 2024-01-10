@@ -1,4 +1,5 @@
 use crate::errors::{Error, Result};
+use deadpool::managed::Object;
 
 use deadpool_lapin::{Manager, Pool};
 use lapin::options::BasicPublishOptions;
@@ -51,7 +52,7 @@ pub struct RabbitPublisher {
     sender: mpsc::Sender<PublishData>,
 }
 
-// TODO: try to put error in inner state
+// TODO: try to put error in inner state?
 impl RabbitPublisher {
     pub fn new(addr: &str) -> Result<Self> {
         let pool = create_connection_pool(addr.into())?;
@@ -76,46 +77,7 @@ impl RabbitPublisher {
             .map_err(|_| Error::SendError)
     }
 
-    // async fn logic(connection_pool: Pool, mut connection: Connection, publish_data: PublishData, ) -> Result<()> {
-    //     if !connection.status().connected() {
-    //         connection = connection_pool.get().await?;
-    //     }
-    // 
-    //     let channel = match connection.create_channel().await {
-    //         Ok(channel) => channel,
-    //         Err(err) => {
-    //             Self::handle_error(err, Some(publish_data));
-    //             break;
-    //         }
-    //     };
-    //
-    //     let PublishOptions {
-    //         exchange,
-    //         routing_key,
-    //         basic_publish_options,
-    //         basic_properties,
-    //     } = publish_data.publish_options.clone();
-    //
-    //     match channel
-    //         .basic_publish(
-    //             &exchange,
-    //             &routing_key,
-    //             basic_publish_options,
-    //             &publish_data.payload,
-    //             basic_properties,
-    //         )
-    //         .await
-    //     {
-    //         Ok(_) => (),
-    //         Err(err) => {
-    //             Self::handle_error(err, Some(publish_data));
-    //             break;
-    //         }
-    //     };
-    // }
-
     async fn publisher(connection_pool: Pool, mut receiver: mpsc::Receiver<PublishData>) {
-        // TODO: remove unwrap
         let mut connection = match connection_pool.get().await {
             Ok(connection) => connection,
             Err(err) => {
@@ -124,24 +86,12 @@ impl RabbitPublisher {
             }
         };
 
-        while let Some(publish_data) = receiver.recv().await {
+        let logic = |connection_pool: Pool, mut connection: Connection, publish_data: PublishData| async move {
             if !connection.status().connected() {
-                match connection_pool.get().await {
-                    Ok(new_connection) => connection = new_connection,
-                    Err(err) => {
-                        Self::handle_error(err, Some(publish_data));
-                        break;
-                    }
-                };
+                connection = connection_pool.get().await?;
             }
 
-            let channel = match connection.create_channel().await {
-                Ok(channel) => channel,
-                Err(err) => {
-                    Self::handle_error(err, Some(publish_data));
-                    break;
-                }
-            };
+            let channel = connection.create_channel().await?;
 
             let PublishOptions {
                 exchange,
@@ -150,7 +100,7 @@ impl RabbitPublisher {
                 basic_properties,
             } = publish_data.publish_options.clone();
 
-            match channel
+            channel
                 .basic_publish(
                     &exchange,
                     &routing_key,
@@ -158,15 +108,25 @@ impl RabbitPublisher {
                     &publish_data.payload,
                     basic_properties,
                 )
-                .await
-            {
-                Ok(_) => (),
+                .await?;
+
+            Ok::<_, Error>(connection)
+        };
+
+        while let Some(publish_data) = receiver.recv().await {
+            match logic(connection_pool.clone(), connection, publish_data.clone()).await {
+                Ok(new_connection) => connection = new_connection,
                 Err(err) => {
                     Self::handle_error(err, Some(publish_data));
                     break;
                 }
-            };
+            }
         }
+
+        receiver.close();
+
+        // Drain receiver
+        while let Some(_) = receiver.recv().await {}
     }
 
     fn handle_error(error: impl Into<Error>, _publish_data: Option<PublishData>) {
