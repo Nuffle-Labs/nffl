@@ -13,7 +13,13 @@ import {BN254} from "eigenlayer-middleware/libraries/BN254.sol";
 
 import {Checkpoint} from "./task/Checkpoint.sol";
 
-contract SFFLTaskManager is Initializable, OwnableUpgradeable, Pausable, BLSSignatureChecker, OperatorStateRetriever {
+contract SFFLTaskManager is
+    Initializable,
+    OwnableUpgradeable,
+    Pausable,
+    BLSSignatureChecker,
+    OperatorStateRetriever
+{
     using BN254 for BN254.G1Point;
     using Checkpoint for Checkpoint.Task;
     using Checkpoint for Checkpoint.TaskResponse;
@@ -94,31 +100,16 @@ contract SFFLTaskManager is Initializable, OwnableUpgradeable, Pausable, BLSSign
         bytes calldata quorumNumbers = task.quorumNumbers;
         uint32 quorumThresholdPercentage = task.quorumThresholdPercentage;
 
-        require(
-            task.hashCalldata() == allCheckpointTaskHashes[taskResponse.referenceTaskIndex],
-            "Wrong task hash"
-        );
-        require(
-            allCheckpointTaskResponses[taskResponse.referenceTaskIndex] == bytes32(0),
-            "Task already responded"
-        );
-        require(
-            uint32(block.number) <= taskCreatedBlock + TASK_RESPONSE_WINDOW_BLOCK,
-            "Response time exceeded"
-        );
+        require(task.hashCalldata() == allCheckpointTaskHashes[taskResponse.referenceTaskIndex], "Wrong task hash");
+        require(allCheckpointTaskResponses[taskResponse.referenceTaskIndex] == bytes32(0), "Task already responded");
+        require(uint32(block.number) <= taskCreatedBlock + TASK_RESPONSE_WINDOW_BLOCK, "Response time exceeded");
 
-        bytes32 message = taskResponse.hashCalldata();
+        bytes32 messageHash = taskResponse.hashCalldata();
 
-        (QuorumStakeTotals memory quorumStakeTotals, bytes32 hashOfNonSigners) =
-            checkSignatures(message, quorumNumbers, taskCreatedBlock, nonSignerStakesAndSignature);
-
-        for (uint256 i = 0; i < quorumNumbers.length; i++) {
-            require(
-                quorumStakeTotals.signedStakeForQuorum[i] * _THRESHOLD_DENOMINATOR
-                    >= quorumStakeTotals.totalStakeForQuorum[i] * uint8(quorumThresholdPercentage),
-                "Quorum percentage not met"
-            );
-        }
+        (bool success, bytes32 hashOfNonSigners) = checkQuorum(
+            messageHash, quorumNumbers, taskCreatedBlock, nonSignerStakesAndSignature, quorumThresholdPercentage
+        );
+        require(success, "Quorum percentage not met");
 
         Checkpoint.TaskResponseMetadata memory taskResponseMetadata =
             Checkpoint.TaskResponseMetadata(uint32(block.number), hashOfNonSigners);
@@ -145,10 +136,7 @@ contract SFFLTaskManager is Initializable, OwnableUpgradeable, Pausable, BLSSign
             allCheckpointTaskResponses[referenceTaskIndex] == taskResponse.hashAgreementCalldata(taskResponseMetadata),
             "Wrong task response"
         );
-        require(
-            !checkpointTaskSuccesfullyChallenged[referenceTaskIndex],
-            "Already been challenged"
-        );
+        require(!checkpointTaskSuccesfullyChallenged[referenceTaskIndex], "Already been challenged");
 
         require(
             uint32(block.number) <= taskResponseMetadata.taskRespondedBlock + TASK_CHALLENGE_WINDOW_BLOCK,
@@ -167,10 +155,7 @@ contract SFFLTaskManager is Initializable, OwnableUpgradeable, Pausable, BLSSign
 
         bytes32 signatoryRecordHash =
             keccak256(abi.encodePacked(task.taskCreatedBlock, hashesOfPubkeysOfNonSigningOperators));
-        require(
-            signatoryRecordHash == taskResponseMetadata.hashOfNonSigners,
-            "Wrong non-signer pubkeys"
-        );
+        require(signatoryRecordHash == taskResponseMetadata.hashOfNonSigners, "Wrong non-signer pubkeys");
 
         address[] memory addresssOfNonSigningOperators = new address[](pubkeysOfNonSigningOperators.length);
         for (uint256 i = 0; i < pubkeysOfNonSigningOperators.length; i++) {
@@ -185,6 +170,28 @@ contract SFFLTaskManager is Initializable, OwnableUpgradeable, Pausable, BLSSign
 
     function getTaskResponseWindowBlock() external view returns (uint32) {
         return TASK_RESPONSE_WINDOW_BLOCK;
+    }
+
+    function checkQuorum(
+        bytes32 messageHash,
+        bytes calldata quorumNumbers,
+        uint32 referenceBlockNumber,
+        NonSignerStakesAndSignature memory nonSignerStakesAndSignature,
+        uint256 quorumThresholdPercentage
+    ) public view returns (bool, bytes32) {
+        (QuorumStakeTotals memory quorumStakeTotals, bytes32 hashOfNonSigners) =
+            checkSignatures(messageHash, quorumNumbers, referenceBlockNumber, nonSignerStakesAndSignature);
+
+        for (uint256 i = 0; i < quorumNumbers.length; i++) {
+            if (
+                quorumStakeTotals.signedStakeForQuorum[i] * _THRESHOLD_DENOMINATOR
+                    < quorumStakeTotals.totalStakeForQuorum[i] * uint8(quorumThresholdPercentage)
+            ) {
+                return (false, hashOfNonSigners);
+            }
+        }
+
+        return (true, hashOfNonSigners);
     }
 
     function _validateChallenge(
