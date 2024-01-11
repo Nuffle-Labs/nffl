@@ -38,7 +38,7 @@ pub(crate) async fn process_receipt_candidates(
 
         if !matches!(
             execution_outcome.outcome_proof.outcome.status,
-            ExecutionStatusView::SuccessValue(asd)
+            ExecutionStatusView::SuccessValue(_)
         ) {
             // TODO: log this?
             continue;
