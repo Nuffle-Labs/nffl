@@ -8,6 +8,10 @@ import {StateRootUpdate} from "../base/message/StateRootUpdate.sol";
 import {Operators} from "./utils/Operators.sol";
 import {OperatorSetUpdate} from "./message/OperatorSetUpdate.sol";
 
+/**
+ * @title SFFL registry for rollups / external networks
+ * @notice Contract that centralizes
+ */
 contract SFFLRegistryRollup is SFFLRegistryBase {
     using BN254 for BN254.G1Point;
     using Operators for Operators.OperatorSet;
@@ -15,6 +19,10 @@ contract SFFLRegistryRollup is SFFLRegistryBase {
     using StateRootUpdate for StateRootUpdate.Message;
 
     Operators.OperatorSet internal _operatorSet;
+
+    /**
+     * @notice Last operator set update message ID
+     */
     uint64 public lastOperatorUpdateId;
 
     constructor(Operators.Operator[] memory operators, uint128 weightThreshold, uint64 operatorUpdateId) {
@@ -23,6 +31,11 @@ contract SFFLRegistryRollup is SFFLRegistryBase {
         lastOperatorUpdateId = operatorUpdateId;
     }
 
+    /**
+     * @notice Updates the operator set through an operator set update message
+     * @param message Operator set update message
+     * @param signatureInfo BLS aggregated signature info
+     */
     function updateOperatorSet(
         OperatorSetUpdate.Message calldata message,
         Operators.SignatureInfo calldata signatureInfo
@@ -35,6 +48,12 @@ contract SFFLRegistryRollup is SFFLRegistryBase {
         _operatorSet.update(message.operators);
     }
 
+    /**
+     * @notice Updates a rollup's state root for a block height through a state
+     * root update message
+     * @param message State root update message
+     * @param signatureInfo BLS aggregated signature info
+     */
     function updateStateRoot(StateRootUpdate.Message calldata message, Operators.SignatureInfo calldata signatureInfo)
         external
     {

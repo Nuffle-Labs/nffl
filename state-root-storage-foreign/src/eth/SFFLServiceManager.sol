@@ -11,12 +11,25 @@ import {SFFLTaskManager} from "./SFFLTaskManager.sol";
 import {SFFLRegistryBase} from "../base/SFFLRegistryBase.sol";
 import {StateRootUpdate} from "../base/message/StateRootUpdate.sol";
 
+/**
+ * @title SFFL AVS Service Manager
+ * @notice Entrypoint for most SFFL operations
+ */
 contract SFFLServiceManager is SFFLRegistryBase, ServiceManagerBase {
     using StateRootUpdate for StateRootUpdate.Message;
 
+    /**
+     * @notice Address of the SFFL task manager
+     */
     SFFLTaskManager public immutable taskManager;
 
+    /**
+     * @dev Denominator for state root update thresholds
+     */
     uint256 internal constant _THRESHOLD_DENOMINATOR = 1000000000;
+    /**
+     * @dev State root update threshold
+     */
     uint256 internal constant _THRESHOLD_PERCENTAGE = _THRESHOLD_DENOMINATOR / 2;
 
     modifier onlyTaskManager() {
@@ -33,10 +46,19 @@ contract SFFLServiceManager is SFFLRegistryBase, ServiceManagerBase {
         taskManager = _taskManager;
     }
 
+    /**
+     * @notice Freezes an operator (currently NOOP)
+     * @param operatorAddr Operator address
+     */
     function freezeOperator(address operatorAddr) external onlyTaskManager {
         // slasher.freezeOperator(operatorAddr);
     }
 
+    /**
+     * Updates a rollup's state root based on the AVS operators agreement
+     * @param message State root update message
+     * @param nonSignerStakesAndSignature AVS operators agreement info
+     */
     function updateStateRoot(
         StateRootUpdate.Message calldata message,
         IBLSSignatureChecker.NonSignerStakesAndSignature calldata nonSignerStakesAndSignature
@@ -46,12 +68,20 @@ contract SFFLServiceManager is SFFLRegistryBase, ServiceManagerBase {
         _pushStateRoot(message.rollupId, message.blockHeight, message.stateRoot);
     }
 
+    /**
+     * @dev Computes whether a state root update quorum was met or not
+     * @param message State root update message
+     * @param nonSignerStakesAndSignature AVS operators agreement info
+     * @return Whether the quorum was met or not
+     */
     function _verifyStateRootUpdate(
         StateRootUpdate.Message calldata message,
         IBLSSignatureChecker.NonSignerStakesAndSignature calldata nonSignerStakesAndSignature
     ) internal view returns (bool) {
-        (bool success,) = taskManager.checkQuorum(message.hashCalldata(), hex"01", uint32(block.number), nonSignerStakesAndSignature, _THRESHOLD_PERCENTAGE);
-        
+        (bool success,) = taskManager.checkQuorum(
+            message.hashCalldata(), hex"01", uint32(block.number), nonSignerStakesAndSignature, _THRESHOLD_PERCENTAGE
+        );
+
         return success;
     }
 }

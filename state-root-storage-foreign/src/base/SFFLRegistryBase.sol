@@ -6,11 +6,36 @@ import {Lib_OVMCodec} from "@eth-optimism/contracts/libraries/codec/Lib_OVMCodec
 import {Lib_SecureMerkleTrie} from "@eth-optimism/contracts/libraries/trie/Lib_SecureMerkleTrie.sol";
 import {Lib_RLPReader} from "@eth-optimism/contracts/libraries/rlp/Lib_RLPReader.sol";
 
+/**
+ * @title SFFL registry base implementation
+ * @notice Base implementation for all SFFL contracts in any chain, including
+ * state root storage utilities and storage verification through the trusted
+ * roots.
+ * @dev This base implementation expects `_pushStateRoot` to be called by the
+ * children contracts. This should ideally be done only through state root
+ * update messages, and after verifying its agreement.
+ */
 abstract contract SFFLRegistryBase {
+    /**
+     * @dev Maps rollupId => blockHeight => stateRoot
+     */
     mapping(uint32 => mapping(uint64 => bytes32)) internal _stateRootBuffers;
 
+    /**
+     * @notice Emitted when a rollup's state root is updated
+     * @param rollupId Pre-defined rollup ID
+     * @param blockHeight Rollup block height
+     * @param stateRoot Rollup state root at blockHeight
+     */
     event StateRootUpdated(uint32 indexed rollupId, uint64 indexed blockHeight, bytes32 stateRoot);
 
+    /**
+     * @notice Gets a state root for a rollup in a specific block height
+     * @dev Does not fail if it's empty, should be checked for zeroes
+     * @param rollupId Pre-defined rollup ID
+     * @param blockHeight Rollup block height
+     * @return Rollup state root, or 0 if unset
+     */
     function getStateRoot(uint32 rollupId, uint64 blockHeight) external view returns (bytes32) {
         return _stateRootBuffers[rollupId][blockHeight];
     }
@@ -23,6 +48,13 @@ abstract contract SFFLRegistryBase {
         bytes storageTrieWitness;
     }
 
+    /**
+     * @notice Verifies a storage slot based on a rollup's state root in a block
+     * @param rollupId Pre-defined rollup ID
+     * @param blockHeight Rollup block height
+     * @param proofParams Storage proof parameters
+     * @return Whether the storage value is the expected one or not
+     */
     function verifyStorage(uint32 rollupId, uint64 blockHeight, ProofParams calldata proofParams)
         external
         view
@@ -37,7 +69,16 @@ abstract contract SFFLRegistryBase {
         ) == proofParams.expectedStorageValue;
     }
 
-    // based on: https://github.com/ensdomains/arb-resolver/blob/a2ee680e4a62bb5a3f22fd9cfc4a1863504144d2/packages/contracts/contracts/l1/ArbitrumResolverStub.sol#L167C1-L194C1
+    /**
+     * @notice Gets a storage slot value based on a state root
+     * @dev Based on: https://github.com/ensdomains/arb-resolver/blob/a2ee680e4a62bb5a3f22fd9cfc4a1863504144d2/packages/contracts/contracts/l1/ArbitrumResolverStub.sol#L167C1-L194C1
+     * @param target Address of the account
+     * @param slot Storage slot / key
+     * @param stateRoot Network state root
+     * @param stateTrieWitness Witness for the state trie
+     * @param storageTrieWitness Witness for the storage trie
+     * @return Retrieved storage value padded to 32 bytes
+     */
     function getStorageValue(
         address target,
         bytes32 slot,
@@ -60,7 +101,11 @@ abstract contract SFFLRegistryBase {
         return _toBytes32PadLeft(Lib_RLPReader.readBytes(retrievedValue));
     }
 
-    // based on: https://github.com/ensdomains/arb-resolver/blob/a2ee680e4a62bb5a3f22fd9cfc4a1863504144d2/packages/contracts/contracts/l1/ArbitrumResolverStub.sol#L196C1-L208C1
+    /**
+     * @dev Simple utility to pad a bytes into a bytes32.
+     * Based on: https://github.com/ensdomains/arb-resolver/blob/a2ee680e4a62bb5a3f22fd9cfc4a1863504144d2/packages/contracts/contracts/l1/ArbitrumResolverStub.sol#L196C1-L208C1
+     * @param _bytes Byte array, should be 32 bytes or smaller
+     */
     function _toBytes32PadLeft(bytes memory _bytes) internal pure returns (bytes32) {
         bytes32 ret;
         uint256 len = _bytes.length <= 32 ? _bytes.length : 32;
@@ -70,6 +115,12 @@ abstract contract SFFLRegistryBase {
         return ret;
     }
 
+    /**
+     * @dev Stores the state root for a rollup in a specific block height
+     * @param rollupId Pre-defined rollup ID
+     * @param blockHeight Rollup block height
+     * @param stateRoot Rollup state root at blockHeight
+     */
     function _pushStateRoot(uint32 rollupId, uint64 blockHeight, bytes32 stateRoot) internal {
         _stateRootBuffers[rollupId][blockHeight] = stateRoot;
 

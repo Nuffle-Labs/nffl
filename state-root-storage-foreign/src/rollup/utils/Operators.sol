@@ -3,10 +3,25 @@ pragma solidity ^0.8.12;
 
 import {BN254} from "eigenlayer-middleware/libraries/BN254.sol";
 
+/**
+ * @title Operator set utilities
+ * @notice Utilities for SFFL's rollups operator set copy. Each rollup has an
+ * operator set which is periodically updated by the AVS, and is used to
+ * validate agreements on state root updates
+ * @dev The operator set is an alternative representation of the AVS' original
+ * operator set, as it assumes a one-quorum one-weight based voting
+ */
 library Operators {
     using BN254 for BN254.G1Point;
 
+    /**
+     * @dev Denominator for weight thresholds
+     */
     uint128 internal constant WEIGHT_THRESHOLD_DENOMINATOR = 1000000000;
+    /**
+     * @dev Gas for checking pairing equality on ecpairing call. Based on
+     * Eigenlayer's BLSSignatureChecker
+     */
     uint256 internal constant PAIRING_EQUALITY_CHECK_GAS = 120000;
 
     struct Operator {
@@ -27,17 +42,42 @@ library Operators {
         BN254.G1Point sigma;
     }
 
+    /**
+     * @notice Emitted when an operator is updated
+     * @param pubkeyHash Hash of the BLS pubkey
+     * @param weight Operator weight
+     */
     event OperatorUpdated(bytes32 indexed pubkeyHash, uint128 weight);
 
+    /**
+     * @notice Initializes the operator set with the initial operators and
+     * weight threshold
+     * @param self Operator set
+     * @param operators Initial operator list
+     * @param weightThreshold Weight threshold, based on
+     * WEIGHT_THRESHOLD_DENOMINATOR
+     */
     function initialize(OperatorSet storage self, Operator[] memory operators, uint128 weightThreshold) internal {
         update(self, operators);
         setWeightThreshold(self, weightThreshold);
     }
 
+    /**
+     * @notice Sets the weight threshold for agreement validations
+     * @param self Operator set
+     * @param weightThreshold New weight threshold, based on
+     * WEIGHT_THRESHOLD_DENOMINATOR
+     */
     function setWeightThreshold(OperatorSet storage self, uint128 weightThreshold) internal {
         self.weightThreshold = weightThreshold;
     }
 
+    /**
+     * @notice Updates the operator set operators, effectively overwriting set
+     * operators
+     * @param self Operator set
+     * @param operators Operators to be overwritten
+     */
     function update(OperatorSet storage self, Operator[] memory operators) internal {
         Operator memory operator;
 
@@ -66,6 +106,15 @@ library Operators {
         }
     }
 
+    /**
+     * @notice Verifies an agreement
+     * @dev This fails if the agreement is invalid, as opposed to returning
+     * `false`
+     * @param self Operator set
+     * @param msgHash Message hash, which is the signed value
+     * @param signatureInfo BLS aggregated signature info
+     * @return Whether the agreement passed quorum or not
+     */
     function verifyCalldata(OperatorSet storage self, bytes32 msgHash, SignatureInfo calldata signatureInfo)
         internal
         view
