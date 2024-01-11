@@ -1,20 +1,20 @@
 use clap::Parser;
 use configs::{Opts, SubCommand};
 use near_indexer::near_primitives::types::AccountId;
-use std::ops::Deref;
 use tokio::sync::mpsc;
 
 use crate::{
+    block_listener::{BlockListener, CandidateData},
     configs::RunConfigArgs,
     errors::{Error, Result},
-    producer::process_receipt_candidates,
-    producer::{listen_blocks, CandidateData},
+    candidates_validator::CandidatesValidator,
     rabbit_publisher::RabbitBuilder,
 };
 
+mod block_listener;
 mod configs;
 mod errors;
-mod producer;
+mod candidates_validator;
 mod rabbit_publisher;
 
 fn run(home_dir: std::path::PathBuf, config: RunConfigArgs) -> Result<()> {
@@ -39,8 +39,11 @@ fn run(home_dir: std::path::PathBuf, config: RunConfigArgs) -> Result<()> {
 
         let rabbit_publisher = rabbit_builder.build()?;
         // TODO handle error
-        actix::spawn(process_receipt_candidates(view_client, receiver, rabbit_publisher));
-        if let Err(err) = listen_blocks(stream, sender, da_contract_id).await {
+        let block_listener = BlockListener::new(stream, sender, da_contract_id);
+        let receipt_validator = CandidatesValidator::new(view_client, receiver, rabbit_publisher);
+
+        actix::spawn(receipt_validator.start());
+        if let Err(err) = block_listener.start().await {
             eprintln!("{}", err.to_string());
         }
 
