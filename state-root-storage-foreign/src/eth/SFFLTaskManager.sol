@@ -27,7 +27,7 @@ contract SFFLTaskManager is
     uint32 public immutable TASK_RESPONSE_WINDOW_BLOCK;
     uint32 public constant TASK_CHALLENGE_WINDOW_BLOCK = 100;
 
-    uint256 internal constant _THRESHOLD_DENOMINATOR = 1000000000;
+    uint256 public constant THRESHOLD_DENOMINATOR = 1000000000;
 
     uint32 public latestCheckpointTaskNum;
     address public generator;
@@ -180,7 +180,7 @@ contract SFFLTaskManager is
 
         for (uint256 i = 0; i < quorumNumbers.length; i++) {
             if (
-                quorumStakeTotals.signedStakeForQuorum[i] * _THRESHOLD_DENOMINATOR
+                quorumStakeTotals.signedStakeForQuorum[i] * THRESHOLD_DENOMINATOR
                     < quorumStakeTotals.totalStakeForQuorum[i] * uint8(quorumThresholdPercentage)
             ) {
                 return (false, hashOfNonSigners);
