@@ -1,19 +1,22 @@
 use crate::errors::Result;
+use crate::rabbit_publisher::RabbitPublisher;
 use std::ops::Deref;
 
-use deadpool_lapin::Pool;
-use lapin::options::BasicPublishOptions;
-use lapin::BasicProperties;
 use near_indexer::near_primitives::types::{FunctionArgs, TransactionOrReceiptId};
 use near_indexer::near_primitives::views::{ActionView, ExecutionStatusView, ReceiptEnumView, ReceiptView};
 use near_o11y::WithSpanContextExt;
 use tokio::sync::mpsc;
 
+// pub(crate) struct CandidateData {
+//     pub execution_request: near_client::GetExecutionOutcome,
+//     pub
+// }
+
 pub(crate) async fn process_receipt_candidates(
     view_client: actix::Addr<near_client::ViewClientActor>,
     // TODO: supply only needed data: receiver_id, receipt_id and ActionView::FunctionCall
     mut receiver: mpsc::Receiver<ReceiptView>,
-    connection_pool: Pool,
+    mut rabbit_publisher: RabbitPublisher,
 ) -> Result<()> {
     'main: while let Some(receipt) = receiver.recv().await {
         let execution_outcome = match view_client
@@ -56,6 +59,18 @@ pub(crate) async fn process_receipt_candidates(
         } else {
             continue;
         };
+
+        // TODO: is sequential order important here?
+        for el in payloads {
+            match rabbit_publisher.publish(el.deref()).await {
+                Ok(_) => (),
+                Err(err) => {
+                    eprintln!("{}", err);
+                    receiver.close();
+                    break 'main;
+                }
+            };
+        }
     }
 
     // Drain messages

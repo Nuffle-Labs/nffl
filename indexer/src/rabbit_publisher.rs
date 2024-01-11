@@ -1,27 +1,14 @@
 use crate::errors::{Error, Result};
-use deadpool::managed::Object;
 
 use deadpool_lapin::{Manager, Pool};
 use lapin::options::BasicPublishOptions;
-use lapin::{BasicProperties, Channel, ConnectionProperties};
+use lapin::{BasicProperties, ConnectionProperties};
 use tokio::sync::mpsc;
 
 const DEFAULT_EXCHANGE: &str = "";
 const DEFAULT_ROUTING_KEY: &str = "da-mq";
 
 pub(crate) type Connection = deadpool::managed::Object<Manager>;
-
-pub(crate) fn create_connection_pool(addr: String) -> Result<Pool> {
-    let options = ConnectionProperties::default()
-        .with_executor(tokio_executor_trait::Tokio::current())
-        // TODO: reactor is only available for unix.
-        .with_reactor(tokio_reactor_trait::Tokio);
-
-    let manager = Manager::new(addr, options);
-    let pool: Pool = Pool::builder(manager).max_size(10).build()?;
-
-    Ok(pool)
-}
 
 #[derive(Clone, Debug)]
 pub struct PublishOptions {
@@ -48,6 +35,22 @@ struct PublishData {
     pub payload: Vec<u8>,
 }
 
+pub struct RabbitBuilder {
+    addr: String,
+}
+
+impl RabbitBuilder {
+    pub fn new(addr: String) -> Self {
+        Self { addr }
+    }
+
+    /// Shall be called within actix runtime
+    pub fn build(self) -> Result<RabbitPublisher> {
+        RabbitPublisher::new(&self.addr)
+    }
+}
+
+#[derive(Clone)]
 pub struct RabbitPublisher {
     sender: mpsc::Sender<PublishData>,
 }
@@ -134,4 +137,16 @@ impl RabbitPublisher {
         let error = error.into();
         eprintln!("{}", error.to_string());
     }
+}
+
+pub(crate) fn create_connection_pool(addr: String) -> Result<Pool> {
+    let options = ConnectionProperties::default()
+        .with_executor(tokio_executor_trait::Tokio::current())
+        // TODO: reactor is only available for unix.
+        .with_reactor(tokio_reactor_trait::Tokio);
+
+    let manager = Manager::new(addr, options);
+    let pool: Pool = Pool::builder(manager).max_size(10).build()?;
+
+    Ok(pool)
 }

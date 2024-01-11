@@ -7,17 +7,16 @@ use near_indexer::near_primitives::{
 };
 use tokio::sync::mpsc;
 
+use crate::rabbit_publisher::RabbitBuilder;
 use crate::{
     broadcaster::process_receipt_candidates,
-    configs::RunConfigArgs,
-    connection::create_connection_pool,
     errors::{Error, Result},
 };
 
 mod broadcaster;
 mod configs;
-mod connection;
 mod errors;
+mod rabbit_publisher;
 
 async fn listen_blocks(
     mut stream: mpsc::Receiver<near_indexer::StreamerMessage>,
@@ -60,38 +59,6 @@ async fn listen_blocks(
     Ok(())
 }
 
-use std::cell::RefCell;
-use std::rc::Rc;
-use std::time::Duration;
-
-use actix::prelude::*;
-
-struct A(Rc<RefCell<usize>>);
-
-impl Actor for A {
-    type Context = Context<Self>;
-}
-
-struct Msg;
-
-impl Message for Msg {
-    type Result = ();
-}
-
-impl Handler<Msg> for A {
-    type Result = ();
-
-    fn handle(&mut self, _: Msg, ctx: &mut Self::Context) -> Self::Result {
-        let a = self.0.clone();
-        async move {
-            let mut borrowed = a.borrow_mut();
-            *borrowed += 1;
-        }
-        .into_actor(self)
-        .wait(ctx);
-    }
-}
-
 fn main() -> Result<()> {
     // We use it to automatically search the for root certificates to perform HTTPS calls
     // (sending telemetry and downloading genesis)
@@ -114,11 +81,10 @@ fn main() -> Result<()> {
                 await_for_node_synced: near_indexer::AwaitForNodeSyncedEnum::WaitForFullSync,
                 validate_genesis: true,
             };
+            let rabbit_builder = RabbitBuilder::new(config.rmq_address);
 
             let system = actix::System::new();
             system.block_on(async move {
-                let connection_pool = create_connection_pool(config.rmq_address)?;
-
                 let indexer = near_indexer::Indexer::new(indexer_config).expect("Indexer::new()");
                 let stream = indexer.streamer();
                 let (view_client, _) = indexer.client_actors();
@@ -126,8 +92,9 @@ fn main() -> Result<()> {
                 // TODO: define buffer: usize const
                 let (sender, receiver) = mpsc::channel::<ReceiptView>(100);
 
-                // TODO handl error
-                actix::spawn(process_receipt_candidates(view_client, receiver, connection_pool));
+                let rabbit_publisher = rabbit_builder.build()?;
+                // TODO handle error
+                actix::spawn(process_receipt_candidates(view_client, receiver, rabbit_publisher));
                 if let Err(err) = listen_blocks(stream, sender, da_contract_id).await {
                     eprintln!("{}", err.to_string());
                 }
