@@ -1,9 +1,9 @@
-use crate::errors::{Error, Result};
-
 use deadpool_lapin::{Manager, Pool};
 use lapin::options::BasicPublishOptions;
 use lapin::{BasicProperties, ConnectionProperties};
 use tokio::sync::mpsc;
+
+use crate::errors::{Error, Result};
 
 const DEFAULT_EXCHANGE: &str = "";
 const DEFAULT_ROUTING_KEY: &str = "da-mq";
