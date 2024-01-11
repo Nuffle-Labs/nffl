@@ -38,6 +38,7 @@ fn run(home_dir: std::path::PathBuf, config: RunConfigArgs) -> Result<()> {
         let (sender, receiver) = mpsc::channel::<CandidateData>(100);
 
         let rabbit_publisher = rabbit_builder.build()?;
+
         // TODO handle error
         let block_listener = BlockListener::new(stream, sender, da_contract_id);
         let receipt_validator = CandidatesValidator::new(view_client, receiver, rabbit_publisher);
@@ -52,8 +53,6 @@ fn run(home_dir: std::path::PathBuf, config: RunConfigArgs) -> Result<()> {
         Ok::<(), Error>(())
     })?;
 
-    // TODO: unnecessary? since only used when directly spawninng on runtime?
-    // TODO: Needed since we have actix::spawn?
     Ok(system.run()?)
 }
 
