@@ -9,7 +9,7 @@ import {Lib_RLPReader} from "@eth-optimism/contracts/libraries/rlp/Lib_RLPReader
 abstract contract SFFLRegistryBase {
     mapping(uint32 => mapping(uint64 => bytes32)) internal _stateRootBuffers;
 
-    event StateRootUpdated(uint32 indexed rollupId, bytes32 stateRoot);
+    event StateRootUpdated(uint32 indexed rollupId, uint64 indexed blockHeight, bytes32 stateRoot);
 
     function getStateRoot(uint32 rollupId, uint64 blockHeight) external view returns (bytes32) {
         return _stateRootBuffers[rollupId][blockHeight];
@@ -73,6 +73,6 @@ abstract contract SFFLRegistryBase {
     function _pushStateRoot(uint32 rollupId, uint64 blockHeight, bytes32 stateRoot) internal {
         _stateRootBuffers[rollupId][blockHeight] = stateRoot;
 
-        emit StateRootUpdated(rollupId, stateRoot);
+        emit StateRootUpdated(rollupId, blockHeight, stateRoot);
     }
 }
