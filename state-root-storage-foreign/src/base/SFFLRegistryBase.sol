@@ -26,7 +26,7 @@ abstract contract SFFLRegistryBase {
     function verifyStorage(uint32 rollupId, uint64 blockHeight, ProofParams calldata proofParams)
         external
         view
-        returns (bool success)
+        returns (bool)
     {
         return getStorageValue(
             proofParams.target,
