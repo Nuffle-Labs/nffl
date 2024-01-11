@@ -1,12 +1,15 @@
 use clap::Parser;
 use configs::{Opts, SubCommand};
 use futures::future::join_all;
+use near_indexer::near_primitives::types::{FunctionArgs, TransactionOrReceiptId};
 use near_indexer::near_primitives::{
     types::AccountId,
     views::{ActionView, ReceiptEnumView, ReceiptView},
 };
+use std::ops::Deref;
 use tokio::sync::mpsc;
 
+use crate::broadcaster::CandidateData;
 use crate::rabbit_publisher::RabbitBuilder;
 use crate::{
     broadcaster::process_receipt_candidates,
@@ -20,36 +23,55 @@ mod rabbit_publisher;
 
 async fn listen_blocks(
     mut stream: mpsc::Receiver<near_indexer::StreamerMessage>,
-    receipt_sender: mpsc::Sender<ReceiptView>,
+    receipt_sender: mpsc::Sender<CandidateData>,
     da_contract_id: AccountId,
 ) -> Result<()> {
     while let Some(streamer_message) = stream.recv().await {
-        // TODO: prepare data outside
-        let da_receipts: Vec<&ReceiptView> = streamer_message
+        let candidates_data: Vec<CandidateData> = streamer_message
             .shards
             .iter()
             .flat_map(|shard| shard.chunk.as_ref())
             .flat_map(|chunk| {
-                chunk.receipts.iter().filter(|receipt| {
+                chunk.receipts.iter().filter_map(|receipt| {
                     if receipt.receiver_id != da_contract_id {
-                        return false;
+                        return None;
                     }
 
-                    match &receipt.receipt {
-                        ReceiptEnumView::Action { actions, .. } => actions.iter().any(|action| match action {
-                            ActionView::FunctionCall { method_name, .. } => method_name == "submit",
-                            _ => false,
-                        }),
-                        _ => false,
+                    if let ReceiptEnumView::Action { actions, .. } = &receipt.receipt {
+                        let payloads = actions
+                            .iter()
+                            .filter_map(|el| match &el {
+                                ActionView::FunctionCall { method_name, args, .. } if method_name == "submit" => {
+                                    Some(args.deref().clone())
+                                }
+                                _ => None,
+                            })
+                            .collect::<Vec<Vec<u8>>>();
+
+                        if payloads.is_empty() {
+                            return None;
+                        }
+
+                        Some(CandidateData {
+                            execution_request: near_client::GetExecutionOutcome {
+                                id: TransactionOrReceiptId::Receipt {
+                                    receipt_id: receipt.receipt_id,
+                                    receiver_id: receipt.receiver_id.clone(),
+                                },
+                            },
+                            payloads,
+                        })
+                    } else {
+                        None
                     }
                 })
             })
             .collect();
 
         let results = join_all(
-            da_receipts
-                .iter()
-                .map(|receipt| receipt_sender.send((*receipt).clone())),
+            candidates_data
+                .into_iter()
+                .map(|receipt| receipt_sender.send(receipt)),
         )
         .await;
 
@@ -90,7 +112,7 @@ fn main() -> Result<()> {
                 let (view_client, _) = indexer.client_actors();
 
                 // TODO: define buffer: usize const
-                let (sender, receiver) = mpsc::channel::<ReceiptView>(100);
+                let (sender, receiver) = mpsc::channel::<CandidateData>(100);
 
                 let rabbit_publisher = rabbit_builder.build()?;
                 // TODO handle error
