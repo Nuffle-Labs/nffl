@@ -81,6 +81,10 @@ impl BlockListener {
                 })
                 .collect();
 
+            if candidates_data.is_empty() {
+                continue;
+            }
+
             let results = join_all(candidates_data.into_iter().map(|receipt| receipt_sender.send(receipt))).await;
 
             // Receiver dropped or closed.

@@ -81,10 +81,13 @@ impl RabbitPublisher {
     }
 
     async fn publisher(connection_pool: Pool, mut receiver: mpsc::Receiver<PublishData>) {
+        const ERROR_CODE: i32 = 1;
+
         let mut connection = match connection_pool.get().await {
             Ok(connection) => connection,
             Err(err) => {
                 Self::handle_error(err, None);
+                actix::System::current().stop_with_code(ERROR_CODE);
                 return;
             }
         };
@@ -122,7 +125,7 @@ impl RabbitPublisher {
                     Ok(new_connection) => connection = new_connection,
                     Err(err) => {
                         Self::handle_error(err, Some(publish_data));
-                        break 1;
+                        break ERROR_CODE;
                     }
                 },
                 None => break 0,
@@ -146,7 +149,7 @@ impl RabbitPublisher {
             format!("Publisher Error: {}", error.to_string())
         };
 
-        error!(target: "publisher", msg);
+        error!(target: "publisher", message = display(msg.as_str()));
     }
 }
 
