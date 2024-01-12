@@ -3,7 +3,7 @@ pragma solidity =0.8.12;
 
 import {Test} from "forge-std/Test.sol";
 
-import {BN254} from "eigenlayer-middleware/libraries/BN254.sol";
+import {BN254} from "eigenlayer-middleware/src/libraries/BN254.sol";
 
 contract BLSUtils is Test {
     struct JsonG2Point {

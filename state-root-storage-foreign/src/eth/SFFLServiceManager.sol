@@ -1,11 +1,11 @@
 // SPDX-License-Identifier: UNLICENSED
 pragma solidity ^0.8.12;
 
-import {ServiceManagerBase} from "eigenlayer-middleware/ServiceManagerBase.sol";
+import {ServiceManagerBase} from "eigenlayer-middleware/src/ServiceManagerBase.sol";
 import {IDelegationManager} from "@eigenlayer/contracts/interfaces/IDelegationManager.sol";
-import {IRegistryCoordinator} from "eigenlayer-middleware/interfaces/IRegistryCoordinator.sol";
-import {IStakeRegistry} from "eigenlayer-middleware/interfaces/IStakeRegistry.sol";
-import {IBLSSignatureChecker} from "eigenlayer-middleware/interfaces/IBLSSignatureChecker.sol";
+import {IRegistryCoordinator} from "eigenlayer-middleware/src/interfaces/IRegistryCoordinator.sol";
+import {IStakeRegistry} from "eigenlayer-middleware/src/interfaces/IStakeRegistry.sol";
+import {IBLSSignatureChecker} from "eigenlayer-middleware/src/interfaces/IBLSSignatureChecker.sol";
 
 import {SFFLTaskManager} from "./SFFLTaskManager.sol";
 import {SFFLRegistryBase} from "../base/SFFLRegistryBase.sol";
@@ -30,7 +30,7 @@ contract SFFLServiceManager is SFFLRegistryBase, ServiceManagerBase {
     /**
      * @dev State root update threshold
      */
-    uint256 internal constant _THRESHOLD_PERCENTAGE = _THRESHOLD_DENOMINATOR / 2;
+    uint256 internal constant _THRESHOLD_PERCENTAGE = 2 * _THRESHOLD_DENOMINATOR / 3;
 
     modifier onlyTaskManager() {
         require(msg.sender == address(taskManager), "Task manager must be the caller");
