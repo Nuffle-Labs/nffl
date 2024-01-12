@@ -277,7 +277,7 @@ contract SFFLTaskManager is Initializable, OwnableUpgradeable, Pausable, BLSSign
         for (uint256 i = 0; i < quorumNumbers.length; i++) {
             if (
                 quorumStakeTotals.signedStakeForQuorum[i] * THRESHOLD_DENOMINATOR
-                    < quorumStakeTotals.totalStakeForQuorum[i] * uint8(quorumThresholdPercentage)
+                    < quorumStakeTotals.totalStakeForQuorum[i] * quorumThresholdPercentage
             ) {
                 return (false, hashOfNonSigners);
             }
