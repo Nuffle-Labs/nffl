@@ -1,7 +1,10 @@
 use deadpool_lapin::{Manager, Pool};
 use lapin::options::BasicPublishOptions;
 use lapin::{BasicProperties, ConnectionProperties};
+use near_indexer::near_primitives::hash::CryptoHash;
+use near_indexer::near_primitives::types::TransactionOrReceiptId;
 use tokio::sync::mpsc;
+use tracing::error;
 
 use crate::errors::{Error, Result};
 
@@ -30,9 +33,16 @@ impl Default for PublishOptions {
 }
 
 #[derive(Clone, Debug)]
-struct PublishData {
+pub struct PublisherContext {
+    pub block_hash: CryptoHash,
+    pub id: TransactionOrReceiptId,
+}
+
+#[derive(Clone, Debug)]
+pub struct PublishData {
     pub publish_options: PublishOptions,
     pub payload: Vec<u8>,
+    pub cx: PublisherContext,
 }
 
 pub struct RabbitBuilder {
@@ -66,18 +76,8 @@ impl RabbitPublisher {
         Ok(Self { sender })
     }
 
-    pub async fn publish(&mut self, data: &Vec<u8>) -> Result<()> {
-        self.publish_custom(PublishOptions::default(), data).await
-    }
-
-    pub async fn publish_custom(&mut self, publish_options: PublishOptions, data: &Vec<u8>) -> Result<()> {
-        self.sender
-            .send(PublishData {
-                publish_options,
-                payload: data.clone(),
-            })
-            .await
-            .map_err(|_| Error::SendError)
+    pub async fn publish(&mut self, publish_data: PublishData) -> Result<()> {
+        self.sender.send(publish_data).await.map_err(|_| Error::SendError)
     }
 
     async fn publisher(connection_pool: Pool, mut receiver: mpsc::Receiver<PublishData>) {
@@ -116,26 +116,37 @@ impl RabbitPublisher {
             Ok::<_, Error>(connection)
         };
 
-        while let Some(publish_data) = receiver.recv().await {
-            match logic(connection_pool.clone(), connection, publish_data.clone()).await {
-                Ok(new_connection) => connection = new_connection,
-                Err(err) => {
-                    Self::handle_error(err, Some(publish_data));
-                    break;
-                }
-            }
-        }
+        let code = loop {
+            match receiver.recv().await {
+                Some(publish_data) => match logic(connection_pool.clone(), connection, publish_data.clone()).await {
+                    Ok(new_connection) => connection = new_connection,
+                    Err(err) => {
+                        Self::handle_error(err, Some(publish_data));
+                        break 1;
+                    }
+                },
+                None => break 0,
+            };
+        };
 
         receiver.close();
-
         // Drain receiver
         while let Some(_) = receiver.recv().await {}
+
+        actix::System::current().stop_with_code(code);
     }
 
-    fn handle_error(error: impl Into<Error>, _publish_data: Option<PublishData>) {
-        // TODO: handle error here
+    fn handle_error(error: impl Into<Error>, publish_data: Option<PublishData>) {
         let error = error.into();
-        eprintln!("{}", error.to_string());
+        let msg = if let Some(data) = publish_data {
+            // TODO: add display for cx
+            // TODO: handle error here
+            format!("Publisher Error: {}, cx: {}", error.to_string(), data.cx.block_hash)
+        } else {
+            format!("Publisher Error: {}", error.to_string())
+        };
+
+        error!(target: "publisher", msg);
     }
 }
 
@@ -150,3 +161,7 @@ pub(crate) fn create_connection_pool(addr: String) -> Result<Pool> {
 
     Ok(pool)
 }
+
+// indexes, check execution, publish
+// shall be able to abort with
+// Stop system with log?

@@ -7,8 +7,9 @@ use tokio::sync::mpsc;
 
 use crate::errors::{Error, Result};
 
+#[derive(Clone)]
 pub(crate) struct CandidateData {
-    pub execution_request: near_client::GetExecutionOutcome,
+    pub transaction_or_receipt_id: TransactionOrReceiptId,
     pub payloads: Vec<Vec<u8>>,
 }
 
@@ -70,11 +71,9 @@ impl BlockListener {
                         }
 
                         Some(CandidateData {
-                            execution_request: near_client::GetExecutionOutcome {
-                                id: TransactionOrReceiptId::Receipt {
-                                    receipt_id: receipt.receipt_id,
-                                    receiver_id: receipt.receiver_id,
-                                },
+                            transaction_or_receipt_id: TransactionOrReceiptId::Receipt {
+                                receipt_id: receipt.receipt_id,
+                                receiver_id: receipt.receiver_id,
                             },
                             payloads,
                         })

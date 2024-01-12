@@ -1,8 +1,10 @@
 use near_indexer::near_primitives::views::ExecutionStatusView;
 use near_o11y::WithSpanContextExt;
 use tokio::sync::mpsc;
+use tracing::info;
 
 use crate::block_listener::CandidateData;
+use crate::rabbit_publisher::{PublishData, PublishOptions, PublisherContext};
 use crate::{errors::Result, rabbit_publisher::RabbitPublisher};
 
 pub(crate) struct CandidatesValidator {
@@ -31,45 +33,58 @@ impl CandidatesValidator {
             view_client,
         } = self;
 
-        'main: while let Some(receipt) = receiver.recv().await {
-            let execution_outcome = match view_client.send(receipt.execution_request.with_span_context()).await {
+        let res = 'main: loop {
+            let candidate_data = if let Some(candidate_data) = receiver.recv().await {
+                candidate_data
+            } else {
+                break Ok(());
+            };
+
+            let execution_outcome = match view_client
+                .send(
+                    near_client::GetExecutionOutcome {
+                        id: candidate_data.transaction_or_receipt_id.clone(),
+                    }
+                    .with_span_context(),
+                )
+                .await
+            {
                 Ok(Ok(response)) => response,
-                Ok(Err(err)) => {
-                    eprintln!("{}", err.to_string());
-                    receiver.close();
-                    break 'main;
-                }
-                Err(err) => {
-                    eprintln!("{}", err);
-                    receiver.close();
-                    break 'main;
-                }
+                Ok(Err(err)) => break Err(err.into()),
+                Err(err) => break Err(err.into()),
             };
 
             if !matches!(
                 execution_outcome.outcome_proof.outcome.status,
                 ExecutionStatusView::SuccessValue(_)
             ) {
-                // TODO: log this?
+                info!(target: "candidates_validator", "unsuccessful value");
                 continue;
             };
 
             // TODO: is sequential order important here?
-            for el in receipt.payloads {
-                match rabbit_publisher.publish(&el).await {
-                    Ok(_) => (),
-                    Err(err) => {
-                        eprintln!("{}", err);
-                        receiver.close();
-                        break 'main;
-                    }
+            for payload in candidate_data.payloads {
+                if let Err(err) = rabbit_publisher
+                    .publish(PublishData {
+                        publish_options: PublishOptions::default(),
+                        cx: PublisherContext {
+                            block_hash: execution_outcome.outcome_proof.block_hash,
+                            id: candidate_data.transaction_or_receipt_id.clone(),
+                        },
+                        payload,
+                    })
+                    .await
+                {
+                    break 'main Err(err);
                 };
             }
-        }
+        };
+
+        receiver.close();
 
         // Drain messages
         while let Some(_) = receiver.recv().await {}
 
-        Ok(())
+        res
     }
 }

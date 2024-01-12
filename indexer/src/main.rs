@@ -2,19 +2,20 @@ use clap::Parser;
 use configs::{Opts, SubCommand};
 use near_indexer::near_primitives::types::AccountId;
 use tokio::sync::mpsc;
+use tracing::error;
 
 use crate::{
     block_listener::{BlockListener, CandidateData},
-    configs::RunConfigArgs,
-    errors::{Error, Result},
     candidates_validator::CandidatesValidator,
+    configs::RunConfigArgs,
+    errors::Result,
     rabbit_publisher::RabbitBuilder,
 };
 
 mod block_listener;
+mod candidates_validator;
 mod configs;
 mod errors;
-mod candidates_validator;
 mod rabbit_publisher;
 
 fn run(home_dir: std::path::PathBuf, config: RunConfigArgs) -> Result<()> {
@@ -29,7 +30,7 @@ fn run(home_dir: std::path::PathBuf, config: RunConfigArgs) -> Result<()> {
     };
 
     let system = actix::System::new();
-    system.block_on(async move {
+    let block_res = system.block_on(async move {
         let indexer = near_indexer::Indexer::new(indexer_config).expect("Indexer::new()");
         let stream = indexer.streamer();
         let (view_client, _) = indexer.client_actors();
@@ -43,17 +44,21 @@ fn run(home_dir: std::path::PathBuf, config: RunConfigArgs) -> Result<()> {
         let block_listener = BlockListener::new(stream, sender, da_contract_id);
         let receipt_validator = CandidatesValidator::new(view_client, receiver, rabbit_publisher);
 
-        actix::spawn(receipt_validator.start());
-        if let Err(err) = block_listener.start().await {
-            eprintln!("{}", err.to_string());
-        }
+        let result = tokio::select! {
+            result = receipt_validator.start() => result,
+            result = block_listener.start() => result,
+        };
 
-        actix::System::current().stop();
+        result.map_err(|err| {
+            error!(target: "sffl_indexer", "Indexer Error: {}", err);
+            err
+        })
+    });
 
-        Ok::<(), Error>(())
-    })?;
+    // Run until publishing finished
+    system.run()?;
 
-    Ok(system.run()?)
+    Ok(block_res?)
 }
 
 fn main() -> Result<()> {

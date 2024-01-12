@@ -16,6 +16,10 @@ pub enum Error {
     RMQPoolError(#[from] deadpool_lapin::PoolError),
     #[error(transparent)]
     ParseAccountError(#[from] near_indexer::near_primitives::account::id::ParseAccountError),
+    #[error(transparent)]
+    MailboxError(#[from] actix::MailboxError),
+    #[error(transparent)]
+    GetExecutionOutcomeError(#[from] near_client_primitives::types::GetExecutionOutcomeError),
 }
 
 impl<T> From<SendError<T>> for Error {
