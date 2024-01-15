@@ -23,15 +23,6 @@ contract SFFLServiceManager is SFFLRegistryBase, ServiceManagerBase {
      */
     SFFLTaskManager public immutable taskManager;
 
-    /**
-     * @dev Denominator for state root update thresholds
-     */
-    uint256 internal constant _THRESHOLD_DENOMINATOR = 1000000000;
-    /**
-     * @dev State root update threshold
-     */
-    uint256 internal constant _THRESHOLD_PERCENTAGE = 2 * _THRESHOLD_DENOMINATOR / 3;
-
     modifier onlyTaskManager() {
         require(msg.sender == address(taskManager), "Task manager must be the caller");
         _;
@@ -79,7 +70,11 @@ contract SFFLServiceManager is SFFLRegistryBase, ServiceManagerBase {
         IBLSSignatureChecker.NonSignerStakesAndSignature calldata nonSignerStakesAndSignature
     ) internal view returns (bool) {
         (bool success,) = taskManager.checkQuorum(
-            message.hashCalldata(), hex"00", uint32(block.number), nonSignerStakesAndSignature, _THRESHOLD_PERCENTAGE
+            message.hashCalldata(),
+            hex"00",
+            uint32(block.number),
+            nonSignerStakesAndSignature,
+            2 * taskManager.THRESHOLD_DENOMINATOR() / 3
         );
 
         return success;
