@@ -15,9 +15,9 @@ library Operators {
     using BN254 for BN254.G1Point;
 
     /**
-     * @dev Denominator for weight thresholds
+     * @dev Denominator for quorum weight thresholds
      */
-    uint128 internal constant WEIGHT_THRESHOLD_DENOMINATOR = 1000000000;
+    uint128 internal constant THRESHOLD_DENOMINATOR = 1000000000;
     /**
      * @dev Gas for checking pairing equality on ecpairing call. Based on
      * Eigenlayer's BLSSignatureChecker
@@ -33,7 +33,7 @@ library Operators {
         mapping(bytes32 => Operator) pubkeyHashToOperator;
         BN254.G1Point apk;
         uint128 totalWeight;
-        uint128 weightThreshold;
+        uint128 quorumThreshold;
     }
 
     struct SignatureInfo {
@@ -49,37 +49,37 @@ library Operators {
      */
     event OperatorUpdated(bytes32 indexed pubkeyHash, uint128 weight);
     /**
-     * @notice Emitted when the weight threshold is updated
-     * @param newWeightThreshold New weight threshold, based on
+     * @notice Emitted when the quorum weight threshold is updated
+     * @param newQuorumThreshold New quorum weight threshold, based on
      * THRESHOLD_DENOMINATOR
      */
-    event WeightThresholdUpdated(uint128 indexed newWeightThreshold);
+    event QuorumThresholdUpdated(uint128 indexed newQuorumThreshold);
 
     /**
      * @notice Initializes the operator set with the initial operators and
-     * weight threshold
+     * quorum weight threshold
      * @param self Operator set
      * @param operators Initial operator list
-     * @param weightThreshold Weight threshold, based on
-     * WEIGHT_THRESHOLD_DENOMINATOR
+     * @param quorumThreshold New quorum weight threshold, based on
+     * THRESHOLD_DENOMINATOR
      */
-    function initialize(OperatorSet storage self, Operator[] memory operators, uint128 weightThreshold) internal {
+    function initialize(OperatorSet storage self, Operator[] memory operators, uint128 quorumThreshold) internal {
         update(self, operators);
-        setWeightThreshold(self, weightThreshold);
+        setQuorumThreshold(self, quorumThreshold);
     }
 
     /**
      * @notice Sets the weight threshold for agreement validations
      * @param self Operator set
-     * @param weightThreshold New weight threshold, based on
-     * WEIGHT_THRESHOLD_DENOMINATOR
+     * @param quorumThreshold New quorum weight threshold, based on
+     * THRESHOLD_DENOMINATOR
      */
-    function setWeightThreshold(OperatorSet storage self, uint128 weightThreshold) internal {
-        require(weightThreshold <= WEIGHT_THRESHOLD_DENOMINATOR, "Weight threshold greater than denominator");
+    function setQuorumThreshold(OperatorSet storage self, uint128 quorumThreshold) internal {
+        require(quorumThreshold <= THRESHOLD_DENOMINATOR, "Quorum threshold greater than denominator");
 
-        self.weightThreshold = weightThreshold;
+        self.quorumThreshold = quorumThreshold;
 
-        emit WeightThresholdUpdated(weightThreshold);
+        emit QuorumThresholdUpdated(quorumThreshold);
     }
 
     /**
@@ -192,6 +192,6 @@ library Operators {
         require(pairingSuccessful, "Pairing precompile call failed");
         require(signatureIsValid, "Signature is invalid");
 
-        return weight >= (self.totalWeight * self.weightThreshold) / WEIGHT_THRESHOLD_DENOMINATOR;
+        return weight >= (self.totalWeight * self.quorumThreshold) / THRESHOLD_DENOMINATOR;
     }
 }

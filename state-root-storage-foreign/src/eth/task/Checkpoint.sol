@@ -16,7 +16,7 @@ library Checkpoint {
         uint32 taskCreatedBlock;
         uint64 fromNearBlock;
         uint64 toNearBlock;
-        uint32 quorumThresholdPercentage;
+        uint32 quorumThreshold;
         bytes quorumNumbers;
     }
 

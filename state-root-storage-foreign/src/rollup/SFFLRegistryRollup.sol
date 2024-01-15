@@ -27,8 +27,8 @@ contract SFFLRegistryRollup is SFFLRegistryBase, Ownable {
      */
     uint64 public lastOperatorUpdateId;
 
-    constructor(Operators.Operator[] memory operators, uint128 weightThreshold, uint64 operatorUpdateId) {
-        _operatorSet.initialize(operators, weightThreshold);
+    constructor(Operators.Operator[] memory operators, uint128 quorumThreshold, uint64 operatorUpdateId) {
+        _operatorSet.initialize(operators, quorumThreshold);
 
         lastOperatorUpdateId = operatorUpdateId;
     }
@@ -43,7 +43,7 @@ contract SFFLRegistryRollup is SFFLRegistryBase, Ownable {
         Operators.SignatureInfo calldata signatureInfo
     ) external {
         require(message.id == lastOperatorUpdateId + 1, "Wrong message ID");
-        require(_operatorSet.verifyCalldata(message.hashCalldata(), signatureInfo), "Not enough quorum");
+        require(_operatorSet.verifyCalldata(message.hashCalldata(), signatureInfo), "Quorum not met");
 
         lastOperatorUpdateId = message.id;
 
@@ -59,18 +59,17 @@ contract SFFLRegistryRollup is SFFLRegistryBase, Ownable {
     function updateStateRoot(StateRootUpdate.Message calldata message, Operators.SignatureInfo calldata signatureInfo)
         external
     {
-        require(_operatorSet.verifyCalldata(message.hashCalldata(), signatureInfo), "Not enough quorum");
+        require(_operatorSet.verifyCalldata(message.hashCalldata(), signatureInfo), "Quorum not met");
 
         _pushStateRoot(message.rollupId, message.blockHeight, message.stateRoot);
     }
 
     /**
-     * @notice Sets the operator set weight threshold
-     * @param newWeightThreshold New weight threshold, based on
-     * THRESHOLD_DENOMINATOR
+     * @notice Sets the operator set quorum weight threshold
+     * @param newQuorumThreshold New quorum threshold, based on THRESHOLD_DENOMINATOR
      */
-    function setWeightThreshold(uint128 newWeightThreshold) external onlyOwner {
-        return _operatorSet.setWeightThreshold(newWeightThreshold);
+    function setQuorumThreshold(uint128 newQuorumThreshold) external onlyOwner {
+        return _operatorSet.setQuorumThreshold(newQuorumThreshold);
     }
 
     /**
@@ -102,15 +101,15 @@ contract SFFLRegistryRollup is SFFLRegistryBase, Ownable {
      * @notice Gets the operator set weight threshold
      * @return Operator set weight threshold
      */
-    function getWeightThreshold() external view returns (uint128) {
-        return _operatorSet.weightThreshold;
+    function getQuorumThreshold() external view returns (uint128) {
+        return _operatorSet.quorumThreshold;
     }
 
     /**
-     * @notice Gets the operator set weight threshold denominator
+     * @notice Gets the operator set quorum weight threshold denominator
      * @return Operator set weight threshold denominator
      */
-    function WEIGHT_THRESHOLD_DENOMINATOR() external pure returns (uint128) {
-        return Operators.WEIGHT_THRESHOLD_DENOMINATOR;
+    function THRESHOLD_DENOMINATOR() external pure returns (uint128) {
+        return Operators.THRESHOLD_DENOMINATOR;
     }
 }

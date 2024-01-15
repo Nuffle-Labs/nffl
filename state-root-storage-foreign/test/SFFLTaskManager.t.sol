@@ -61,14 +61,12 @@ contract SFFLTaskManagerTest is TestUtils {
             taskCreatedBlock: 100,
             fromNearBlock: 0,
             toNearBlock: 1,
-            quorumThresholdPercentage: quorumThreshold(thresholdDenominator, 1),
+            quorumThreshold: quorumThreshold(thresholdDenominator, 1),
             quorumNumbers: hex"00"
         });
 
         vm.expectRevert("Task generator must be the caller");
-        taskManager.createCheckpointTask(
-            task.fromNearBlock, task.toNearBlock, task.quorumThresholdPercentage, task.quorumNumbers
-        );
+        taskManager.createCheckpointTask(task.fromNearBlock, task.toNearBlock, task.quorumThreshold, task.quorumNumbers);
     }
 
     function test_createCheckpointTask() public {
@@ -76,7 +74,7 @@ contract SFFLTaskManagerTest is TestUtils {
             taskCreatedBlock: 100,
             fromNearBlock: 0,
             toNearBlock: 1,
-            quorumThresholdPercentage: quorumThreshold(thresholdDenominator, 1),
+            quorumThreshold: quorumThreshold(thresholdDenominator, 1),
             quorumNumbers: hex"00"
         });
 
@@ -89,9 +87,7 @@ contract SFFLTaskManagerTest is TestUtils {
         emit CheckpointTaskCreated(0, task);
 
         vm.prank(generator);
-        taskManager.createCheckpointTask(
-            task.fromNearBlock, task.toNearBlock, task.quorumThresholdPercentage, task.quorumNumbers
-        );
+        taskManager.createCheckpointTask(task.fromNearBlock, task.toNearBlock, task.quorumThreshold, task.quorumNumbers);
 
         assertEq(taskManager.latestCheckpointTaskNum(), 1);
         assertEq(taskManager.allCheckpointTaskHashes(0), task.hash());
@@ -102,7 +98,7 @@ contract SFFLTaskManagerTest is TestUtils {
             taskCreatedBlock: 1000,
             fromNearBlock: 0,
             toNearBlock: 1,
-            quorumThresholdPercentage: quorumThreshold(thresholdDenominator, 1),
+            quorumThreshold: quorumThreshold(thresholdDenominator, 1),
             quorumNumbers: hex"00"
         });
 
@@ -123,9 +119,7 @@ contract SFFLTaskManagerTest is TestUtils {
         });
 
         vm.prank(generator);
-        taskManager.createCheckpointTask(
-            task.fromNearBlock, task.toNearBlock, task.quorumThresholdPercentage, task.quorumNumbers
-        );
+        taskManager.createCheckpointTask(task.fromNearBlock, task.toNearBlock, task.quorumThreshold, task.quorumNumbers);
 
         assertEq(taskManager.allCheckpointTaskResponses(0), bytes32(0));
 
@@ -145,7 +139,7 @@ contract SFFLTaskManagerTest is TestUtils {
             taskCreatedBlock: 1000,
             fromNearBlock: 0,
             toNearBlock: 1,
-            quorumThresholdPercentage: quorumThreshold(thresholdDenominator, 1),
+            quorumThreshold: quorumThreshold(thresholdDenominator, 1),
             quorumNumbers: hex"00"
         });
 
@@ -166,9 +160,7 @@ contract SFFLTaskManagerTest is TestUtils {
         });
 
         vm.prank(generator);
-        taskManager.createCheckpointTask(
-            task.fromNearBlock, task.toNearBlock, task.quorumThresholdPercentage, task.quorumNumbers
-        );
+        taskManager.createCheckpointTask(task.fromNearBlock, task.toNearBlock, task.quorumThreshold, task.quorumNumbers);
 
         assertEq(taskManager.allCheckpointTaskResponses(0), bytes32(0));
 
@@ -185,7 +177,7 @@ contract SFFLTaskManagerTest is TestUtils {
             taskCreatedBlock: 1000,
             fromNearBlock: 0,
             toNearBlock: 1,
-            quorumThresholdPercentage: quorumThreshold(thresholdDenominator, 1),
+            quorumThreshold: quorumThreshold(thresholdDenominator, 1),
             quorumNumbers: hex"00"
         });
 
@@ -206,9 +198,7 @@ contract SFFLTaskManagerTest is TestUtils {
         });
 
         vm.prank(generator);
-        taskManager.createCheckpointTask(
-            task.fromNearBlock, task.toNearBlock, task.quorumThresholdPercentage, task.quorumNumbers
-        );
+        taskManager.createCheckpointTask(task.fromNearBlock, task.toNearBlock, task.quorumThreshold, task.quorumNumbers);
 
         assertEq(taskManager.allCheckpointTaskResponses(0), bytes32(0));
 
@@ -228,7 +218,7 @@ contract SFFLTaskManagerTest is TestUtils {
             taskCreatedBlock: 1000,
             fromNearBlock: 0,
             toNearBlock: 1,
-            quorumThresholdPercentage: quorumThreshold(thresholdDenominator, 1),
+            quorumThreshold: quorumThreshold(thresholdDenominator, 1),
             quorumNumbers: hex"00"
         });
 
@@ -249,9 +239,7 @@ contract SFFLTaskManagerTest is TestUtils {
         });
 
         vm.prank(generator);
-        taskManager.createCheckpointTask(
-            task.fromNearBlock, task.toNearBlock, task.quorumThresholdPercentage, task.quorumNumbers
-        );
+        taskManager.createCheckpointTask(task.fromNearBlock, task.toNearBlock, task.quorumThreshold, task.quorumNumbers);
 
         assertEq(taskManager.allCheckpointTaskResponses(0), bytes32(0));
 
@@ -268,7 +256,7 @@ contract SFFLTaskManagerTest is TestUtils {
             taskCreatedBlock: 1000,
             fromNearBlock: 0,
             toNearBlock: 1,
-            quorumThresholdPercentage: quorumThreshold(thresholdDenominator, 1) + 1,
+            quorumThreshold: quorumThreshold(thresholdDenominator, 1) + 1,
             quorumNumbers: hex"00"
         });
 
@@ -289,15 +277,13 @@ contract SFFLTaskManagerTest is TestUtils {
         });
 
         vm.prank(generator);
-        taskManager.createCheckpointTask(
-            task.fromNearBlock, task.toNearBlock, task.quorumThresholdPercentage, task.quorumNumbers
-        );
+        taskManager.createCheckpointTask(task.fromNearBlock, task.toNearBlock, task.quorumThreshold, task.quorumNumbers);
 
         assertEq(taskManager.allCheckpointTaskResponses(0), bytes32(0));
 
         vm.roll(taskResponseMetadata.taskRespondedBlock);
 
-        vm.expectRevert("Quorum percentage not met");
+        vm.expectRevert("Quorum not met");
 
         vm.prank(aggregator);
         taskManager.respondToCheckpointTask(task, taskResponse, nonSignerStakesAndSignature);
@@ -308,7 +294,7 @@ contract SFFLTaskManagerTest is TestUtils {
             taskCreatedBlock: 1000,
             fromNearBlock: 0,
             toNearBlock: 1,
-            quorumThresholdPercentage: quorumThreshold(thresholdDenominator, 1),
+            quorumThreshold: quorumThreshold(thresholdDenominator, 1),
             quorumNumbers: hex"00"
         });
 

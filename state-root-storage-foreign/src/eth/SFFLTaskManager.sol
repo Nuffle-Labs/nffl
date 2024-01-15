@@ -129,21 +129,20 @@ contract SFFLTaskManager is Initializable, OwnableUpgradeable, Pausable, BLSSign
      * @dev Only callable by the task generator
      * @param fromNearBlock NEAR block range start
      * @param toNearBlock NEAR block range end
-     * @param quorumThresholdPercentage Necessary quorum percentage, based on
-     * THRESHOLD_DENOMINATOR
+     * @param quorumThreshold Necessary quorum, based on THRESHOLD_DENOMINATOR
      * @param quorumNumbers Byte array of quorum numbers
      */
     function createCheckpointTask(
         uint64 fromNearBlock,
         uint64 toNearBlock,
-        uint32 quorumThresholdPercentage,
+        uint32 quorumThreshold,
         bytes calldata quorumNumbers
     ) external onlyTaskGenerator {
         Checkpoint.Task memory newTask = Checkpoint.Task({
             taskCreatedBlock: uint32(block.number),
             fromNearBlock: fromNearBlock,
             toNearBlock: toNearBlock,
-            quorumThresholdPercentage: quorumThresholdPercentage,
+            quorumThreshold: quorumThreshold,
             quorumNumbers: quorumNumbers
         });
 
@@ -166,7 +165,7 @@ contract SFFLTaskManager is Initializable, OwnableUpgradeable, Pausable, BLSSign
     ) external onlyAggregator {
         uint32 taskCreatedBlock = task.taskCreatedBlock;
         bytes calldata quorumNumbers = task.quorumNumbers;
-        uint32 quorumThresholdPercentage = task.quorumThresholdPercentage;
+        uint32 quorumThreshold = task.quorumThreshold;
 
         require(task.hashCalldata() == allCheckpointTaskHashes[taskResponse.referenceTaskIndex], "Wrong task hash");
         require(allCheckpointTaskResponses[taskResponse.referenceTaskIndex] == bytes32(0), "Task already responded");
@@ -174,10 +173,9 @@ contract SFFLTaskManager is Initializable, OwnableUpgradeable, Pausable, BLSSign
 
         bytes32 messageHash = taskResponse.hashCalldata();
 
-        (bool success, bytes32 hashOfNonSigners) = checkQuorum(
-            messageHash, quorumNumbers, taskCreatedBlock, nonSignerStakesAndSignature, quorumThresholdPercentage
-        );
-        require(success, "Quorum percentage not met");
+        (bool success, bytes32 hashOfNonSigners) =
+            checkQuorum(messageHash, quorumNumbers, taskCreatedBlock, nonSignerStakesAndSignature, quorumThreshold);
+        require(success, "Quorum not met");
 
         Checkpoint.TaskResponseMetadata memory taskResponseMetadata =
             Checkpoint.TaskResponseMetadata(uint32(block.number), hashOfNonSigners);
@@ -254,8 +252,7 @@ contract SFFLTaskManager is Initializable, OwnableUpgradeable, Pausable, BLSSign
      * @param quorumNumbers Byte array of byte numbers
      * @param referenceBlockNumber Reference block number for the operator set
      * @param nonSignerStakesAndSignature Agreement signature info
-     * @param quorumThresholdPercentage Quorum threshold percentage based on
-     * THRESHOLD_DENOMINATOR
+     * @param quorumThreshold Necessary quorum, based on THRESHOLD_DENOMINATOR
      * @return Whether the voting passed quorum or not
      * @return Non signers hash
      */
@@ -264,7 +261,7 @@ contract SFFLTaskManager is Initializable, OwnableUpgradeable, Pausable, BLSSign
         bytes calldata quorumNumbers,
         uint32 referenceBlockNumber,
         NonSignerStakesAndSignature memory nonSignerStakesAndSignature,
-        uint256 quorumThresholdPercentage
+        uint256 quorumThreshold
     ) public view returns (bool, bytes32) {
         (QuorumStakeTotals memory quorumStakeTotals, bytes32 hashOfNonSigners) =
             checkSignatures(messageHash, quorumNumbers, referenceBlockNumber, nonSignerStakesAndSignature);
@@ -272,7 +269,7 @@ contract SFFLTaskManager is Initializable, OwnableUpgradeable, Pausable, BLSSign
         for (uint256 i = 0; i < quorumNumbers.length; i++) {
             if (
                 quorumStakeTotals.signedStakeForQuorum[i] * THRESHOLD_DENOMINATOR
-                    < quorumStakeTotals.totalStakeForQuorum[i] * quorumThresholdPercentage
+                    < quorumStakeTotals.totalStakeForQuorum[i] * quorumThreshold
             ) {
                 return (false, hashOfNonSigners);
             }

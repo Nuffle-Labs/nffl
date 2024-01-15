@@ -96,7 +96,7 @@ contract SFFLServiceManagerTest is TestUtils {
         (, IBLSSignatureChecker.NonSignerStakesAndSignature memory nonSignerStakesAndSignature) =
             setUpOperators(message.hash(), 1000, 100, maxOperatorsToRegister / 2);
 
-        vm.expectRevert("Not enough quorum");
+        vm.expectRevert("Quorum not met");
 
         sfflServiceManager.updateStateRoot(message, nonSignerStakesAndSignature);
     }

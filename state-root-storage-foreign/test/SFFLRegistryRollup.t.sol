@@ -18,11 +18,11 @@ contract SFFLRegistryRollupTest is TestUtils {
     SFFLRegistryRollup public registry;
 
     uint128 public constant DEFAULT_WEIGHT = 100;
-    uint128 public WEIGHT_THRESHOLD = 2 * uint128(1000000000) / 3;
+    uint128 public QUORUM_THRESHOLD = 2 * uint128(1000000000) / 3;
 
     event StateRootUpdated(uint32 indexed rollupId, uint64 indexed blockHeight, bytes32 stateRoot);
     event OperatorUpdated(bytes32 indexed pubkeyHash, uint128 weight);
-    event WeightThresholdUpdated(uint128 indexed newWeightThreshold);
+    event QuorumThresholdUpdated(uint128 indexed newQuorumThreshold);
 
     function setUp() public {
         // BLSUtilsFFI.keygen(4, 100)
@@ -57,7 +57,7 @@ contract SFFLRegistryRollupTest is TestUtils {
         );
 
         vm.prank(addr("owner"));
-        registry = new SFFLRegistryRollup(operators, WEIGHT_THRESHOLD, 0);
+        registry = new SFFLRegistryRollup(operators, QUORUM_THRESHOLD, 0);
     }
 
     function test_setUp() public {
@@ -69,7 +69,7 @@ contract SFFLRegistryRollupTest is TestUtils {
             ).hashG1Point()
         );
         assertEq(registry.getTotalWeight(), 400);
-        assertEq(registry.getWeightThreshold(), WEIGHT_THRESHOLD);
+        assertEq(registry.getQuorumThreshold(), QUORUM_THRESHOLD);
     }
 
     function test_updateOperatorSet() public {
@@ -198,7 +198,7 @@ contract SFFLRegistryRollupTest is TestUtils {
                 )
         });
 
-        vm.expectRevert("Not enough quorum");
+        vm.expectRevert("Quorum not met");
 
         registry.updateOperatorSet(message, signatureInfo);
     }
@@ -328,35 +328,35 @@ contract SFFLRegistryRollupTest is TestUtils {
                 )
         });
 
-        vm.expectRevert("Not enough quorum");
+        vm.expectRevert("Quorum not met");
 
         registry.updateStateRoot(message, signatureInfo);
     }
 
-    function test_setWeightThreshold() public {
-        assertEq(registry.getWeightThreshold(), WEIGHT_THRESHOLD);
+    function test_setQuorumThreshold() public {
+        assertEq(registry.getQuorumThreshold(), QUORUM_THRESHOLD);
 
         vm.expectEmit(true, false, false, false);
-        emit WeightThresholdUpdated(1000);
+        emit QuorumThresholdUpdated(1000);
 
         vm.prank(addr("owner"));
-        registry.setWeightThreshold(1000);
+        registry.setQuorumThreshold(1000);
 
-        assertEq(registry.getWeightThreshold(), 1000);
+        assertEq(registry.getQuorumThreshold(), 1000);
     }
 
-    function test_setWeightThreshold_RevertWhen_CallerNotOwner() public {
+    function test_setQuorumThreshold_RevertWhen_CallerNotOwner() public {
         vm.expectRevert("Ownable: caller is not the owner");
 
-        registry.setWeightThreshold(1000);
+        registry.setQuorumThreshold(1000);
     }
 
-    function test_setWeightThreshold_RevertWhen_ThresholdGreaterThanDenominator() public {
-        uint128 denominator = registry.WEIGHT_THRESHOLD_DENOMINATOR();
+    function test_setQuorumThreshold_RevertWhen_ThresholdGreaterThanDenominator() public {
+        uint128 denominator = registry.THRESHOLD_DENOMINATOR();
 
-        vm.expectRevert("Weight threshold greater than denominator");
+        vm.expectRevert("Quorum threshold greater than denominator");
 
         vm.prank(addr("owner"));
-        registry.setWeightThreshold(denominator + 1);
+        registry.setQuorumThreshold(denominator + 1);
     }
 }

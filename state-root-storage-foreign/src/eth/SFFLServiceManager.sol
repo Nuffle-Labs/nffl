@@ -54,7 +54,7 @@ contract SFFLServiceManager is SFFLRegistryBase, ServiceManagerBase {
         StateRootUpdate.Message calldata message,
         IBLSSignatureChecker.NonSignerStakesAndSignature calldata nonSignerStakesAndSignature
     ) external {
-        require(_verifyStateRootUpdate(message, nonSignerStakesAndSignature), "Not enough quorum");
+        require(_verifyStateRootUpdate(message, nonSignerStakesAndSignature), "Quorum not met");
 
         _pushStateRoot(message.rollupId, message.blockHeight, message.stateRoot);
     }
