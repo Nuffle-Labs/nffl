@@ -13,18 +13,12 @@ import {Checkpoint} from "../src/eth/task/Checkpoint.sol";
 
 import {TestUtils} from "./utils/TestUtils.sol";
 
-contract SFFLTaskManagerHarness is SFFLTaskManager {
-    constructor(IRegistryCoordinator registryCoordinator, uint32 taskResponseWindowBlock)
-        SFFLTaskManager(registryCoordinator, taskResponseWindowBlock)
-    {}
-}
-
 contract SFFLTaskManagerTest is TestUtils {
     using Checkpoint for Checkpoint.Task;
     using Checkpoint for Checkpoint.TaskResponse;
     using BN254 for BN254.G1Point;
 
-    SFFLTaskManagerHarness public taskManager;
+    SFFLTaskManager public taskManager;
 
     uint32 public constant TASK_RESPONSE_WINDOW_BLOCK = 30;
     address public aggregator;
@@ -45,9 +39,9 @@ contract SFFLTaskManagerTest is TestUtils {
         aggregator = addr("aggregator");
         generator = addr("generator");
 
-        address impl = address(new SFFLTaskManagerHarness(registryCoordinator, TASK_RESPONSE_WINDOW_BLOCK));
+        address impl = address(new SFFLTaskManager(registryCoordinator, TASK_RESPONSE_WINDOW_BLOCK));
 
-        taskManager = SFFLTaskManagerHarness(
+        taskManager = SFFLTaskManager(
             deployProxy(
                 impl,
                 address(proxyAdmin),
