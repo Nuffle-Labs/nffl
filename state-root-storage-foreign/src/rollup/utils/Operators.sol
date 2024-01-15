@@ -48,6 +48,12 @@ library Operators {
      * @param weight Operator weight
      */
     event OperatorUpdated(bytes32 indexed pubkeyHash, uint128 weight);
+    /**
+     * @notice Emitted when the weight threshold is updated
+     * @param newWeightThreshold New weight threshold, based on
+     * THRESHOLD_DENOMINATOR
+     */
+    event WeightThresholdUpdated(uint128 indexed newWeightThreshold);
 
     /**
      * @notice Initializes the operator set with the initial operators and
@@ -69,7 +75,11 @@ library Operators {
      * WEIGHT_THRESHOLD_DENOMINATOR
      */
     function setWeightThreshold(OperatorSet storage self, uint128 weightThreshold) internal {
+        require(weightThreshold <= WEIGHT_THRESHOLD_DENOMINATOR, "Weight threshold greater than denominator");
+
         self.weightThreshold = weightThreshold;
+
+        emit WeightThresholdUpdated(weightThreshold);
     }
 
     /**

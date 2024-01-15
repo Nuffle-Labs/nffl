@@ -1,6 +1,8 @@
 // SPDX-License-Identifier: UNLICENSED
 pragma solidity ^0.8.12;
 
+import {Ownable} from "@openzeppelin/contracts/access/Ownable.sol";
+
 import {BN254} from "eigenlayer-middleware/src/libraries/BN254.sol";
 
 import {SFFLRegistryBase} from "../base/SFFLRegistryBase.sol";
@@ -12,7 +14,7 @@ import {OperatorSetUpdate} from "./message/OperatorSetUpdate.sol";
  * @title SFFL registry for rollups / external networks
  * @notice Contract that centralizes
  */
-contract SFFLRegistryRollup is SFFLRegistryBase {
+contract SFFLRegistryRollup is SFFLRegistryBase, Ownable {
     using BN254 for BN254.G1Point;
     using Operators for Operators.OperatorSet;
     using OperatorSetUpdate for OperatorSetUpdate.Message;
@@ -60,6 +62,15 @@ contract SFFLRegistryRollup is SFFLRegistryBase {
         require(_operatorSet.verifyCalldata(message.hashCalldata(), signatureInfo), "Not enough quorum");
 
         _pushStateRoot(message.rollupId, message.blockHeight, message.stateRoot);
+    }
+
+    /**
+     * @notice Sets the operator set weight threshold
+     * @param newWeightThreshold New weight threshold, based on
+     * THRESHOLD_DENOMINATOR
+     */
+    function setWeightThreshold(uint128 newWeightThreshold) external onlyOwner {
+        return _operatorSet.setWeightThreshold(newWeightThreshold);
     }
 
     /**
