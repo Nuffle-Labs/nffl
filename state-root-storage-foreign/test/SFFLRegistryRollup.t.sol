@@ -97,7 +97,7 @@ contract SFFLRegistryRollupTest is TestUtils {
             DEFAULT_WEIGHT
         );
 
-        OperatorSetUpdate.Message memory message = OperatorSetUpdate.Message(1, operators);
+        OperatorSetUpdate.Message memory message = OperatorSetUpdate.Message(registry.nextOperatorUpdateId(), operators);
 
         bytes32[] memory nonSignerPubkeyHashes = new bytes32[](1);
         nonSignerPubkeyHashes[0] = BN254.G1Point(
@@ -169,7 +169,7 @@ contract SFFLRegistryRollupTest is TestUtils {
             DEFAULT_WEIGHT
         );
 
-        OperatorSetUpdate.Message memory message = OperatorSetUpdate.Message(1, operators);
+        OperatorSetUpdate.Message memory message = OperatorSetUpdate.Message(registry.nextOperatorUpdateId(), operators);
 
         bytes32[] memory nonSignerPubkeyHashes = new bytes32[](2);
         nonSignerPubkeyHashes[0] = BN254.G1Point(
@@ -228,7 +228,8 @@ contract SFFLRegistryRollupTest is TestUtils {
             DEFAULT_WEIGHT
         );
 
-        OperatorSetUpdate.Message memory message = OperatorSetUpdate.Message(registry.lastOperatorUpdateId(), operators);
+        OperatorSetUpdate.Message memory message =
+            OperatorSetUpdate.Message(registry.nextOperatorUpdateId() + 1, operators);
 
         bytes32[] memory nonSignerPubkeyHashes = new bytes32[](2);
         nonSignerPubkeyHashes[0] = BN254.G1Point(

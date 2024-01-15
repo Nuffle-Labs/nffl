@@ -94,7 +94,7 @@ contract SFFLTaskManagerTest is TestUtils {
             quorumNumbers: hex"00"
         });
 
-        assertEq(taskManager.latestCheckpointTaskNum(), 0);
+        assertEq(taskManager.nextCheckpointTaskNum(), 0);
         assertEq(taskManager.allCheckpointTaskHashes(0), bytes32(0));
 
         vm.roll(task.taskCreatedBlock);
@@ -105,7 +105,7 @@ contract SFFLTaskManagerTest is TestUtils {
         vm.prank(generator);
         taskManager.createCheckpointTask(task.fromNearBlock, task.toNearBlock, task.quorumThreshold, task.quorumNumbers);
 
-        assertEq(taskManager.latestCheckpointTaskNum(), 1);
+        assertEq(taskManager.nextCheckpointTaskNum(), 1);
         assertEq(taskManager.allCheckpointTaskHashes(0), task.hash());
     }
 

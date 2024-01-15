@@ -23,14 +23,14 @@ contract SFFLRegistryRollup is SFFLRegistryBase, Ownable {
     Operators.OperatorSet internal _operatorSet;
 
     /**
-     * @notice Last operator set update message ID
+     * @notice Next operator set update message ID
      */
-    uint64 public lastOperatorUpdateId;
+    uint64 public nextOperatorUpdateId;
 
     constructor(Operators.Operator[] memory operators, uint128 quorumThreshold, uint64 operatorUpdateId) {
         _operatorSet.initialize(operators, quorumThreshold);
 
-        lastOperatorUpdateId = operatorUpdateId;
+        nextOperatorUpdateId = operatorUpdateId;
     }
 
     /**
@@ -42,10 +42,10 @@ contract SFFLRegistryRollup is SFFLRegistryBase, Ownable {
         OperatorSetUpdate.Message calldata message,
         Operators.SignatureInfo calldata signatureInfo
     ) external {
-        require(message.id == lastOperatorUpdateId + 1, "Wrong message ID");
+        require(message.id == nextOperatorUpdateId, "Wrong message ID");
         require(_operatorSet.verifyCalldata(message.hashCalldata(), signatureInfo), "Quorum not met");
 
-        lastOperatorUpdateId = message.id;
+        nextOperatorUpdateId = message.id;
 
         _operatorSet.update(message.operators);
     }

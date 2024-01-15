@@ -38,9 +38,9 @@ contract SFFLTaskManager is Initializable, OwnableUpgradeable, Pausable, BLSSign
     uint32 public constant THRESHOLD_DENOMINATOR = 1000000000;
 
     /**
-     * @notice Checkpoint task number
+     * @notice Next checkpoint task number
      */
-    uint32 public latestCheckpointTaskNum;
+    uint32 public nextCheckpointTaskNum;
     /**
      * @notice Task generator whitelisted address
      */
@@ -148,9 +148,9 @@ contract SFFLTaskManager is Initializable, OwnableUpgradeable, Pausable, BLSSign
             quorumNumbers: quorumNumbers
         });
 
-        allCheckpointTaskHashes[latestCheckpointTaskNum] = newTask.hash();
-        emit CheckpointTaskCreated(latestCheckpointTaskNum, newTask);
-        latestCheckpointTaskNum = latestCheckpointTaskNum + 1;
+        allCheckpointTaskHashes[nextCheckpointTaskNum] = newTask.hash();
+        emit CheckpointTaskCreated(nextCheckpointTaskNum, newTask);
+        nextCheckpointTaskNum = nextCheckpointTaskNum + 1;
     }
 
     /**
@@ -192,7 +192,7 @@ contract SFFLTaskManager is Initializable, OwnableUpgradeable, Pausable, BLSSign
      * @return Next checkpoint task number
      */
     function checkpointTaskNumber() external view returns (uint32) {
-        return latestCheckpointTaskNum;
+        return nextCheckpointTaskNum;
     }
 
     /**
