@@ -22,7 +22,7 @@ contract SFFLTaskManagerTestFFI is TestUtils {
     uint32 public constant TASK_RESPONSE_WINDOW_BLOCK = 30;
     address public aggregator;
     address public generator;
-    uint256 public thresholdDenominator;
+    uint32 public thresholdDenominator;
 
     event CheckpointTaskCreated(uint32 indexed taskIndex, Checkpoint.Task task);
     event CheckpointTaskResponded(

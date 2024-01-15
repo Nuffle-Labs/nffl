@@ -35,7 +35,7 @@ contract SFFLTaskManager is Initializable, OwnableUpgradeable, Pausable, BLSSign
     /**
      * @dev Denominator for thresholds
      */
-    uint256 public constant THRESHOLD_DENOMINATOR = 1000000000;
+    uint32 public constant THRESHOLD_DENOMINATOR = 1000000000;
 
     /**
      * @notice Checkpoint task number
@@ -261,7 +261,7 @@ contract SFFLTaskManager is Initializable, OwnableUpgradeable, Pausable, BLSSign
         bytes calldata quorumNumbers,
         uint32 referenceBlockNumber,
         NonSignerStakesAndSignature memory nonSignerStakesAndSignature,
-        uint256 quorumThreshold
+        uint32 quorumThreshold
     ) public view returns (bool, bytes32) {
         (QuorumStakeTotals memory quorumStakeTotals, bytes32 hashOfNonSigners) =
             checkSignatures(messageHash, quorumNumbers, referenceBlockNumber, nonSignerStakesAndSignature);
