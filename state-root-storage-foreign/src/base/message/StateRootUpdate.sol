@@ -25,4 +25,13 @@ library StateRootUpdate {
     function hashCalldata(Message calldata message) internal pure returns (bytes32) {
         return keccak256(abi.encode(message));
     }
+
+    /**
+     * @notice Hashes a state root update message
+     * @param message Message structured data
+     * @return Message hash
+     */
+    function hash(Message memory message) internal pure returns (bytes32) {
+        return keccak256(abi.encode(message));
+    }
 }
