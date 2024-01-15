@@ -17,6 +17,9 @@ contract SFFLRegistryRollupTest is TestUtils {
 
     SFFLRegistryRollup public registry;
 
+    Operators.Operator[] public initialOperators;
+    Operators.Operator[] public extraOperators;
+
     uint128 public constant DEFAULT_WEIGHT = 100;
     uint128 public QUORUM_THRESHOLD = 2 * uint128(1000000000) / 3;
 
@@ -26,38 +29,55 @@ contract SFFLRegistryRollupTest is TestUtils {
 
     function setUp() public {
         // BLSUtilsFFI.keygen(4, 100)
-        Operators.Operator[] memory operators = new Operators.Operator[](4);
-        operators[0] = Operators.Operator(
-            BN254.G1Point(
-                9616480996400718794846151252530035789548914510416131398073228825370885543387,
-                1193202739907461244540326755381374372389880624644682929124544554638046348630
-            ),
-            DEFAULT_WEIGHT
+        initialOperators.push(
+            Operators.Operator(
+                BN254.G1Point(
+                    9616480996400718794846151252530035789548914510416131398073228825370885543387,
+                    1193202739907461244540326755381374372389880624644682929124544554638046348630
+                ),
+                DEFAULT_WEIGHT
+            )
         );
-        operators[1] = Operators.Operator(
-            BN254.G1Point(
-                18127872302725521126948039783576335344235515541656874329008995106922633337074,
-                8399728219671791397177034566462901981672518419761436513477052772303615710768
-            ),
-            DEFAULT_WEIGHT
+        initialOperators.push(
+            Operators.Operator(
+                BN254.G1Point(
+                    18127872302725521126948039783576335344235515541656874329008995106922633337074,
+                    8399728219671791397177034566462901981672518419761436513477052772303615710768
+                ),
+                DEFAULT_WEIGHT
+            )
         );
-        operators[2] = Operators.Operator(
-            BN254.G1Point(
-                21052107500402163350976152667562860793896335512669052649238089783827995103691,
-                19540845318985121430596366476154886876615197304682640344094567483512876396969
-            ),
-            DEFAULT_WEIGHT
+        initialOperators.push(
+            Operators.Operator(
+                BN254.G1Point(
+                    21052107500402163350976152667562860793896335512669052649238089783827995103691,
+                    19540845318985121430596366476154886876615197304682640344094567483512876396969
+                ),
+                DEFAULT_WEIGHT
+            )
         );
-        operators[3] = Operators.Operator(
-            BN254.G1Point(
-                2219290000546820918614914859472334932465240992233723879760496915453797571330,
-                12792826480108937261317636923053265154992326678284813916740018134087766211155
-            ),
-            DEFAULT_WEIGHT
+        initialOperators.push(
+            Operators.Operator(
+                BN254.G1Point(
+                    2219290000546820918614914859472334932465240992233723879760496915453797571330,
+                    12792826480108937261317636923053265154992326678284813916740018134087766211155
+                ),
+                DEFAULT_WEIGHT
+            )
+        );
+
+        extraOperators.push(
+            Operators.Operator(
+                BN254.G1Point(
+                    1768235322131906328721284719328963673934008473718528701566488601237085071962,
+                    4002933128315738291771882099514828917162455208473397665597366416040939248693
+                ),
+                DEFAULT_WEIGHT
+            )
         );
 
         vm.prank(addr("owner"));
-        registry = new SFFLRegistryRollup(operators, QUORUM_THRESHOLD, 0);
+        registry = new SFFLRegistryRollup(initialOperators, QUORUM_THRESHOLD, 0);
     }
 
     function test_setUp() public {
@@ -75,35 +95,14 @@ contract SFFLRegistryRollupTest is TestUtils {
     function test_updateOperatorSet() public {
         Operators.Operator[] memory operators = new Operators.Operator[](3);
 
-        operators[0] = Operators.Operator(
-            BN254.G1Point(
-                2219290000546820918614914859472334932465240992233723879760496915453797571330,
-                12792826480108937261317636923053265154992326678284813916740018134087766211155
-            ),
-            0
-        );
-        operators[1] = Operators.Operator(
-            BN254.G1Point(
-                21052107500402163350976152667562860793896335512669052649238089783827995103691,
-                19540845318985121430596366476154886876615197304682640344094567483512876396969
-            ),
-            3 * DEFAULT_WEIGHT
-        );
-        operators[2] = Operators.Operator(
-            BN254.G1Point(
-                1768235322131906328721284719328963673934008473718528701566488601237085071962,
-                4002933128315738291771882099514828917162455208473397665597366416040939248693
-            ),
-            DEFAULT_WEIGHT
-        );
+        operators[0] = Operators.Operator(initialOperators[3].pubkey, 0);
+        operators[1] = Operators.Operator(initialOperators[2].pubkey, 3 * DEFAULT_WEIGHT);
+        operators[2] = extraOperators[0];
 
         OperatorSetUpdate.Message memory message = OperatorSetUpdate.Message(registry.nextOperatorUpdateId(), operators);
 
         bytes32[] memory nonSignerPubkeyHashes = new bytes32[](1);
-        nonSignerPubkeyHashes[0] = BN254.G1Point(
-            2219290000546820918614914859472334932465240992233723879760496915453797571330,
-            12792826480108937261317636923053265154992326678284813916740018134087766211155
-        ).hashG1Point();
+        nonSignerPubkeyHashes[0] = initialOperators[3].pubkey.hashG1Point();
 
         Operators.SignatureInfo memory signatureInfo = Operators.SignatureInfo({
             nonSignerPubkeyHashes: nonSignerPubkeyHashes,
@@ -147,39 +146,15 @@ contract SFFLRegistryRollupTest is TestUtils {
     function test_updateOperatorSet_RevertWhen_QuorumNotMet() public {
         Operators.Operator[] memory operators = new Operators.Operator[](3);
 
-        operators[0] = Operators.Operator(
-            BN254.G1Point(
-                2219290000546820918614914859472334932465240992233723879760496915453797571330,
-                12792826480108937261317636923053265154992326678284813916740018134087766211155
-            ),
-            0
-        );
-        operators[1] = Operators.Operator(
-            BN254.G1Point(
-                21052107500402163350976152667562860793896335512669052649238089783827995103691,
-                19540845318985121430596366476154886876615197304682640344094567483512876396969
-            ),
-            3 * DEFAULT_WEIGHT
-        );
-        operators[2] = Operators.Operator(
-            BN254.G1Point(
-                1768235322131906328721284719328963673934008473718528701566488601237085071962,
-                4002933128315738291771882099514828917162455208473397665597366416040939248693
-            ),
-            DEFAULT_WEIGHT
-        );
+        operators[0] = Operators.Operator(initialOperators[3].pubkey, 0);
+        operators[1] = Operators.Operator(initialOperators[2].pubkey, 3 * DEFAULT_WEIGHT);
+        operators[2] = extraOperators[0];
 
         OperatorSetUpdate.Message memory message = OperatorSetUpdate.Message(registry.nextOperatorUpdateId(), operators);
 
         bytes32[] memory nonSignerPubkeyHashes = new bytes32[](2);
-        nonSignerPubkeyHashes[0] = BN254.G1Point(
-            2219290000546820918614914859472334932465240992233723879760496915453797571330,
-            12792826480108937261317636923053265154992326678284813916740018134087766211155
-        ).hashG1Point();
-        nonSignerPubkeyHashes[1] = BN254.G1Point(
-            21052107500402163350976152667562860793896335512669052649238089783827995103691,
-            19540845318985121430596366476154886876615197304682640344094567483512876396969
-        ).hashG1Point();
+        nonSignerPubkeyHashes[0] = initialOperators[3].pubkey.hashG1Point();
+        nonSignerPubkeyHashes[1] = initialOperators[2].pubkey.hashG1Point();
 
         Operators.SignatureInfo memory signatureInfo = Operators.SignatureInfo({
             nonSignerPubkeyHashes: nonSignerPubkeyHashes,
@@ -206,40 +181,16 @@ contract SFFLRegistryRollupTest is TestUtils {
     function test_updateOperatorSet_RevertWhen_WrongMessageId() public {
         Operators.Operator[] memory operators = new Operators.Operator[](3);
 
-        operators[0] = Operators.Operator(
-            BN254.G1Point(
-                2219290000546820918614914859472334932465240992233723879760496915453797571330,
-                12792826480108937261317636923053265154992326678284813916740018134087766211155
-            ),
-            0
-        );
-        operators[1] = Operators.Operator(
-            BN254.G1Point(
-                21052107500402163350976152667562860793896335512669052649238089783827995103691,
-                19540845318985121430596366476154886876615197304682640344094567483512876396969
-            ),
-            3 * DEFAULT_WEIGHT
-        );
-        operators[2] = Operators.Operator(
-            BN254.G1Point(
-                1768235322131906328721284719328963673934008473718528701566488601237085071962,
-                4002933128315738291771882099514828917162455208473397665597366416040939248693
-            ),
-            DEFAULT_WEIGHT
-        );
+        operators[0] = Operators.Operator(initialOperators[3].pubkey, 0);
+        operators[1] = Operators.Operator(initialOperators[2].pubkey, 3 * DEFAULT_WEIGHT);
+        operators[2] = extraOperators[0];
 
         OperatorSetUpdate.Message memory message =
             OperatorSetUpdate.Message(registry.nextOperatorUpdateId() + 1, operators);
 
         bytes32[] memory nonSignerPubkeyHashes = new bytes32[](2);
-        nonSignerPubkeyHashes[0] = BN254.G1Point(
-            2219290000546820918614914859472334932465240992233723879760496915453797571330,
-            12792826480108937261317636923053265154992326678284813916740018134087766211155
-        ).hashG1Point();
-        nonSignerPubkeyHashes[1] = BN254.G1Point(
-            21052107500402163350976152667562860793896335512669052649238089783827995103691,
-            19540845318985121430596366476154886876615197304682640344094567483512876396969
-        ).hashG1Point();
+        nonSignerPubkeyHashes[0] = initialOperators[3].pubkey.hashG1Point();
+        nonSignerPubkeyHashes[1] = initialOperators[2].pubkey.hashG1Point();
 
         Operators.SignatureInfo memory signatureInfo = Operators.SignatureInfo({
             nonSignerPubkeyHashes: nonSignerPubkeyHashes,
@@ -267,10 +218,7 @@ contract SFFLRegistryRollupTest is TestUtils {
         StateRootUpdate.Message memory message = StateRootUpdate.Message(0, 1, keccak256(hex"f00d"));
 
         bytes32[] memory nonSignerPubkeyHashes = new bytes32[](1);
-        nonSignerPubkeyHashes[0] = BN254.G1Point(
-            2219290000546820918614914859472334932465240992233723879760496915453797571330,
-            12792826480108937261317636923053265154992326678284813916740018134087766211155
-        ).hashG1Point();
+        nonSignerPubkeyHashes[0] = initialOperators[3].pubkey.hashG1Point();
 
         Operators.SignatureInfo memory signatureInfo = Operators.SignatureInfo({
             nonSignerPubkeyHashes: nonSignerPubkeyHashes,
@@ -303,14 +251,8 @@ contract SFFLRegistryRollupTest is TestUtils {
         StateRootUpdate.Message memory message = StateRootUpdate.Message(0, 1, keccak256(hex"f00d"));
 
         bytes32[] memory nonSignerPubkeyHashes = new bytes32[](2);
-        nonSignerPubkeyHashes[0] = BN254.G1Point(
-            2219290000546820918614914859472334932465240992233723879760496915453797571330,
-            12792826480108937261317636923053265154992326678284813916740018134087766211155
-        ).hashG1Point();
-        nonSignerPubkeyHashes[1] = BN254.G1Point(
-            21052107500402163350976152667562860793896335512669052649238089783827995103691,
-            19540845318985121430596366476154886876615197304682640344094567483512876396969
-        ).hashG1Point();
+        nonSignerPubkeyHashes[0] = initialOperators[3].pubkey.hashG1Point();
+        nonSignerPubkeyHashes[1] = initialOperators[2].pubkey.hashG1Point();
 
         Operators.SignatureInfo memory signatureInfo = Operators.SignatureInfo({
             nonSignerPubkeyHashes: nonSignerPubkeyHashes,
