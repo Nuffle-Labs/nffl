@@ -12,7 +12,11 @@ import {OperatorSetUpdate} from "./message/OperatorSetUpdate.sol";
 
 /**
  * @title SFFL registry for rollups / external networks
- * @notice Contract that centralizes
+ * @notice Contract that centralizes the AVS operator set copy management,
+ * which is based on agreements such as the state root updates, as well as
+ * state root updates themselves. Differently from the Ethereum AVS contracts,
+ * the rollup contract heavily assumes a one-quorum operator set and can only
+ * prove agreements based on the current operator set state
  */
 contract SFFLRegistryRollup is SFFLRegistryBase, Ownable {
     using BN254 for BN254.G1Point;
@@ -20,6 +24,9 @@ contract SFFLRegistryRollup is SFFLRegistryBase, Ownable {
     using OperatorSetUpdate for OperatorSetUpdate.Message;
     using StateRootUpdate for StateRootUpdate.Message;
 
+    /**
+     * @dev Operator set used for agreements
+     */
     Operators.OperatorSet internal _operatorSet;
 
     /**
@@ -27,6 +34,12 @@ contract SFFLRegistryRollup is SFFLRegistryBase, Ownable {
      */
     uint64 public nextOperatorUpdateId;
 
+    /**
+     * @notice Initializes the contract
+     * @param operators Initial operator list
+     * @param quorumThreshold Quorum threshold, based on THRESHOLD_DENOMINATOR
+     * @param operatorUpdateId Starting next operator update message ID
+     */
     constructor(Operators.Operator[] memory operators, uint128 quorumThreshold, uint64 operatorUpdateId) {
         _operatorSet.initialize(operators, quorumThreshold);
 
@@ -84,7 +97,8 @@ contract SFFLRegistryRollup is SFFLRegistryBase, Ownable {
 
     /**
      * @notice Sets the operator set quorum weight threshold
-     * @param newQuorumThreshold New quorum threshold, based on THRESHOLD_DENOMINATOR
+     * @param newQuorumThreshold New quorum threshold, based on
+     * THRESHOLD_DENOMINATOR
      */
     function setQuorumThreshold(uint128 newQuorumThreshold) external onlyOwner {
         return _operatorSet.setQuorumThreshold(newQuorumThreshold);
