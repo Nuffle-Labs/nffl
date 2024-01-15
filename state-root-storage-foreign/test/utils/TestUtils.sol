@@ -47,7 +47,7 @@ abstract contract TestUtils is Test, BLSMockAVSDeployer {
         return (signatoryRecordHash, nonSignerStakesAndSignature);
     }
 
-    function quorumThreshold(uint256 denominator, uint256 nonSignerCount) public returns (uint32) {
+    function quorumThreshold(uint256 denominator, uint256 nonSignerCount) public view returns (uint32) {
         return uint32((maxOperatorsToRegister - nonSignerCount) * denominator / maxOperatorsToRegister);
     }
 }
