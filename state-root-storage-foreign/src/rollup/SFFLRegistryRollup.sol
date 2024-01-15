@@ -57,11 +57,29 @@ contract SFFLRegistryRollup is SFFLRegistryBase, Ownable {
      * @param signatureInfo BLS aggregated signature info
      */
     function updateStateRoot(StateRootUpdate.Message calldata message, Operators.SignatureInfo calldata signatureInfo)
-        external
+        public
     {
         require(_operatorSet.verifyCalldata(message.hashCalldata(), signatureInfo), "Quorum not met");
 
         _pushStateRoot(message.rollupId, message.blockHeight, message.stateRoot);
+    }
+
+    /**
+     * Updates a rollup's state root based on the AVS operators agreement
+     * @param message State root update message
+     * @param encodedSignatureInfo Encoded BLS aggregated signature info
+     */
+    function _updateStateRoot(StateRootUpdate.Message calldata message, bytes calldata encodedSignatureInfo)
+        internal
+        override
+    {
+        Operators.SignatureInfo calldata signatureInfo;
+
+        assembly {
+            signatureInfo := encodedSignatureInfo.offset
+        }
+
+        updateStateRoot(message, signatureInfo);
     }
 
     /**

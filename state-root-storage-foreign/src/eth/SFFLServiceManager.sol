@@ -53,10 +53,28 @@ contract SFFLServiceManager is SFFLRegistryBase, ServiceManagerBase {
     function updateStateRoot(
         StateRootUpdate.Message calldata message,
         IBLSSignatureChecker.NonSignerStakesAndSignature calldata nonSignerStakesAndSignature
-    ) external {
+    ) public {
         require(_verifyStateRootUpdate(message, nonSignerStakesAndSignature), "Quorum not met");
 
         _pushStateRoot(message.rollupId, message.blockHeight, message.stateRoot);
+    }
+
+    /**
+     * Updates a rollup's state root based on the AVS operators agreement
+     * @param message State root update message
+     * @param encodedNonSignerStakesAndSignature AVS operators agreement info
+     */
+    function _updateStateRoot(
+        StateRootUpdate.Message calldata message,
+        bytes calldata encodedNonSignerStakesAndSignature
+    ) internal override {
+        IBLSSignatureChecker.NonSignerStakesAndSignature calldata nonSignerStakesAndSignature;
+
+        assembly {
+            nonSignerStakesAndSignature := encodedNonSignerStakesAndSignature.offset
+        }
+
+        updateStateRoot(message, nonSignerStakesAndSignature);
     }
 
     /**

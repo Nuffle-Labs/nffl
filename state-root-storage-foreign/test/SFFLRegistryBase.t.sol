@@ -4,11 +4,16 @@ pragma solidity ^0.8.12;
 import {Test, console2} from "forge-std/Test.sol";
 
 import {SFFLRegistryBase} from "../src/base/SFFLRegistryBase.sol";
+import {StateRootUpdate} from "../src/base/message/StateRootUpdate.sol";
 
 contract SFFLRegistryBaseHarness is SFFLRegistryBase {
+    using StateRootUpdate for StateRootUpdate.Message;
+
     function pushStateRoot(uint32 rollupId, uint64 blockHeight, bytes32 stateRoot) external {
         _pushStateRoot(rollupId, blockHeight, stateRoot);
     }
+
+    function _updateStateRoot(StateRootUpdate.Message calldata, bytes calldata) internal override {}
 }
 
 contract SFFLRegistryBaseTest is Test {

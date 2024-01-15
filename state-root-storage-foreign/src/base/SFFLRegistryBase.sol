@@ -6,6 +6,8 @@ import {Lib_OVMCodec} from "@eth-optimism/contracts/libraries/codec/Lib_OVMCodec
 import {Lib_SecureMerkleTrie} from "@eth-optimism/contracts/libraries/trie/Lib_SecureMerkleTrie.sol";
 import {Lib_RLPReader} from "@eth-optimism/contracts/libraries/rlp/Lib_RLPReader.sol";
 
+import {StateRootUpdate} from "../base/message/StateRootUpdate.sol";
+
 /**
  * @title SFFL registry base implementation
  * @notice Base implementation for all SFFL contracts in any chain, including
@@ -42,31 +44,56 @@ abstract contract SFFLRegistryBase {
 
     struct ProofParams {
         address target;
-        bytes32 storageSlot;
-        bytes32 expectedStorageValue;
+        bytes32 storageKey;
         bytes stateTrieWitness;
         bytes storageTrieWitness;
     }
 
     /**
-     * @notice Verifies a storage slot based on a rollup's state root in a block
-     * @param rollupId Pre-defined rollup ID
-     * @param blockHeight Rollup block height
+     * @notice Gets a storage key value based on a rollup's state root in a block
+     * @param message State root update message
      * @param proofParams Storage proof parameters
-     * @return Whether the storage value is the expected one or not
+     * @param agreement AVS operators agreement info
+     * @return Verified storage value
      */
-    function verifyStorage(uint32 rollupId, uint64 blockHeight, ProofParams calldata proofParams)
-        external
+    function updateAndGetStorageValue(
+        StateRootUpdate.Message calldata message,
+        ProofParams calldata proofParams,
+        bytes calldata agreement
+    ) external returns (bytes32) {
+        bytes32 stateRoot = _stateRootBuffers[message.rollupId][message.blockHeight];
+
+        if (stateRoot == bytes32(0)) {
+            require(agreement.length != 0, "Empty agreement");
+
+            _updateStateRoot(message, agreement);
+        }
+
+        return getStorageValue(message, proofParams);
+    }
+
+    /**
+     * @notice Gets a storage key value based on a rollup's state root in a block
+     * @param message State root update message
+     * @param proofParams Storage proof parameters
+     * @return Verified storage value
+     */
+    function getStorageValue(StateRootUpdate.Message calldata message, ProofParams calldata proofParams)
+        public
         view
-        returns (bool)
+        returns (bytes32)
     {
-        return getStorageValue(
+        bytes32 stateRoot = _stateRootBuffers[message.rollupId][message.blockHeight];
+
+        require(stateRoot == message.stateRoot, "Mismatching state roots");
+
+        return _getStorageValue(
             proofParams.target,
-            proofParams.storageSlot,
-            _stateRootBuffers[rollupId][blockHeight],
+            proofParams.storageKey,
+            stateRoot,
             proofParams.stateTrieWitness,
             proofParams.storageTrieWitness
-        ) == proofParams.expectedStorageValue;
+        );
     }
 
     /**
@@ -79,13 +106,13 @@ abstract contract SFFLRegistryBase {
      * @param storageTrieWitness Witness for the storage trie
      * @return Retrieved storage value padded to 32 bytes
      */
-    function getStorageValue(
+    function _getStorageValue(
         address target,
         bytes32 slot,
         bytes32 stateRoot,
         bytes memory stateTrieWitness,
         bytes memory storageTrieWitness
-    ) public pure returns (bytes32) {
+    ) internal pure returns (bytes32) {
         (bool exists, bytes memory encodedResolverAccount) =
             Lib_SecureMerkleTrie.get(abi.encodePacked(target), stateTrieWitness, stateRoot);
 
@@ -100,6 +127,13 @@ abstract contract SFFLRegistryBase {
 
         return _toBytes32PadLeft(Lib_RLPReader.readBytes(retrievedValue));
     }
+
+    /**
+     * Updates a rollup's state root based on the AVS operators agreement
+     * @param message State root update message
+     * @param agreement AVS operators agreement info
+     */
+    function _updateStateRoot(StateRootUpdate.Message calldata message, bytes calldata agreement) internal virtual;
 
     /**
      * @dev Simple utility to pad a bytes into a bytes32.
