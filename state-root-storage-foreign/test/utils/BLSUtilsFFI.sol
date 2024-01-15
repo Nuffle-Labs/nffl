@@ -5,7 +5,7 @@ import {Test} from "forge-std/Test.sol";
 
 import {BN254} from "eigenlayer-middleware/src/libraries/BN254.sol";
 
-contract BLSUtils is Test {
+contract BLSUtilsFFI is Test {
     struct JsonG2Point {
         string[] X;
         string[] Y;
