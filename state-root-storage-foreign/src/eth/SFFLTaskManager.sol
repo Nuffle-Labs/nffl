@@ -138,6 +138,8 @@ contract SFFLTaskManager is Initializable, OwnableUpgradeable, Pausable, BLSSign
         uint32 quorumThreshold,
         bytes calldata quorumNumbers
     ) external onlyTaskGenerator {
+        require(quorumThreshold <= THRESHOLD_DENOMINATOR, "Quorum threshold greater than denominator");
+
         Checkpoint.Task memory newTask = Checkpoint.Task({
             taskCreatedBlock: uint32(block.number),
             fromNearBlock: fromNearBlock,
