@@ -66,6 +66,22 @@ contract SFFLTaskManagerTest is TestUtils {
         });
 
         vm.expectRevert("Task generator must be the caller");
+
+        taskManager.createCheckpointTask(task.fromNearBlock, task.toNearBlock, task.quorumThreshold, task.quorumNumbers);
+    }
+
+    function test_createCheckpointTask_RevertWhen_ThresholdGreaterThanDenominator() public {
+        Checkpoint.Task memory task = Checkpoint.Task({
+            taskCreatedBlock: 100,
+            fromNearBlock: 0,
+            toNearBlock: 1,
+            quorumThreshold: thresholdDenominator + 1,
+            quorumNumbers: hex"00"
+        });
+
+        vm.expectRevert("Quorum threshold greater than denominator");
+
+        vm.prank(generator);
         taskManager.createCheckpointTask(task.fromNearBlock, task.toNearBlock, task.quorumThreshold, task.quorumNumbers);
     }
 
