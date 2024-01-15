@@ -73,6 +73,16 @@ library Operators {
     }
 
     /**
+     * @notice Gets an operator's weight
+     * @param self Operator set
+     * @param pubkeyHash Operator pubkey hash
+     * @return Operator weight
+     */
+    function getOperatorWeight(OperatorSet storage self, bytes32 pubkeyHash) internal view returns (uint128) {
+        return self.pubkeyHashToOperator[pubkeyHash].weight;
+    }
+
+    /**
      * @notice Updates the operator set operators, effectively overwriting set
      * operators
      * @param self Operator set

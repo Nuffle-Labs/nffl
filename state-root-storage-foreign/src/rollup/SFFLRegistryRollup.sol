@@ -61,4 +61,37 @@ contract SFFLRegistryRollup is SFFLRegistryBase {
 
         _pushStateRoot(message.rollupId, message.blockHeight, message.stateRoot);
     }
+
+    /**
+     * @notice Gets an operator's weight
+     * @param pubkeyHash Operator pubkey hash
+     * @return Operator weight
+     */
+    function getOperatorWeight(bytes32 pubkeyHash) external view returns (uint128) {
+        return _operatorSet.getOperatorWeight(pubkeyHash);
+    }
+
+    /**
+     * @notice Gets the operator set aggregate public key
+     * @return Operator set aggregate public key
+     */
+    function getApk() external view returns (BN254.G1Point memory) {
+        return _operatorSet.apk;
+    }
+
+    /**
+     * @notice Gets the operator set total weight
+     * @return Operator set total weight
+     */
+    function getTotalWeight() external view returns (uint128) {
+        return _operatorSet.totalWeight;
+    }
+
+    /**
+     * @notice Gets the operator set weight threshold
+     * @return Operator set weight threshold
+     */
+    function getWeightThreshold() external view returns (uint128) {
+        return _operatorSet.weightThreshold;
+    }
 }
