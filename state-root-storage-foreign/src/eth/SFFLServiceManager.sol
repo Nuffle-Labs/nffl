@@ -79,7 +79,7 @@ contract SFFLServiceManager is SFFLRegistryBase, ServiceManagerBase {
         IBLSSignatureChecker.NonSignerStakesAndSignature calldata nonSignerStakesAndSignature
     ) internal view returns (bool) {
         (bool success,) = taskManager.checkQuorum(
-            message.hashCalldata(), hex"01", uint32(block.number), nonSignerStakesAndSignature, _THRESHOLD_PERCENTAGE
+            message.hashCalldata(), hex"00", uint32(block.number), nonSignerStakesAndSignature, _THRESHOLD_PERCENTAGE
         );
 
         return success;
