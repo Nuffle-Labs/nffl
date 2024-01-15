@@ -105,4 +105,12 @@ contract SFFLRegistryRollup is SFFLRegistryBase, Ownable {
     function getWeightThreshold() external view returns (uint128) {
         return _operatorSet.weightThreshold;
     }
+
+    /**
+     * @notice Gets the operator set weight threshold denominator
+     * @return Operator set weight threshold denominator
+     */
+    function WEIGHT_THRESHOLD_DENOMINATOR() external pure returns (uint128) {
+        return Operators.WEIGHT_THRESHOLD_DENOMINATOR;
+    }
 }
