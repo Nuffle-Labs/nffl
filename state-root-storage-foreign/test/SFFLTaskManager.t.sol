@@ -29,7 +29,6 @@ contract SFFLTaskManagerTest is TestUtils {
     event CheckpointTaskResponded(
         Checkpoint.TaskResponse taskResponse, Checkpoint.TaskResponseMetadata taskResponseMetadata
     );
-    event CheckpointTaskCompleted(uint32 indexed taskIndex);
     event CheckpointTaskChallengedSuccessfully(uint32 indexed taskIndex, address indexed challenger);
     event CheckpointTaskChallengedUnsuccessfully(uint32 indexed taskIndex, address indexed challenger);
 

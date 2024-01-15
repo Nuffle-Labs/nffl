@@ -78,11 +78,6 @@ contract SFFLTaskManager is Initializable, OwnableUpgradeable, Pausable, BLSSign
         Checkpoint.TaskResponse taskResponse, Checkpoint.TaskResponseMetadata taskResponseMetadata
     );
     /**
-     * @notice Emitted when a checkpoint task is completed
-     * @param taskIndex Task ID
-     */
-    event CheckpointTaskCompleted(uint32 indexed taskIndex);
-    /**
      * @notice Emitted when a checkpoint task is successfully challenged
      * @param taskIndex Task ID
      * @param challenger Challenger address
