@@ -92,7 +92,7 @@ library Operators {
         Operator memory operator;
 
         BN254.G1Point memory newApk = self.apk;
-        uint256 newTotalWeight = self.totalWeight;
+        uint128 newTotalWeight = self.totalWeight;
 
         for (uint256 i = 0; i < operators.length; i++) {
             operator = operators[i];
@@ -102,9 +102,10 @@ library Operators {
 
             require(operator.weight != currentWeight, "Operator is up to date");
 
-            newTotalWeight = newTotalWeight + currentWeight - operator.weight;
+            newTotalWeight = newTotalWeight - currentWeight + operator.weight;
 
             if (currentWeight == 0) {
+                self.pubkeyHashToOperator[pubkeyHash].pubkey = operator.pubkey;
                 newApk = newApk.plus(operator.pubkey);
             } else if (operator.weight == 0) {
                 newApk = newApk.plus(operator.pubkey.negate());
@@ -114,6 +115,9 @@ library Operators {
 
             emit OperatorUpdated(pubkeyHash, operator.weight);
         }
+
+        self.totalWeight = newTotalWeight;
+        self.apk = newApk;
     }
 
     /**
@@ -131,7 +135,7 @@ library Operators {
         returns (bool)
     {
         BN254.G1Point memory apk = BN254.G1Point(0, 0);
-        uint256 weight = 0;
+        uint256 weight = self.totalWeight;
         Operator memory operator;
 
         for (uint256 i = 0; i < signatureInfo.nonSignerPubkeyHashes.length; i++) {
@@ -146,10 +150,10 @@ library Operators {
             operator = self.pubkeyHashToOperator[signatureInfo.nonSignerPubkeyHashes[i]];
 
             apk = apk.plus(operator.pubkey);
-            weight += operator.weight;
+            weight -= operator.weight;
         }
 
-        apk = apk.negate();
+        apk = self.apk.plus(apk.negate());
 
         uint256 gamma = uint256(
             keccak256(
