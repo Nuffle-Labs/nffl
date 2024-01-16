@@ -24,7 +24,15 @@ those of state root updates.
 
 ### Build
 
-To build the contracts, simply run:
+This project includes libraries through both git submodules and also npm. So,
+in order to install the dependencies, run:
+
+```shell
+npm install
+forge install
+```
+
+Then, to build the contracts, simply run:
 
 ```shell
 forge build
