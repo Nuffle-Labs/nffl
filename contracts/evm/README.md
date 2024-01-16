@@ -35,7 +35,7 @@ forge install
 Then, to build the contracts, simply run:
 
 ```shell
-forge build
+forge build # alternatively, `npm run build`
 ```
 
 ### Test
@@ -43,7 +43,7 @@ forge build
 To run the default unit tests, you can simply run:
 
 ```shell
-forge test
+forge test # alternatively, `npm test`
 ```
 
 There are also some FFI tests included, which require explicit approval. Those
@@ -54,11 +54,11 @@ To build this tool, it's necessary to have `cargo` installed. Once you do, you
 can run:
 
 ```shell
-cd test/ffi/bls-utils && cargo build
+npm run build-bls-utils
 ```
 
 After this, you can run the tests as usual, but using the `--ffi` flag:
 
 ```shell
-forge test --ffi
+forge test --ffi # alternatively, `npm run test-ffi`
 ```
