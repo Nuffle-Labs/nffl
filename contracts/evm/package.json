@@ -3,7 +3,13 @@
   "name": "sffl-evm",
   "version": "0.0.1",
   "description": "",
-  "scripts": {},
+  "scripts": {
+    "build": "forge build",
+    "test": "forge test",
+    "test-ffi": "forge test --ffi",
+    "format": "forge fmt",
+    "build-bls-utils": "cd test/ffi/bls-utils && cargo build"
+  },
   "author": "NethermindEth",
   "license": "UNLICENSED",
   "dependencies": {
