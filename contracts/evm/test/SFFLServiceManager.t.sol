@@ -73,8 +73,12 @@ contract SFFLServiceManagerTest is TestUtils {
     }
 
     function test_updateStateRoot() public {
-        StateRootUpdate.Message memory message =
-            StateRootUpdate.Message({rollupId: 0, blockHeight: 1, stateRoot: bytes32(keccak256(hex"f00d"))});
+        StateRootUpdate.Message memory message = StateRootUpdate.Message({
+            rollupId: 0,
+            blockHeight: 1,
+            nearBlockHeight: 2,
+            stateRoot: bytes32(keccak256(hex"f00d"))
+        });
 
         (, IBLSSignatureChecker.NonSignerStakesAndSignature memory nonSignerStakesAndSignature) =
             setUpOperators(message.hash(), 1000, 100, 1);
@@ -90,8 +94,12 @@ contract SFFLServiceManagerTest is TestUtils {
     }
 
     function test_updateStateRoot_RevertWhen_QuorumNotMet() public {
-        StateRootUpdate.Message memory message =
-            StateRootUpdate.Message({rollupId: 0, blockHeight: 1, stateRoot: bytes32(keccak256(hex"f00d"))});
+        StateRootUpdate.Message memory message = StateRootUpdate.Message({
+            rollupId: 0,
+            blockHeight: 1,
+            nearBlockHeight: 2,
+            stateRoot: bytes32(keccak256(hex"f00d"))
+        });
 
         (, IBLSSignatureChecker.NonSignerStakesAndSignature memory nonSignerStakesAndSignature) =
             setUpOperators(message.hash(), 1000, 100, maxOperatorsToRegister / 2);

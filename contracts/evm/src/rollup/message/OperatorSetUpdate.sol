@@ -14,6 +14,7 @@ import {Operators} from "../utils/Operators.sol";
 library OperatorSetUpdate {
     struct Message {
         uint64 id;
+        uint64 nearBlockHeight;
         Operators.Operator[] operators;
     }
 

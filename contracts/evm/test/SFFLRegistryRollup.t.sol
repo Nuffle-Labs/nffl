@@ -99,7 +99,8 @@ contract SFFLRegistryRollupTest is TestUtils {
         operators[1] = Operators.Operator(initialOperators[2].pubkey, 3 * DEFAULT_WEIGHT);
         operators[2] = extraOperators[0];
 
-        OperatorSetUpdate.Message memory message = OperatorSetUpdate.Message(registry.nextOperatorUpdateId(), operators);
+        OperatorSetUpdate.Message memory message =
+            OperatorSetUpdate.Message(registry.nextOperatorUpdateId(), 0, operators);
 
         bytes32[] memory nonSignerPubkeyHashes = new bytes32[](1);
         nonSignerPubkeyHashes[0] = initialOperators[3].pubkey.hashG1Point();
@@ -150,7 +151,8 @@ contract SFFLRegistryRollupTest is TestUtils {
         operators[1] = Operators.Operator(initialOperators[2].pubkey, 3 * DEFAULT_WEIGHT);
         operators[2] = extraOperators[0];
 
-        OperatorSetUpdate.Message memory message = OperatorSetUpdate.Message(registry.nextOperatorUpdateId(), operators);
+        OperatorSetUpdate.Message memory message =
+            OperatorSetUpdate.Message(registry.nextOperatorUpdateId(), 0, operators);
 
         bytes32[] memory nonSignerPubkeyHashes = new bytes32[](2);
         nonSignerPubkeyHashes[0] = initialOperators[3].pubkey.hashG1Point();
@@ -186,7 +188,7 @@ contract SFFLRegistryRollupTest is TestUtils {
         operators[2] = extraOperators[0];
 
         OperatorSetUpdate.Message memory message =
-            OperatorSetUpdate.Message(registry.nextOperatorUpdateId() + 1, operators);
+            OperatorSetUpdate.Message(registry.nextOperatorUpdateId() + 1, 0, operators);
 
         bytes32[] memory nonSignerPubkeyHashes = new bytes32[](2);
         nonSignerPubkeyHashes[0] = initialOperators[3].pubkey.hashG1Point();
@@ -215,7 +217,7 @@ contract SFFLRegistryRollupTest is TestUtils {
     }
 
     function test_updateStateRoot() public {
-        StateRootUpdate.Message memory message = StateRootUpdate.Message(0, 1, keccak256(hex"f00d"));
+        StateRootUpdate.Message memory message = StateRootUpdate.Message(0, 1, 0, keccak256(hex"f00d"));
 
         bytes32[] memory nonSignerPubkeyHashes = new bytes32[](1);
         nonSignerPubkeyHashes[0] = initialOperators[3].pubkey.hashG1Point();
@@ -248,7 +250,7 @@ contract SFFLRegistryRollupTest is TestUtils {
     }
 
     function test_updateStateRoot_RevertWhen_QuorumNotMet() public {
-        StateRootUpdate.Message memory message = StateRootUpdate.Message(0, 1, keccak256(hex"f00d"));
+        StateRootUpdate.Message memory message = StateRootUpdate.Message(0, 1, 0, keccak256(hex"f00d"));
 
         bytes32[] memory nonSignerPubkeyHashes = new bytes32[](2);
         nonSignerPubkeyHashes[0] = initialOperators[3].pubkey.hashG1Point();

@@ -81,7 +81,7 @@ contract SFFLRegistryBaseTest is Test {
         bytes32 stateRoot = 0x52fd73f9175ec160ff5fbf32a985447b4b95b87ac6b1860bf9a1fb81f954d774;
         bytes32 expectedValue = 0x0000000000000000000000000000000000000000000000000000000000000001;
 
-        StateRootUpdate.Message memory message = StateRootUpdate.Message(1, 2, stateRoot);
+        StateRootUpdate.Message memory message = StateRootUpdate.Message(1, 2, 3, stateRoot);
         registry.pushStateRoot(message.rollupId, message.blockHeight, message.stateRoot);
 
         assertEq(registry.getStorageValue(message, proofParams), expectedValue);
@@ -97,7 +97,7 @@ contract SFFLRegistryBaseTest is Test {
 
         bytes32 stateRoot = 0x52fd73f9175ec160ff5fbf32a985447b4b95b87ac6b1860bf9a1fb81f954d774;
 
-        StateRootUpdate.Message memory message = StateRootUpdate.Message(1, 2, stateRoot);
+        StateRootUpdate.Message memory message = StateRootUpdate.Message(1, 2, 3, stateRoot);
         registry.pushStateRoot(message.rollupId, message.blockHeight, message.stateRoot);
 
         vm.expectRevert("Account does not exist");
@@ -114,7 +114,7 @@ contract SFFLRegistryBaseTest is Test {
 
         bytes32 stateRoot = 0x52fd73f9175ec160ff5fbf32a985447b4b95b87ac6b1860bf9a1fb81f954d774;
 
-        StateRootUpdate.Message memory message = StateRootUpdate.Message(1, 2, stateRoot);
+        StateRootUpdate.Message memory message = StateRootUpdate.Message(1, 2, 3, stateRoot);
         registry.pushStateRoot(message.rollupId, message.blockHeight, message.stateRoot);
 
         vm.expectRevert("Storage value does not exist");
@@ -131,7 +131,7 @@ contract SFFLRegistryBaseTest is Test {
 
         bytes32 stateRoot = 0x52fd73f9175ec160ff5fbf32a985447b4b95b87ac6b1860bf9a1fb81f954d774;
 
-        StateRootUpdate.Message memory message = StateRootUpdate.Message(1, 2, stateRoot);
+        StateRootUpdate.Message memory message = StateRootUpdate.Message(1, 2, 3, stateRoot);
 
         vm.expectRevert("Mismatching state roots");
         registry.getStorageValue(message, proofParams);
@@ -148,7 +148,7 @@ contract SFFLRegistryBaseTest is Test {
         bytes32 stateRoot = 0xd223489d5fdd65f1fb9beb4dd16a35540d34993f68409f8033a27e8115020f15;
         bytes32 expectedValue = 0xffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffff;
 
-        StateRootUpdate.Message memory message = StateRootUpdate.Message(1, 2, stateRoot);
+        StateRootUpdate.Message memory message = StateRootUpdate.Message(1, 2, 3, stateRoot);
         registry.pushStateRoot(message.rollupId, message.blockHeight, message.stateRoot);
 
         registry.setShouldDenyAgreement(true);
@@ -171,7 +171,7 @@ contract SFFLRegistryBaseTest is Test {
         bytes32 stateRoot = 0xd223489d5fdd65f1fb9beb4dd16a35540d34993f68409f8033a27e8115020f15;
         bytes32 expectedValue = 0xffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffff;
 
-        StateRootUpdate.Message memory message = StateRootUpdate.Message(1, 2, stateRoot);
+        StateRootUpdate.Message memory message = StateRootUpdate.Message(1, 2, 3, stateRoot);
 
         registry.setShouldDenyAgreement(false);
 
@@ -192,7 +192,7 @@ contract SFFLRegistryBaseTest is Test {
 
         bytes32 stateRoot = 0xd223489d5fdd65f1fb9beb4dd16a35540d34993f68409f8033a27e8115020f15;
 
-        StateRootUpdate.Message memory message = StateRootUpdate.Message(1, 2, stateRoot);
+        StateRootUpdate.Message memory message = StateRootUpdate.Message(1, 2, 3, stateRoot);
 
         registry.setShouldDenyAgreement(false);
 
@@ -210,7 +210,7 @@ contract SFFLRegistryBaseTest is Test {
 
         bytes32 stateRoot = 0xd223489d5fdd65f1fb9beb4dd16a35540d34993f68409f8033a27e8115020f15;
 
-        StateRootUpdate.Message memory message = StateRootUpdate.Message(1, 2, stateRoot);
+        StateRootUpdate.Message memory message = StateRootUpdate.Message(1, 2, 3, stateRoot);
 
         registry.setShouldDenyAgreement(true);
 
