@@ -55,7 +55,8 @@ contract SFFLTaskManagerTestFFI is TestUtils {
         thresholdDenominator = taskManager.THRESHOLD_DENOMINATOR();
     }
 
-    function testFuzz_respondToCheckpointTask() public {
+    /// forge-config: default.fuzz.runs = 50
+    function testFuzz_respondToCheckpointTask(uint256 seed) public {
         Checkpoint.Task memory task = Checkpoint.Task({
             taskCreatedBlock: 1000,
             fromNearBlock: 0,
@@ -73,7 +74,7 @@ contract SFFLTaskManagerTestFFI is TestUtils {
         (
             bytes32 signatoryRecordHash,
             IBLSSignatureChecker.NonSignerStakesAndSignature memory nonSignerStakesAndSignature
-        ) = setUpOperatorsFFI(taskResponse.hash(), task.taskCreatedBlock, 100, 1);
+        ) = setUpOperatorsFFI(taskResponse.hash(), task.taskCreatedBlock, seed, 1);
 
         Checkpoint.TaskResponseMetadata memory taskResponseMetadata = Checkpoint.TaskResponseMetadata({
             taskRespondedBlock: task.taskCreatedBlock + TASK_RESPONSE_WINDOW_BLOCK,
@@ -94,6 +95,49 @@ contract SFFLTaskManagerTestFFI is TestUtils {
         taskManager.respondToCheckpointTask(task, taskResponse, nonSignerStakesAndSignature);
 
         assertEq(taskManager.allCheckpointTaskResponses(0), taskResponse.hashAgreement(taskResponseMetadata));
+    }
+
+    /// forge-config: default.fuzz.runs = 50
+    function testFuzz_respondToCheckpointTask_RevertWhen_QuorumNotMet(uint256 seed, uint256 numNonSigners) public {
+        maxOperatorsToRegister = 6;
+
+        numNonSigners = bound(numNonSigners, 1, maxOperatorsToRegister - 1);
+
+        Checkpoint.Task memory task = Checkpoint.Task({
+            taskCreatedBlock: 1000,
+            fromNearBlock: 0,
+            toNearBlock: 1,
+            quorumThreshold: quorumThreshold(thresholdDenominator, numNonSigners - 1),
+            quorumNumbers: hex"00"
+        });
+
+        Checkpoint.TaskResponse memory taskResponse = Checkpoint.TaskResponse({
+            referenceTaskIndex: 0,
+            stateRootUpdatesRoot: keccak256(hex"beef"),
+            operatorSetUpdatesRoot: keccak256(hex"f00d")
+        });
+
+        (
+            bytes32 signatoryRecordHash,
+            IBLSSignatureChecker.NonSignerStakesAndSignature memory nonSignerStakesAndSignature
+        ) = setUpOperatorsFFI(taskResponse.hash(), task.taskCreatedBlock, seed, numNonSigners);
+
+        Checkpoint.TaskResponseMetadata memory taskResponseMetadata = Checkpoint.TaskResponseMetadata({
+            taskRespondedBlock: task.taskCreatedBlock + TASK_RESPONSE_WINDOW_BLOCK,
+            hashOfNonSigners: signatoryRecordHash
+        });
+
+        vm.prank(generator);
+        taskManager.createCheckpointTask(task.fromNearBlock, task.toNearBlock, task.quorumThreshold, task.quorumNumbers);
+
+        assertEq(taskManager.allCheckpointTaskResponses(0), bytes32(0));
+
+        vm.roll(taskResponseMetadata.taskRespondedBlock);
+
+        vm.expectRevert("Quorum not met");
+
+        vm.prank(aggregator);
+        taskManager.respondToCheckpointTask(task, taskResponse, nonSignerStakesAndSignature);
     }
 
     function test_respondToCheckpointTask() public {
