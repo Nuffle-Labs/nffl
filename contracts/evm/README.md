@@ -57,7 +57,8 @@ can run:
 npm run build-bls-utils
 ```
 
-After this, you can run the tests as usual, but using the `--ffi` flag:
+After this, you can run the tests as usual, but using the `--ffi` flag. Do note
+this includes some fuzzing tests, which can be a bit slow to execute.
 
 ```shell
 forge test --ffi # alternatively, `npm run test-ffi`
