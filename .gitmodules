@@ -1,6 +1,6 @@
-[submodule "state-root-storage-foreign/lib/forge-std"]
-	path = state-root-storage-foreign/lib/forge-std
+[submodule "contracts/evm/lib/forge-std"]
+	path = contracts/evm/lib/forge-std
 	url = https://github.com/foundry-rs/forge-std
-[submodule "state-root-storage-foreign/lib/eigenlayer-middleware"]
-	path = state-root-storage-foreign/lib/eigenlayer-middleware
+[submodule "contracts/evm/lib/eigenlayer-middleware"]
+	path = contracts/evm/lib/eigenlayer-middleware
 	url = https://github.com/Layr-Labs/eigenlayer-middleware

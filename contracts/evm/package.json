@@ -1,6 +1,6 @@
 {
   "private": true,
-  "name": "state-root-storage-foreign",
+  "name": "sffl-evm",
   "version": "0.0.1",
   "description": "",
   "scripts": {},
