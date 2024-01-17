@@ -223,6 +223,48 @@ impl SFFLAgreementRegistry {
             .push(&msg);
     }
 
+    pub fn get_eth_address(&self, account_id: &AccountId) -> Option<Address> {
+        self.operator_eth_address
+            .get(&account_id)
+            .map(Address::from)
+    }
+
+    pub fn get_state_root_updates(
+        &self,
+        rollup_id: u32,
+        block_height: u64,
+    ) -> Option<Vec<StateRootUpdateMessage>> {
+        self.state_root_updates
+            .get(&(rollup_id, block_height))
+            .and_then(|vector| Some(vector.to_vec()))
+    }
+
+    pub fn get_operator_set_updates(&self, id: u64) -> Option<Vec<OperatorSetUpdateMessage>> {
+        self.operator_set_updates
+            .get(&id)
+            .and_then(|vector| Some(vector.to_vec()))
+    }
+
+    pub fn get_checkpoint_task_responses(
+        &self,
+        task_id: u32,
+    ) -> Option<Vec<CheckpointTaskResponseMessage>> {
+        self.checkpoint_task_responses
+            .get(&task_id)
+            .and_then(|vector| Some(vector.to_vec()))
+    }
+
+    pub fn get_message_signature(
+        &self,
+        msg_hash: &FixedBytes<32>,
+        eth_address: &Address,
+    ) -> Option<FixedBytes<64>> {
+        self.message_signatures
+            .get(&msg_hash.0)
+            .and_then(|addr_to_sig| addr_to_sig.get(&eth_address.0 .0))
+            .map(FixedBytes::from)
+    }
+
     #[private]
     fn caller_eth_address(&self) -> [u8; 20] {
         self.operator_eth_address
