@@ -9,11 +9,7 @@ use near_indexer::near_primitives::{
 };
 use tokio::sync::mpsc;
 
-use crate::{
-    broadcaster::listen_receipt_candidates,
-    configs::RunConfigArgs,
-    errors::{Error, Result},
-};
+use crate::{broadcaster::listen_receipt_candidates, configs::RunConfigArgs, errors::Result};
 
 mod broadcaster;
 mod configs;
@@ -55,10 +51,7 @@ async fn listen_blocks(
         )
         .await;
 
-        // Receiver dropped or closed.
-        if let Some(_) = results.iter().find_map(|result| result.as_ref().err()) {
-            return Err(Error::SendError);
-        }
+        results.into_iter().collect::<Result<_, _>>()?;
     }
 
     Ok(())

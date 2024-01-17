@@ -35,7 +35,4 @@ pub(crate) async fn listen_receipt_candidates(
 
         println!("listen_execution_outcomes {:?}", execution_outcome.outcome_proof);
     }
-
-    // Drain messages
-    while let Some(_) = receiver.recv().await {}
 }
