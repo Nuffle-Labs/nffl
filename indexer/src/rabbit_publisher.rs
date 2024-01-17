@@ -77,7 +77,7 @@ impl RabbitPublisher {
     }
 
     pub async fn publish(&mut self, publish_data: PublishData) -> Result<()> {
-        self.sender.send(publish_data).await.map_err(|_| Error::SendError)
+        Ok(self.sender.send(publish_data).await?)
     }
 
     async fn publisher(connection_pool: Pool, mut receiver: mpsc::Receiver<PublishData>) {

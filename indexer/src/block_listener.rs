@@ -5,7 +5,7 @@ use near_indexer::near_primitives::{
 };
 use tokio::sync::mpsc;
 
-use crate::errors::{Error, Result};
+use crate::errors::{Result};
 
 #[derive(Clone)]
 pub(crate) struct CandidateData {
@@ -87,10 +87,7 @@ impl BlockListener {
 
             let results = join_all(candidates_data.into_iter().map(|receipt| receipt_sender.send(receipt))).await;
 
-            // Receiver dropped or closed.
-            if let Some(_) = results.iter().find_map(|result| result.as_ref().err()) {
-                return Err(Error::SendError);
-            }
+            results.into_iter().collect::<Result<_, _>>()?;
         }
 
         Ok(())
