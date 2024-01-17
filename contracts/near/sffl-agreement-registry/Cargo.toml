@@ -8,7 +8,10 @@ edition = "2021"
 crate-type = ["cdylib"]
 
 [dependencies]
-near-sdk = "4.1.1"
+alloy-primitives = { version = "0.6.0", features = ["serde"] }
+alloy-sol-macro = { version = "0.6.0", features = ["json"] }
+alloy-sol-types = { version = "0.6.0", features = ["json", "eip712-serde"] }
+near-sdk = { version = "4.1.1", features = ["unstable"] }
 uint = { version = "0.9.3", default-features = false }
 
 [patch.crates-io]
