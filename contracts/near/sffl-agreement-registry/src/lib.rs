@@ -1,12 +1,12 @@
 use std::str::FromStr;
 
 use near_sdk::borsh::{self, BorshDeserialize, BorshSerialize};
-use near_sdk::collections::{LookupMap, LookupSet, Vector};
+use near_sdk::collections::{LookupMap, Vector};
 use near_sdk::serde::{Deserialize, Serialize};
 use near_sdk::{env, near_bindgen, AccountId};
 
 use alloy_primitives::{Address, FixedBytes};
-use alloy_sol_types::{eip712_domain, sol, Eip712Domain, SolStruct, SolType};
+use alloy_sol_types::{eip712_domain, sol, Eip712Domain, SolStruct, SolValue};
 
 sol! {
     #[derive(Serialize, Deserialize)]
@@ -61,14 +61,40 @@ const DOMAIN: Eip712Domain = eip712_domain!(
     version: "0",
 );
 
+macro_rules! sol_type_borsh {
+    ($name: ident) => {
+        impl BorshSerialize for $name {
+            #[inline]
+            fn serialize<W: std::io::Write>(&self, writer: &mut W) -> Result<(), std::io::Error> {
+                BorshSerialize::serialize(&$name::abi_encode(self), writer)?;
+                Ok(())
+            }
+        }
+
+        impl BorshDeserialize for $name {
+            #[inline]
+            fn deserialize(buf: &mut &[u8]) -> Result<Self, std::io::Error> {
+                let value = $name::abi_decode(&buf, true)
+                    .map_err(|err| std::io::Error::new(std::io::ErrorKind::InvalidInput, err))?;
+                *buf = &buf[$name::abi_encoded_size(&value)..];
+                Ok(value)
+            }
+        }
+    };
+}
+
+sol_type_borsh!(StateRootUpdateMessage);
+sol_type_borsh!(OperatorSetUpdateMessage);
+sol_type_borsh!(CheckpointTaskResponseMessage);
+sol_type_borsh!(EthNearAccountLink);
+
 #[near_bindgen]
 #[derive(BorshDeserialize, BorshSerialize)]
 pub struct SFFLAgreementRegistry {
     operator_eth_address: LookupMap<AccountId, [u8; 20]>,
-    state_root_updates: LookupMap<(u32, u64), Vector<Vec<u8>>>,
-    operator_set_updates: LookupMap<u64, Vector<Vec<u8>>>,
-    checkpoint_task_responses: LookupMap<u32, Vector<Vec<u8>>>,
-    message_set: LookupSet<[u8; 32]>,
+    state_root_updates: LookupMap<(u32, u64), Vector<StateRootUpdateMessage>>,
+    operator_set_updates: LookupMap<u64, Vector<OperatorSetUpdateMessage>>,
+    checkpoint_task_responses: LookupMap<u32, Vector<CheckpointTaskResponseMessage>>,
     message_signatures: LookupMap<[u8; 32], LookupMap<[u8; 20], [u8; 64]>>,
 }
 
@@ -79,7 +105,6 @@ impl Default for SFFLAgreementRegistry {
             state_root_updates: LookupMap::new(b"state_root_updates".to_vec()),
             operator_set_updates: LookupMap::new(b"operator_set_updates".to_vec()),
             checkpoint_task_responses: LookupMap::new(b"checkpoint_task_responses".to_vec()),
-            message_set: LookupSet::new(b"message_set".to_vec()),
             message_signatures: LookupMap::new(b"message_signatures".to_vec()),
         }
     }
@@ -108,31 +133,31 @@ impl SFFLAgreementRegistry {
         signature: &FixedBytes<64>,
     ) {
         let eth_address = self.caller_eth_address();
-        let encoded_msg = StateRootUpdateMessage::abi_encode_sequence(msg);
-        let msg_hash = env::keccak256_array(&encoded_msg);
+        let msg_hash = env::keccak256_array(&msg.abi_encode());
 
-        if self.message_set.insert(&msg_hash) {
-            self.state_root_updates
-                .get(&(msg.rollupId, msg.blockHeight))
-                .or_else(|| {
-                    let prefix: Vec<u8> = [
-                        b"state_root_updates_vec".as_slice(),
-                        msg.rollupId.to_be_bytes().as_slice(),
-                        msg.blockHeight.to_be_bytes().as_slice(),
-                    ]
-                    .concat();
-                    let vec = Vector::new(prefix);
-
-                    self.state_root_updates
-                        .insert(&(msg.rollupId, msg.blockHeight), &vec);
-
-                    Some(vec)
-                })
-                .unwrap()
-                .push(&encoded_msg);
+        if !self.push_bls_signature(&msg_hash, &eth_address, &signature.0) {
+            return;
         }
 
-        self.push_signature(&msg_hash, &eth_address, &signature.0);
+        self.state_root_updates
+            .get(&(msg.rollupId, msg.blockHeight))
+            .or_else(|| {
+                let prefix: Vec<u8> = [
+                    b"state_root_updates_vec".as_slice(),
+                    msg.rollupId.to_be_bytes().as_slice(),
+                    msg.blockHeight.to_be_bytes().as_slice(),
+                ]
+                .concat();
+
+                let vec = Vector::new(prefix);
+
+                self.state_root_updates
+                    .insert(&(msg.rollupId, msg.blockHeight), &vec);
+
+                Some(vec)
+            })
+            .unwrap()
+            .push(&msg);
     }
 
     pub fn post_operator_set_update_signature(
@@ -141,29 +166,29 @@ impl SFFLAgreementRegistry {
         signature: &FixedBytes<64>,
     ) {
         let eth_address = self.caller_eth_address();
-        let encoded_msg = OperatorSetUpdateMessage::abi_encode_sequence(msg);
-        let msg_hash = env::keccak256_array(&encoded_msg);
+        let msg_hash = env::keccak256_array(&msg.abi_encode());
 
-        if self.message_set.insert(&msg_hash) {
-            self.operator_set_updates
-                .get(&msg.id)
-                .or_else(|| {
-                    let prefix: Vec<u8> = [
-                        b"operator_set_updates_vec".as_slice(),
-                        msg.id.to_be_bytes().as_slice(),
-                    ]
-                    .concat();
-                    let vec = Vector::new(prefix);
-
-                    self.operator_set_updates.insert(&msg.id, &vec);
-
-                    Some(vec)
-                })
-                .unwrap()
-                .push(&encoded_msg);
+        if !self.push_bls_signature(&msg_hash, &eth_address, &signature.0) {
+            return;
         }
 
-        self.push_signature(&msg_hash, &eth_address, &signature.0);
+        self.operator_set_updates
+            .get(&msg.id)
+            .or_else(|| {
+                let prefix: Vec<u8> = [
+                    b"operator_set_updates_vec".as_slice(),
+                    msg.id.to_be_bytes().as_slice(),
+                ]
+                .concat();
+
+                let vec = Vector::new(prefix);
+
+                self.operator_set_updates.insert(&msg.id, &vec);
+
+                Some(vec)
+            })
+            .unwrap()
+            .push(&msg);
     }
 
     pub fn post_checkpoint_signature(
@@ -172,30 +197,30 @@ impl SFFLAgreementRegistry {
         signature: &FixedBytes<64>,
     ) {
         let eth_address = self.caller_eth_address();
-        let encoded_msg = CheckpointTaskResponseMessage::abi_encode_sequence(msg);
-        let msg_hash = env::keccak256_array(&encoded_msg);
+        let msg_hash = env::keccak256_array(&msg.abi_encode());
 
-        if self.message_set.insert(&msg_hash) {
-            self.checkpoint_task_responses
-                .get(&msg.referenceTaskIndex)
-                .or_else(|| {
-                    let prefix: Vec<u8> = [
-                        b"checkpoint_task_responses_vec".as_slice(),
-                        msg.referenceTaskIndex.to_be_bytes().as_slice(),
-                    ]
-                    .concat();
-                    let vec = Vector::new(prefix);
-
-                    self.checkpoint_task_responses
-                        .insert(&msg.referenceTaskIndex, &vec);
-
-                    Some(vec)
-                })
-                .unwrap()
-                .push(&encoded_msg);
+        if !self.push_bls_signature(&msg_hash, &eth_address, &signature.0) {
+            return;
         }
 
-        self.push_signature(&msg_hash, &eth_address, &signature.0);
+        self.checkpoint_task_responses
+            .get(&msg.referenceTaskIndex)
+            .or_else(|| {
+                let prefix: Vec<u8> = [
+                    b"checkpoint_task_responses_vec".as_slice(),
+                    msg.referenceTaskIndex.to_be_bytes().as_slice(),
+                ]
+                .concat();
+
+                let vec = Vector::new(prefix);
+
+                self.checkpoint_task_responses
+                    .insert(&msg.referenceTaskIndex, &vec);
+
+                Some(vec)
+            })
+            .unwrap()
+            .push(&msg);
     }
 
     #[private]
@@ -206,15 +231,19 @@ impl SFFLAgreementRegistry {
     }
 
     #[private]
-    fn push_signature(
+    fn push_bls_signature(
         &mut self,
         msg_hash: &[u8; 32],
         eth_address: &[u8; 20],
         signature: &[u8; 64],
-    ) {
+    ) -> bool {
+        let mut had_key = true;
+
         self.message_signatures
             .get(&msg_hash)
             .or_else(|| {
+                had_key = true;
+
                 let prefix: Vec<u8> =
                     [b"message_signatures_map".as_slice(), msg_hash.as_slice()].concat();
 
@@ -226,6 +255,8 @@ impl SFFLAgreementRegistry {
             })
             .unwrap()
             .insert(&eth_address, signature.as_slice().try_into().unwrap());
+
+        had_key
     }
 
     #[private]
