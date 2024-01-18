@@ -117,7 +117,11 @@ impl SFFLAgreementRegistry {
         let address = self.ecrecover(&signing_hash, signature, v, true);
 
         if address != msg.ethAddress {
-            std::panic!("Wrong message address");
+            std::panic!(
+                "Wrong message address: expected {}, found {}",
+                msg.ethAddress,
+                address
+            );
         }
 
         let account_id = AccountId::from_str(&msg.nearAccountId)
