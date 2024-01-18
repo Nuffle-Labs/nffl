@@ -1,12 +1,17 @@
 use std::str::FromStr;
 
 use near_sdk::borsh::{self, BorshDeserialize, BorshSerialize};
+use near_sdk::json_types::U128;
 use near_sdk::serde::{Deserialize, Serialize};
 use near_sdk::store::{LookupMap, Vector};
-use near_sdk::{env, near_bindgen, AccountId};
+use near_sdk::{env, near_bindgen, AccountId, PanicOnDefault};
 
 use alloy_primitives::{Address, FixedBytes};
 use alloy_sol_types::{eip712_domain, sol, Eip712Domain, SolStruct, SolValue};
+use near_sdk_contract_tools::{
+    hook::Hook, standard::nep145::hooks::PredecessorStorageAccountingHook, standard::nep145::*,
+    Nep145,
+};
 
 sol! {
     #[derive(Serialize, Deserialize, PartialEq, Debug)]
@@ -88,8 +93,9 @@ sol_type_borsh!(OperatorSetUpdateMessage);
 sol_type_borsh!(CheckpointTaskResponseMessage);
 sol_type_borsh!(EthNearAccountLink);
 
+#[derive(BorshDeserialize, BorshSerialize, PanicOnDefault, Nep145)]
+#[nep145]
 #[near_bindgen]
-#[derive(BorshDeserialize, BorshSerialize)]
 pub struct SFFLAgreementRegistry {
     operator_eth_address: LookupMap<AccountId, [u8; 20]>,
     state_root_updates: LookupMap<(u32, u64), Vector<StateRootUpdateMessage>>,
@@ -98,66 +104,82 @@ pub struct SFFLAgreementRegistry {
     message_signatures: LookupMap<[u8; 32], LookupMap<[u8; 20], [u8; 64]>>,
 }
 
-impl Default for SFFLAgreementRegistry {
-    fn default() -> Self {
-        Self {
+#[near_bindgen]
+impl SFFLAgreementRegistry {
+    #[init]
+    pub fn new() -> Self {
+        let mut _self = Self {
             operator_eth_address: LookupMap::new(b"operator_eth_address".to_vec()),
             state_root_updates: LookupMap::new(b"state_root_updates".to_vec()),
             operator_set_updates: LookupMap::new(b"operator_set_updates".to_vec()),
             checkpoint_task_responses: LookupMap::new(b"checkpoint_task_responses".to_vec()),
             message_signatures: LookupMap::new(b"message_signatures".to_vec()),
-        }
-    }
-}
+        };
 
-#[near_bindgen]
-impl SFFLAgreementRegistry {
+        Nep145Controller::set_storage_balance_bounds(
+            &mut _self,
+            &StorageBalanceBounds {
+                min: U128(0),
+                max: None,
+            },
+        );
+
+        _self
+    }
+
+    #[payable]
     pub fn init_operator(&mut self, msg: &EthNearAccountLink, signature: &FixedBytes<64>, v: u8) {
-        let signing_hash = msg.eip712_signing_hash(&DOMAIN);
-        let address = self.ecrecover(&signing_hash, signature, v, true);
+        PredecessorStorageAccountingHook::hook(self, &(), |contract| {
+            let signing_hash = msg.eip712_signing_hash(&DOMAIN);
+            let address = contract.ecrecover(&signing_hash, signature, v, true);
 
-        if address != msg.ethAddress {
-            std::panic!(
-                "Wrong message address: expected {}, found {}",
-                msg.ethAddress,
-                address
-            );
-        }
+            if address != msg.ethAddress {
+                std::panic!(
+                    "Wrong message address: expected {}, found {}",
+                    msg.ethAddress,
+                    address
+                );
+            }
 
-        let account_id = AccountId::from_str(&msg.nearAccountId)
-            .unwrap_or_else(|_| std::panic!("Invalid account ID"));
+            let account_id = AccountId::from_str(&msg.nearAccountId)
+                .unwrap_or_else(|_| std::panic!("Invalid account ID"));
 
-        self.operator_eth_address
-            .insert(account_id, address.0.as_slice().try_into().unwrap());
+            contract
+                .operator_eth_address
+                .insert(account_id, address.0.as_slice().try_into().unwrap());
+        })
     }
 
+    #[payable]
     pub fn post_state_root_update_signature(
         &mut self,
         msg: StateRootUpdateMessage,
         signature: &FixedBytes<64>,
     ) {
-        let eth_address = self.caller_eth_address();
-        let msg_hash = env::keccak256_array(&msg.abi_encode());
+        PredecessorStorageAccountingHook::hook(self, &(), |contract| {
+            let eth_address = contract.caller_eth_address();
+            let msg_hash = env::keccak256_array(&msg.abi_encode());
 
-        if self.push_bls_signature(&msg_hash, &eth_address, &signature.0) {
-            return;
-        }
+            if contract.push_bls_signature(&msg_hash, &eth_address, &signature.0) {
+                return;
+            }
 
-        let vec = self
-            .state_root_updates
-            .entry((msg.rollupId, msg.blockHeight))
-            .or_insert_with(|| {
-                let prefix: Vec<u8> = [
-                    b"state_root_updates_vec".as_slice(),
-                    msg.rollupId.to_be_bytes().as_slice(),
-                    msg.blockHeight.to_be_bytes().as_slice(),
-                ]
-                .concat();
+            let vec = contract
+                .state_root_updates
+                .entry((msg.rollupId, msg.blockHeight))
+                .or_insert_with(|| {
+                    let prefix: Vec<u8> = [
+                        b"state_root_updates_vec".as_slice(),
+                        msg.rollupId.to_be_bytes().as_slice(),
+                        msg.blockHeight.to_be_bytes().as_slice(),
+                    ]
+                    .concat();
 
-                Vector::new(prefix)
-            });
+                    Vector::new(prefix)
+                });
 
-        vec.push(msg);
+            vec.push(msg);
+        })
     }
 
     pub fn post_operator_set_update_signature(
@@ -165,24 +187,29 @@ impl SFFLAgreementRegistry {
         msg: OperatorSetUpdateMessage,
         signature: &FixedBytes<64>,
     ) {
-        let eth_address = self.caller_eth_address();
-        let msg_hash = env::keccak256_array(&msg.abi_encode());
+        PredecessorStorageAccountingHook::hook(self, &(), |contract| {
+            let eth_address = contract.caller_eth_address();
+            let msg_hash = env::keccak256_array(&msg.abi_encode());
 
-        if self.push_bls_signature(&msg_hash, &eth_address, &signature.0) {
-            return;
-        }
+            if contract.push_bls_signature(&msg_hash, &eth_address, &signature.0) {
+                return;
+            }
 
-        let vec = self.operator_set_updates.entry(msg.id).or_insert_with(|| {
-            let prefix: Vec<u8> = [
-                b"operator_set_updates_vec".as_slice(),
-                msg.id.to_be_bytes().as_slice(),
-            ]
-            .concat();
+            let vec = contract
+                .operator_set_updates
+                .entry(msg.id)
+                .or_insert_with(|| {
+                    let prefix: Vec<u8> = [
+                        b"operator_set_updates_vec".as_slice(),
+                        msg.id.to_be_bytes().as_slice(),
+                    ]
+                    .concat();
 
-            Vector::new(prefix)
-        });
+                    Vector::new(prefix)
+                });
 
-        vec.push(msg);
+            vec.push(msg);
+        })
     }
 
     pub fn post_checkpoint_signature(
@@ -190,27 +217,29 @@ impl SFFLAgreementRegistry {
         msg: CheckpointTaskResponseMessage,
         signature: &FixedBytes<64>,
     ) {
-        let eth_address = self.caller_eth_address();
-        let msg_hash = env::keccak256_array(&msg.abi_encode());
+        PredecessorStorageAccountingHook::hook(self, &(), |contract| {
+            let eth_address = contract.caller_eth_address();
+            let msg_hash = env::keccak256_array(&msg.abi_encode());
 
-        if self.push_bls_signature(&msg_hash, &eth_address, &signature.0) {
-            return;
-        }
+            if contract.push_bls_signature(&msg_hash, &eth_address, &signature.0) {
+                return;
+            }
 
-        let vec = self
-            .checkpoint_task_responses
-            .entry(msg.referenceTaskIndex)
-            .or_insert_with(|| {
-                let prefix: Vec<u8> = [
-                    b"checkpoint_task_responses_vec".as_slice(),
-                    msg.referenceTaskIndex.to_be_bytes().as_slice(),
-                ]
-                .concat();
+            let vec = contract
+                .checkpoint_task_responses
+                .entry(msg.referenceTaskIndex)
+                .or_insert_with(|| {
+                    let prefix: Vec<u8> = [
+                        b"checkpoint_task_responses_vec".as_slice(),
+                        msg.referenceTaskIndex.to_be_bytes().as_slice(),
+                    ]
+                    .concat();
 
-                Vector::new(prefix)
-            });
+                    Vector::new(prefix)
+                });
 
-        vec.push(msg);
+            vec.push(msg);
+        })
     }
 
     pub fn get_eth_address(&self, account_id: &AccountId) -> Option<Address> {
@@ -315,14 +344,19 @@ mod tests {
     use super::*;
     use alloy_primitives::{hex, U256};
     use near_sdk::test_utils::VMContextBuilder;
-    use near_sdk::{testing_env, VMContext};
+    use near_sdk::{testing_env, VMContext, ONE_NEAR};
 
     use ethers::core::{k256::ecdsa::SigningKey, utils::secret_key_to_address};
 
     fn get_context(account_id: AccountId) -> VMContext {
         VMContextBuilder::new()
             .predecessor_account_id(account_id)
+            .attached_deposit(ONE_NEAR)
             .build()
+    }
+
+    fn _storage_deposit(contract: &mut SFFLAgreementRegistry) {
+        contract.storage_deposit(None, None);
     }
 
     fn _init_operator(
@@ -334,18 +368,19 @@ mod tests {
         let signing_key = SigningKey::from_bytes(private_key.into()).unwrap();
         let eth_address = secret_key_to_address(&signing_key);
 
-        let default_msg = EthNearAccountLink {
+        let init_msg = EthNearAccountLink {
             ethAddress: Address::from_slice(eth_address.as_bytes()),
             nearAccountId: account_id.to_string(),
         };
 
-        let msg = msg.unwrap_or(&default_msg);
+        let msg = msg.unwrap_or(&init_msg);
 
         let signing_hash = msg.eip712_signing_hash(&DOMAIN);
         let (signature, recid) = signing_key
             .sign_prehash_recoverable(signing_hash.as_slice())
             .unwrap();
 
+        _storage_deposit(contract);
         contract.init_operator(
             &msg.clone(),
             &FixedBytes::<64>::from_slice(signature.to_bytes().as_slice()),
@@ -360,7 +395,7 @@ mod tests {
         let context = get_context("alice.near".parse().unwrap());
         testing_env!(context);
 
-        let mut contract = SFFLAgreementRegistry::default();
+        let mut contract = SFFLAgreementRegistry::new();
 
         assert_eq!(
             contract.get_eth_address(&"alice.near".parse().unwrap()),
@@ -388,7 +423,7 @@ mod tests {
         let context = get_context("alice.near".parse().unwrap());
         testing_env!(context);
 
-        let mut contract = SFFLAgreementRegistry::default();
+        let mut contract = SFFLAgreementRegistry::new();
 
         let msg = EthNearAccountLink {
             ethAddress: Address::ZERO,
@@ -409,7 +444,7 @@ mod tests {
         let context = get_context("alice.near".parse().unwrap());
         testing_env!(context);
 
-        let mut contract = SFFLAgreementRegistry::default();
+        let mut contract = SFFLAgreementRegistry::new();
 
         let signing_key = SigningKey::from_bytes(
             &hex!("4c0883a69102937d6231471b5dbb6204fe5129617082792ae468d01a3f362318").into(),
@@ -436,7 +471,7 @@ mod tests {
         let context = get_context("alice.near".parse().unwrap());
         testing_env!(context);
 
-        let mut contract = SFFLAgreementRegistry::default();
+        let mut contract = SFFLAgreementRegistry::new();
 
         let msg = StateRootUpdateMessage {
             rollupId: 1,
@@ -445,6 +480,7 @@ mod tests {
             stateRoot: FixedBytes::<32>::ZERO,
         };
 
+        _storage_deposit(&mut contract);
         contract.post_state_root_update_signature(msg.clone(), &FixedBytes::<64>::ZERO);
     }
 
@@ -453,7 +489,7 @@ mod tests {
         let context = get_context("alice.near".parse().unwrap());
         testing_env!(context);
 
-        let mut contract = SFFLAgreementRegistry::default();
+        let mut contract = SFFLAgreementRegistry::new();
 
         let eth_address = _init_operator(
             &mut contract,
@@ -501,7 +537,7 @@ mod tests {
         let context = get_context("alice.near".parse().unwrap());
         testing_env!(context);
 
-        let mut contract = SFFLAgreementRegistry::default();
+        let mut contract = SFFLAgreementRegistry::new();
 
         let _ = _init_operator(
             &mut contract,
@@ -561,7 +597,7 @@ mod tests {
         let context = get_context("alice.near".parse().unwrap());
         testing_env!(context);
 
-        let mut contract = SFFLAgreementRegistry::default();
+        let mut contract = SFFLAgreementRegistry::new();
 
         let _ = _init_operator(
             &mut contract,
@@ -645,7 +681,7 @@ mod tests {
         let context = get_context("alice.near".parse().unwrap());
         testing_env!(context);
 
-        let mut contract = SFFLAgreementRegistry::default();
+        let mut contract = SFFLAgreementRegistry::new();
 
         let msg = OperatorSetUpdateMessage {
             id: 1,
@@ -653,6 +689,7 @@ mod tests {
             operators: vec![],
         };
 
+        _storage_deposit(&mut contract);
         contract.post_operator_set_update_signature(msg.clone(), &FixedBytes::<64>::ZERO);
     }
 
@@ -661,7 +698,7 @@ mod tests {
         let context = get_context("alice.near".parse().unwrap());
         testing_env!(context);
 
-        let mut contract = SFFLAgreementRegistry::default();
+        let mut contract = SFFLAgreementRegistry::new();
 
         let eth_address = _init_operator(
             &mut contract,
@@ -702,7 +739,7 @@ mod tests {
         let context = get_context("alice.near".parse().unwrap());
         testing_env!(context);
 
-        let mut contract = SFFLAgreementRegistry::default();
+        let mut contract = SFFLAgreementRegistry::new();
 
         let _ = _init_operator(
             &mut contract,
@@ -755,7 +792,7 @@ mod tests {
         let context = get_context("alice.near".parse().unwrap());
         testing_env!(context);
 
-        let mut contract = SFFLAgreementRegistry::default();
+        let mut contract = SFFLAgreementRegistry::new();
 
         let _ = _init_operator(
             &mut contract,
@@ -840,7 +877,7 @@ mod tests {
         let context = get_context("alice.near".parse().unwrap());
         testing_env!(context);
 
-        let mut contract = SFFLAgreementRegistry::default();
+        let mut contract = SFFLAgreementRegistry::new();
 
         let msg = CheckpointTaskResponseMessage {
             referenceTaskIndex: 1,
@@ -848,6 +885,7 @@ mod tests {
             operatorSetUpdatesRoot: FixedBytes::<32>::ZERO,
         };
 
+        _storage_deposit(&mut contract);
         contract.post_checkpoint_signature(msg.clone(), &FixedBytes::<64>::ZERO);
     }
 
@@ -856,7 +894,7 @@ mod tests {
         let context = get_context("alice.near".parse().unwrap());
         testing_env!(context);
 
-        let mut contract = SFFLAgreementRegistry::default();
+        let mut contract = SFFLAgreementRegistry::new();
 
         let eth_address = _init_operator(
             &mut contract,
@@ -903,7 +941,7 @@ mod tests {
         let context = get_context("alice.near".parse().unwrap());
         testing_env!(context);
 
-        let mut contract = SFFLAgreementRegistry::default();
+        let mut contract = SFFLAgreementRegistry::new();
 
         let _ = _init_operator(
             &mut contract,
@@ -962,7 +1000,7 @@ mod tests {
         let context = get_context("alice.near".parse().unwrap());
         testing_env!(context);
 
-        let mut contract = SFFLAgreementRegistry::default();
+        let mut contract = SFFLAgreementRegistry::new();
 
         let _ = _init_operator(
             &mut contract,
