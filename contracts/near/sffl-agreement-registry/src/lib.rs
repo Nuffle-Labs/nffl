@@ -1,8 +1,8 @@
 use std::str::FromStr;
 
 use near_sdk::borsh::{self, BorshDeserialize, BorshSerialize};
-use near_sdk::collections::{LookupMap, Vector};
 use near_sdk::serde::{Deserialize, Serialize};
+use near_sdk::store::{LookupMap, Vector};
 use near_sdk::{env, near_bindgen, AccountId};
 
 use alloy_primitives::{Address, FixedBytes};
@@ -128,12 +128,12 @@ impl SFFLAgreementRegistry {
             .unwrap_or_else(|_| std::panic!("Invalid account ID"));
 
         self.operator_eth_address
-            .insert(&account_id, address.0.as_slice().try_into().unwrap());
+            .insert(account_id, address.0.as_slice().try_into().unwrap());
     }
 
     pub fn post_state_root_update_signature(
         &mut self,
-        msg: &StateRootUpdateMessage,
+        msg: StateRootUpdateMessage,
         signature: &FixedBytes<64>,
     ) {
         let eth_address = self.caller_eth_address();
@@ -143,10 +143,10 @@ impl SFFLAgreementRegistry {
             return;
         }
 
-        let mut vec = self
+        let vec = self
             .state_root_updates
-            .get(&(msg.rollupId, msg.blockHeight))
-            .unwrap_or_else(|| {
+            .entry((msg.rollupId, msg.blockHeight))
+            .or_insert_with(|| {
                 let prefix: Vec<u8> = [
                     b"state_root_updates_vec".as_slice(),
                     msg.rollupId.to_be_bytes().as_slice(),
@@ -157,14 +157,12 @@ impl SFFLAgreementRegistry {
                 Vector::new(prefix)
             });
 
-        vec.push(&msg);
-        self.state_root_updates
-            .insert(&(msg.rollupId, msg.blockHeight), &vec);
+        vec.push(msg);
     }
 
     pub fn post_operator_set_update_signature(
         &mut self,
-        msg: &OperatorSetUpdateMessage,
+        msg: OperatorSetUpdateMessage,
         signature: &FixedBytes<64>,
     ) {
         let eth_address = self.caller_eth_address();
@@ -174,7 +172,7 @@ impl SFFLAgreementRegistry {
             return;
         }
 
-        let mut vec = self.operator_set_updates.get(&msg.id).unwrap_or_else(|| {
+        let vec = self.operator_set_updates.entry(msg.id).or_insert_with(|| {
             let prefix: Vec<u8> = [
                 b"operator_set_updates_vec".as_slice(),
                 msg.id.to_be_bytes().as_slice(),
@@ -184,13 +182,12 @@ impl SFFLAgreementRegistry {
             Vector::new(prefix)
         });
 
-        vec.push(&msg);
-        self.operator_set_updates.insert(&msg.id, &vec);
+        vec.push(msg);
     }
 
     pub fn post_checkpoint_signature(
         &mut self,
-        msg: &CheckpointTaskResponseMessage,
+        msg: CheckpointTaskResponseMessage,
         signature: &FixedBytes<64>,
     ) {
         let eth_address = self.caller_eth_address();
@@ -200,10 +197,10 @@ impl SFFLAgreementRegistry {
             return;
         }
 
-        let mut vec = self
+        let vec = self
             .checkpoint_task_responses
-            .get(&msg.referenceTaskIndex)
-            .unwrap_or_else(|| {
+            .entry(msg.referenceTaskIndex)
+            .or_insert_with(|| {
                 let prefix: Vec<u8> = [
                     b"checkpoint_task_responses_vec".as_slice(),
                     msg.referenceTaskIndex.to_be_bytes().as_slice(),
@@ -213,9 +210,7 @@ impl SFFLAgreementRegistry {
                 Vector::new(prefix)
             });
 
-        vec.push(&msg);
-        self.checkpoint_task_responses
-            .insert(&msg.referenceTaskIndex, &vec);
+        vec.push(msg);
     }
 
     pub fn get_eth_address(&self, account_id: &AccountId) -> Option<Address> {
@@ -228,25 +223,25 @@ impl SFFLAgreementRegistry {
         &self,
         rollup_id: u32,
         block_height: u64,
-    ) -> Option<Vec<StateRootUpdateMessage>> {
+    ) -> Option<Vec<&StateRootUpdateMessage>> {
         self.state_root_updates
             .get(&(rollup_id, block_height))
-            .and_then(|vector| Some(vector.to_vec()))
+            .and_then(|vector| Some(vector.iter().collect()))
     }
 
-    pub fn get_operator_set_updates(&self, id: u64) -> Option<Vec<OperatorSetUpdateMessage>> {
+    pub fn get_operator_set_updates(&self, id: u64) -> Option<Vec<&OperatorSetUpdateMessage>> {
         self.operator_set_updates
             .get(&id)
-            .and_then(|vector| Some(vector.to_vec()))
+            .and_then(|vector| Some(vector.iter().collect()))
     }
 
     pub fn get_checkpoint_task_responses(
         &self,
         task_id: u32,
-    ) -> Option<Vec<CheckpointTaskResponseMessage>> {
+    ) -> Option<Vec<&CheckpointTaskResponseMessage>> {
         self.checkpoint_task_responses
             .get(&task_id)
-            .and_then(|vector| Some(vector.to_vec()))
+            .and_then(|vector| Some(vector.iter().collect()))
     }
 
     pub fn get_message_signature(
@@ -262,7 +257,8 @@ impl SFFLAgreementRegistry {
 
     #[private]
     fn caller_eth_address(&self) -> [u8; 20] {
-        self.operator_eth_address
+        *self
+            .operator_eth_address
             .get(&env::predecessor_account_id())
             .unwrap_or_else(|| std::panic!("No known ethereum address"))
     }
@@ -276,21 +272,16 @@ impl SFFLAgreementRegistry {
     ) -> bool {
         let mut had_key = true;
 
-        self.message_signatures
-            .get(&msg_hash)
-            .unwrap_or_else(|| {
-                had_key = false;
+        let map = self.message_signatures.entry(*msg_hash).or_insert_with(|| {
+            had_key = false;
 
-                let prefix: Vec<u8> =
-                    [b"message_signatures_map".as_slice(), msg_hash.as_slice()].concat();
+            let prefix: Vec<u8> =
+                [b"message_signatures_map".as_slice(), msg_hash.as_slice()].concat();
 
-                let map = LookupMap::new(prefix);
+            LookupMap::new(prefix)
+        });
 
-                self.message_signatures.insert(&msg_hash, &map);
-
-                map
-            })
-            .insert(&eth_address, signature.as_slice().try_into().unwrap());
+        map.insert(*eth_address, signature.as_slice().try_into().unwrap());
 
         had_key
     }
@@ -356,7 +347,7 @@ mod tests {
             .unwrap();
 
         contract.init_operator(
-            &msg,
+            &msg.clone(),
             &FixedBytes::<64>::from_slice(signature.to_bytes().as_slice()),
             u8::from(recid),
         );
@@ -454,7 +445,7 @@ mod tests {
             stateRoot: FixedBytes::<32>::ZERO,
         };
 
-        contract.post_state_root_update_signature(&msg, &FixedBytes::<64>::ZERO);
+        contract.post_state_root_update_signature(msg.clone(), &FixedBytes::<64>::ZERO);
     }
 
     #[test]
@@ -490,7 +481,7 @@ mod tests {
             None
         );
 
-        contract.post_state_root_update_signature(&msg, &FixedBytes::<64>::ZERO);
+        contract.post_state_root_update_signature(msg.clone(), &FixedBytes::<64>::ZERO);
 
         assert_eq!(
             contract.get_message_signature(
@@ -501,7 +492,7 @@ mod tests {
         );
         assert_eq!(
             contract.get_state_root_updates(msg.rollupId, msg.blockHeight),
-            Some(vec![msg])
+            Some(vec![&msg])
         );
     }
 
@@ -526,7 +517,7 @@ mod tests {
             stateRoot: FixedBytes::<32>::ZERO,
         };
 
-        contract.post_state_root_update_signature(&msg, &FixedBytes::<64>::ZERO);
+        contract.post_state_root_update_signature(msg.clone(), &FixedBytes::<64>::ZERO);
 
         let context = get_context("bob.near".parse().unwrap());
         testing_env!(context);
@@ -547,10 +538,10 @@ mod tests {
         );
         assert_eq!(
             contract.get_state_root_updates(msg.rollupId, msg.blockHeight),
-            Some(vec![msg.clone()])
+            Some(vec![&msg])
         );
 
-        contract.post_state_root_update_signature(&msg, &FixedBytes::<64>::ZERO);
+        contract.post_state_root_update_signature(msg.clone(), &FixedBytes::<64>::ZERO);
 
         assert_eq!(
             contract.get_message_signature(
@@ -561,7 +552,7 @@ mod tests {
         );
         assert_eq!(
             contract.get_state_root_updates(msg.rollupId, msg.blockHeight),
-            Some(vec![msg])
+            Some(vec![&msg])
         );
     }
 
@@ -586,7 +577,7 @@ mod tests {
             stateRoot: FixedBytes::<32>::ZERO,
         };
 
-        contract.post_state_root_update_signature(&msg, &FixedBytes::<64>::ZERO);
+        contract.post_state_root_update_signature(msg.clone(), &FixedBytes::<64>::ZERO);
 
         let context = get_context("bob.near".parse().unwrap());
         testing_env!(context);
@@ -621,12 +612,12 @@ mod tests {
         );
         assert_eq!(
             contract.get_state_root_updates(msg.rollupId, msg.blockHeight),
-            Some(vec![msg.clone()])
+            Some(vec![&msg])
         );
 
         let mock_sig = FixedBytes::<64>::left_padding_from(&hex!("abcd"));
 
-        contract.post_state_root_update_signature(&msg2, &mock_sig);
+        contract.post_state_root_update_signature(msg2.clone(), &mock_sig);
 
         assert_eq!(
             contract.get_message_signature(
@@ -644,7 +635,7 @@ mod tests {
         );
         assert_eq!(
             contract.get_state_root_updates(msg.rollupId, msg.blockHeight),
-            Some(vec![msg, msg2])
+            Some(vec![&msg.clone(), &msg2])
         );
     }
 
@@ -662,7 +653,7 @@ mod tests {
             operators: vec![],
         };
 
-        contract.post_operator_set_update_signature(&msg, &FixedBytes::<64>::ZERO);
+        contract.post_operator_set_update_signature(msg.clone(), &FixedBytes::<64>::ZERO);
     }
 
     #[test]
@@ -694,7 +685,7 @@ mod tests {
         );
         assert_eq!(contract.get_operator_set_updates(msg.id), None);
 
-        contract.post_operator_set_update_signature(&msg, &FixedBytes::<64>::ZERO);
+        contract.post_operator_set_update_signature(msg.clone(), &FixedBytes::<64>::ZERO);
 
         assert_eq!(
             contract.get_message_signature(
@@ -703,7 +694,7 @@ mod tests {
             ),
             Some(FixedBytes::<64>::ZERO)
         );
-        assert_eq!(contract.get_operator_set_updates(msg.id), Some(vec![msg]));
+        assert_eq!(contract.get_operator_set_updates(msg.id), Some(vec![&msg]));
     }
 
     #[test]
@@ -726,7 +717,7 @@ mod tests {
             operators: vec![],
         };
 
-        contract.post_operator_set_update_signature(&msg, &FixedBytes::<64>::ZERO);
+        contract.post_operator_set_update_signature(msg.clone(), &FixedBytes::<64>::ZERO);
 
         let context = get_context("bob.near".parse().unwrap());
         testing_env!(context);
@@ -745,12 +736,9 @@ mod tests {
             ),
             None
         );
-        assert_eq!(
-            contract.get_operator_set_updates(msg.id),
-            Some(vec![msg.clone()])
-        );
+        assert_eq!(contract.get_operator_set_updates(msg.id), Some(vec![&msg]));
 
-        contract.post_operator_set_update_signature(&msg, &FixedBytes::<64>::ZERO);
+        contract.post_operator_set_update_signature(msg.clone(), &FixedBytes::<64>::ZERO);
 
         assert_eq!(
             contract.get_message_signature(
@@ -759,7 +747,7 @@ mod tests {
             ),
             Some(FixedBytes::<64>::ZERO)
         );
-        assert_eq!(contract.get_operator_set_updates(msg.id), Some(vec![msg]));
+        assert_eq!(contract.get_operator_set_updates(msg.id), Some(vec![&msg]));
     }
 
     #[test]
@@ -782,7 +770,7 @@ mod tests {
             operators: vec![],
         };
 
-        contract.post_operator_set_update_signature(&msg, &FixedBytes::<64>::ZERO);
+        contract.post_operator_set_update_signature(msg.clone(), &FixedBytes::<64>::ZERO);
 
         let context = get_context("bob.near".parse().unwrap());
         testing_env!(context);
@@ -820,14 +808,11 @@ mod tests {
             ),
             None
         );
-        assert_eq!(
-            contract.get_operator_set_updates(msg.id),
-            Some(vec![msg.clone()])
-        );
+        assert_eq!(contract.get_operator_set_updates(msg.id), Some(vec![&msg]));
 
         let mock_sig = FixedBytes::<64>::left_padding_from(&hex!("abcd"));
 
-        contract.post_operator_set_update_signature(&msg2, &mock_sig);
+        contract.post_operator_set_update_signature(msg2.clone(), &mock_sig);
 
         assert_eq!(
             contract.get_message_signature(
@@ -845,7 +830,7 @@ mod tests {
         );
         assert_eq!(
             contract.get_operator_set_updates(msg.id),
-            Some(vec![msg, msg2])
+            Some(vec![&msg.clone(), &msg2])
         );
     }
 
@@ -863,7 +848,7 @@ mod tests {
             operatorSetUpdatesRoot: FixedBytes::<32>::ZERO,
         };
 
-        contract.post_checkpoint_signature(&msg, &FixedBytes::<64>::ZERO);
+        contract.post_checkpoint_signature(msg.clone(), &FixedBytes::<64>::ZERO);
     }
 
     #[test]
@@ -898,7 +883,7 @@ mod tests {
             None
         );
 
-        contract.post_checkpoint_signature(&msg, &FixedBytes::<64>::ZERO);
+        contract.post_checkpoint_signature(msg.clone(), &FixedBytes::<64>::ZERO);
 
         assert_eq!(
             contract.get_message_signature(
@@ -909,7 +894,7 @@ mod tests {
         );
         assert_eq!(
             contract.get_checkpoint_task_responses(msg.referenceTaskIndex),
-            Some(vec![msg])
+            Some(vec![&msg])
         );
     }
 
@@ -933,7 +918,7 @@ mod tests {
             operatorSetUpdatesRoot: FixedBytes::<32>::ZERO,
         };
 
-        contract.post_checkpoint_signature(&msg, &FixedBytes::<64>::ZERO);
+        contract.post_checkpoint_signature(msg.clone(), &FixedBytes::<64>::ZERO);
 
         let context = get_context("bob.near".parse().unwrap());
         testing_env!(context);
@@ -954,10 +939,10 @@ mod tests {
         );
         assert_eq!(
             contract.get_checkpoint_task_responses(msg.referenceTaskIndex),
-            Some(vec![msg.clone()])
+            Some(vec![&msg])
         );
 
-        contract.post_checkpoint_signature(&msg, &FixedBytes::<64>::ZERO);
+        contract.post_checkpoint_signature(msg.clone(), &FixedBytes::<64>::ZERO);
 
         assert_eq!(
             contract.get_message_signature(
@@ -968,7 +953,7 @@ mod tests {
         );
         assert_eq!(
             contract.get_checkpoint_task_responses(msg.referenceTaskIndex),
-            Some(vec![msg])
+            Some(vec![&msg])
         );
     }
 
@@ -992,7 +977,7 @@ mod tests {
             operatorSetUpdatesRoot: FixedBytes::<32>::ZERO,
         };
 
-        contract.post_checkpoint_signature(&msg, &FixedBytes::<64>::ZERO);
+        contract.post_checkpoint_signature(msg.clone(), &FixedBytes::<64>::ZERO);
 
         let context = get_context("bob.near".parse().unwrap());
         testing_env!(context);
@@ -1026,12 +1011,12 @@ mod tests {
         );
         assert_eq!(
             contract.get_checkpoint_task_responses(msg.referenceTaskIndex),
-            Some(vec![msg.clone()])
+            Some(vec![&msg])
         );
 
         let mock_sig = FixedBytes::<64>::left_padding_from(&hex!("abcd"));
 
-        contract.post_checkpoint_signature(&msg2, &mock_sig);
+        contract.post_checkpoint_signature(msg2.clone(), &mock_sig);
 
         assert_eq!(
             contract.get_message_signature(
@@ -1049,7 +1034,7 @@ mod tests {
         );
         assert_eq!(
             contract.get_checkpoint_task_responses(msg.referenceTaskIndex),
-            Some(vec![msg, msg2])
+            Some(vec![&msg.clone(), &msg2])
         );
     }
 }
