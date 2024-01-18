@@ -74,9 +74,9 @@ macro_rules! sol_type_borsh {
         impl BorshDeserialize for $name {
             #[inline]
             fn deserialize(buf: &mut &[u8]) -> Result<Self, std::io::Error> {
-                let value = $name::abi_decode(&buf, true)
+                let encoded: Vec<u8> = BorshDeserialize::deserialize(buf)?;
+                let value = $name::abi_decode(encoded.as_slice(), true)
                     .map_err(|err| std::io::Error::new(std::io::ErrorKind::InvalidInput, err))?;
-                *buf = &buf[$name::abi_encoded_size(&value)..];
                 Ok(value)
             }
         }
