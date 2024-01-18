@@ -9,7 +9,7 @@ use alloy_primitives::{Address, FixedBytes};
 use alloy_sol_types::{eip712_domain, sol, Eip712Domain, SolStruct, SolValue};
 
 sol! {
-    #[derive(Serialize, Deserialize)]
+    #[derive(Serialize, Deserialize, PartialEq, Debug)]
     #[serde(crate = "near_sdk::serde")]
     struct StateRootUpdateMessage {
         uint32 rollupId;
@@ -18,21 +18,21 @@ sol! {
         bytes32 stateRoot;
     }
 
-    #[derive(Serialize, Deserialize)]
+    #[derive(Serialize, Deserialize, PartialEq, Debug)]
     #[serde(crate = "near_sdk::serde")]
     struct G1Point {
         uint256 X;
         uint256 Y;
     }
 
-    #[derive(Serialize, Deserialize)]
+    #[derive(Serialize, Deserialize, PartialEq, Debug)]
     #[serde(crate = "near_sdk::serde")]
     struct Operator {
         G1Point pubkey;
         uint128 weight;
     }
 
-    #[derive(Serialize, Deserialize)]
+    #[derive(Serialize, Deserialize, PartialEq, Debug)]
     #[serde(crate = "near_sdk::serde")]
     struct OperatorSetUpdateMessage {
         uint64 id;
@@ -40,7 +40,7 @@ sol! {
         Operator[] operators;
     }
 
-    #[derive(Serialize, Deserialize)]
+    #[derive(Serialize, Deserialize, PartialEq, Debug)]
     #[serde(crate = "near_sdk::serde")]
     struct CheckpointTaskResponseMessage {
         uint32 referenceTaskIndex;
@@ -322,4 +322,734 @@ impl SFFLAgreementRegistry {
 #[cfg(test)]
 mod tests {
     use super::*;
+    use alloy_primitives::{hex, U256};
+    use near_sdk::test_utils::VMContextBuilder;
+    use near_sdk::{testing_env, VMContext};
+
+    use ethers::core::{k256::ecdsa::SigningKey, utils::secret_key_to_address};
+
+    fn get_context(account_id: AccountId) -> VMContext {
+        VMContextBuilder::new()
+            .predecessor_account_id(account_id)
+            .build()
+    }
+
+    fn _init_operator(
+        contract: &mut SFFLAgreementRegistry,
+        account_id: AccountId,
+        private_key: &[u8; 32],
+        msg: Option<&EthNearAccountLink>,
+    ) -> Address {
+        let signing_key = SigningKey::from_bytes(private_key.into()).unwrap();
+        let eth_address = secret_key_to_address(&signing_key);
+
+        let default_msg = EthNearAccountLink {
+            ethAddress: Address::from_slice(eth_address.as_bytes()),
+            nearAccountId: account_id.to_string(),
+        };
+
+        let msg = msg.unwrap_or(&default_msg);
+
+        let signing_hash = msg.eip712_signing_hash(&DOMAIN);
+        let (signature, recid) = signing_key
+            .sign_prehash_recoverable(signing_hash.as_slice())
+            .unwrap();
+
+        contract.init_operator(
+            &msg,
+            &FixedBytes::<64>::from_slice(signature.to_bytes().as_slice()),
+            u8::from(recid),
+        );
+
+        msg.ethAddress
+    }
+
+    #[test]
+    fn init_operator() {
+        let context = get_context("alice.near".parse().unwrap());
+        testing_env!(context);
+
+        let mut contract = SFFLAgreementRegistry::default();
+
+        assert_eq!(
+            contract.get_eth_address(&"alice.near".parse().unwrap()),
+            None
+        );
+
+        let eth_address = _init_operator(
+            &mut contract,
+            "alice.near".parse().unwrap(),
+            &hex!("4c0883a69102937d6231471b5dbb6204fe5129617082792ae468d01a3f362318"),
+            None,
+        );
+
+        assert_eq!(
+            contract.get_eth_address(&"alice.near".parse().unwrap()),
+            Some(eth_address)
+        );
+    }
+
+    #[test]
+    #[should_panic(
+        expected = "Wrong message address: expected 0x0000000000000000000000000000000000000000, found 0x2c7536E3605D9C16a7a3D7b1898e529396a65c23"
+    )]
+    fn init_operator_wrong_address() {
+        let context = get_context("alice.near".parse().unwrap());
+        testing_env!(context);
+
+        let mut contract = SFFLAgreementRegistry::default();
+
+        let msg = EthNearAccountLink {
+            ethAddress: Address::ZERO,
+            nearAccountId: "alice.near".to_string(),
+        };
+
+        let _ = _init_operator(
+            &mut contract,
+            "alice.near".parse().unwrap(),
+            &hex!("4c0883a69102937d6231471b5dbb6204fe5129617082792ae468d01a3f362318"),
+            Some(&msg),
+        );
+    }
+
+    #[test]
+    #[should_panic(expected = "Invalid account ID")]
+    fn init_operator_invalid_account_id() {
+        let context = get_context("alice.near".parse().unwrap());
+        testing_env!(context);
+
+        let mut contract = SFFLAgreementRegistry::default();
+
+        let signing_key = SigningKey::from_bytes(
+            &hex!("4c0883a69102937d6231471b5dbb6204fe5129617082792ae468d01a3f362318").into(),
+        )
+        .unwrap();
+        let eth_address = secret_key_to_address(&signing_key);
+
+        let msg = EthNearAccountLink {
+            ethAddress: Address::from_slice(eth_address.as_bytes()),
+            nearAccountId: String::from_str("").unwrap(),
+        };
+
+        let _ = _init_operator(
+            &mut contract,
+            "alice.near".parse().unwrap(),
+            &hex!("4c0883a69102937d6231471b5dbb6204fe5129617082792ae468d01a3f362318"),
+            Some(&msg),
+        );
+    }
+
+    #[test]
+    #[should_panic(expected = "No known ethereum address")]
+    fn post_state_root_update_signature_no_eth_address() {
+        let context = get_context("alice.near".parse().unwrap());
+        testing_env!(context);
+
+        let mut contract = SFFLAgreementRegistry::default();
+
+        let msg = StateRootUpdateMessage {
+            rollupId: 1,
+            blockHeight: 2,
+            nearBlockHeight: 3,
+            stateRoot: FixedBytes::<32>::ZERO,
+        };
+
+        contract.post_state_root_update_signature(&msg, &FixedBytes::<64>::ZERO);
+    }
+
+    #[test]
+    fn post_state_root_update_signature_unexisting_message() {
+        let context = get_context("alice.near".parse().unwrap());
+        testing_env!(context);
+
+        let mut contract = SFFLAgreementRegistry::default();
+
+        let eth_address = _init_operator(
+            &mut contract,
+            "alice.near".parse().unwrap(),
+            &hex!("4c0883a69102937d6231471b5dbb6204fe5129617082792ae468d01a3f362318"),
+            None,
+        );
+
+        let msg = StateRootUpdateMessage {
+            rollupId: 1,
+            blockHeight: 2,
+            nearBlockHeight: 3,
+            stateRoot: FixedBytes::<32>::ZERO,
+        };
+
+        assert_eq!(
+            contract.get_message_signature(
+                &FixedBytes::<32>::from(env::keccak256_array(&msg.abi_encode())),
+                &eth_address
+            ),
+            None
+        );
+        assert_eq!(
+            contract.get_state_root_updates(msg.rollupId, msg.blockHeight),
+            None
+        );
+
+        contract.post_state_root_update_signature(&msg, &FixedBytes::<64>::ZERO);
+
+        assert_eq!(
+            contract.get_message_signature(
+                &FixedBytes::<32>::from(env::keccak256_array(&msg.abi_encode())),
+                &eth_address
+            ),
+            Some(FixedBytes::<64>::ZERO)
+        );
+        assert_eq!(
+            contract.get_state_root_updates(msg.rollupId, msg.blockHeight),
+            Some(vec![msg])
+        );
+    }
+
+    #[test]
+    fn post_state_root_update_signature_existing_message() {
+        let context = get_context("alice.near".parse().unwrap());
+        testing_env!(context);
+
+        let mut contract = SFFLAgreementRegistry::default();
+
+        let _ = _init_operator(
+            &mut contract,
+            "alice.near".parse().unwrap(),
+            &hex!("4c0883a69102937d6231471b5dbb6204fe5129617082792ae468d01a3f362318"),
+            None,
+        );
+
+        let msg = StateRootUpdateMessage {
+            rollupId: 1,
+            blockHeight: 2,
+            nearBlockHeight: 3,
+            stateRoot: FixedBytes::<32>::ZERO,
+        };
+
+        contract.post_state_root_update_signature(&msg, &FixedBytes::<64>::ZERO);
+
+        let context = get_context("bob.near".parse().unwrap());
+        testing_env!(context);
+
+        let eth_address = _init_operator(
+            &mut contract,
+            "bob.near".parse().unwrap(),
+            &hex!("24341428553285e10e74a5f26f4638ac53afb28c032aff1a04900e6eb115a404"),
+            None,
+        );
+
+        assert_eq!(
+            contract.get_message_signature(
+                &FixedBytes::<32>::from(env::keccak256_array(&msg.abi_encode())),
+                &eth_address
+            ),
+            None
+        );
+        assert_eq!(
+            contract.get_state_root_updates(msg.rollupId, msg.blockHeight),
+            Some(vec![msg.clone()])
+        );
+
+        contract.post_state_root_update_signature(&msg, &FixedBytes::<64>::ZERO);
+
+        assert_eq!(
+            contract.get_message_signature(
+                &FixedBytes::<32>::from(env::keccak256_array(&msg.abi_encode())),
+                &eth_address
+            ),
+            Some(FixedBytes::<64>::ZERO)
+        );
+        assert_eq!(
+            contract.get_state_root_updates(msg.rollupId, msg.blockHeight),
+            Some(vec![msg])
+        );
+    }
+
+    #[test]
+    fn post_state_root_update_signature_existing_header() {
+        let context = get_context("alice.near".parse().unwrap());
+        testing_env!(context);
+
+        let mut contract = SFFLAgreementRegistry::default();
+
+        let _ = _init_operator(
+            &mut contract,
+            "alice.near".parse().unwrap(),
+            &hex!("4c0883a69102937d6231471b5dbb6204fe5129617082792ae468d01a3f362318"),
+            None,
+        );
+
+        let msg = StateRootUpdateMessage {
+            rollupId: 1,
+            blockHeight: 2,
+            nearBlockHeight: 3,
+            stateRoot: FixedBytes::<32>::ZERO,
+        };
+
+        contract.post_state_root_update_signature(&msg, &FixedBytes::<64>::ZERO);
+
+        let context = get_context("bob.near".parse().unwrap());
+        testing_env!(context);
+
+        let eth_address = _init_operator(
+            &mut contract,
+            "bob.near".parse().unwrap(),
+            &hex!("24341428553285e10e74a5f26f4638ac53afb28c032aff1a04900e6eb115a404"),
+            None,
+        );
+
+        let msg2 = StateRootUpdateMessage {
+            rollupId: 1,
+            blockHeight: 2,
+            nearBlockHeight: 4,
+            stateRoot: FixedBytes::<32>::left_padding_from(&hex!("f00d")),
+        };
+
+        assert_eq!(
+            contract.get_message_signature(
+                &FixedBytes::<32>::from(env::keccak256_array(&msg.abi_encode())),
+                &eth_address
+            ),
+            None
+        );
+        assert_eq!(
+            contract.get_message_signature(
+                &FixedBytes::<32>::from(env::keccak256_array(&msg2.abi_encode())),
+                &eth_address
+            ),
+            None
+        );
+        assert_eq!(
+            contract.get_state_root_updates(msg.rollupId, msg.blockHeight),
+            Some(vec![msg.clone()])
+        );
+
+        let mock_sig = FixedBytes::<64>::left_padding_from(&hex!("abcd"));
+
+        contract.post_state_root_update_signature(&msg2, &mock_sig);
+
+        assert_eq!(
+            contract.get_message_signature(
+                &FixedBytes::<32>::from(env::keccak256_array(&msg.abi_encode())),
+                &eth_address
+            ),
+            None
+        );
+        assert_eq!(
+            contract.get_message_signature(
+                &FixedBytes::<32>::from(env::keccak256_array(&msg2.abi_encode())),
+                &eth_address
+            ),
+            Some(mock_sig)
+        );
+        assert_eq!(
+            contract.get_state_root_updates(msg.rollupId, msg.blockHeight),
+            Some(vec![msg, msg2])
+        );
+    }
+
+    #[test]
+    #[should_panic(expected = "No known ethereum address")]
+    fn post_operator_set_update_signature_no_eth_address() {
+        let context = get_context("alice.near".parse().unwrap());
+        testing_env!(context);
+
+        let mut contract = SFFLAgreementRegistry::default();
+
+        let msg = OperatorSetUpdateMessage {
+            id: 1,
+            nearBlockHeight: 2,
+            operators: vec![],
+        };
+
+        contract.post_operator_set_update_signature(&msg, &FixedBytes::<64>::ZERO);
+    }
+
+    #[test]
+    fn post_operator_set_update_signature_unexisting_message() {
+        let context = get_context("alice.near".parse().unwrap());
+        testing_env!(context);
+
+        let mut contract = SFFLAgreementRegistry::default();
+
+        let eth_address = _init_operator(
+            &mut contract,
+            "alice.near".parse().unwrap(),
+            &hex!("4c0883a69102937d6231471b5dbb6204fe5129617082792ae468d01a3f362318"),
+            None,
+        );
+
+        let msg = OperatorSetUpdateMessage {
+            id: 1,
+            nearBlockHeight: 2,
+            operators: vec![],
+        };
+
+        assert_eq!(
+            contract.get_message_signature(
+                &FixedBytes::<32>::from(env::keccak256_array(&msg.abi_encode())),
+                &eth_address
+            ),
+            None
+        );
+        assert_eq!(contract.get_operator_set_updates(msg.id), None);
+
+        contract.post_operator_set_update_signature(&msg, &FixedBytes::<64>::ZERO);
+
+        assert_eq!(
+            contract.get_message_signature(
+                &FixedBytes::<32>::from(env::keccak256_array(&msg.abi_encode())),
+                &eth_address
+            ),
+            Some(FixedBytes::<64>::ZERO)
+        );
+        assert_eq!(contract.get_operator_set_updates(msg.id), Some(vec![msg]));
+    }
+
+    #[test]
+    fn post_operator_set_update_signature_existing_message() {
+        let context = get_context("alice.near".parse().unwrap());
+        testing_env!(context);
+
+        let mut contract = SFFLAgreementRegistry::default();
+
+        let _ = _init_operator(
+            &mut contract,
+            "alice.near".parse().unwrap(),
+            &hex!("4c0883a69102937d6231471b5dbb6204fe5129617082792ae468d01a3f362318"),
+            None,
+        );
+
+        let msg = OperatorSetUpdateMessage {
+            id: 1,
+            nearBlockHeight: 2,
+            operators: vec![],
+        };
+
+        contract.post_operator_set_update_signature(&msg, &FixedBytes::<64>::ZERO);
+
+        let context = get_context("bob.near".parse().unwrap());
+        testing_env!(context);
+
+        let eth_address = _init_operator(
+            &mut contract,
+            "bob.near".parse().unwrap(),
+            &hex!("24341428553285e10e74a5f26f4638ac53afb28c032aff1a04900e6eb115a404"),
+            None,
+        );
+
+        assert_eq!(
+            contract.get_message_signature(
+                &FixedBytes::<32>::from(env::keccak256_array(&msg.abi_encode())),
+                &eth_address
+            ),
+            None
+        );
+        assert_eq!(
+            contract.get_operator_set_updates(msg.id),
+            Some(vec![msg.clone()])
+        );
+
+        contract.post_operator_set_update_signature(&msg, &FixedBytes::<64>::ZERO);
+
+        assert_eq!(
+            contract.get_message_signature(
+                &FixedBytes::<32>::from(env::keccak256_array(&msg.abi_encode())),
+                &eth_address
+            ),
+            Some(FixedBytes::<64>::ZERO)
+        );
+        assert_eq!(contract.get_operator_set_updates(msg.id), Some(vec![msg]));
+    }
+
+    #[test]
+    fn post_operator_set_update_signature_existing_header() {
+        let context = get_context("alice.near".parse().unwrap());
+        testing_env!(context);
+
+        let mut contract = SFFLAgreementRegistry::default();
+
+        let _ = _init_operator(
+            &mut contract,
+            "alice.near".parse().unwrap(),
+            &hex!("4c0883a69102937d6231471b5dbb6204fe5129617082792ae468d01a3f362318"),
+            None,
+        );
+
+        let msg = OperatorSetUpdateMessage {
+            id: 1,
+            nearBlockHeight: 2,
+            operators: vec![],
+        };
+
+        contract.post_operator_set_update_signature(&msg, &FixedBytes::<64>::ZERO);
+
+        let context = get_context("bob.near".parse().unwrap());
+        testing_env!(context);
+
+        let eth_address = _init_operator(
+            &mut contract,
+            "bob.near".parse().unwrap(),
+            &hex!("24341428553285e10e74a5f26f4638ac53afb28c032aff1a04900e6eb115a404"),
+            None,
+        );
+
+        let msg2 = OperatorSetUpdateMessage {
+            id: 1,
+            nearBlockHeight: 3,
+            operators: vec![Operator {
+                pubkey: G1Point {
+                    X: U256::ZERO,
+                    Y: U256::ZERO,
+                },
+                weight: 0,
+            }],
+        };
+
+        assert_eq!(
+            contract.get_message_signature(
+                &FixedBytes::<32>::from(env::keccak256_array(&msg.abi_encode())),
+                &eth_address
+            ),
+            None
+        );
+        assert_eq!(
+            contract.get_message_signature(
+                &FixedBytes::<32>::from(env::keccak256_array(&msg2.abi_encode())),
+                &eth_address
+            ),
+            None
+        );
+        assert_eq!(
+            contract.get_operator_set_updates(msg.id),
+            Some(vec![msg.clone()])
+        );
+
+        let mock_sig = FixedBytes::<64>::left_padding_from(&hex!("abcd"));
+
+        contract.post_operator_set_update_signature(&msg2, &mock_sig);
+
+        assert_eq!(
+            contract.get_message_signature(
+                &FixedBytes::<32>::from(env::keccak256_array(&msg.abi_encode())),
+                &eth_address
+            ),
+            None
+        );
+        assert_eq!(
+            contract.get_message_signature(
+                &FixedBytes::<32>::from(env::keccak256_array(&msg2.abi_encode())),
+                &eth_address
+            ),
+            Some(mock_sig)
+        );
+        assert_eq!(
+            contract.get_operator_set_updates(msg.id),
+            Some(vec![msg, msg2])
+        );
+    }
+
+    #[test]
+    #[should_panic(expected = "No known ethereum address")]
+    fn post_checkpoint_signature_no_eth_address() {
+        let context = get_context("alice.near".parse().unwrap());
+        testing_env!(context);
+
+        let mut contract = SFFLAgreementRegistry::default();
+
+        let msg = CheckpointTaskResponseMessage {
+            referenceTaskIndex: 1,
+            stateRootUpdatesRoot: FixedBytes::<32>::ZERO,
+            operatorSetUpdatesRoot: FixedBytes::<32>::ZERO,
+        };
+
+        contract.post_checkpoint_signature(&msg, &FixedBytes::<64>::ZERO);
+    }
+
+    #[test]
+    fn post_checkpoint_signature_unexisting_message() {
+        let context = get_context("alice.near".parse().unwrap());
+        testing_env!(context);
+
+        let mut contract = SFFLAgreementRegistry::default();
+
+        let eth_address = _init_operator(
+            &mut contract,
+            "alice.near".parse().unwrap(),
+            &hex!("4c0883a69102937d6231471b5dbb6204fe5129617082792ae468d01a3f362318"),
+            None,
+        );
+
+        let msg = CheckpointTaskResponseMessage {
+            referenceTaskIndex: 1,
+            stateRootUpdatesRoot: FixedBytes::<32>::ZERO,
+            operatorSetUpdatesRoot: FixedBytes::<32>::ZERO,
+        };
+
+        assert_eq!(
+            contract.get_message_signature(
+                &FixedBytes::<32>::from(env::keccak256_array(&msg.abi_encode())),
+                &eth_address
+            ),
+            None
+        );
+        assert_eq!(
+            contract.get_checkpoint_task_responses(msg.referenceTaskIndex),
+            None
+        );
+
+        contract.post_checkpoint_signature(&msg, &FixedBytes::<64>::ZERO);
+
+        assert_eq!(
+            contract.get_message_signature(
+                &FixedBytes::<32>::from(env::keccak256_array(&msg.abi_encode())),
+                &eth_address
+            ),
+            Some(FixedBytes::<64>::ZERO)
+        );
+        assert_eq!(
+            contract.get_checkpoint_task_responses(msg.referenceTaskIndex),
+            Some(vec![msg])
+        );
+    }
+
+    #[test]
+    fn post_checkpoint_signature_existing_message() {
+        let context = get_context("alice.near".parse().unwrap());
+        testing_env!(context);
+
+        let mut contract = SFFLAgreementRegistry::default();
+
+        let _ = _init_operator(
+            &mut contract,
+            "alice.near".parse().unwrap(),
+            &hex!("4c0883a69102937d6231471b5dbb6204fe5129617082792ae468d01a3f362318"),
+            None,
+        );
+
+        let msg = CheckpointTaskResponseMessage {
+            referenceTaskIndex: 1,
+            stateRootUpdatesRoot: FixedBytes::<32>::ZERO,
+            operatorSetUpdatesRoot: FixedBytes::<32>::ZERO,
+        };
+
+        contract.post_checkpoint_signature(&msg, &FixedBytes::<64>::ZERO);
+
+        let context = get_context("bob.near".parse().unwrap());
+        testing_env!(context);
+
+        let eth_address = _init_operator(
+            &mut contract,
+            "bob.near".parse().unwrap(),
+            &hex!("24341428553285e10e74a5f26f4638ac53afb28c032aff1a04900e6eb115a404"),
+            None,
+        );
+
+        assert_eq!(
+            contract.get_message_signature(
+                &FixedBytes::<32>::from(env::keccak256_array(&msg.abi_encode())),
+                &eth_address
+            ),
+            None
+        );
+        assert_eq!(
+            contract.get_checkpoint_task_responses(msg.referenceTaskIndex),
+            Some(vec![msg.clone()])
+        );
+
+        contract.post_checkpoint_signature(&msg, &FixedBytes::<64>::ZERO);
+
+        assert_eq!(
+            contract.get_message_signature(
+                &FixedBytes::<32>::from(env::keccak256_array(&msg.abi_encode())),
+                &eth_address
+            ),
+            Some(FixedBytes::<64>::ZERO)
+        );
+        assert_eq!(
+            contract.get_checkpoint_task_responses(msg.referenceTaskIndex),
+            Some(vec![msg])
+        );
+    }
+
+    #[test]
+    fn post_checkpoint_signature_existing_header() {
+        let context = get_context("alice.near".parse().unwrap());
+        testing_env!(context);
+
+        let mut contract = SFFLAgreementRegistry::default();
+
+        let _ = _init_operator(
+            &mut contract,
+            "alice.near".parse().unwrap(),
+            &hex!("4c0883a69102937d6231471b5dbb6204fe5129617082792ae468d01a3f362318"),
+            None,
+        );
+
+        let msg = CheckpointTaskResponseMessage {
+            referenceTaskIndex: 1,
+            stateRootUpdatesRoot: FixedBytes::<32>::ZERO,
+            operatorSetUpdatesRoot: FixedBytes::<32>::ZERO,
+        };
+
+        contract.post_checkpoint_signature(&msg, &FixedBytes::<64>::ZERO);
+
+        let context = get_context("bob.near".parse().unwrap());
+        testing_env!(context);
+
+        let eth_address = _init_operator(
+            &mut contract,
+            "bob.near".parse().unwrap(),
+            &hex!("24341428553285e10e74a5f26f4638ac53afb28c032aff1a04900e6eb115a404"),
+            None,
+        );
+
+        let msg2 = CheckpointTaskResponseMessage {
+            referenceTaskIndex: 1,
+            stateRootUpdatesRoot: FixedBytes::<32>::left_padding_from(&hex!("def1")),
+            operatorSetUpdatesRoot: FixedBytes::<32>::left_padding_from(&hex!("f00d")),
+        };
+
+        assert_eq!(
+            contract.get_message_signature(
+                &FixedBytes::<32>::from(env::keccak256_array(&msg.abi_encode())),
+                &eth_address
+            ),
+            None
+        );
+        assert_eq!(
+            contract.get_message_signature(
+                &FixedBytes::<32>::from(env::keccak256_array(&msg2.abi_encode())),
+                &eth_address
+            ),
+            None
+        );
+        assert_eq!(
+            contract.get_checkpoint_task_responses(msg.referenceTaskIndex),
+            Some(vec![msg.clone()])
+        );
+
+        let mock_sig = FixedBytes::<64>::left_padding_from(&hex!("abcd"));
+
+        contract.post_checkpoint_signature(&msg2, &mock_sig);
+
+        assert_eq!(
+            contract.get_message_signature(
+                &FixedBytes::<32>::from(env::keccak256_array(&msg.abi_encode())),
+                &eth_address
+            ),
+            None
+        );
+        assert_eq!(
+            contract.get_message_signature(
+                &FixedBytes::<32>::from(env::keccak256_array(&msg2.abi_encode())),
+                &eth_address
+            ),
+            Some(mock_sig)
+        );
+        assert_eq!(
+            contract.get_checkpoint_task_responses(msg.referenceTaskIndex),
+            Some(vec![msg, msg2])
+        );
+    }
 }
