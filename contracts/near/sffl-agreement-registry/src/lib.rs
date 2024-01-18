@@ -287,7 +287,7 @@ impl SFFLAgreementRegistry {
 
         self.message_signatures
             .get(&msg_hash)
-            .or_else(|| {
+            .unwrap_or_else(|| {
                 had_key = false;
 
                 let prefix: Vec<u8> =
@@ -297,9 +297,8 @@ impl SFFLAgreementRegistry {
 
                 self.message_signatures.insert(&msg_hash, &map);
 
-                Some(map)
+                map
             })
-            .unwrap()
             .insert(&eth_address, signature.as_slice().try_into().unwrap());
 
         had_key
