@@ -27,3 +27,6 @@ overflow-checks = true
 
 [workspace]
 members = ["sandbox-rs"]
+
+[dev-dependencies]
+ethers = "2.0.11"
