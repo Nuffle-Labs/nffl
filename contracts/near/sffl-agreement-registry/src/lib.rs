@@ -288,7 +288,7 @@ impl SFFLAgreementRegistry {
         self.message_signatures
             .get(&msg_hash)
             .or_else(|| {
-                had_key = true;
+                had_key = false;
 
                 let prefix: Vec<u8> =
                     [b"message_signatures_map".as_slice(), msg_hash.as_slice()].concat();
