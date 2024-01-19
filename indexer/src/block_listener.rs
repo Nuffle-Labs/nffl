@@ -358,7 +358,7 @@ mod tests {
         drop(receipt_receiver);
         let _ = sender.send(streamer_messages.candidates.into_iter().next_back().unwrap()).await;
 
-        // Assert tha handle terminated with error
+        // Assert that handle terminated with error
         assert!(handle.await.unwrap().is_err());
     }
 }
