@@ -33,26 +33,15 @@ impl CandidatesValidator {
             view_client,
         } = self;
 
-        let res = 'main: loop {
-            let candidate_data = if let Some(candidate_data) = receiver.recv().await {
-                candidate_data
-            } else {
-                break Ok(());
-            };
-
-            let execution_outcome = match view_client
+        while let Some(candidate_data) = receiver.recv().await {
+            let execution_outcome = view_client
                 .send(
                     near_client::GetExecutionOutcome {
                         id: candidate_data.transaction_or_receipt_id.clone(),
                     }
                     .with_span_context(),
                 )
-                .await
-            {
-                Ok(Ok(response)) => response,
-                Ok(Err(err)) => break Err(err.into()),
-                Err(err) => break Err(err.into()),
-            };
+                .await??;
 
             if !matches!(
                 execution_outcome.outcome_proof.outcome.status,
@@ -64,7 +53,7 @@ impl CandidatesValidator {
 
             // TODO: is sequential order important here?
             for payload in candidate_data.payloads {
-                if let Err(err) = rabbit_publisher
+                rabbit_publisher
                     .publish(PublishData {
                         publish_options: PublishOptions::default(),
                         cx: PublisherContext {
@@ -73,18 +62,10 @@ impl CandidatesValidator {
                         },
                         payload,
                     })
-                    .await
-                {
-                    break 'main Err(err);
-                };
+                    .await?;
             }
         };
 
-        receiver.close();
-
-        // Drain messages
-        while let Some(_) = receiver.recv().await {}
-
-        res
+        Ok(())
     }
 }

@@ -33,11 +33,7 @@ impl BlockListener {
         }
     }
 
-    fn receipt_filer_map(da_contract_id: &AccountId, receipt: ReceiptView) -> Option<CandidateData> {
-        if &receipt.receiver_id != da_contract_id {
-            return None;
-        }
-
+    fn receipt_filer_map(receipt: ReceiptView) -> Option<CandidateData> {
         let actions = if let ReceiptEnumView::Action { actions, .. } = receipt.receipt {
             actions
         } else {
@@ -46,10 +42,7 @@ impl BlockListener {
 
         let payloads = actions
             .into_iter()
-            .filter_map(|el| match el {
-                ActionView::FunctionCall { method_name, args, .. } if method_name == "submit" => Some(args.into()),
-                _ => None,
-            })
+            .filter_map(Self::extract_args)
             .collect::<Vec<Vec<u8>>>();
 
         if payloads.is_empty() {
@@ -63,6 +56,15 @@ impl BlockListener {
             },
             payloads,
         })
+    }
+
+    fn extract_args(action: ActionView) -> Option<Vec<u8>> {
+        match action {
+            ActionView::FunctionCall { method_name, args, .. } if method_name == "submit" => {
+                Some(args.into())
+            }
+            _ => None,
+        }
     }
 
     pub(crate) async fn start(self) -> Result<()> {
@@ -82,7 +84,8 @@ impl BlockListener {
                     chunk
                         .receipts
                         .into_iter()
-                        .filter_map(|receipt| Self::receipt_filer_map(&da_contract_id, receipt))
+                        .filter(|receipt| receipt.receiver_id == da_contract_id)
+                        .filter_map(Self::receipt_filer_map)
                 })
                 .collect();
 
@@ -143,36 +146,27 @@ mod tests {
     }
 
     #[test]
-    fn test_receipt_filter_map() {
+    fn test_candidate_data_extraction() {
         let da_contract_id = AccountId::from_str("a.test").unwrap();
-
-        let common_action_receipt = ReceiptEnumView::Action {
-            signer_id: AccountId::from_str("test_signer").unwrap(),
-            signer_public_key: PublicKey::empty(KeyType::ED25519),
-            gas_price: 100,
-            output_data_receivers: vec![],
-            input_data_ids: vec![CryptoHash::hash_bytes(b"test_input_data_id")],
-            actions: vec![ActionView::FunctionCall {
-                method_name: "submit".into(),
-                args: vec![1, 2, 3].into(),
-                gas: 100,
-                deposit: 100,
-            }],
-        };
 
         let test_predecessor_id = AccountId::from_str("test_predecessor").unwrap();
         let valid_receipt = ReceiptView {
             predecessor_id: test_predecessor_id.clone(),
             receiver_id: da_contract_id.clone(),
             receipt_id: CryptoHash::hash_bytes(b"test_receipt_id"),
-            receipt: common_action_receipt.clone(),
-        };
-
-        let invalid_receiver_receipt = ReceiptView {
-            predecessor_id: test_predecessor_id.clone(),
-            receiver_id: AccountId::from_str("other_contract").unwrap(),
-            receipt_id: CryptoHash::hash_bytes(b"test_receipt_id"),
-            receipt: common_action_receipt,
+            receipt: ReceiptEnumView::Action {
+                signer_id: AccountId::from_str("test_signer").unwrap(),
+                signer_public_key: PublicKey::empty(KeyType::ED25519),
+                gas_price: 100,
+                output_data_receivers: vec![],
+                input_data_ids: vec![CryptoHash::hash_bytes(b"test_input_data_id")],
+                actions: vec![ActionView::FunctionCall {
+                    method_name: "submit".into(),
+                    args: vec![1, 2, 3].into(),
+                    gas: 100,
+                    deposit: 100,
+                }],
+            }
         };
 
         let invalid_action_receipt = ReceiptView {
@@ -187,7 +181,7 @@ mod tests {
 
         // Test valid receipt
         assert_eq!(
-            BlockListener::receipt_filer_map(&da_contract_id, valid_receipt.clone()),
+            BlockListener::receipt_filer_map(valid_receipt.clone()),
             Some(CandidateData {
                 transaction_or_receipt_id: TransactionOrReceiptId::Receipt {
                     receipt_id: valid_receipt.receipt_id.clone(),
@@ -197,15 +191,9 @@ mod tests {
             })
         );
 
-        // Test invalid receiver receipt
-        assert_eq!(
-            BlockListener::receipt_filer_map(&da_contract_id, invalid_receiver_receipt),
-            None
-        );
-
         // Test invalid action receipt
         assert_eq!(
-            BlockListener::receipt_filer_map(&da_contract_id, invalid_action_receipt),
+            BlockListener::receipt_filer_map(invalid_action_receipt),
             None
         );
     }
@@ -213,7 +201,6 @@ mod tests {
     #[test]
     fn test_multiple_submit_actions() {
         let da_contract_id = AccountId::from_str("a.test").unwrap();
-
         let common_action_receipt = ReceiptEnumView::Action {
             signer_id: AccountId::from_str("test_signer").unwrap(),
             signer_public_key: PublicKey::empty(KeyType::ED25519),
@@ -255,7 +242,7 @@ mod tests {
 
         // Test valid receipt
         assert_eq!(
-            BlockListener::receipt_filer_map(&da_contract_id, valid_receipt.clone()),
+            BlockListener::receipt_filer_map(valid_receipt.clone()),
             Some(CandidateData {
                 transaction_or_receipt_id: TransactionOrReceiptId::Receipt {
                     receipt_id: valid_receipt.receipt_id.clone(),
