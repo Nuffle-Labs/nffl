@@ -161,7 +161,3 @@ pub(crate) fn create_connection_pool(addr: String) -> Result<Pool> {
 
     Ok(pool)
 }
-
-// indexes, check execution, publish
-// shall be able to abort with
-// Stop system with log?

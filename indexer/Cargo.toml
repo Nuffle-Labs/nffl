@@ -32,3 +32,6 @@ near-indexer = { git = "https://github.com/near/nearcore", rev = "4fce209e78fd10
 near-client = { git = "https://github.com/near/nearcore", rev = "4fce209e78fd1008c3a779101d080fe1570bbfe9" }
 near-o11y = { git = "https://github.com/near/nearcore", rev = "4fce209e78fd1008c3a779101d080fe1570bbfe9" }
 near-client-primitives = { git = "https://github.com/near/nearcore", rev = "4fce209e78fd1008c3a779101d080fe1570bbfe9" }
+
+[dev-dependencies]
+near-crypto = { git = "https://github.com/near/nearcore", rev = "4fce209e78fd1008c3a779101d080fe1570bbfe9" }
