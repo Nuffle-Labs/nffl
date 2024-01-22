@@ -15,6 +15,10 @@ near-sdk = { version = "4.1.1", features = ["unstable"] }
 near-sdk-contract-tools = "2.1.0"
 uint = { version = "0.9.3", default-features = false }
 
+[dev-dependencies]
+k256 = "0.13.3"
+getrandom = { version = "0.2", features = ["js"] }
+
 [patch.crates-io]
 parity-secp256k1 = { git = 'https://github.com/paritytech/rust-secp256k1.git' }
 
@@ -29,5 +33,3 @@ overflow-checks = true
 [workspace]
 members = ["sandbox-rs"]
 
-[dev-dependencies]
-ethers = "2.0.11"

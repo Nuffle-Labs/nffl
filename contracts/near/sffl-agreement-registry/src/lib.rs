@@ -343,10 +343,17 @@ impl SFFLAgreementRegistry {
 mod tests {
     use super::*;
     use alloy_primitives::{hex, U256};
+    use k256::{ecdsa::SigningKey, elliptic_curve::sec1::ToEncodedPoint, AffinePoint};
     use near_sdk::test_utils::VMContextBuilder;
     use near_sdk::{testing_env, VMContext, ONE_NEAR};
 
-    use ethers::core::{k256::ecdsa::SigningKey, utils::secret_key_to_address};
+    fn secret_key_to_address(secret_key: &SigningKey) -> Address {
+        let public_key = secret_key.verifying_key();
+        let affine: &AffinePoint = public_key.as_ref();
+        let encoded = affine.to_encoded_point(false);
+
+        Address::from_raw_public_key(&encoded.as_bytes()[1..])
+    }
 
     fn get_context(account_id: AccountId) -> VMContext {
         VMContextBuilder::new()
@@ -369,7 +376,7 @@ mod tests {
         let eth_address = secret_key_to_address(&signing_key);
 
         let init_msg = EthNearAccountLink {
-            ethAddress: Address::from_slice(eth_address.as_bytes()),
+            ethAddress: eth_address,
             nearAccountId: account_id.to_string(),
         };
 
@@ -453,7 +460,7 @@ mod tests {
         let eth_address = secret_key_to_address(&signing_key);
 
         let msg = EthNearAccountLink {
-            ethAddress: Address::from_slice(eth_address.as_bytes()),
+            ethAddress: eth_address,
             nearAccountId: String::from_str("").unwrap(),
         };
 
