@@ -160,26 +160,31 @@ impl SFFLAgreementRegistry {
             let eth_address = contract.caller_eth_address();
             let msg_hash = env::keccak256_array(&msg.abi_encode());
 
-            if contract.push_bls_signature(&msg_hash, &eth_address, &signature.0) {
-                return;
+            if !contract.push_bls_signature(&msg_hash, &eth_address, &signature.0) {
+                let vec = contract.get_or_insert_state_root_updates(msg.rollupId, msg.blockHeight);
+                vec.push(msg);
             }
-
-            let vec = contract
-                .state_root_updates
-                .entry((msg.rollupId, msg.blockHeight))
-                .or_insert_with(|| {
-                    let prefix: Vec<u8> = [
-                        b"state_root_updates_vec".as_slice(),
-                        msg.rollupId.to_be_bytes().as_slice(),
-                        msg.blockHeight.to_be_bytes().as_slice(),
-                    ]
-                    .concat();
-
-                    Vector::new(prefix)
-                });
-
-            vec.push(msg);
         })
+    }
+
+    #[private]
+    fn get_or_insert_state_root_updates(
+        &mut self,
+        rollup_id: u32,
+        block_height: u64,
+    ) -> &mut Vector<StateRootUpdateMessage> {
+        self.state_root_updates
+            .entry((rollup_id, block_height))
+            .or_insert_with(|| {
+                let prefix: Vec<u8> = [
+                    b"state_root_updates_vec".as_slice(),
+                    rollup_id.to_be_bytes().as_slice(),
+                    block_height.to_be_bytes().as_slice(),
+                ]
+                .concat();
+
+                Vector::new(prefix)
+            })
     }
 
     pub fn post_operator_set_update_signature(
@@ -191,24 +196,26 @@ impl SFFLAgreementRegistry {
             let eth_address = contract.caller_eth_address();
             let msg_hash = env::keccak256_array(&msg.abi_encode());
 
-            if contract.push_bls_signature(&msg_hash, &eth_address, &signature.0) {
-                return;
+            if !contract.push_bls_signature(&msg_hash, &eth_address, &signature.0) {
+                let vec = contract.get_or_insert_operator_set_updates(msg.id);
+                vec.push(msg);
             }
+        })
+    }
 
-            let vec = contract
-                .operator_set_updates
-                .entry(msg.id)
-                .or_insert_with(|| {
-                    let prefix: Vec<u8> = [
-                        b"operator_set_updates_vec".as_slice(),
-                        msg.id.to_be_bytes().as_slice(),
-                    ]
-                    .concat();
+    #[private]
+    fn get_or_insert_operator_set_updates(
+        &mut self,
+        id: u64,
+    ) -> &mut Vector<OperatorSetUpdateMessage> {
+        self.operator_set_updates.entry(id).or_insert_with(|| {
+            let prefix: Vec<u8> = [
+                b"operator_set_updates_vec".as_slice(),
+                id.to_be_bytes().as_slice(),
+            ]
+            .concat();
 
-                    Vector::new(prefix)
-                });
-
-            vec.push(msg);
+            Vector::new(prefix)
         })
     }
 
@@ -221,25 +228,29 @@ impl SFFLAgreementRegistry {
             let eth_address = contract.caller_eth_address();
             let msg_hash = env::keccak256_array(&msg.abi_encode());
 
-            if contract.push_bls_signature(&msg_hash, &eth_address, &signature.0) {
-                return;
+            if !contract.push_bls_signature(&msg_hash, &eth_address, &signature.0) {
+                let vec = contract.get_or_insert_checkpoint_task_response(msg.referenceTaskIndex);
+                vec.push(msg);
             }
-
-            let vec = contract
-                .checkpoint_task_responses
-                .entry(msg.referenceTaskIndex)
-                .or_insert_with(|| {
-                    let prefix: Vec<u8> = [
-                        b"checkpoint_task_responses_vec".as_slice(),
-                        msg.referenceTaskIndex.to_be_bytes().as_slice(),
-                    ]
-                    .concat();
-
-                    Vector::new(prefix)
-                });
-
-            vec.push(msg);
         })
+    }
+
+    #[private]
+    fn get_or_insert_checkpoint_task_response(
+        &mut self,
+        reference_task_index: u32,
+    ) -> &mut Vector<CheckpointTaskResponseMessage> {
+        self.checkpoint_task_responses
+            .entry(reference_task_index)
+            .or_insert_with(|| {
+                let prefix: Vec<u8> = [
+                    b"checkpoint_task_responses_vec".as_slice(),
+                    reference_task_index.to_be_bytes().as_slice(),
+                ]
+                .concat();
+
+                Vector::new(prefix)
+            })
     }
 
     pub fn get_eth_address(&self, account_id: &AccountId) -> Option<Address> {
