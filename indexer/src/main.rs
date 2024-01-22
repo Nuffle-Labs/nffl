@@ -48,16 +48,16 @@ fn run(home_dir: std::path::PathBuf, config: RunConfigArgs) -> Result<()> {
             result = block_listener.start() => result,
         };
 
-        result.map_err(|err| {
-            error!(target: "sffl_indexer", "Indexer Error: {}", err);
-            err
-        })
+        result
     });
 
     // Run until publishing finished
     system.run()?;
 
-    Ok(block_res?)
+    block_res.map_err(|err| {
+        error!(target: "sffl_indexer", "Indexer Error: {}", err);
+        err
+    })
 }
 
 fn main() -> Result<()> {

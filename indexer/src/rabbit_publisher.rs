@@ -133,9 +133,6 @@ impl RabbitPublisher {
         };
 
         receiver.close();
-        // Drain receiver
-        while let Some(_) = receiver.recv().await {}
-
         actix::System::current().stop_with_code(code);
     }
 
