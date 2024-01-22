@@ -60,14 +60,12 @@ impl BlockListener {
 
     fn extract_args(action: ActionView) -> Option<Vec<u8>> {
         match action {
-            ActionView::FunctionCall { method_name, args, .. } if method_name == "submit" => {
-                Some(args.into())
-            }
+            ActionView::FunctionCall { method_name, args, .. } if method_name == "submit" => Some(args.into()),
             _ => None,
         }
     }
 
-    pub(crate) async fn start(self) -> Result<()> {
+    async fn process_stream(self) -> Result<()> {
         let Self {
             mut stream,
             receipt_sender,
@@ -99,20 +97,30 @@ impl BlockListener {
 
         Ok(())
     }
+
+    pub(crate) async fn start(self) -> Result<()> {
+        let sender = self.receipt_sender.clone();
+        tokio::select! {
+            result = self.process_stream() => result,
+            _ = sender.closed() => {
+                Ok(())
+            },
+        }
+    }
 }
 
 #[cfg(test)]
 mod tests {
-    use std::path::PathBuf;
     use crate::block_listener::{BlockListener, CandidateData};
     use near_crypto::{KeyType, PublicKey};
     use near_indexer::near_primitives::hash::CryptoHash;
     use near_indexer::near_primitives::types::{AccountId, TransactionOrReceiptId};
     use near_indexer::near_primitives::views::{ActionView, ReceiptEnumView, ReceiptView};
+    use near_indexer::StreamerMessage;
+    use std::path::PathBuf;
     use std::str::FromStr;
     use std::time::Duration;
     use tokio::sync::mpsc;
-    use near_indexer::StreamerMessage;
     use tokio::sync::mpsc::error::TryRecvError;
 
     impl PartialEq for CandidateData {
@@ -166,7 +174,7 @@ mod tests {
                     gas: 100,
                     deposit: 100,
                 }],
-            }
+            },
         };
 
         let invalid_action_receipt = ReceiptView {
@@ -192,10 +200,7 @@ mod tests {
         );
 
         // Test invalid action receipt
-        assert_eq!(
-            BlockListener::receipt_filer_map(invalid_action_receipt),
-            None
-        );
+        assert_eq!(BlockListener::receipt_filer_map(invalid_action_receipt), None);
     }
 
     #[test]
@@ -255,7 +260,7 @@ mod tests {
 
     struct StreamerMessages {
         pub empty: Vec<StreamerMessage>,
-        pub candidates: Vec<StreamerMessage>
+        pub candidates: Vec<StreamerMessage>,
     }
 
     struct StreamerMessagesLoader;
@@ -267,22 +272,29 @@ mod tests {
 
             StreamerMessages {
                 empty: Self::load_messages(&empty_data_path),
-                candidates: Self::load_messages(&candidates_data_path)
+                candidates: Self::load_messages(&candidates_data_path),
             }
         }
 
         fn load_messages(dir_path: &str) -> Vec<StreamerMessage> {
-            let files = std::fs::read_dir(dir_path).map(|entry| {
-                entry.map(|dir_entry| {
-                    let dir_entry = dir_entry.unwrap();
-                     dir_entry.path()
-                }).collect::<Vec<PathBuf>>()
-            }).unwrap();
+            let files = std::fs::read_dir(dir_path)
+                .map(|entry| {
+                    entry
+                        .map(|dir_entry| {
+                            let dir_entry = dir_entry.unwrap();
+                            dir_entry.path()
+                        })
+                        .collect::<Vec<PathBuf>>()
+                })
+                .unwrap();
 
-            files.into_iter().map(|file| {
-                let file = std::fs::File::open(file).unwrap();
-                serde_json::from_reader(file).unwrap()
-            }).collect()
+            files
+                .into_iter()
+                .map(|file| {
+                    let file = std::fs::File::open(file).unwrap();
+                    serde_json::from_reader(file).unwrap()
+                })
+                .collect()
         }
     }
 
@@ -329,7 +341,7 @@ mod tests {
         loop {
             match receipt_receiver.recv().await {
                 Some(_) => counter += 1,
-                None => break
+                None => break,
             }
         }
 
@@ -356,9 +368,7 @@ mod tests {
         }
 
         drop(receipt_receiver);
-        let _ = sender.send(streamer_messages.candidates.into_iter().next_back().unwrap()).await;
-
-        // Assert that handle terminated with error
-        assert!(handle.await.unwrap().is_err());
+        // Sender::closed is trigerred
+        assert!(handle.await.unwrap().is_ok());
     }
 }

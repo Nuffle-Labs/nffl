@@ -33,39 +33,47 @@ impl CandidatesValidator {
             view_client,
         } = self;
 
-        while let Some(candidate_data) = receiver.recv().await {
-            let execution_outcome = view_client
-                .send(
-                    near_client::GetExecutionOutcome {
-                        id: candidate_data.transaction_or_receipt_id.clone(),
+        loop {
+            tokio::select! {
+                Some(candidate_data) = receiver.recv() => {
+                    let execution_outcome = view_client
+                        .send(
+                            near_client::GetExecutionOutcome {
+                                id: candidate_data.transaction_or_receipt_id.clone(),
+                            }
+                            .with_span_context(),
+                        )
+                        .await??;
+
+                    if !matches!(
+                        execution_outcome.outcome_proof.outcome.status,
+                        ExecutionStatusView::SuccessValue(_)
+                    ) {
+                        info!(target: "candidates_validator", "unsuccessful value");
+                        continue;
+                    };
+
+                    // TODO: is sequential order important here?
+                    for payload in candidate_data.payloads {
+                        rabbit_publisher
+                            .publish(PublishData {
+                                publish_options: PublishOptions::default(),
+                                cx: PublisherContext {
+                                    block_hash: execution_outcome.outcome_proof.block_hash,
+                                    id: candidate_data.transaction_or_receipt_id.clone(),
+                                },
+                                payload,
+                            })
+                            .await?;
                     }
-                    .with_span_context(),
-                )
-                .await??;
-
-            if !matches!(
-                execution_outcome.outcome_proof.outcome.status,
-                ExecutionStatusView::SuccessValue(_)
-            ) {
-                info!(target: "candidates_validator", "unsuccessful value");
-                continue;
-            };
-
-            // TODO: is sequential order important here?
-            for payload in candidate_data.payloads {
-                rabbit_publisher
-                    .publish(PublishData {
-                        publish_options: PublishOptions::default(),
-                        cx: PublisherContext {
-                            block_hash: execution_outcome.outcome_proof.block_hash,
-                            id: candidate_data.transaction_or_receipt_id.clone(),
-                        },
-                        payload,
-                    })
-                    .await?;
+                },
+                _ = rabbit_publisher.closed() => {
+                    return Ok(());
+                }
+                else => {
+                    return Ok(());
+                }
             }
-        };
-
-        Ok(())
+        }
     }
 }

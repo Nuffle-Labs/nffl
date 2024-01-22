@@ -148,6 +148,10 @@ impl RabbitPublisher {
 
         error!(target: "publisher", message = display(msg.as_str()));
     }
+
+    pub async fn closed(&self) {
+        self.sender.closed().await
+    }
 }
 
 pub(crate) fn create_connection_pool(addr: String) -> Result<Pool> {
