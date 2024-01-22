@@ -26,53 +26,56 @@ impl CandidatesValidator {
         }
     }
 
-    pub(crate) async fn start(self) -> Result<()> {
+    async fn process_candidates(self) -> Result<()> {
         let Self {
             mut receiver,
             mut rabbit_publisher,
             view_client,
         } = self;
 
-        loop {
-            tokio::select! {
-                Some(candidate_data) = receiver.recv() => {
-                    let execution_outcome = view_client
-                        .send(
-                            near_client::GetExecutionOutcome {
-                                id: candidate_data.transaction_or_receipt_id.clone(),
-                            }
-                            .with_span_context(),
-                        )
-                        .await??;
-
-                    if !matches!(
-                        execution_outcome.outcome_proof.outcome.status,
-                        ExecutionStatusView::SuccessValue(_)
-                    ) {
-                        info!(target: "candidates_validator", "unsuccessful value");
-                        continue;
-                    };
-
-                    // TODO: is sequential order important here?
-                    for payload in candidate_data.payloads {
-                        rabbit_publisher
-                            .publish(PublishData {
-                                publish_options: PublishOptions::default(),
-                                cx: PublisherContext {
-                                    block_hash: execution_outcome.outcome_proof.block_hash,
-                                    id: candidate_data.transaction_or_receipt_id.clone(),
-                                },
-                                payload,
-                            })
-                            .await?;
+        while let Some(candidate_data) = receiver.recv().await {
+            let execution_outcome = view_client
+                .send(
+                    near_client::GetExecutionOutcome {
+                        id: candidate_data.transaction_or_receipt_id.clone(),
                     }
-                },
-                _ = rabbit_publisher.closed() => {
-                    return Ok(());
-                }
-                else => {
-                    return Ok(());
-                }
+                        .with_span_context(),
+                )
+                .await??;
+
+            if !matches!(
+                execution_outcome.outcome_proof.outcome.status,
+                ExecutionStatusView::SuccessValue(_)
+            ) {
+                info!(target: "candidates_validator", "unsuccessful value");
+                continue;
+            };
+
+            // TODO: is sequential order important here?
+            for payload in candidate_data.payloads {
+                rabbit_publisher
+                    .publish(PublishData {
+                        publish_options: PublishOptions::default(),
+                        cx: PublisherContext {
+                            block_hash: execution_outcome.outcome_proof.block_hash,
+                            id: candidate_data.transaction_or_receipt_id.clone(),
+                        },
+                        payload,
+                    })
+                    .await?;
+            }
+        };
+
+        Ok(())
+    }
+
+
+    pub(crate) async fn start(self) -> Result<()> {
+        let rabbit_publisher = self.rabbit_publisher.clone();
+        tokio::select! {
+            result = self.process_candidates() => result,
+            _ = rabbit_publisher.closed() => {
+                return Ok(());
             }
         }
     }
