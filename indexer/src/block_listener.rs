@@ -135,7 +135,7 @@ mod tests {
                         receipt_id: other_receipt_id,
                         receiver_id: other_receiver_id,
                     },
-                ) => return receipt_id == other_receipt_id && receiver_id == other_receiver_id,
+                ) => receipt_id == other_receipt_id && receiver_id == other_receiver_id,
                 (
                     TransactionOrReceiptId::Transaction {
                         transaction_hash,
@@ -145,7 +145,7 @@ mod tests {
                         transaction_hash: other_hash,
                         sender_id: other_id,
                     },
-                ) => return transaction_hash == other_hash && sender_id == other_id,
+                ) => transaction_hash == other_hash && sender_id == other_id,
                 _ => false,
             };
 
@@ -338,11 +338,8 @@ mod tests {
         handle.await.unwrap().unwrap();
 
         let mut counter = 0;
-        loop {
-            match receipt_receiver.recv().await {
-                Some(_) => counter += 1,
-                None => break,
-            }
+        while let Some(_) = receipt_receiver.recv().await {
+            counter += 1;
         }
 
         assert_eq!(expected, counter);

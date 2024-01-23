@@ -39,7 +39,7 @@ impl CandidatesValidator {
                     near_client::GetExecutionOutcome {
                         id: candidate_data.transaction_or_receipt_id.clone(),
                     }
-                        .with_span_context(),
+                    .with_span_context(),
                 )
                 .await??;
 
@@ -64,18 +64,17 @@ impl CandidatesValidator {
                     })
                     .await?;
             }
-        };
+        }
 
         Ok(())
     }
-
 
     pub(crate) async fn start(self) -> Result<()> {
         let rabbit_publisher = self.rabbit_publisher.clone();
         tokio::select! {
             result = self.process_candidates() => result,
             _ = rabbit_publisher.closed() => {
-                return Ok(());
+                Ok(())
             }
         }
     }
