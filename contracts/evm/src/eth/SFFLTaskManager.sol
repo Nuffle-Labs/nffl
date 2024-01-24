@@ -237,11 +237,7 @@ contract SFFLTaskManager is Initializable, OwnableUpgradeable, Pausable, BLSSign
             keccak256(abi.encodePacked(task.taskCreatedBlock, hashesOfPubkeysOfNonSigningOperators));
         require(signatoryRecordHash == taskResponseMetadata.hashOfNonSigners, "Wrong non-signer pubkeys");
 
-        address[] memory addressOfNonSigningOperators = new address[](pubkeysOfNonSigningOperators.length);
-        for (uint256 i = 0; i < pubkeysOfNonSigningOperators.length; i++) {
-            addressOfNonSigningOperators[i] =
-                BLSApkRegistry(address(blsApkRegistry)).pubkeyHashToOperator(hashesOfPubkeysOfNonSigningOperators[i]);
-        }
+        // TODO: slashing logic when it's available
 
         checkpointTaskSuccesfullyChallenged[referenceTaskIndex] = true;
 
