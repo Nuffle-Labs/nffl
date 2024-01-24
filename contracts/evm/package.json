@@ -13,6 +13,12 @@
   "author": "NethermindEth",
   "license": "UNLICENSED",
   "dependencies": {
-    "@eth-optimism/contracts": "^0.6.0"
+    "@eth-optimism/contracts": "^0.6.0",
+    "@openzeppelin/contracts": "^4.7.3",
+    "@openzeppelin/contracts-upgradeable": "^4.7.3",
+    "ds-test": "github:dapphub/ds-test",
+    "eigenlayer-contracts": "github:Layr-Labs/eigenlayer-contracts#m2-mainnet",
+    "eigenlayer-middleware": "github:Layr-Labs/eigenlayer-middleware#m2-mainnet",
+    "forge-std": "github:foundry-rs/forge-std"
   }
 }

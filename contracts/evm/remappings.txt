@@ -1,7 +1,8 @@
-ds-test/=lib/forge-std/lib/ds-test/src/
-forge-std/=lib/forge-std/src/
-@eigenlayer/=lib/eigenlayer-middleware/lib/eigenlayer-contracts/src/
-eigenlayer-middleware/=lib/eigenlayer-middleware/
+ds-test/=node_modules/ds-test/src/
+forge-std/=node_modules/forge-std/src/
+@eigenlayer/=node_modules/eigenlayer-contracts/src/
+eigenlayer-contracts/=node_modules/eigenlayer-contracts/
+eigenlayer-middleware/=node_modules/eigenlayer-middleware/
 @eth-optimism/=node_modules/@eth-optimism
-@openzeppelin/=lib/eigenlayer-middleware/lib/eigenlayer-contracts/lib/openzeppelin-contracts/
-@openzeppelin-upgrades/=lib/eigenlayer-middleware/lib/eigenlayer-contracts/lib/openzeppelin-contracts-upgradeable/
+@openzeppelin/contracts/=node_modules/@openzeppelin/contracts/
+@openzeppelin-upgrades/contracts/=node_modules/@openzeppelin/contracts-upgradeable/
