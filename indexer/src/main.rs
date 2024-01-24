@@ -1,60 +1,63 @@
-extern crate core;
-
 use clap::Parser;
 use configs::{Opts, SubCommand};
-use futures::future::join_all;
-use near_indexer::near_primitives::{
-    types::AccountId,
-    views::{ActionView, ReceiptEnumView, ReceiptView},
-};
+use near_indexer::near_primitives::types::AccountId;
 use tokio::sync::mpsc;
+use tracing::error;
 
-use crate::{broadcaster::listen_receipt_candidates, configs::RunConfigArgs, errors::Result};
+use crate::{
+    block_listener::{BlockListener, CandidateData},
+    candidates_validator::CandidatesValidator,
+    configs::RunConfigArgs,
+    errors::Result,
+    rabbit_publisher::RabbitBuilder,
+};
 
-mod broadcaster;
+mod block_listener;
+mod candidates_validator;
 mod configs;
 mod errors;
+mod rabbit_publisher;
 
-async fn listen_blocks(
-    mut stream: mpsc::Receiver<near_indexer::StreamerMessage>,
-    receipt_sender: mpsc::Sender<ReceiptView>,
-    config: RunConfigArgs,
-) -> Result<()> {
-    while let Some(streamer_message) = stream.recv().await {
-        // TODO: prepare data outside
-        let da_contract_id: AccountId = config.da_contract_id.parse().expect("Can't parse da-contract-id");
-        let da_receipts: Vec<&ReceiptView> = streamer_message
-            .shards
-            .iter()
-            .flat_map(|shard| shard.chunk.as_ref())
-            .flat_map(|chunk| {
-                chunk.receipts.iter().filter(|receipt| {
-                    if receipt.receiver_id != da_contract_id {
-                        return false;
-                    }
+fn run(home_dir: std::path::PathBuf, config: RunConfigArgs) -> Result<()> {
+    let da_contract_id: AccountId = config.da_contract_id.parse()?;
+    let rabbit_builder = RabbitBuilder::new(config.rmq_address);
 
-                    match &receipt.receipt {
-                        ReceiptEnumView::Action { actions, .. } => actions.iter().any(|action| match action {
-                            ActionView::FunctionCall { method_name, .. } => method_name == "submit",
-                            _ => false,
-                        }),
-                        _ => false,
-                    }
-                })
-            })
-            .collect();
+    let indexer_config = near_indexer::IndexerConfig {
+        home_dir,
+        sync_mode: near_indexer::SyncModeEnum::FromInterruption,
+        await_for_node_synced: near_indexer::AwaitForNodeSyncedEnum::WaitForFullSync,
+        validate_genesis: true,
+    };
 
-        let results = join_all(
-            da_receipts
-                .iter()
-                .map(|receipt| receipt_sender.send((*receipt).clone())),
-        )
-        .await;
+    let system = actix::System::new();
+    let block_res = system.block_on(async move {
+        let indexer = near_indexer::Indexer::new(indexer_config).expect("Indexer::new()");
+        let stream = indexer.streamer();
+        let (view_client, _) = indexer.client_actors();
 
-        results.into_iter().collect::<Result<_, _>>()?;
-    }
+        // TODO: define buffer: usize const
+        let (sender, receiver) = mpsc::channel::<CandidateData>(100);
 
-    Ok(())
+        let rabbit_publisher = rabbit_builder.build()?;
+
+        let block_listener = BlockListener::new(stream, sender, da_contract_id);
+        let receipt_validator = CandidatesValidator::new(view_client, receiver, rabbit_publisher);
+
+        let result = tokio::select! {
+            result = receipt_validator.start() => result,
+            result = block_listener.start() => result,
+        };
+
+        result
+    });
+
+    // Run until publishing finished
+    system.run()?;
+
+    block_res.map_err(|err| {
+        error!(target: "sffl_indexer", "Indexer Error: {}", err);
+        err
+    })
 }
 
 fn main() -> Result<()> {
@@ -62,44 +65,16 @@ fn main() -> Result<()> {
     // (sending telemetry and downloading genesis)
     openssl_probe::init_ssl_cert_env_vars();
     let env_filter = near_o11y::tracing_subscriber::EnvFilter::new(
-        "nearcore=info,indexer_example=info,tokio_reactor=info,near=info,\
+        "nearcore=info,publisher=info,tokio_reactor=info,near=info,\
          stats=info,telemetry=info,indexer=info,near-performance-metrics=info",
     );
     let _subscriber = near_o11y::default_subscriber(env_filter, &Default::default()).global();
     let opts: Opts = Opts::parse();
 
     let home_dir = opts.home_dir.unwrap_or(near_indexer::get_default_home());
-
     match opts.subcmd {
-        SubCommand::Run(config) => {
-            let indexer_config = near_indexer::IndexerConfig {
-                home_dir,
-                sync_mode: near_indexer::SyncModeEnum::FromInterruption,
-                await_for_node_synced: near_indexer::AwaitForNodeSyncedEnum::WaitForFullSync,
-                validate_genesis: true,
-            };
-
-            let system = actix::System::new();
-            system.block_on(async move {
-                let indexer = near_indexer::Indexer::new(indexer_config).expect("Indexer::new()");
-                let stream = indexer.streamer();
-
-                let (view_client, _) = indexer.client_actors();
-
-                // TODO: define buffer: usize const
-                let (sender, receiver) = mpsc::channel::<ReceiptView>(100);
-
-                actix::spawn(listen_receipt_candidates(view_client, receiver));
-                if let Err(err) = listen_blocks(stream, sender, config).await {
-                    eprintln!("{}", err.to_string());
-                }
-
-                actix::System::current().stop();
-            });
-
-            system.run()?;
-        }
         SubCommand::Init(config) => near_indexer::indexer_init_configs(&home_dir, config.into())?,
+        SubCommand::Run(config) => run(home_dir, config)?,
     }
 
     Ok(())
