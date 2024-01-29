@@ -313,7 +313,7 @@ func (o *Operator) ProcessCheckpointTaskCreatedLog(checkpointTaskCreatedLog *cst
 		"quorumThreshold", checkpointTaskCreatedLog.Task.QuorumThreshold,
 	)
 
-	// TODO: build SMT based on stored message agreements
+	// TODO: build SMT based on stored message agreements and update the test
 
 	taskResponse := &cstaskmanager.CheckpointTaskResponse{
 		ReferenceTaskIndex:     checkpointTaskCreatedLog.TaskIndex,
