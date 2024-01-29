@@ -142,6 +142,7 @@ contract SFFLRegistryRollupTest is TestUtils {
         assertEq(registry.getOperatorWeight(operators[0].pubkey.hashG1Point()), 0);
         assertEq(registry.getOperatorWeight(operators[1].pubkey.hashG1Point()), 3 * DEFAULT_WEIGHT);
         assertEq(registry.getOperatorWeight(operators[2].pubkey.hashG1Point()), DEFAULT_WEIGHT);
+        assertEq(registry.nextOperatorUpdateId(), message.id + 1);
     }
 
     function test_updateOperatorSet_RevertWhen_QuorumNotMet() public {
