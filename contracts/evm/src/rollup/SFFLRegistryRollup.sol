@@ -58,7 +58,7 @@ contract SFFLRegistryRollup is SFFLRegistryBase, Ownable {
         require(message.id == nextOperatorUpdateId, "Wrong message ID");
         require(_operatorSet.verifyCalldata(message.hashCalldata(), signatureInfo), "Quorum not met");
 
-        nextOperatorUpdateId = message.id;
+        nextOperatorUpdateId = message.id + 1;
 
         _operatorSet.update(message.operators);
     }
