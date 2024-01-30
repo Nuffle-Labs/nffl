@@ -20,6 +20,10 @@ original AVS contracts are on Ethereum, the rollup contracts also hold a copy
 of the operator set, which is periodically updated in agreements similar to
 those of state root updates.
 
+As with the node implementation, the Ethereum contracts were based in
+EigenLayer's [Incredible Squaring AVS](https://github.com/Layr-Labs/incredible-squaring-avs/commit/107842279bfd9de686ec5167eca1d83a1ac9d233)
+contracts.
+
 ## Usage
 
 ### Build
