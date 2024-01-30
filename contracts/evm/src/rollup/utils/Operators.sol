@@ -166,33 +166,43 @@ library Operators {
 
         apk = self.apk.plus(apk.negate());
 
-        uint256 gamma = uint256(
-            keccak256(
-                abi.encodePacked(
-                    msgHash,
-                    apk.X,
-                    apk.Y,
-                    signatureInfo.apkG2.X[0],
-                    signatureInfo.apkG2.X[1],
-                    signatureInfo.apkG2.Y[0],
-                    signatureInfo.apkG2.Y[1],
-                    signatureInfo.sigma.X,
-                    signatureInfo.sigma.Y
-                )
-            )
-        ) % BN254.FR_MODULUS;
-
-        (bool pairingSuccessful, bool signatureIsValid) = BN254.safePairing(
-            signatureInfo.sigma.plus(apk.scalar_mul(gamma)),
-            BN254.negGeneratorG2(),
-            BN254.hashToG1(msgHash).plus(BN254.generatorG1().scalar_mul(gamma)),
-            signatureInfo.apkG2,
-            PAIRING_EQUALITY_CHECK_GAS
-        );
+        (bool pairingSuccessful, bool signatureIsValid) =
+            trySignatureAndApkVerification(msgHash, apk, signatureInfo.apkG2, signatureInfo.sigma);
 
         require(pairingSuccessful, "Pairing precompile call failed");
         require(signatureIsValid, "Signature is invalid");
 
         return weight >= (self.totalWeight * self.quorumThreshold) / THRESHOLD_DENOMINATOR;
+    }
+
+    /**
+     * @dev Tries verifying a BLS aggregate signature
+     * @param apk Expected G1 public key
+     * @param apkG2 Provided G2 public key
+     * @param sigma G1 point signature
+     * @return pairingSuccessful Whether the inner ecpairing call was successful
+     * @return signatureIsValid Whether the signature is valid
+     */
+    function trySignatureAndApkVerification(
+        bytes32 msgHash,
+        BN254.G1Point memory apk,
+        BN254.G2Point memory apkG2,
+        BN254.G1Point memory sigma
+    ) private view returns (bool pairingSuccessful, bool signatureIsValid) {
+        uint256 gamma = uint256(
+            keccak256(
+                abi.encodePacked(
+                    msgHash, apk.X, apk.Y, apkG2.X[0], apkG2.X[1], apkG2.Y[0], apkG2.Y[1], sigma.X, sigma.Y
+                )
+            )
+        ) % BN254.FR_MODULUS;
+
+        (pairingSuccessful, signatureIsValid) = BN254.safePairing(
+            sigma.plus(apk.scalar_mul(gamma)),
+            BN254.negGeneratorG2(),
+            BN254.hashToG1(msgHash).plus(BN254.generatorG1().scalar_mul(gamma)),
+            apkG2,
+            PAIRING_EQUALITY_CHECK_GAS
+        );
     }
 }
