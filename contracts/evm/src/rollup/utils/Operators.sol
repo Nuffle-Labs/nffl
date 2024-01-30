@@ -114,14 +114,15 @@ library Operators {
 
             newTotalWeight = newTotalWeight - currentWeight + operator.weight;
 
+            self.pubkeyHashToOperator[pubkeyHash].weight = operator.weight;
+
             if (currentWeight == 0) {
                 self.pubkeyHashToOperator[pubkeyHash].pubkey = operator.pubkey;
                 newApk = newApk.plus(operator.pubkey);
             } else if (operator.weight == 0) {
                 newApk = newApk.plus(operator.pubkey.negate());
+                delete operator.pubkey;
             }
-
-            self.pubkeyHashToOperator[pubkeyHash].weight = operator.weight;
 
             emit OperatorUpdated(pubkeyHash, operator.weight);
         }
