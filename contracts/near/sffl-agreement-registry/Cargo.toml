@@ -18,18 +18,3 @@ uint = { version = "0.9.3", default-features = false }
 [dev-dependencies]
 k256 = "0.13.3"
 getrandom = { version = "0.2", features = ["js"] }
-
-[patch.crates-io]
-parity-secp256k1 = { git = 'https://github.com/paritytech/rust-secp256k1.git' }
-
-[profile.release]
-codegen-units = 1
-opt-level = "z"
-lto = true
-debug = false
-panic = "abort"
-overflow-checks = true
-
-[workspace]
-members = ["sandbox-rs"]
-
