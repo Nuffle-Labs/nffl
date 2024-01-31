@@ -1,7 +1,8 @@
 [workspace]
 
 members = [
-    "indexer"
+    "indexer",
+    "contracts/evm/test/ffi/bls-utils"
 ]
 
 [workspace.package]
