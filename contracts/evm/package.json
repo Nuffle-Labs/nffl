@@ -1,0 +1,18 @@
+{
+  "private": true,
+  "name": "sffl-evm",
+  "version": "0.0.1",
+  "description": "",
+  "scripts": {
+    "build": "forge build",
+    "test": "forge test",
+    "test-ffi": "forge test --ffi",
+    "format": "forge fmt",
+    "build-bls-utils": "cd test/ffi/bls-utils && cargo build"
+  },
+  "author": "NethermindEth",
+  "license": "UNLICENSED",
+  "dependencies": {
+    "@eth-optimism/contracts": "^0.6.0"
+  }
+}
