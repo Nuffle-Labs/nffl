@@ -17,7 +17,7 @@ library Operators {
     /**
      * @dev Denominator for quorum weight thresholds
      */
-    uint128 internal constant THRESHOLD_DENOMINATOR = 1000000000;
+    uint128 internal constant THRESHOLD_DENOMINATOR = 100;
     /**
      * @dev Gas for checking pairing equality on ecpairing call. Based on
      * Eigenlayer's BLSSignatureChecker
