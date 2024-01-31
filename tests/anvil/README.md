@@ -18,4 +18,4 @@ Then run the deploy script
 ```
 forge script script/testing/M2_Deploy_From_Scratch.s.sol --rpc-url http://localhost:8545 --private-key 0xac0974bec39a17e36ba4a6b4d238ff944bacb478cbed5efcae784d7bf4f2ff80 --broadcast --sig "run(string memory configFile)" -- M2_deploy_from_scratch.anvil.config.json
 ```
-and finally kill the anvil chain with `Ctrl-C`. Make sure to copy the deployment [output file](https://github.com/Layr-Labs/eigenlayer-contracts/blob/master/script/output/M2_from_scratch_deployment_data.json) to [eigenlayer_deployment_output.json](../../contracts/script/output/31337/eigenlayer_deployment_output.json) so that the tests can find the deployed contracts.
+and finally kill the anvil chain with `Ctrl-C`. Make sure to copy the deployment [output file](https://github.com/Layr-Labs/eigenlayer-contracts/blob/master/script/output/M2_from_scratch_deployment_data.json) to [eigenlayer_deployment_output.json](../../contracts/evm/script/output/31337/eigenlayer_deployment_output.json) so that the tests can find the deployed contracts.

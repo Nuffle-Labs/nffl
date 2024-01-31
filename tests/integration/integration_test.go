@@ -52,7 +52,7 @@ func TestIntegration(t *testing.T) {
 	aggConfigRaw.EthWsUrl = "ws://" + anvilEndpoint
 
 	var sfflDeploymentRaw config.SFFLDeploymentRaw
-	sfflDeploymentFilePath := "../../contracts/script/output/31337/sffl_avs_deployment_output.json"
+	sfflDeploymentFilePath := "../../contracts/evm/script/output/31337/sffl_avs_deployment_output.json"
 	sdkutils.ReadJsonConfig(sfflDeploymentFilePath, &sfflDeploymentRaw)
 
 	logger, err := sdklogging.NewZapLogger(aggConfigRaw.Environment)
@@ -195,7 +195,7 @@ func startAnvilTestContainer() testcontainers.Container {
 		Mounts: testcontainers.ContainerMounts{
 			testcontainers.ContainerMount{
 				Source: testcontainers.GenericBindMountSource{
-					HostPath: filepath.Join(integrationDir, "../anvil/avs-and-eigenlayer-deployed-anvil-state.json"),
+					HostPath: filepath.Join(integrationDir, "../anvil/data/avs-and-eigenlayer-deployed-anvil-state.json"),
 				},
 				Target: "/root/.anvil/state.json",
 			},
@@ -230,7 +230,7 @@ func advanceChain(anvilC testcontainers.Container) {
 			`forge script script/utils/Utils.sol --sig "advanceChainByNBlocks(uint256)" 100 --rpc-url %s --private-key %s --broadcast`,
 			rpcUrl, privateKey),
 	)
-	cmd.Dir = "../../contracts"
+	cmd.Dir = "../../contracts/evm"
 	err = cmd.Run()
 	if err != nil {
 		panic(err)

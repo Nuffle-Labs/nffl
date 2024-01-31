@@ -11,7 +11,7 @@ CHAINID=31337
 # Make sure to update this if the strategy address changes
 # check in contracts/script/output/${CHAINID}/sffl_avs_deployment_output.json
 STRATEGY_ADDRESS=0x7a2088a1bFc9d81c55368AE168C2C02570cB814F
-DEPLOYMENT_FILES_DIR=contracts/script/output/${CHAINID}
+DEPLOYMENT_FILES_DIR=contracts/evm/script/output/${CHAINID}
 
 -----------------------------: ## 
 

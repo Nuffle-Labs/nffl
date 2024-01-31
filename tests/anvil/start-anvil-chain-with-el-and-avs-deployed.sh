@@ -9,10 +9,10 @@ cd "$parent_path"
 
 # start an anvil instance in the background that has eigenlayer contracts deployed
 # we start anvil in the background so that we can run the below script
-anvil --load-state avs-and-eigenlayer-deployed-anvil-state.json &
+anvil --load-state data/avs-and-eigenlayer-deployed-anvil-state.json &
 ANVIL_PID=$!
 
-cd ../../contracts
+cd ../../contracts/evm
 # we need to restart the anvil chain at the correct block, otherwise the indexRegistry has a quorumUpdate at the block number
 # at which it was deployed (aka quorum was created/updated), but when we start anvil by loading state file it starts at block number 0
 # so calling getOperatorListAtBlockNumber reverts because it thinks there are no quorums registered at block 0
