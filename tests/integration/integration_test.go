@@ -1,6 +1,7 @@
 package integration_test
 
 import (
+	"bytes"
 	"context"
 	"fmt"
 	"log"
@@ -231,8 +232,15 @@ func advanceChain(anvilC testcontainers.Container) {
 			rpcUrl, privateKey),
 	)
 	cmd.Dir = "../../contracts/evm"
+
+	var stdout, stderr bytes.Buffer
+	cmd.Stdout = &stdout
+	cmd.Stderr = &stderr
 	err = cmd.Run()
+
 	if err != nil {
+		fmt.Println(stderr.String())
 		panic(err)
 	}
+	fmt.Println(stdout.String())
 }
