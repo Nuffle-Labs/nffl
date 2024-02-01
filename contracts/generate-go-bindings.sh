@@ -20,8 +20,8 @@ function create_binding {
 }
 
 rm -rf bindings/*
-forge clean
-forge build
+forge clean --root ./evm
+forge build --root ./evm
 
 avs_service_contracts="SFFLServiceManager SFFLTaskManager SFFLRegistryRollup"
 for contract in $avs_service_contracts; do
