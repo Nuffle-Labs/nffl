@@ -18,7 +18,7 @@ import (
 	"github.com/NethermindEth/near-sffl/core/chainio"
 	"github.com/NethermindEth/near-sffl/core/config"
 
-	cstaskmanager "github.com/NethermindEth/near-sffl/contracts/bindings/SFFLTaskManager"
+	taskmanager "github.com/NethermindEth/near-sffl/contracts/bindings/SFFLTaskManager"
 )
 
 const (
@@ -69,9 +69,9 @@ type Aggregator struct {
 	avsWriter        chainio.AvsWriterer
 	// aggregation related fields
 	blsAggregationService blsagg.BlsAggregationService
-	tasks                 map[types.TaskIndex]cstaskmanager.CheckpointTask
+	tasks                 map[types.TaskIndex]taskmanager.CheckpointTask
 	tasksMu               sync.RWMutex
-	taskResponses         map[types.TaskIndex]map[sdktypes.TaskResponseDigest]cstaskmanager.CheckpointTaskResponse
+	taskResponses         map[types.TaskIndex]map[sdktypes.TaskResponseDigest]taskmanager.CheckpointTaskResponse
 	taskResponsesMu       sync.RWMutex
 }
 
@@ -113,8 +113,8 @@ func NewAggregator(c *config.Config) (*Aggregator, error) {
 		serverIpPortAddr:      c.AggregatorServerIpPortAddr,
 		avsWriter:             avsWriter,
 		blsAggregationService: blsAggregationService,
-		tasks:                 make(map[types.TaskIndex]cstaskmanager.CheckpointTask),
-		taskResponses:         make(map[types.TaskIndex]map[sdktypes.TaskResponseDigest]cstaskmanager.CheckpointTaskResponse),
+		tasks:                 make(map[types.TaskIndex]taskmanager.CheckpointTask),
+		taskResponses:         make(map[types.TaskIndex]map[sdktypes.TaskResponseDigest]taskmanager.CheckpointTaskResponse),
 	}, nil
 }
 
@@ -161,15 +161,15 @@ func (agg *Aggregator) sendAggregatedResponseToContract(blsAggServiceResp blsagg
 		// panicing to help with debugging (fail fast), but we shouldn't panic if we run this in production
 		panic(blsAggServiceResp.Err)
 	}
-	nonSignerPubkeys := []cstaskmanager.BN254G1Point{}
+	nonSignerPubkeys := []taskmanager.BN254G1Point{}
 	for _, nonSignerPubkey := range blsAggServiceResp.NonSignersPubkeysG1 {
 		nonSignerPubkeys = append(nonSignerPubkeys, core.ConvertToBN254G1Point(nonSignerPubkey))
 	}
-	quorumApks := []cstaskmanager.BN254G1Point{}
+	quorumApks := []taskmanager.BN254G1Point{}
 	for _, quorumApk := range blsAggServiceResp.QuorumApksG1 {
 		quorumApks = append(quorumApks, core.ConvertToBN254G1Point(quorumApk))
 	}
-	nonSignerStakesAndSignature := cstaskmanager.IBLSSignatureCheckerNonSignerStakesAndSignature{
+	nonSignerStakesAndSignature := taskmanager.IBLSSignatureCheckerNonSignerStakesAndSignature{
 		NonSignerPubkeys:             nonSignerPubkeys,
 		QuorumApks:                   quorumApks,
 		ApkG2:                        core.ConvertToBN254G2Point(blsAggServiceResp.SignersApkG2),

@@ -9,7 +9,7 @@ import (
 	"github.com/Layr-Labs/eigensdk-go/crypto/bls"
 	sdklogging "github.com/Layr-Labs/eigensdk-go/logging"
 
-	cstaskmanager "github.com/NethermindEth/near-sffl/contracts/bindings/SFFLTaskManager"
+	taskmanager "github.com/NethermindEth/near-sffl/contracts/bindings/SFFLTaskManager"
 	"github.com/NethermindEth/near-sffl/metrics"
 	"github.com/NethermindEth/near-sffl/tests"
 )
@@ -47,7 +47,7 @@ func createMockOperator() (*Operator, error) {
 		blsKeypair:                operatorKeypair,
 		metricsReg:                reg,
 		metrics:                   noopMetrics,
-		checkpointTaskCreatedChan: make(chan *cstaskmanager.ContractSFFLTaskManagerCheckpointTaskCreated),
+		checkpointTaskCreatedChan: make(chan *taskmanager.ContractSFFLTaskManagerCheckpointTaskCreated),
 		operatorId:                MOCK_OPERATOR_ID,
 	}
 	return operator, nil

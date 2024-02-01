@@ -11,7 +11,7 @@ import (
 	logging "github.com/Layr-Labs/eigensdk-go/logging"
 
 	erc20mock "github.com/NethermindEth/near-sffl/contracts/bindings/ERC20Mock"
-	cstaskmanager "github.com/NethermindEth/near-sffl/contracts/bindings/SFFLTaskManager"
+	taskmanager "github.com/NethermindEth/near-sffl/contracts/bindings/SFFLTaskManager"
 	"github.com/NethermindEth/near-sffl/core/config"
 )
 
@@ -19,8 +19,8 @@ type AvsReaderer interface {
 	sdkavsregistry.AvsRegistryReader
 
 	CheckSignatures(
-		ctx context.Context, msgHash [32]byte, quorumNumbers []byte, referenceBlockNumber uint32, nonSignerStakesAndSignature cstaskmanager.IBLSSignatureCheckerNonSignerStakesAndSignature,
-	) (cstaskmanager.IBLSSignatureCheckerQuorumStakeTotals, error)
+		ctx context.Context, msgHash [32]byte, quorumNumbers []byte, referenceBlockNumber uint32, nonSignerStakesAndSignature taskmanager.IBLSSignatureCheckerNonSignerStakesAndSignature,
+	) (taskmanager.IBLSSignatureCheckerQuorumStakeTotals, error)
 	GetErc20Mock(ctx context.Context, tokenAddr gethcommon.Address) (*erc20mock.ContractERC20Mock, error)
 }
 
@@ -55,13 +55,13 @@ func NewAvsReader(avsRegistryReader sdkavsregistry.AvsRegistryReader, avsService
 }
 
 func (r *AvsReader) CheckSignatures(
-	ctx context.Context, msgHash [32]byte, quorumNumbers []byte, referenceBlockNumber uint32, nonSignerStakesAndSignature cstaskmanager.IBLSSignatureCheckerNonSignerStakesAndSignature,
-) (cstaskmanager.IBLSSignatureCheckerQuorumStakeTotals, error) {
+	ctx context.Context, msgHash [32]byte, quorumNumbers []byte, referenceBlockNumber uint32, nonSignerStakesAndSignature taskmanager.IBLSSignatureCheckerNonSignerStakesAndSignature,
+) (taskmanager.IBLSSignatureCheckerQuorumStakeTotals, error) {
 	stakeTotalsPerQuorum, _, err := r.AvsServiceBindings.TaskManager.CheckSignatures(
 		&bind.CallOpts{}, msgHash, quorumNumbers, referenceBlockNumber, nonSignerStakesAndSignature,
 	)
 	if err != nil {
-		return cstaskmanager.IBLSSignatureCheckerQuorumStakeTotals{}, err
+		return taskmanager.IBLSSignatureCheckerQuorumStakeTotals{}, err
 	}
 	return stakeTotalsPerQuorum, nil
 }

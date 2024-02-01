@@ -11,11 +11,11 @@ import (
 	regcoord "github.com/Layr-Labs/eigensdk-go/contracts/bindings/RegistryCoordinator"
 	erc20mock "github.com/NethermindEth/near-sffl/contracts/bindings/ERC20Mock"
 	csservicemanager "github.com/NethermindEth/near-sffl/contracts/bindings/SFFLServiceManager"
-	cstaskmanager "github.com/NethermindEth/near-sffl/contracts/bindings/SFFLTaskManager"
+	taskmanager "github.com/NethermindEth/near-sffl/contracts/bindings/SFFLTaskManager"
 )
 
 type AvsManagersBindings struct {
-	TaskManager    *cstaskmanager.ContractSFFLTaskManager
+	TaskManager    *taskmanager.ContractSFFLTaskManager
 	ServiceManager *csservicemanager.ContractSFFLServiceManager
 	ethClient      eth.EthClient
 	logger         logging.Logger
@@ -41,7 +41,7 @@ func NewAvsManagersBindings(registryCoordinatorAddr, operatorStateRetrieverAddr 
 		logger.Error("Failed to fetch TaskManager address", "err", err)
 		return nil, err
 	}
-	contractTaskManager, err := cstaskmanager.NewContractSFFLTaskManager(taskManagerAddr, ethclient)
+	contractTaskManager, err := taskmanager.NewContractSFFLTaskManager(taskManagerAddr, ethclient)
 	if err != nil {
 		logger.Error("Failed to fetch ISFFLTaskManager contract", "err", err)
 		return nil, err

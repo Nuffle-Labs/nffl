@@ -6,13 +6,13 @@ import (
 	opstateretriever "github.com/Layr-Labs/eigensdk-go/contracts/bindings/OperatorStateRetriever"
 	"github.com/Layr-Labs/eigensdk-go/crypto/bls"
 	"github.com/NethermindEth/near-sffl/aggregator/types"
-	cstaskmanager "github.com/NethermindEth/near-sffl/contracts/bindings/SFFLTaskManager"
+	taskmanager "github.com/NethermindEth/near-sffl/contracts/bindings/SFFLTaskManager"
 )
 
 // ====== TaskManager Mocks ======
 
-func MockSendNewCheckpointTask(blockNum, taskNum uint32, fromNearBlock, toNearBlock uint64) (cstaskmanager.CheckpointTask, uint32, error) {
-	task := cstaskmanager.CheckpointTask{
+func MockSendNewCheckpointTask(blockNum, taskNum uint32, fromNearBlock, toNearBlock uint64) (taskmanager.CheckpointTask, uint32, error) {
+	task := taskmanager.CheckpointTask{
 		FromNearBlock:    fromNearBlock,
 		ToNearBlock:      toNearBlock,
 		TaskCreatedBlock: blockNum,

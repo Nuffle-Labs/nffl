@@ -10,7 +10,7 @@ import (
 	"github.com/prometheus/client_golang/prometheus"
 
 	"github.com/NethermindEth/near-sffl/aggregator"
-	cstaskmanager "github.com/NethermindEth/near-sffl/contracts/bindings/SFFLTaskManager"
+	taskmanager "github.com/NethermindEth/near-sffl/contracts/bindings/SFFLTaskManager"
 	"github.com/NethermindEth/near-sffl/core"
 	"github.com/NethermindEth/near-sffl/core/chainio"
 	"github.com/NethermindEth/near-sffl/metrics"
@@ -56,7 +56,7 @@ type Operator struct {
 	operatorId       bls.OperatorId
 	operatorAddr     common.Address
 	// receive new tasks in this chan (typically from listening to onchain event)
-	checkpointTaskCreatedChan chan *cstaskmanager.ContractSFFLTaskManagerCheckpointTaskCreated
+	checkpointTaskCreatedChan chan *taskmanager.ContractSFFLTaskManagerCheckpointTaskCreated
 	// ip address of aggregator
 	aggregatorServerIpPortAddr string
 	// rpc client to send signed task responses to aggregator
@@ -213,7 +213,7 @@ func NewOperatorFromConfig(c types.NodeConfig) (*Operator, error) {
 		operatorAddr:               common.HexToAddress(c.OperatorAddress),
 		aggregatorServerIpPortAddr: c.AggregatorServerIpPortAddress,
 		aggregatorRpcClient:        aggregatorRpcClient,
-		checkpointTaskCreatedChan:  make(chan *cstaskmanager.ContractSFFLTaskManagerCheckpointTaskCreated),
+		checkpointTaskCreatedChan:  make(chan *taskmanager.ContractSFFLTaskManagerCheckpointTaskCreated),
 		sfflServiceManagerAddr:     common.HexToAddress(c.AVSRegistryCoordinatorAddress),
 		operatorId:                 [32]byte{0}, // this is set below
 
@@ -302,7 +302,7 @@ func (o *Operator) Start(ctx context.Context) error {
 
 // Takes a CheckpointTaskCreatedLog struct as input and returns a TaskResponseHeader struct.
 // The TaskResponseHeader struct is the struct that is signed and sent to the contract as a task response.
-func (o *Operator) ProcessCheckpointTaskCreatedLog(checkpointTaskCreatedLog *cstaskmanager.ContractSFFLTaskManagerCheckpointTaskCreated) *cstaskmanager.CheckpointTaskResponse {
+func (o *Operator) ProcessCheckpointTaskCreatedLog(checkpointTaskCreatedLog *taskmanager.ContractSFFLTaskManagerCheckpointTaskCreated) *taskmanager.CheckpointTaskResponse {
 	o.logger.Debug("Received new task", "task", checkpointTaskCreatedLog)
 	o.logger.Info("Received new task",
 		"fromNearBlock", checkpointTaskCreatedLog.Task.FromNearBlock,
@@ -315,7 +315,7 @@ func (o *Operator) ProcessCheckpointTaskCreatedLog(checkpointTaskCreatedLog *cst
 
 	// TODO: build SMT based on stored message agreements and update the test
 
-	taskResponse := &cstaskmanager.CheckpointTaskResponse{
+	taskResponse := &taskmanager.CheckpointTaskResponse{
 		ReferenceTaskIndex:     checkpointTaskCreatedLog.TaskIndex,
 		StateRootUpdatesRoot:   [32]byte{0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0},
 		OperatorSetUpdatesRoot: [32]byte{0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0},
@@ -323,7 +323,7 @@ func (o *Operator) ProcessCheckpointTaskCreatedLog(checkpointTaskCreatedLog *cst
 	return taskResponse
 }
 
-func (o *Operator) SignTaskResponse(taskResponse *cstaskmanager.CheckpointTaskResponse) (*aggregator.SignedCheckpointTaskResponse, error) {
+func (o *Operator) SignTaskResponse(taskResponse *taskmanager.CheckpointTaskResponse) (*aggregator.SignedCheckpointTaskResponse, error) {
 	taskResponseHash, err := core.GetCheckpointTaskResponseDigest(taskResponse)
 	if err != nil {
 		o.logger.Error("Error getting task response header hash. skipping task (this is not expected and should be investigated)", "err", err)

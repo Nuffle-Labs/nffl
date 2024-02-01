@@ -19,7 +19,7 @@ import (
 
 	"github.com/NethermindEth/near-sffl/aggregator/mocks"
 	"github.com/NethermindEth/near-sffl/aggregator/types"
-	cstaskmanager "github.com/NethermindEth/near-sffl/contracts/bindings/SFFLTaskManager"
+	taskmanager "github.com/NethermindEth/near-sffl/contracts/bindings/SFFLTaskManager"
 	chainiomocks "github.com/NethermindEth/near-sffl/core/chainio/mocks"
 )
 
@@ -88,8 +88,8 @@ func createMockAggregator(
 		logger:                logger,
 		avsWriter:             mockAvsWriter,
 		blsAggregationService: mockBlsAggregationService,
-		tasks:                 make(map[types.TaskIndex]cstaskmanager.CheckpointTask),
-		taskResponses:         make(map[types.TaskIndex]map[sdktypes.TaskResponseDigest]cstaskmanager.CheckpointTaskResponse),
+		tasks:                 make(map[types.TaskIndex]taskmanager.CheckpointTask),
+		taskResponses:         make(map[types.TaskIndex]map[sdktypes.TaskResponseDigest]taskmanager.CheckpointTaskResponse),
 	}
 	return aggregator, mockAvsWriter, mockBlsAggregationService, nil
 }

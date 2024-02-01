@@ -16,7 +16,7 @@ import (
 
 	"github.com/NethermindEth/near-sffl/aggregator"
 	aggtypes "github.com/NethermindEth/near-sffl/aggregator/types"
-	cstaskmanager "github.com/NethermindEth/near-sffl/contracts/bindings/SFFLTaskManager"
+	taskmanager "github.com/NethermindEth/near-sffl/contracts/bindings/SFFLTaskManager"
 	chainiomocks "github.com/NethermindEth/near-sffl/core/chainio/mocks"
 	operatormocks "github.com/NethermindEth/near-sffl/operator/mocks"
 )
@@ -30,9 +30,9 @@ func TestOperator(t *testing.T) {
 		var fromNearBlock = uint64(3)
 		var toNearBlock = uint64(4)
 
-		newTaskCreatedLog := &cstaskmanager.ContractSFFLTaskManagerCheckpointTaskCreated{
+		newTaskCreatedLog := &taskmanager.ContractSFFLTaskManagerCheckpointTaskCreated{
 			TaskIndex: taskIndex,
-			Task: cstaskmanager.CheckpointTask{
+			Task: taskmanager.CheckpointTask{
 				FromNearBlock:    fromNearBlock,
 				ToNearBlock:      toNearBlock,
 				TaskCreatedBlock: 1000,
@@ -42,7 +42,7 @@ func TestOperator(t *testing.T) {
 			Raw: types.Log{},
 		}
 		got := operator.ProcessCheckpointTaskCreatedLog(newTaskCreatedLog)
-		want := &cstaskmanager.CheckpointTaskResponse{
+		want := &taskmanager.CheckpointTaskResponse{
 			ReferenceTaskIndex:     taskIndex,
 			StateRootUpdatesRoot:   [32]byte{0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0},
 			OperatorSetUpdatesRoot: [32]byte{0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0},
@@ -55,9 +55,9 @@ func TestOperator(t *testing.T) {
 		var toNearBlock = uint64(4)
 
 		// new task event
-		newTaskCreatedEvent := &cstaskmanager.ContractSFFLTaskManagerCheckpointTaskCreated{
+		newTaskCreatedEvent := &taskmanager.ContractSFFLTaskManagerCheckpointTaskCreated{
 			TaskIndex: taskIndex,
-			Task: cstaskmanager.CheckpointTask{
+			Task: taskmanager.CheckpointTask{
 				FromNearBlock:    fromNearBlock,
 				ToNearBlock:      toNearBlock,
 				TaskCreatedBlock: 1000,
@@ -73,7 +73,7 @@ func TestOperator(t *testing.T) {
 		assert.True(t, ok)
 
 		signedTaskResponse := &aggregator.SignedCheckpointTaskResponse{
-			TaskResponse: cstaskmanager.CheckpointTaskResponse{
+			TaskResponse: taskmanager.CheckpointTaskResponse{
 				ReferenceTaskIndex:     taskIndex,
 				StateRootUpdatesRoot:   [32]byte{0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0},
 				OperatorSetUpdatesRoot: [32]byte{0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0},

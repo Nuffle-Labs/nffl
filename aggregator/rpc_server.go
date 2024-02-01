@@ -6,7 +6,7 @@ import (
 	"net/http"
 	"net/rpc"
 
-	cstaskmanager "github.com/NethermindEth/near-sffl/contracts/bindings/SFFLTaskManager"
+	taskmanager "github.com/NethermindEth/near-sffl/contracts/bindings/SFFLTaskManager"
 	"github.com/NethermindEth/near-sffl/core"
 
 	"github.com/Layr-Labs/eigensdk-go/crypto/bls"
@@ -38,7 +38,7 @@ func (agg *Aggregator) startServer(ctx context.Context) error {
 }
 
 type SignedCheckpointTaskResponse struct {
-	TaskResponse cstaskmanager.CheckpointTaskResponse
+	TaskResponse taskmanager.CheckpointTaskResponse
 	BlsSignature bls.Signature
 	OperatorId   bls.OperatorId
 }
@@ -56,7 +56,7 @@ func (agg *Aggregator) ProcessSignedCheckpointTaskResponse(signedCheckpointTaskR
 	}
 	agg.taskResponsesMu.Lock()
 	if _, ok := agg.taskResponses[taskIndex]; !ok {
-		agg.taskResponses[taskIndex] = make(map[sdktypes.TaskResponseDigest]cstaskmanager.CheckpointTaskResponse)
+		agg.taskResponses[taskIndex] = make(map[sdktypes.TaskResponseDigest]taskmanager.CheckpointTaskResponse)
 	}
 	if _, ok := agg.taskResponses[taskIndex][taskResponseDigest]; !ok {
 		agg.taskResponses[taskIndex][taskResponseDigest] = signedCheckpointTaskResponse.TaskResponse

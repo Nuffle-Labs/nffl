@@ -9,14 +9,14 @@ import (
 	"github.com/Layr-Labs/eigensdk-go/chainio/clients/eth"
 	sdklogging "github.com/Layr-Labs/eigensdk-go/logging"
 
-	cstaskmanager "github.com/NethermindEth/near-sffl/contracts/bindings/SFFLTaskManager"
+	taskmanager "github.com/NethermindEth/near-sffl/contracts/bindings/SFFLTaskManager"
 	"github.com/NethermindEth/near-sffl/core/config"
 )
 
 type AvsSubscriberer interface {
-	SubscribeToNewTasks(checkpointTaskCreatedChan chan *cstaskmanager.ContractSFFLTaskManagerCheckpointTaskCreated) event.Subscription
-	SubscribeToTaskResponses(taskResponseLogs chan *cstaskmanager.ContractSFFLTaskManagerCheckpointTaskResponded) event.Subscription
-	ParseCheckpointTaskResponded(rawLog types.Log) (*cstaskmanager.ContractSFFLTaskManagerCheckpointTaskResponded, error)
+	SubscribeToNewTasks(checkpointTaskCreatedChan chan *taskmanager.ContractSFFLTaskManagerCheckpointTaskCreated) event.Subscription
+	SubscribeToTaskResponses(taskResponseLogs chan *taskmanager.ContractSFFLTaskManagerCheckpointTaskResponded) event.Subscription
+	ParseCheckpointTaskResponded(rawLog types.Log) (*taskmanager.ContractSFFLTaskManagerCheckpointTaskResponded, error)
 }
 
 // Subscribers use a ws connection instead of http connection like Readers
@@ -53,7 +53,7 @@ func NewAvsSubscriber(avsContractBindings *AvsManagersBindings, logger sdkloggin
 	}
 }
 
-func (s *AvsSubscriber) SubscribeToNewTasks(checkpointTaskCreatedChan chan *cstaskmanager.ContractSFFLTaskManagerCheckpointTaskCreated) event.Subscription {
+func (s *AvsSubscriber) SubscribeToNewTasks(checkpointTaskCreatedChan chan *taskmanager.ContractSFFLTaskManagerCheckpointTaskCreated) event.Subscription {
 	sub, err := s.AvsContractBindings.TaskManager.WatchCheckpointTaskCreated(
 		&bind.WatchOpts{}, checkpointTaskCreatedChan, nil,
 	)
@@ -64,7 +64,7 @@ func (s *AvsSubscriber) SubscribeToNewTasks(checkpointTaskCreatedChan chan *csta
 	return sub
 }
 
-func (s *AvsSubscriber) SubscribeToTaskResponses(taskResponseChan chan *cstaskmanager.ContractSFFLTaskManagerCheckpointTaskResponded) event.Subscription {
+func (s *AvsSubscriber) SubscribeToTaskResponses(taskResponseChan chan *taskmanager.ContractSFFLTaskManagerCheckpointTaskResponded) event.Subscription {
 	sub, err := s.AvsContractBindings.TaskManager.WatchCheckpointTaskResponded(
 		&bind.WatchOpts{}, taskResponseChan,
 	)
@@ -75,6 +75,6 @@ func (s *AvsSubscriber) SubscribeToTaskResponses(taskResponseChan chan *cstaskma
 	return sub
 }
 
-func (s *AvsSubscriber) ParseCheckpointTaskResponded(rawLog types.Log) (*cstaskmanager.ContractSFFLTaskManagerCheckpointTaskResponded, error) {
+func (s *AvsSubscriber) ParseCheckpointTaskResponded(rawLog types.Log) (*taskmanager.ContractSFFLTaskManagerCheckpointTaskResponded, error) {
 	return s.AvsContractBindings.TaskManager.ContractSFFLTaskManagerFilterer.ParseCheckpointTaskResponded(rawLog)
 }

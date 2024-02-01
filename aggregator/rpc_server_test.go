@@ -13,7 +13,7 @@ import (
 	"github.com/Layr-Labs/eigensdk-go/crypto/bls"
 	sdktypes "github.com/Layr-Labs/eigensdk-go/types"
 	"github.com/NethermindEth/near-sffl/aggregator/types"
-	cstaskmanager "github.com/NethermindEth/near-sffl/contracts/bindings/SFFLTaskManager"
+	taskmanager "github.com/NethermindEth/near-sffl/contracts/bindings/SFFLTaskManager"
 	"github.com/NethermindEth/near-sffl/core"
 )
 
@@ -74,7 +74,7 @@ func keccak256(num uint64) [32]byte {
 
 // mocks an operator signing on a task response
 func createMockSignedCheckpointTaskResponse(mockTask MockTask, keypair bls.KeyPair) (*SignedCheckpointTaskResponse, error) {
-	taskResponse := &cstaskmanager.CheckpointTaskResponse{
+	taskResponse := &taskmanager.CheckpointTaskResponse{
 		ReferenceTaskIndex:     mockTask.TaskNum,
 		StateRootUpdatesRoot:   keccak256(mockTask.FromNearBlock),
 		OperatorSetUpdatesRoot: keccak256(mockTask.ToNearBlock),

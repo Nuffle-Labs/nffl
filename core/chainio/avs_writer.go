@@ -11,7 +11,7 @@ import (
 	"github.com/Layr-Labs/eigensdk-go/chainio/txmgr"
 	logging "github.com/Layr-Labs/eigensdk-go/logging"
 
-	cstaskmanager "github.com/NethermindEth/near-sffl/contracts/bindings/SFFLTaskManager"
+	taskmanager "github.com/NethermindEth/near-sffl/contracts/bindings/SFFLTaskManager"
 	"github.com/NethermindEth/near-sffl/core/config"
 )
 
@@ -24,18 +24,18 @@ type AvsWriterer interface {
 		toNearBlock uint64,
 		quorumThreshold uint32,
 		quorumNumbers []byte,
-	) (cstaskmanager.CheckpointTask, uint32, error)
+	) (taskmanager.CheckpointTask, uint32, error)
 	RaiseChallenge(
 		ctx context.Context,
-		task cstaskmanager.CheckpointTask,
-		taskResponse cstaskmanager.CheckpointTaskResponse,
-		taskResponseMetadata cstaskmanager.CheckpointTaskResponseMetadata,
-		pubkeysOfNonSigningOperators []cstaskmanager.BN254G1Point,
+		task taskmanager.CheckpointTask,
+		taskResponse taskmanager.CheckpointTaskResponse,
+		taskResponseMetadata taskmanager.CheckpointTaskResponseMetadata,
+		pubkeysOfNonSigningOperators []taskmanager.BN254G1Point,
 	) (*types.Receipt, error)
 	SendAggregatedResponse(ctx context.Context,
-		task cstaskmanager.CheckpointTask,
-		taskResponse cstaskmanager.CheckpointTaskResponse,
-		nonSignerStakesAndSignature cstaskmanager.IBLSSignatureCheckerNonSignerStakesAndSignature,
+		task taskmanager.CheckpointTask,
+		taskResponse taskmanager.CheckpointTaskResponse,
+		nonSignerStakesAndSignature taskmanager.IBLSSignatureCheckerNonSignerStakesAndSignature,
 	) (*types.Receipt, error)
 }
 
@@ -75,34 +75,34 @@ func NewAvsWriter(avsRegistryWriter avsregistry.AvsRegistryWriter, avsServiceBin
 }
 
 // returns the tx receipt, as well as the task index (which it gets from parsing the tx receipt logs)
-func (w *AvsWriter) SendNewCheckpointTask(ctx context.Context, fromNearBlock uint64, toNearBlock uint64, quorumThreshold uint32, quorumNumbers []byte) (cstaskmanager.CheckpointTask, uint32, error) {
+func (w *AvsWriter) SendNewCheckpointTask(ctx context.Context, fromNearBlock uint64, toNearBlock uint64, quorumThreshold uint32, quorumNumbers []byte) (taskmanager.CheckpointTask, uint32, error) {
 	txOpts, err := w.TxMgr.GetNoSendTxOpts()
 	if err != nil {
 		w.logger.Errorf("Error getting tx opts")
-		return cstaskmanager.CheckpointTask{}, 0, err
+		return taskmanager.CheckpointTask{}, 0, err
 	}
 	tx, err := w.AvsContractBindings.TaskManager.CreateCheckpointTask(txOpts, fromNearBlock, toNearBlock, quorumThreshold, quorumNumbers)
 	if err != nil {
 		w.logger.Errorf("Error assembling CreateCheckpointTask tx")
-		return cstaskmanager.CheckpointTask{}, 0, err
+		return taskmanager.CheckpointTask{}, 0, err
 	}
 	receipt, err := w.TxMgr.Send(ctx, tx)
 	if err != nil {
 		w.logger.Errorf("Error submitting CreateCheckpointTask tx")
-		return cstaskmanager.CheckpointTask{}, 0, err
+		return taskmanager.CheckpointTask{}, 0, err
 	}
 	checkpointTaskCreatedEvent, err := w.AvsContractBindings.TaskManager.ContractSFFLTaskManagerFilterer.ParseCheckpointTaskCreated(*receipt.Logs[0])
 	if err != nil {
 		w.logger.Error("Aggregator failed to parse new task created event", "err", err)
-		return cstaskmanager.CheckpointTask{}, 0, err
+		return taskmanager.CheckpointTask{}, 0, err
 	}
 	return checkpointTaskCreatedEvent.Task, checkpointTaskCreatedEvent.TaskIndex, nil
 }
 
 func (w *AvsWriter) SendAggregatedResponse(
-	ctx context.Context, task cstaskmanager.CheckpointTask,
-	taskResponse cstaskmanager.CheckpointTaskResponse,
-	nonSignerStakesAndSignature cstaskmanager.IBLSSignatureCheckerNonSignerStakesAndSignature,
+	ctx context.Context, task taskmanager.CheckpointTask,
+	taskResponse taskmanager.CheckpointTaskResponse,
+	nonSignerStakesAndSignature taskmanager.IBLSSignatureCheckerNonSignerStakesAndSignature,
 ) (*types.Receipt, error) {
 	txOpts, err := w.TxMgr.GetNoSendTxOpts()
 	if err != nil {
@@ -124,10 +124,10 @@ func (w *AvsWriter) SendAggregatedResponse(
 
 func (w *AvsWriter) RaiseChallenge(
 	ctx context.Context,
-	task cstaskmanager.CheckpointTask,
-	taskResponse cstaskmanager.CheckpointTaskResponse,
-	taskResponseMetadata cstaskmanager.CheckpointTaskResponseMetadata,
-	pubkeysOfNonSigningOperators []cstaskmanager.BN254G1Point,
+	task taskmanager.CheckpointTask,
+	taskResponse taskmanager.CheckpointTaskResponse,
+	taskResponseMetadata taskmanager.CheckpointTaskResponseMetadata,
+	pubkeysOfNonSigningOperators []taskmanager.BN254G1Point,
 ) (*types.Receipt, error) {
 	txOpts, err := w.TxMgr.GetNoSendTxOpts()
 	if err != nil {
