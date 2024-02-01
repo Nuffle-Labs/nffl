@@ -1,11 +1,13 @@
 package main
 
 import (
-	"context"
+	// "context"
 	"flag"
 	"fmt"
 	"time"
 
+	"github.com/ethereum/go-ethereum/core/types"
+	"github.com/ethereum/go-ethereum/rlp"
 	rmq "github.com/rabbitmq/amqp091-go"
 )
 
@@ -37,7 +39,7 @@ type Consumer struct {
 	onChanClosed <-chan *rmq.Error
 }
 
-func (consumer *Consumer) Reconnect(addr string) <-chan rmq.Delivery {
+func (consumer *Consumer) Reconnect(addr string) <-chan types.Block {
 	for {
 		conn, err := consumer.connect(addr)
 		if err != nil {
@@ -46,13 +48,13 @@ func (consumer *Consumer) Reconnect(addr string) <-chan rmq.Delivery {
 			continue
 		}
 
-		deliveries, rmqError := consumer.ResetChannel(conn)
+		blockStream, rmqError := consumer.ResetChannel(conn)
 		if rmqError != nil {
 			fmt.Println(rmqError)
 			continue
 		}
 
-		return deliveries
+		return blockStream
 	}
 }
 
@@ -73,9 +75,9 @@ func (consumer *Consumer) changeConnection(conn *rmq.Connection) {
 	consumer.onConnClosed = conn.NotifyClose(closeNotifier)
 }
 
-func (consumer *Consumer) ResetChannel(conn *rmq.Connection) (<-chan rmq.Delivery, *rmq.Error) {
+func (consumer *Consumer) ResetChannel(conn *rmq.Connection) (<-chan types.Block, *rmq.Error) {
 	for {
-		deliveries, err := consumer.setupChannel(conn)
+		blockStream, err := consumer.setupChannel(conn)
 		if err != nil {
 			fmt.Println(err)
 
@@ -88,11 +90,11 @@ func (consumer *Consumer) ResetChannel(conn *rmq.Connection) (<-chan rmq.Deliver
 			continue
 		}
 
-		return deliveries, nil
+		return blockStream, nil
 	}
 }
 
-func (consumer *Consumer) setupChannel(conn *rmq.Connection) (<-chan rmq.Delivery, error) {
+func (consumer *Consumer) setupChannel(conn *rmq.Connection) (<-chan types.Block, error) {
 	channel, err := conn.Channel()
 	if err != nil {
 		return nil, err
@@ -116,8 +118,16 @@ func (consumer *Consumer) setupChannel(conn *rmq.Connection) (<-chan rmq.Deliver
 		return nil, err
 	}
 
+	blockStream := make(chan types.Block)
+
+	// TODO: improve logic
+	// client on start right away returns a channel and
+	// calls reconnect in backgroudn
+	// Also fix situation with onConnClosed(not used anymore)
+	go porcessDeliveries(blockStream, deliveries)
+
 	consumer.changeChannel(channel)
-	return deliveries, nil
+	return blockStream, nil
 }
 
 func (consumer *Consumer) changeChannel(channel *rmq.Channel) {
@@ -125,6 +135,25 @@ func (consumer *Consumer) changeChannel(channel *rmq.Channel) {
 
 	closeNotifer := make(chan *rmq.Error)
 	consumer.onChanClosed = channel.NotifyClose(closeNotifer)
+}
+
+func porcessDeliveries(blocksCh chan<- types.Block, deliveries <-chan rmq.Delivery) {
+	defer close(blocksCh)
+
+	for {
+		d, ok := <-deliveries
+		if !ok {
+			break
+		}
+		var block types.Block
+
+		// Decode block
+		if err := rlp.DecodeBytes(d.Body, &block); err != nil {
+			break
+		}
+
+		blocksCh <- block
+	}
 }
 
 func parse() consumerData {
@@ -144,19 +173,6 @@ func parse() consumerData {
 	}
 }
 
-// TODO
-func porcessDeliveries(stream <-chan []byte, ctx context.Context) {
-	for {
-		select {
-		case data := <-stream:
-			fmt.Println("accepted data", data)
-		case <-ctx.Done():
-			fmt.Println("done")
-			break
-		}
-	}
-}
-
 func main() {
 	consumerData := parse()
 	consumer := Consumer{
@@ -167,36 +183,10 @@ func main() {
 		channel:      nil,
 		onChanClosed: nil,
 	}
-	deliveries := consumer.Reconnect(consumerData.addr)
 
-	ctx, cancel := context.WithCancel(context.TODO())
-
-	dataStream := make(chan []byte, 10)
-	go porcessDeliveries(dataStream, ctx)
-
+	blockStream := consumer.Reconnect(consumerData.addr)
 	for {
-		select {
-		case d := <-deliveries:
-			dataStream <- d.Body
-			d.Ack(true)
-
-		case rmqError := <-consumer.onChanClosed:
-			fmt.Println(rmqError)
-			if !rmqError.Recover {
-				defer cancel()
-				break
-			}
-
-			deliveries = consumer.Reconnect(consumerData.addr)
-
-		case rmqError := <-consumer.onConnClosed:
-			fmt.Println(rmqError)
-			if !rmqError.Recover {
-				defer cancel()
-				break
-			}
-
-			deliveries = consumer.Reconnect(consumerData.addr)
-		}
+		block := <-blockStream
+		fmt.Println(block)
 	}
 }
