@@ -34,8 +34,10 @@ contract SFFLTaskManager is Initializable, OwnableUpgradeable, Pausable, BLSSign
 
     /**
      * @dev Denominator for thresholds
+     * TODO: Possibly change this to a higher amount if 100 is not hardcoded in
+     * eigensdk
      */
-    uint32 public constant THRESHOLD_DENOMINATOR = 1000000000;
+    uint32 public constant THRESHOLD_DENOMINATOR = 100;
 
     /**
      * @notice Next checkpoint task number

@@ -21,7 +21,7 @@ contract SFFLRegistryRollupTest is TestUtils {
     Operators.Operator[] public extraOperators;
 
     uint128 public constant DEFAULT_WEIGHT = 100;
-    uint128 public QUORUM_THRESHOLD = 2 * uint128(1000000000) / 3;
+    uint128 public QUORUM_THRESHOLD = 2 * uint128(100) / 3;
 
     event StateRootUpdated(uint32 indexed rollupId, uint64 indexed blockHeight, bytes32 stateRoot);
     event OperatorUpdated(bytes32 indexed pubkeyHash, uint128 weight);
@@ -282,13 +282,15 @@ contract SFFLRegistryRollupTest is TestUtils {
     function test_setQuorumThreshold() public {
         assertEq(registry.getQuorumThreshold(), QUORUM_THRESHOLD);
 
+        uint128 denominator = registry.THRESHOLD_DENOMINATOR();
+
         vm.expectEmit(true, false, false, false);
-        emit QuorumThresholdUpdated(1000);
+        emit QuorumThresholdUpdated(denominator - 1);
 
         vm.prank(addr("owner"));
-        registry.setQuorumThreshold(1000);
+        registry.setQuorumThreshold(denominator - 1);
 
-        assertEq(registry.getQuorumThreshold(), 1000);
+        assertEq(registry.getQuorumThreshold(), denominator - 1);
     }
 
     function test_setQuorumThreshold_RevertWhen_CallerNotOwner() public {
