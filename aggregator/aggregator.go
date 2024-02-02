@@ -5,14 +5,16 @@ import (
 	"sync"
 	"time"
 
-	"github.com/Layr-Labs/eigensdk-go/logging"
-
 	"github.com/Layr-Labs/eigensdk-go/chainio/clients"
 	sdkclients "github.com/Layr-Labs/eigensdk-go/chainio/clients"
+	"github.com/Layr-Labs/eigensdk-go/logging"
 	"github.com/Layr-Labs/eigensdk-go/services/avsregistry"
 	blsagg "github.com/Layr-Labs/eigensdk-go/services/bls_aggregation"
 	oppubkeysserv "github.com/Layr-Labs/eigensdk-go/services/operatorpubkeys"
 	sdktypes "github.com/Layr-Labs/eigensdk-go/types"
+
+	badger "github.com/dgraph-io/badger/v4"
+
 	"github.com/NethermindEth/near-sffl/aggregator/types"
 	"github.com/NethermindEth/near-sffl/core"
 	"github.com/NethermindEth/near-sffl/core/chainio"
@@ -65,9 +67,11 @@ const (
 // Upon sending a task onchain (or receiving a CheckpointTaskCreated Event if the tasks were sent by an external task generator), the aggregator can get the list of all operators opted into each quorum at that
 // block number by calling the getOperatorState() function of the BLSOperatorStateRetriever.sol contract.
 type Aggregator struct {
-	logger           logging.Logger
-	serverIpPortAddr string
-	avsWriter        chainio.AvsWriterer
+	logger               logging.Logger
+	serverIpPortAddr     string
+	restServerIpPortAddr string
+	databasePath         string
+	avsWriter            chainio.AvsWriterer
 	// aggregation related fields
 	taskBlsAggregationService    blsagg.BlsAggregationService
 	messageBlsAggregationService MessageBlsAggregationService
@@ -75,13 +79,14 @@ type Aggregator struct {
 	tasksMu                      sync.RWMutex
 	taskResponses                map[types.TaskIndex]map[sdktypes.TaskResponseDigest]taskmanager.CheckpointTaskResponse
 	taskResponsesMu              sync.RWMutex
-	stateRootUpdates             map[types.RollupId]map[types.BlockHeight]map[sdktypes.TaskResponseDigest]servicemanager.StateRootUpdateMessage
+	database                     *badger.DB
+	databaseMu                   sync.RWMutex
+	stateRootUpdates             map[types.MessageDigest]servicemanager.StateRootUpdateMessage
 	stateRootUpdatesMu           sync.RWMutex
 }
 
 // NewAggregator creates a new Aggregator with the provided config.
 func NewAggregator(c *config.Config) (*Aggregator, error) {
-
 	avsReader, err := chainio.BuildAvsReaderFromConfig(c)
 	if err != nil {
 		c.Logger.Error("Cannot create avsReader", "err", err)
@@ -116,19 +121,25 @@ func NewAggregator(c *config.Config) (*Aggregator, error) {
 	return &Aggregator{
 		logger:                       c.Logger,
 		serverIpPortAddr:             c.AggregatorServerIpPortAddr,
+		restServerIpPortAddr:         c.AggregatorRestServerIpPortAddr,
+		databasePath:                 c.AggregatorDatabasePath,
 		avsWriter:                    avsWriter,
 		taskBlsAggregationService:    taskBlsAggregationService,
 		messageBlsAggregationService: messageBlsAggregationService,
 		tasks:                        make(map[types.TaskIndex]taskmanager.CheckpointTask),
 		taskResponses:                make(map[types.TaskIndex]map[sdktypes.TaskResponseDigest]taskmanager.CheckpointTaskResponse),
-		stateRootUpdates:             make(map[types.RollupId]map[types.BlockHeight]map[sdktypes.TaskResponseDigest]servicemanager.StateRootUpdateMessage),
+		stateRootUpdates:             make(map[types.MessageDigest]servicemanager.StateRootUpdateMessage),
 	}, nil
 }
 
 func (agg *Aggregator) Start(ctx context.Context) error {
 	agg.logger.Infof("Starting aggregator.")
+
 	agg.logger.Infof("Starting aggregator rpc server.")
 	go agg.startServer(ctx)
+
+	agg.logger.Infof("Starting aggregator REST API.")
+	go agg.startRestServer(ctx)
 
 	// TODO(soubhik): refactor task generation/sending into a separate function that we can run as goroutine
 	ticker := time.NewTicker(10 * time.Second)
@@ -152,7 +163,26 @@ func (agg *Aggregator) Start(ctx context.Context) error {
 			agg.sendAggregatedResponseToContract(blsAggServiceResp)
 		case blsAggServiceResp := <-agg.messageBlsAggregationService.GetResponseChannel():
 			agg.logger.Info("Received response from messageBlsAggregationService", "blsAggServiceResp", blsAggServiceResp)
-			// TODO: store message and aggregated signature
+
+			agg.stateRootUpdatesMu.RLock()
+			msg, ok := agg.stateRootUpdates[blsAggServiceResp.MessageDigest]
+			agg.stateRootUpdatesMu.RUnlock()
+
+			if !ok {
+				agg.logger.Error("Aggregator could not find matching message")
+				continue
+			}
+
+			err := agg.storeStateRootUpdate(msg)
+			if err != nil {
+				agg.logger.Error("Aggregator could not store message")
+				continue
+			}
+			agg.storeStateRootUpdateAggregation(msg, blsAggServiceResp)
+			if err != nil {
+				agg.logger.Error("Aggregator could not store message aggregation")
+				continue
+			}
 		case <-ticker.C:
 			err := agg.sendNewCheckpointTask(block, block)
 			block++

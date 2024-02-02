@@ -88,19 +88,8 @@ func (agg *Aggregator) ProcessSignedStateRootUpdateMessage(signedStateRootUpdate
 		return TaskResponseDigestNotFoundError500
 	}
 
-	rollupId := signedStateRootUpdateMessage.Message.RollupId
-	blockHeight := signedStateRootUpdateMessage.Message.BlockHeight
-
 	agg.stateRootUpdatesMu.Lock()
-	if _, ok := agg.stateRootUpdates[rollupId]; !ok {
-		agg.stateRootUpdates[rollupId] = make(map[types.BlockHeight]map[sdktypes.TaskResponseDigest]servicemanager.StateRootUpdateMessage)
-	}
-	if _, ok := agg.stateRootUpdates[rollupId][blockHeight]; !ok {
-		agg.stateRootUpdates[rollupId][blockHeight] = make(map[sdktypes.TaskResponseDigest]servicemanager.StateRootUpdateMessage)
-	}
-	if _, ok := agg.stateRootUpdates[rollupId][blockHeight][messageDigest]; !ok {
-		agg.stateRootUpdates[rollupId][blockHeight][messageDigest] = signedStateRootUpdateMessage.Message
-	}
+	agg.stateRootUpdates[messageDigest] = signedStateRootUpdateMessage.Message
 	agg.stateRootUpdatesMu.Unlock()
 
 	agg.messageBlsAggregationService.InitializeNewMessage(messageDigest, types.QUORUM_NUMBERS, []uint32{types.QUORUM_THRESHOLD_NUMERATOR}, 1*time.Hour)
