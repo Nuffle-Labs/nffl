@@ -85,11 +85,11 @@ func createMockAggregator(
 	mockBlsAggregationService := blsaggservmock.NewMockBlsAggregationService(mockCtrl)
 
 	aggregator := &Aggregator{
-		logger:                logger,
-		avsWriter:             mockAvsWriter,
-		blsAggregationService: mockBlsAggregationService,
-		tasks:                 make(map[types.TaskIndex]taskmanager.CheckpointTask),
-		taskResponses:         make(map[types.TaskIndex]map[sdktypes.TaskResponseDigest]taskmanager.CheckpointTaskResponse),
+		logger:                    logger,
+		avsWriter:                 mockAvsWriter,
+		taskBlsAggregationService: mockBlsAggregationService,
+		tasks:                     make(map[types.TaskIndex]taskmanager.CheckpointTask),
+		taskResponses:             make(map[types.TaskIndex]map[sdktypes.TaskResponseDigest]taskmanager.CheckpointTaskResponse),
 	}
 	return aggregator, mockAvsWriter, mockBlsAggregationService, nil
 }

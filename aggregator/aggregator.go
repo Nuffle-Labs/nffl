@@ -18,6 +18,7 @@ import (
 	"github.com/NethermindEth/near-sffl/core/chainio"
 	"github.com/NethermindEth/near-sffl/core/config"
 
+	servicemanager "github.com/NethermindEth/near-sffl/contracts/bindings/SFFLServiceManager"
 	taskmanager "github.com/NethermindEth/near-sffl/contracts/bindings/SFFLTaskManager"
 )
 
@@ -68,11 +69,14 @@ type Aggregator struct {
 	serverIpPortAddr string
 	avsWriter        chainio.AvsWriterer
 	// aggregation related fields
-	blsAggregationService blsagg.BlsAggregationService
-	tasks                 map[types.TaskIndex]taskmanager.CheckpointTask
-	tasksMu               sync.RWMutex
-	taskResponses         map[types.TaskIndex]map[sdktypes.TaskResponseDigest]taskmanager.CheckpointTaskResponse
-	taskResponsesMu       sync.RWMutex
+	taskBlsAggregationService    blsagg.BlsAggregationService
+	messageBlsAggregationService MessageBlsAggregationService
+	tasks                        map[types.TaskIndex]taskmanager.CheckpointTask
+	tasksMu                      sync.RWMutex
+	taskResponses                map[types.TaskIndex]map[sdktypes.TaskResponseDigest]taskmanager.CheckpointTaskResponse
+	taskResponsesMu              sync.RWMutex
+	stateRootUpdates             map[types.RollupId]map[types.BlockHeight]map[sdktypes.TaskResponseDigest]servicemanager.StateRootUpdateMessage
+	stateRootUpdatesMu           sync.RWMutex
 }
 
 // NewAggregator creates a new Aggregator with the provided config.
@@ -106,15 +110,18 @@ func NewAggregator(c *config.Config) (*Aggregator, error) {
 
 	operatorPubkeysService := oppubkeysserv.NewOperatorPubkeysServiceInMemory(context.Background(), clients.AvsRegistryChainSubscriber, clients.AvsRegistryChainReader, c.Logger)
 	avsRegistryService := avsregistry.NewAvsRegistryServiceChainCaller(avsReader, operatorPubkeysService, c.Logger)
-	blsAggregationService := blsagg.NewBlsAggregatorService(avsRegistryService, c.Logger)
+	taskBlsAggregationService := blsagg.NewBlsAggregatorService(avsRegistryService, c.Logger)
+	messageBlsAggregationService := NewMessageBlsAggregatorService(avsRegistryService, clients.EthHttpClient, c.Logger)
 
 	return &Aggregator{
-		logger:                c.Logger,
-		serverIpPortAddr:      c.AggregatorServerIpPortAddr,
-		avsWriter:             avsWriter,
-		blsAggregationService: blsAggregationService,
-		tasks:                 make(map[types.TaskIndex]taskmanager.CheckpointTask),
-		taskResponses:         make(map[types.TaskIndex]map[sdktypes.TaskResponseDigest]taskmanager.CheckpointTaskResponse),
+		logger:                       c.Logger,
+		serverIpPortAddr:             c.AggregatorServerIpPortAddr,
+		avsWriter:                    avsWriter,
+		taskBlsAggregationService:    taskBlsAggregationService,
+		messageBlsAggregationService: messageBlsAggregationService,
+		tasks:                        make(map[types.TaskIndex]taskmanager.CheckpointTask),
+		taskResponses:                make(map[types.TaskIndex]map[sdktypes.TaskResponseDigest]taskmanager.CheckpointTaskResponse),
+		stateRootUpdates:             make(map[types.RollupId]map[types.BlockHeight]map[sdktypes.TaskResponseDigest]servicemanager.StateRootUpdateMessage),
 	}, nil
 }
 
@@ -140,9 +147,12 @@ func (agg *Aggregator) Start(ctx context.Context) error {
 		select {
 		case <-ctx.Done():
 			return nil
-		case blsAggServiceResp := <-agg.blsAggregationService.GetResponseChannel():
-			agg.logger.Info("Received response from blsAggregationService", "blsAggServiceResp", blsAggServiceResp)
+		case blsAggServiceResp := <-agg.taskBlsAggregationService.GetResponseChannel():
+			agg.logger.Info("Received response from taskBlsAggregationService", "blsAggServiceResp", blsAggServiceResp)
 			agg.sendAggregatedResponseToContract(blsAggServiceResp)
+		case blsAggServiceResp := <-agg.messageBlsAggregationService.GetResponseChannel():
+			agg.logger.Info("Received response from messageBlsAggregationService", "blsAggServiceResp", blsAggServiceResp)
+			// TODO: store message and aggregated signature
 		case <-ticker.C:
 			err := agg.sendNewCheckpointTask(block, block)
 			block++
@@ -217,6 +227,6 @@ func (agg *Aggregator) sendNewCheckpointTask(fromTimestamp uint64, toTimestamp u
 	// TODO(samlaf): we use seconds for now, but we should ideally pass a blocknumber to the blsAggregationService
 	// and it should monitor the chain and only expire the task aggregation once the chain has reached that block number.
 	taskTimeToExpiry := taskChallengeWindowBlock * blockTimeSeconds
-	agg.blsAggregationService.InitializeNewTask(taskIndex, newTask.TaskCreatedBlock, newTask.QuorumNumbers, quorumThresholds, taskTimeToExpiry)
+	agg.taskBlsAggregationService.InitializeNewTask(taskIndex, newTask.TaskCreatedBlock, newTask.QuorumNumbers, quorumThresholds, taskTimeToExpiry)
 	return nil
 }

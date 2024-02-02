@@ -17,6 +17,10 @@ var QUORUM_NUMBERS = []byte{0}
 
 type BlockNumber = uint32
 type TaskIndex = uint32
+type RollupId = uint32
+type BlockHeight = uint64
+type NearBlockHeight = uint64
+type MessageDigest = [32]byte
 
 type OperatorInfo struct {
 	OperatorPubkeys sdktypes.OperatorPubkeys
