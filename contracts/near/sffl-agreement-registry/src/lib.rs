@@ -144,9 +144,7 @@ impl SFFLAgreementRegistry {
             let account_id = AccountId::from_str(&msg.nearAccountId)
                 .unwrap_or_else(|_| std::panic!("Invalid account ID"));
 
-            contract
-                .operator_eth_address
-                .insert(account_id, address.0.as_slice().try_into().unwrap());
+            contract.operator_eth_address.insert(account_id, address.0 .0);
         })
     }
 
@@ -321,7 +319,7 @@ impl SFFLAgreementRegistry {
             LookupMap::new(prefix)
         });
 
-        map.insert(*eth_address, signature.as_slice().try_into().unwrap());
+        map.insert(*eth_address, signature.clone());
 
         had_key
     }
