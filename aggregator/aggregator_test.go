@@ -19,6 +19,7 @@ import (
 
 	"github.com/NethermindEth/near-sffl/aggregator/mocks"
 	"github.com/NethermindEth/near-sffl/aggregator/types"
+	servicemanager "github.com/NethermindEth/near-sffl/contracts/bindings/SFFLServiceManager"
 	taskmanager "github.com/NethermindEth/near-sffl/contracts/bindings/SFFLTaskManager"
 	chainiomocks "github.com/NethermindEth/near-sffl/core/chainio/mocks"
 )
@@ -54,7 +55,7 @@ func TestSendNewTask(t *testing.T) {
 		},
 	}
 
-	aggregator, mockAvsWriterer, mockBlsAggService, err := createMockAggregator(mockCtrl, operatorPubkeyDict)
+	aggregator, mockAvsWriterer, mockTaskBlsAggService, _, err := createMockAggregator(mockCtrl, operatorPubkeyDict)
 	assert.Nil(t, err)
 
 	var TASK_INDEX = uint32(0)
@@ -71,7 +72,7 @@ func TestSendNewTask(t *testing.T) {
 	// make sure that initializeNewTask was called on the blsAggService
 	// maybe there's a better way to do this? There's a saying "don't mock 3rd party code"
 	// see https://hynek.me/articles/what-to-mock-in-5-mins/
-	mockBlsAggService.EXPECT().InitializeNewTask(TASK_INDEX, BLOCK_NUMBER, types.QUORUM_NUMBERS, []uint32{types.QUORUM_THRESHOLD_NUMERATOR}, taskTimeToExpiry)
+	mockTaskBlsAggService.EXPECT().InitializeNewTask(TASK_INDEX, BLOCK_NUMBER, types.QUORUM_NUMBERS, []uint32{types.QUORUM_THRESHOLD_NUMERATOR}, taskTimeToExpiry)
 
 	err = aggregator.sendNewCheckpointTask(FROM_NEAR_BLOCK, TO_NEAR_BLOCK)
 	assert.Nil(t, err)
@@ -79,19 +80,22 @@ func TestSendNewTask(t *testing.T) {
 
 func createMockAggregator(
 	mockCtrl *gomock.Controller, operatorPubkeyDict map[bls.OperatorId]types.OperatorInfo,
-) (*Aggregator, *chainiomocks.MockAvsWriterer, *blsaggservmock.MockBlsAggregationService, error) {
+) (*Aggregator, *chainiomocks.MockAvsWriterer, *blsaggservmock.MockBlsAggregationService, *mocks.MockMessageBlsAggregationService, error) {
 	logger := sdklogging.NewNoopLogger()
 	mockAvsWriter := chainiomocks.NewMockAvsWriterer(mockCtrl)
-	mockBlsAggregationService := blsaggservmock.NewMockBlsAggregationService(mockCtrl)
+	mockTaskBlsAggregationService := blsaggservmock.NewMockBlsAggregationService(mockCtrl)
+	mockMessageBlsAggregationService := mocks.NewMockMessageBlsAggregationService(mockCtrl)
 
 	aggregator := &Aggregator{
-		logger:                    logger,
-		avsWriter:                 mockAvsWriter,
-		taskBlsAggregationService: mockBlsAggregationService,
-		tasks:                     make(map[types.TaskIndex]taskmanager.CheckpointTask),
-		taskResponses:             make(map[types.TaskIndex]map[sdktypes.TaskResponseDigest]taskmanager.CheckpointTaskResponse),
+		logger:                       logger,
+		avsWriter:                    mockAvsWriter,
+		taskBlsAggregationService:    mockTaskBlsAggregationService,
+		messageBlsAggregationService: mockMessageBlsAggregationService,
+		tasks:                        make(map[types.TaskIndex]taskmanager.CheckpointTask),
+		taskResponses:                make(map[types.TaskIndex]map[sdktypes.TaskResponseDigest]taskmanager.CheckpointTaskResponse),
+		stateRootUpdates:             make(map[types.MessageDigest]servicemanager.StateRootUpdateMessage),
 	}
-	return aggregator, mockAvsWriter, mockBlsAggregationService, nil
+	return aggregator, mockAvsWriter, mockTaskBlsAggregationService, mockMessageBlsAggregationService, nil
 }
 
 // just a mock ethclient to pass to bindings
