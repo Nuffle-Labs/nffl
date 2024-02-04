@@ -9,8 +9,7 @@ use near_sdk::{env, near_bindgen, AccountId, PanicOnDefault};
 use alloy_primitives::{Address, FixedBytes};
 use alloy_sol_types::{eip712_domain, sol, Eip712Domain, SolStruct, SolValue};
 use near_sdk_contract_tools::{
-    hook::Hook, standard::nep145::hooks::PredecessorStorageAccountingHook, standard::nep145::*,
-    Nep145,
+    hook::Hook, standard::nep145::hooks::PredecessorStorageAccountingHook, standard::nep145::*, Nep145,
 };
 
 sol! {
@@ -134,26 +133,18 @@ impl SFFLAgreementRegistry {
             let address = contract.ecrecover(&signing_hash, signature, v, true);
 
             if address != msg.ethAddress {
-                std::panic!(
-                    "Wrong message address: expected {}, found {}",
-                    msg.ethAddress,
-                    address
-                );
+                std::panic!("Wrong message address: expected {}, found {}", msg.ethAddress, address);
             }
 
-            let account_id = AccountId::from_str(&msg.nearAccountId)
-                .unwrap_or_else(|_| std::panic!("Invalid account ID"));
+            let account_id =
+                AccountId::from_str(&msg.nearAccountId).unwrap_or_else(|_| std::panic!("Invalid account ID"));
 
             contract.operator_eth_address.insert(account_id, address.0 .0);
         })
     }
 
     #[payable]
-    pub fn post_state_root_update_signature(
-        &mut self,
-        msg: StateRootUpdateMessage,
-        signature: &FixedBytes<64>,
-    ) {
+    pub fn post_state_root_update_signature(&mut self, msg: StateRootUpdateMessage, signature: &FixedBytes<64>) {
         PredecessorStorageAccountingHook::hook(self, &(), |contract| {
             let eth_address = contract.caller_eth_address();
             let msg_hash = env::keccak256_array(&msg.abi_encode());
@@ -185,11 +176,7 @@ impl SFFLAgreementRegistry {
             })
     }
 
-    pub fn post_operator_set_update_signature(
-        &mut self,
-        msg: OperatorSetUpdateMessage,
-        signature: &FixedBytes<64>,
-    ) {
+    pub fn post_operator_set_update_signature(&mut self, msg: OperatorSetUpdateMessage, signature: &FixedBytes<64>) {
         PredecessorStorageAccountingHook::hook(self, &(), |contract| {
             let eth_address = contract.caller_eth_address();
             let msg_hash = env::keccak256_array(&msg.abi_encode());
@@ -202,26 +189,15 @@ impl SFFLAgreementRegistry {
     }
 
     #[private]
-    fn get_and_init_operator_set_updates(
-        &mut self,
-        id: u64,
-    ) -> &mut Vector<OperatorSetUpdateMessage> {
+    fn get_and_init_operator_set_updates(&mut self, id: u64) -> &mut Vector<OperatorSetUpdateMessage> {
         self.operator_set_updates.entry(id).or_insert_with(|| {
-            let prefix: Vec<u8> = [
-                b"operator_set_updates_vec".as_slice(),
-                id.to_be_bytes().as_slice(),
-            ]
-            .concat();
+            let prefix: Vec<u8> = [b"operator_set_updates_vec".as_slice(), id.to_be_bytes().as_slice()].concat();
 
             Vector::new(prefix)
         })
     }
 
-    pub fn post_checkpoint_signature(
-        &mut self,
-        msg: CheckpointTaskResponseMessage,
-        signature: &FixedBytes<64>,
-    ) {
+    pub fn post_checkpoint_signature(&mut self, msg: CheckpointTaskResponseMessage, signature: &FixedBytes<64>) {
         PredecessorStorageAccountingHook::hook(self, &(), |contract| {
             let eth_address = contract.caller_eth_address();
             let msg_hash = env::keccak256_array(&msg.abi_encode());
@@ -252,16 +228,10 @@ impl SFFLAgreementRegistry {
     }
 
     pub fn get_eth_address(&self, account_id: &AccountId) -> Option<Address> {
-        self.operator_eth_address
-            .get(&account_id)
-            .map(Address::from)
+        self.operator_eth_address.get(&account_id).map(Address::from)
     }
 
-    pub fn get_state_root_updates(
-        &self,
-        rollup_id: u32,
-        block_height: u64,
-    ) -> Option<Vec<&StateRootUpdateMessage>> {
+    pub fn get_state_root_updates(&self, rollup_id: u32, block_height: u64) -> Option<Vec<&StateRootUpdateMessage>> {
         self.state_root_updates
             .get(&(rollup_id, block_height))
             .and_then(|vector| Some(vector.iter().collect()))
@@ -273,20 +243,13 @@ impl SFFLAgreementRegistry {
             .and_then(|vector| Some(vector.iter().collect()))
     }
 
-    pub fn get_checkpoint_task_responses(
-        &self,
-        task_id: u32,
-    ) -> Option<Vec<&CheckpointTaskResponseMessage>> {
+    pub fn get_checkpoint_task_responses(&self, task_id: u32) -> Option<Vec<&CheckpointTaskResponseMessage>> {
         self.checkpoint_task_responses
             .get(&task_id)
             .and_then(|vector| Some(vector.iter().collect()))
     }
 
-    pub fn get_message_signature(
-        &self,
-        msg_hash: &FixedBytes<32>,
-        eth_address: &Address,
-    ) -> Option<FixedBytes<64>> {
+    pub fn get_message_signature(&self, msg_hash: &FixedBytes<32>, eth_address: &Address) -> Option<FixedBytes<64>> {
         self.message_signatures
             .get(&msg_hash.0)
             .and_then(|addr_to_sig| addr_to_sig.get(&eth_address.0 .0))
@@ -302,19 +265,13 @@ impl SFFLAgreementRegistry {
     }
 
     #[private]
-    fn push_bls_signature(
-        &mut self,
-        msg_hash: &[u8; 32],
-        eth_address: &[u8; 20],
-        signature: &[u8; 64],
-    ) -> bool {
+    fn push_bls_signature(&mut self, msg_hash: &[u8; 32], eth_address: &[u8; 20], signature: &[u8; 64]) -> bool {
         let mut had_key = true;
 
         let map = self.message_signatures.entry(*msg_hash).or_insert_with(|| {
             had_key = false;
 
-            let prefix: Vec<u8> =
-                [b"message_signatures_map".as_slice(), msg_hash.as_slice()].concat();
+            let prefix: Vec<u8> = [b"message_signatures_map".as_slice(), msg_hash.as_slice()].concat();
 
             LookupMap::new(prefix)
         });
@@ -332,12 +289,7 @@ impl SFFLAgreementRegistry {
         v: u8,
         malleability_flag: bool,
     ) -> Address {
-        match env::ecrecover(
-            msg_hash.as_slice(),
-            signature.as_slice(),
-            v,
-            malleability_flag,
-        ) {
+        match env::ecrecover(msg_hash.as_slice(), signature.as_slice(), v, malleability_flag) {
             Some(pubkey) => {
                 let hash = env::keccak256_array(&pubkey);
 
@@ -392,9 +344,7 @@ mod tests {
         let msg = msg.unwrap_or(&init_msg);
 
         let signing_hash = msg.eip712_signing_hash(&DOMAIN);
-        let (signature, recid) = signing_key
-            .sign_prehash_recoverable(signing_hash.as_slice())
-            .unwrap();
+        let (signature, recid) = signing_key.sign_prehash_recoverable(signing_hash.as_slice()).unwrap();
 
         _storage_deposit(contract);
         contract.init_operator(
@@ -413,10 +363,7 @@ mod tests {
 
         let mut contract = SFFLAgreementRegistry::new();
 
-        assert_eq!(
-            contract.get_eth_address(&"alice.near".parse().unwrap()),
-            None
-        );
+        assert_eq!(contract.get_eth_address(&"alice.near".parse().unwrap()), None);
 
         let eth_address = _init_operator(
             &mut contract,
@@ -462,10 +409,9 @@ mod tests {
 
         let mut contract = SFFLAgreementRegistry::new();
 
-        let signing_key = SigningKey::from_bytes(
-            &hex!("4c0883a69102937d6231471b5dbb6204fe5129617082792ae468d01a3f362318").into(),
-        )
-        .unwrap();
+        let signing_key =
+            SigningKey::from_bytes(&hex!("4c0883a69102937d6231471b5dbb6204fe5129617082792ae468d01a3f362318").into())
+                .unwrap();
         let eth_address = secret_key_to_address(&signing_key);
 
         let msg = EthNearAccountLink {
@@ -528,10 +474,7 @@ mod tests {
             ),
             None
         );
-        assert_eq!(
-            contract.get_state_root_updates(msg.rollupId, msg.blockHeight),
-            None
-        );
+        assert_eq!(contract.get_state_root_updates(msg.rollupId, msg.blockHeight), None);
 
         contract.post_state_root_update_signature(msg.clone(), &FixedBytes::<64>::ZERO);
 
@@ -932,10 +875,7 @@ mod tests {
             ),
             None
         );
-        assert_eq!(
-            contract.get_checkpoint_task_responses(msg.referenceTaskIndex),
-            None
-        );
+        assert_eq!(contract.get_checkpoint_task_responses(msg.referenceTaskIndex), None);
 
         contract.post_checkpoint_signature(msg.clone(), &FixedBytes::<64>::ZERO);
 

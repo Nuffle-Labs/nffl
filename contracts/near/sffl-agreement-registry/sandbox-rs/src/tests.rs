@@ -78,11 +78,7 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
         .await?
         .into_result()?;
 
-    let _ = alice
-        .call(contract.id(), "new")
-        .transact()
-        .await?
-        .into_result()?;
+    let _ = alice.call(contract.id(), "new").transact().await?.into_result()?;
 
     let _ = alice
         .call(contract.id(), "storage_deposit")
@@ -114,9 +110,7 @@ async fn test_operator_setup(
     };
 
     let signing_hash = msg.eip712_signing_hash(&DOMAIN);
-    let (signature, recid) = signing_key
-        .sign_prehash_recoverable(signing_hash.as_slice())
-        .unwrap();
+    let (signature, recid) = signing_key.sign_prehash_recoverable(signing_hash.as_slice()).unwrap();
 
     let _ = account
         .call(contract.id(), "init_operator")
@@ -145,10 +139,7 @@ async fn test_operator_setup(
     Ok(())
 }
 
-async fn test_message_submission(
-    account: &Account,
-    contract: &Contract,
-) -> Result<(), Box<dyn std::error::Error>> {
+async fn test_message_submission(account: &Account, contract: &Contract) -> Result<(), Box<dyn std::error::Error>> {
     let msg = StateRootUpdateMessage {
         rollupId: 1,
         blockHeight: 2,
