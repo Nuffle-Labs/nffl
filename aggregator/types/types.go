@@ -1,6 +1,7 @@
 package types
 
 import (
+	"github.com/Layr-Labs/eigensdk-go/crypto/bls"
 	sdktypes "github.com/Layr-Labs/eigensdk-go/types"
 	"github.com/ethereum/go-ethereum/common"
 )
@@ -25,4 +26,18 @@ type MessageDigest = [32]byte
 type OperatorInfo struct {
 	OperatorPubkeys sdktypes.OperatorPubkeys
 	OperatorAddr    common.Address
+}
+
+type MessageBlsAggregationServiceResponse struct {
+	Err                          error
+	EthBlockNumber               uint64
+	MessageDigest                MessageDigest
+	NonSignersPubkeysG1          []*bls.G1Point
+	QuorumApksG1                 []*bls.G1Point
+	SignersApkG2                 *bls.G2Point
+	SignersAggSigG1              *bls.Signature
+	NonSignerQuorumBitmapIndices []uint32
+	QuorumApkIndices             []uint32
+	TotalStakeIndices            []uint32
+	NonSignerStakeIndices        [][]uint32
 }

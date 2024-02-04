@@ -6,6 +6,7 @@ import (
 	"net/http"
 	"strconv"
 
+	"github.com/NethermindEth/near-sffl/aggregator/types"
 	servicemanager "github.com/NethermindEth/near-sffl/contracts/bindings/SFFLServiceManager"
 
 	"github.com/gorilla/mux"
@@ -25,7 +26,7 @@ func (agg *Aggregator) startRestServer(ctx context.Context) error {
 
 type GetStateRootUpdateAggregationResponse struct {
 	message     servicemanager.StateRootUpdateMessage
-	aggregation MessageBlsAggregationServiceResponse
+	aggregation types.MessageBlsAggregationServiceResponse
 }
 
 func (agg *Aggregator) handleGetStateRootUpdateAggregation(w http.ResponseWriter, r *http.Request) {
@@ -43,7 +44,7 @@ func (agg *Aggregator) handleGetStateRootUpdateAggregation(w http.ResponseWriter
 	}
 
 	var message servicemanager.StateRootUpdateMessage
-	var aggregation MessageBlsAggregationServiceResponse
+	var aggregation types.MessageBlsAggregationServiceResponse
 
 	err = agg.fetchStateRootUpdate(uint32(rollupId), blockHeight, &message)
 	if err != nil {

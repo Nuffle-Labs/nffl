@@ -242,7 +242,7 @@ func (agg *Aggregator) sendNewCheckpointTask(fromTimestamp uint64, toTimestamp u
 	return nil
 }
 
-func (agg *Aggregator) handleStateRootUpdateReachedQuorum(blsAggServiceResp MessageBlsAggregationServiceResponse) {
+func (agg *Aggregator) handleStateRootUpdateReachedQuorum(blsAggServiceResp types.MessageBlsAggregationServiceResponse) {
 	agg.stateRootUpdatesMu.RLock()
 	msg, ok := agg.stateRootUpdates[blsAggServiceResp.MessageDigest]
 	agg.stateRootUpdatesMu.RUnlock()

@@ -37,20 +37,6 @@ var (
 	IncorrectSignatureError = errors.New("Signature verification failed. Incorrect Signature.")
 )
 
-type MessageBlsAggregationServiceResponse struct {
-	Err                          error
-	EthBlockNumber               uint64
-	MessageDigest                aggtypes.MessageDigest
-	NonSignersPubkeysG1          []*bls.G1Point
-	QuorumApksG1                 []*bls.G1Point
-	SignersApkG2                 *bls.G2Point
-	SignersAggSigG1              *bls.Signature
-	NonSignerQuorumBitmapIndices []uint32
-	QuorumApkIndices             []uint32
-	TotalStakeIndices            []uint32
-	NonSignerStakeIndices        [][]uint32
-}
-
 type AggregatedOperators struct {
 	signersApkG2               *bls.G2Point
 	signersAggSigG1            *bls.Signature
@@ -80,11 +66,11 @@ type MessageBlsAggregationService interface {
 		operatorId bls.OperatorId,
 	) error
 
-	GetResponseChannel() <-chan MessageBlsAggregationServiceResponse
+	GetResponseChannel() <-chan aggtypes.MessageBlsAggregationServiceResponse
 }
 
 type MessageBlsAggregatorService struct {
-	aggregatedResponsesC   chan MessageBlsAggregationServiceResponse
+	aggregatedResponsesC   chan aggtypes.MessageBlsAggregationServiceResponse
 	signedMessageDigestsCs map[aggtypes.MessageDigest]chan SignedMessageDigest
 	messageChansMutex      sync.RWMutex
 	avsRegistryService     avsregistry.AvsRegistryService
@@ -96,7 +82,7 @@ var _ MessageBlsAggregationService = (*MessageBlsAggregatorService)(nil)
 
 func NewMessageBlsAggregatorService(avsRegistryService avsregistry.AvsRegistryService, ethClient eth.EthClient, logger logging.Logger) *MessageBlsAggregatorService {
 	return &MessageBlsAggregatorService{
-		aggregatedResponsesC:   make(chan MessageBlsAggregationServiceResponse),
+		aggregatedResponsesC:   make(chan aggtypes.MessageBlsAggregationServiceResponse),
 		signedMessageDigestsCs: make(map[aggtypes.MessageDigest]chan SignedMessageDigest),
 		messageChansMutex:      sync.RWMutex{},
 		avsRegistryService:     avsRegistryService,
@@ -105,7 +91,7 @@ func NewMessageBlsAggregatorService(avsRegistryService avsregistry.AvsRegistrySe
 	}
 }
 
-func (a *MessageBlsAggregatorService) GetResponseChannel() <-chan MessageBlsAggregationServiceResponse {
+func (a *MessageBlsAggregatorService) GetResponseChannel() <-chan aggtypes.MessageBlsAggregationServiceResponse {
 	return a.aggregatedResponsesC
 }
 
@@ -238,13 +224,13 @@ func (a *MessageBlsAggregatorService) singleMessageAggregatorGoroutineFunc(
 				indices, err := a.avsRegistryService.GetCheckSignaturesIndices(&bind.CallOpts{}, uint32(curBlockNum), quorumNumbers, nonSignersOperatorIds)
 				if err != nil {
 					a.logger.Error("Failed to get check signatures indices", "err", err)
-					a.aggregatedResponsesC <- MessageBlsAggregationServiceResponse{
+					a.aggregatedResponsesC <- aggtypes.MessageBlsAggregationServiceResponse{
 						Err: err,
 					}
 					return
 				}
 
-				messageBlsAggregationServiceResponse := MessageBlsAggregationServiceResponse{
+				messageBlsAggregationServiceResponse := aggtypes.MessageBlsAggregationServiceResponse{
 					Err:                          nil,
 					EthBlockNumber:               curBlockNum,
 					MessageDigest:                messageDigest,
@@ -262,7 +248,7 @@ func (a *MessageBlsAggregatorService) singleMessageAggregatorGoroutineFunc(
 				return
 			}
 		case <-messageExpiredTimer.C:
-			a.aggregatedResponsesC <- MessageBlsAggregationServiceResponse{
+			a.aggregatedResponsesC <- aggtypes.MessageBlsAggregationServiceResponse{
 				Err: MessageExpiredError,
 			}
 			return
