@@ -163,26 +163,7 @@ func (agg *Aggregator) Start(ctx context.Context) error {
 			agg.sendAggregatedResponseToContract(blsAggServiceResp)
 		case blsAggServiceResp := <-agg.messageBlsAggregationService.GetResponseChannel():
 			agg.logger.Info("Received response from messageBlsAggregationService", "blsAggServiceResp", blsAggServiceResp)
-
-			agg.stateRootUpdatesMu.RLock()
-			msg, ok := agg.stateRootUpdates[blsAggServiceResp.MessageDigest]
-			agg.stateRootUpdatesMu.RUnlock()
-
-			if !ok {
-				agg.logger.Error("Aggregator could not find matching message")
-				continue
-			}
-
-			err := agg.storeStateRootUpdate(msg)
-			if err != nil {
-				agg.logger.Error("Aggregator could not store message")
-				continue
-			}
-			agg.storeStateRootUpdateAggregation(msg, blsAggServiceResp)
-			if err != nil {
-				agg.logger.Error("Aggregator could not store message aggregation")
-				continue
-			}
+			agg.handleStateRootUpdateReachedQuorum(blsAggServiceResp)
 		case <-ticker.C:
 			err := agg.sendNewCheckpointTask(block, block)
 			block++
@@ -259,4 +240,26 @@ func (agg *Aggregator) sendNewCheckpointTask(fromTimestamp uint64, toTimestamp u
 	taskTimeToExpiry := taskChallengeWindowBlock * blockTimeSeconds
 	agg.taskBlsAggregationService.InitializeNewTask(taskIndex, newTask.TaskCreatedBlock, newTask.QuorumNumbers, quorumThresholds, taskTimeToExpiry)
 	return nil
+}
+
+func (agg *Aggregator) handleStateRootUpdateReachedQuorum(blsAggServiceResp MessageBlsAggregationServiceResponse) {
+	agg.stateRootUpdatesMu.RLock()
+	msg, ok := agg.stateRootUpdates[blsAggServiceResp.MessageDigest]
+	agg.stateRootUpdatesMu.RUnlock()
+
+	if !ok {
+		agg.logger.Error("Aggregator could not find matching message")
+		return
+	}
+
+	err := agg.storeStateRootUpdate(msg)
+	if err != nil {
+		agg.logger.Error("Aggregator could not store message")
+		return
+	}
+	agg.storeStateRootUpdateAggregation(msg, blsAggServiceResp)
+	if err != nil {
+		agg.logger.Error("Aggregator could not store message aggregation")
+		return
+	}
 }
