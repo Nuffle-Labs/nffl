@@ -161,14 +161,14 @@ impl SFFLAgreementRegistry {
             let msg_hash = env::keccak256_array(&msg.abi_encode());
 
             if !contract.push_bls_signature(&msg_hash, &eth_address, &signature.0) {
-                let vec = contract.get_or_insert_state_root_updates(msg.rollupId, msg.blockHeight);
+                let vec = contract.get_and_init_state_root_updates(msg.rollupId, msg.blockHeight);
                 vec.push(msg);
             }
         })
     }
 
     #[private]
-    fn get_or_insert_state_root_updates(
+    fn get_and_init_state_root_updates(
         &mut self,
         rollup_id: u32,
         block_height: u64,
@@ -197,14 +197,14 @@ impl SFFLAgreementRegistry {
             let msg_hash = env::keccak256_array(&msg.abi_encode());
 
             if !contract.push_bls_signature(&msg_hash, &eth_address, &signature.0) {
-                let vec = contract.get_or_insert_operator_set_updates(msg.id);
+                let vec = contract.get_and_init_operator_set_updates(msg.id);
                 vec.push(msg);
             }
         })
     }
 
     #[private]
-    fn get_or_insert_operator_set_updates(
+    fn get_and_init_operator_set_updates(
         &mut self,
         id: u64,
     ) -> &mut Vector<OperatorSetUpdateMessage> {
@@ -229,14 +229,14 @@ impl SFFLAgreementRegistry {
             let msg_hash = env::keccak256_array(&msg.abi_encode());
 
             if !contract.push_bls_signature(&msg_hash, &eth_address, &signature.0) {
-                let vec = contract.get_or_insert_checkpoint_task_response(msg.referenceTaskIndex);
+                let vec = contract.get_and_init_checkpoint_task_response(msg.referenceTaskIndex);
                 vec.push(msg);
             }
         })
     }
 
     #[private]
-    fn get_or_insert_checkpoint_task_response(
+    fn get_and_init_checkpoint_task_response(
         &mut self,
         reference_task_index: u32,
     ) -> &mut Vector<CheckpointTaskResponseMessage> {
