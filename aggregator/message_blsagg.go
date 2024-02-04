@@ -57,6 +57,7 @@ type MessageBlsAggregationService interface {
 		quorumNumbers []types.QuorumNum,
 		quorumThresholdPercentages []types.QuorumThresholdPercentage,
 		timeToExpiry time.Duration,
+		allowAlreadyInitialized bool,
 	) error
 
 	ProcessNewSignature(
@@ -100,10 +101,14 @@ func (a *MessageBlsAggregatorService) InitializeNewMessage(
 	quorumNumbers []types.QuorumNum,
 	quorumThresholdPercentages []types.QuorumThresholdPercentage,
 	timeToExpiry time.Duration,
+	allowAlreadyInitialized bool,
 ) error {
-	if _, taskExists := a.signedMessageDigestsCs[messageDigest]; taskExists {
-		return MessageAlreadyInitializedErrorFn(messageDigest)
+	if !allowAlreadyInitialized {
+		if _, taskExists := a.signedMessageDigestsCs[messageDigest]; taskExists {
+			return MessageAlreadyInitializedErrorFn(messageDigest)
+		}
 	}
+
 	signedMessageDigestsC := make(chan SignedMessageDigest)
 	a.messageChansMutex.Lock()
 	a.signedMessageDigestsCs[messageDigest] = signedMessageDigestsC

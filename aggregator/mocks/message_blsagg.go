@@ -56,17 +56,17 @@ func (mr *MockMessageBlsAggregationServiceMockRecorder) GetResponseChannel() *go
 }
 
 // InitializeNewMessage mocks base method.
-func (m *MockMessageBlsAggregationService) InitializeNewMessage(arg0 [32]byte, arg1 []byte, arg2 []uint32, arg3 time.Duration) error {
+func (m *MockMessageBlsAggregationService) InitializeNewMessage(arg0 [32]byte, arg1 []byte, arg2 []uint32, arg3 time.Duration, arg4 bool) error {
 	m.ctrl.T.Helper()
-	ret := m.ctrl.Call(m, "InitializeNewMessage", arg0, arg1, arg2, arg3)
+	ret := m.ctrl.Call(m, "InitializeNewMessage", arg0, arg1, arg2, arg3, arg4)
 	ret0, _ := ret[0].(error)
 	return ret0
 }
 
 // InitializeNewMessage indicates an expected call of InitializeNewMessage.
-func (mr *MockMessageBlsAggregationServiceMockRecorder) InitializeNewMessage(arg0, arg1, arg2, arg3 any) *gomock.Call {
+func (mr *MockMessageBlsAggregationServiceMockRecorder) InitializeNewMessage(arg0, arg1, arg2, arg3, arg4 any) *gomock.Call {
 	mr.mock.ctrl.T.Helper()
-	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "InitializeNewMessage", reflect.TypeOf((*MockMessageBlsAggregationService)(nil).InitializeNewMessage), arg0, arg1, arg2, arg3)
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "InitializeNewMessage", reflect.TypeOf((*MockMessageBlsAggregationService)(nil).InitializeNewMessage), arg0, arg1, arg2, arg3, arg4)
 }
 
 // ProcessNewSignature mocks base method.
