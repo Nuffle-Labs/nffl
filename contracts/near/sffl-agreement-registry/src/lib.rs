@@ -229,14 +229,14 @@ impl SFFLAgreementRegistry {
             let msg_hash = env::keccak256_array(&msg.abi_encode());
 
             if !contract.push_bls_signature(&msg_hash, &eth_address, &signature.0) {
-                let vec = contract.get_and_init_checkpoint_task_response(msg.referenceTaskIndex);
+                let vec = contract.get_and_init_checkpoint_task_responses(msg.referenceTaskIndex);
                 vec.push(msg);
             }
         })
     }
 
     #[private]
-    fn get_and_init_checkpoint_task_response(
+    fn get_and_init_checkpoint_task_responses(
         &mut self,
         reference_task_index: u32,
     ) -> &mut Vector<CheckpointTaskResponseMessage> {
