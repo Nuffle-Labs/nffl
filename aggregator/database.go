@@ -12,7 +12,13 @@ import (
 )
 
 func (agg *Aggregator) startDatabase(ctx context.Context) error {
-	db, err := badger.Open(badger.DefaultOptions(agg.databasePath))
+	opt := badger.DefaultOptions(agg.databasePath)
+
+	if agg.databasePath == "" {
+		opt = opt.WithInMemory(true)
+	}
+
+	db, err := badger.Open(opt)
 	if err != nil {
 		return err
 	}
