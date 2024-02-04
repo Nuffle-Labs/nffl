@@ -23,12 +23,12 @@ func (agg *Aggregator) startRestServer(ctx context.Context) error {
 	return nil
 }
 
-type GetStateRootUpdatesResponse struct {
+type GetStateRootUpdateAggregationResponse struct {
 	message     servicemanager.StateRootUpdateMessage
 	aggregation MessageBlsAggregationServiceResponse
 }
 
-func (agg *Aggregator) handleGetStateRootUpdates(w http.ResponseWriter, r *http.Request) {
+func (agg *Aggregator) handleGetStateRootUpdateAggregation(w http.ResponseWriter, r *http.Request) {
 	params := r.URL.Query()
 	rollupId, err := strconv.ParseUint(params.Get("rollupId"), 10, 32)
 	if err != nil {
@@ -59,7 +59,7 @@ func (agg *Aggregator) handleGetStateRootUpdates(w http.ResponseWriter, r *http.
 
 	w.WriteHeader(http.StatusOK)
 	w.Header().Set("Content-Type", "application/json")
-	json.NewEncoder(w).Encode(GetStateRootUpdatesResponse{
+	json.NewEncoder(w).Encode(GetStateRootUpdateAggregationResponse{
 		message:     message,
 		aggregation: aggregation,
 	})
