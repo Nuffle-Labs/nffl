@@ -13,7 +13,7 @@ import (
 
 func (agg *Aggregator) startRestServer(ctx context.Context) error {
 	router := mux.NewRouter()
-	router.HandleFunc("/state-root-updates", agg.handleGetStateRootUpdates).Methods("GET")
+	router.HandleFunc("aggregation/state-root-update", agg.handleGetStateRootUpdateAggregation).Methods("GET")
 
 	err := http.ListenAndServe(agg.restServerIpPortAddr, router)
 	if err != nil {
