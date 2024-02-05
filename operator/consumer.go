@@ -13,8 +13,8 @@ import (
 )
 
 const (
-	reconnectDelay = 3 * time.Second
-	rechannelDelay = 2 * time.Second
+	RECONNECT_DELAY = 3 * time.Second
+	RECHANNEL_DELAY = 2 * time.Second
 )
 
 var (
@@ -84,7 +84,7 @@ func (consumer *Consumer) Reconnect(addr string, ctx context.Context) {
 			case <-ctx.Done():
 				consumer.logger.Info("Consumer context canceled")
 				return
-			case <-time.After(reconnectDelay):
+			case <-time.After(RECONNECT_DELAY):
 			}
 
 			continue
@@ -159,7 +159,7 @@ func (consumer *Consumer) ResetChannel(conn *rmq.Connection, ctx context.Context
 
 				consumer.logger.Warn("Recovering connection, closed with:", "err", err)
 				return false
-			case <-time.After(rechannelDelay):
+			case <-time.After(RECHANNEL_DELAY):
 			}
 
 			continue
