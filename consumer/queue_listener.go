@@ -11,14 +11,13 @@ import (
 
 // TODO: rename to deliveries smth?
 type QueuesListener struct {
-	blockstream chan BlockData
-
+	blockstream     chan<- BlockData
 	queueDeliveries map[string]<-chan rmq.Delivery
 }
 
-func NewQueuesListener(deliveries map[string]<-chan rmq.Delivery, ctx context.Context) QueuesListener {
+func NewQueuesListener(deliveries map[string]<-chan rmq.Delivery, blockstream chan<- BlockData, ctx context.Context) QueuesListener {
 	listener := QueuesListener{
-		blockstream:     make(chan BlockData),
+		blockstream:     blockstream,
 		queueDeliveries: deliveries,
 	}
 
@@ -35,22 +34,26 @@ func (listener *QueuesListener) listen(name string, stream <-chan rmq.Delivery, 
 	for {
 		select {
 		case d, ok := <-stream:
-			// TODO
-			if ok {
+			if !ok {
+				fmt.Println("deliveries channel close, network id:", id)
 				break
 			}
 
-			// Decode block
+			fmt.Println("New delivery, network id:", id)
+
 			var block types.Block
 			if err := rlp.DecodeBytes(d.Body, &block); err != nil {
-				fmt.Println("invalid block")
 				// TODO: pass error smwr
+				fmt.Println("invalid block")
 				continue
 			}
 
+			// TODO: case with multiple consumers from same queue
 			listener.blockstream <- BlockData{NetworkId: id, Block: block}
+			d.Ack(true)
 
 		case <-ctx.Done():
+			fmt.Println("context shutdown")
 			// TODO: some closing and canceling here
 			break
 		}

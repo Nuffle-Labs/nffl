@@ -45,9 +45,10 @@ type BlockData struct {
 	Block     types.Block
 }
 
+// TODO: add logger
 type Consumer struct {
 	consumerTag string
-	blockstream <-chan BlockData
+	blockstream chan BlockData
 
 	isReady           bool
 	contextCancelFunc context.CancelFunc
@@ -77,6 +78,8 @@ func NewConsumer(config ConsumerConfig) Consumer {
 
 func (consumer *Consumer) Reconnect(addr string, ctx context.Context) {
 	for {
+		fmt.Println("Reconnecting...")
+
 		consumer.isReady = false
 		conn, err := consumer.connect(addr)
 		if err != nil {
@@ -95,6 +98,7 @@ func (consumer *Consumer) Reconnect(addr string, ctx context.Context) {
 			return
 		}
 
+		fmt.Println("Connected")
 		select {
 		case err := <-ctx.Done():
 			ctx.Err()
@@ -179,10 +183,8 @@ func (consumer *Consumer) setupChannel(conn *rmq.Connection, ctx context.Context
 
 	queueDeliveries := make(map[string]<-chan rmq.Delivery)
 	for i := range consumer.queues {
-		fmt.Println("heh")
 		queue, err := channel.QueueDeclare(consumer.queues[i], true, false, false, false, nil)
 		if err != nil {
-			fmt.Println("hmm", err)
 			return err
 		}
 
@@ -203,9 +205,8 @@ func (consumer *Consumer) setupChannel(conn *rmq.Connection, ctx context.Context
 		queueDeliveries[queue.Name] = deliveries
 	}
 
-	listener := NewQueuesListener(queueDeliveries, ctx)
+	listener := NewQueuesListener(queueDeliveries, consumer.blockstream, ctx)
 	consumer.queuesListener = listener
-	consumer.blockstream = listener.blockstream
 
 	consumer.changeChannel(channel)
 	consumer.isReady = true
