@@ -67,7 +67,7 @@ func NewConsumer(config ConsumerConfig, logger logging.Logger) Consumer {
 
 func (consumer *Consumer) Reconnect(addr string, ctx context.Context) {
 	for {
-		consumer.logger.Infof("Reconnecting...")
+		consumer.logger.Info("Reconnecting...")
 
 		consumer.isReady = false
 		conn, err := consumer.connect(addr)
@@ -88,7 +88,7 @@ func (consumer *Consumer) Reconnect(addr string, ctx context.Context) {
 			return
 		}
 
-		consumer.logger.Infof("Connected")
+		consumer.logger.Info("Connected")
 
 		select {
 		case <-ctx.Done():
@@ -102,7 +102,7 @@ func (consumer *Consumer) Reconnect(addr string, ctx context.Context) {
 				break
 			}
 
-			consumer.logger.Warnf("Recovering connection, closed with:", "err", err)
+			consumer.logger.Warn("Recovering connection, closed with:", "err", err)
 
 		case err := <-consumer.onChanClosed:
 			if !err.Recover {
@@ -111,7 +111,7 @@ func (consumer *Consumer) Reconnect(addr string, ctx context.Context) {
 			}
 
 			// TODO: Reconnect not the whole connection but just a channel?
-			consumer.logger.Warnf("Reconnecting channel, closed with:", "err", err)
+			consumer.logger.Warn("Reconnecting channel, closed with:", "err", err)
 		}
 	}
 }
@@ -152,7 +152,7 @@ func (consumer *Consumer) ResetChannel(conn *rmq.Connection, ctx context.Context
 					return true
 				}
 
-				consumer.logger.Warnf("Recovering connection, closed with:", "err", err)
+				consumer.logger.Warn("Recovering connection, closed with:", "err", err)
 				return false
 			case <-time.After(rechannelDelay):
 			}
