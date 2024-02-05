@@ -55,8 +55,7 @@ type Consumer struct {
 
 // TODO: Pass default queues in config?
 func NewConsumer(config ConsumerConfig, logger logging.Logger) Consumer {
-	// TODO: context.TODO() or background?
-	ctx, cancel := context.WithCancel(context.TODO())
+	ctx, cancel := context.WithCancel(context.Background())
 	consumer := Consumer{
 		consumerTag:       config.ConsumerTag,
 		queues:            config.QueueNames,
