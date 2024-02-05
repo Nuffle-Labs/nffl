@@ -232,7 +232,7 @@ func (consumer *Consumer) listen(rollupId uint32, rollupDataC <-chan rmq.Deliver
 			}
 
 			consumer.receivedBlocksC <- BlockData{RollupId: rollupId, Block: block}
-			d.Ack(true)
+			d.Ack(false)
 
 		case <-ctx.Done():
 			consumer.logger.Info("Consumer context canceled")
