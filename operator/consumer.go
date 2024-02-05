@@ -32,6 +32,13 @@ type BlockData struct {
 	Block    types.Block
 }
 
+type Consumerer interface {
+	Reconnect(addr string, ctx context.Context)
+	ResetChannel(conn *rmq.Connection, ctx context.Context) bool
+	Close() error
+	GetBlockStream() <-chan BlockData
+}
+
 type Consumer struct {
 	consumerTag     string
 	receivedBlocksC chan BlockData

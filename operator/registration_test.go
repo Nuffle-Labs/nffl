@@ -1,9 +1,11 @@
 package operator
 
 import (
+	"context"
 	"testing"
 
 	"github.com/prometheus/client_golang/prometheus"
+	rmq "github.com/rabbitmq/amqp091-go"
 	"github.com/stretchr/testify/assert"
 
 	"github.com/Layr-Labs/eigensdk-go/crypto/bls"
@@ -25,22 +27,47 @@ var MOCK_OPERATOR_ID = [32]byte{207, 73, 226, 221, 104, 100, 123, 41, 192, 3, 9,
 func IntegrationTestOperatorRegistration(t *testing.T) {
 	anvilCmd := tests.StartAnvilChainAndDeployContracts()
 	defer anvilCmd.Process.Kill()
-	operator, err := createMockOperator()
+	operator, _, err := createMockOperator()
 	assert.Nil(t, err)
 	err = operator.RegisterOperatorWithEigenlayer()
 	assert.Nil(t, err)
 }
 
-func createMockOperator() (*Operator, error) {
+type MockConsumer struct {
+	blockReceivedC chan BlockData
+}
+
+func createMockConsumer() *MockConsumer {
+	return &MockConsumer{
+		blockReceivedC: make(chan BlockData),
+	}
+}
+func (c *MockConsumer) Reconnect(addr string, ctx context.Context) {}
+func (c *MockConsumer) ResetChannel(conn *rmq.Connection, ctx context.Context) bool {
+	return true
+}
+func (c *MockConsumer) Close() error {
+	return nil
+}
+func (c *MockConsumer) GetBlockStream() <-chan BlockData {
+	return c.blockReceivedC
+}
+func (c *MockConsumer) MockReceiveBlockData(data BlockData) {
+	c.blockReceivedC <- data
+}
+
+func createMockOperator() (*Operator, *MockConsumer, error) {
 	logger := sdklogging.NewNoopLogger()
 	reg := prometheus.NewRegistry()
 	noopMetrics := metrics.NewNoopMetrics()
 
 	blsPrivateKey, err := bls.NewPrivateKey(MOCK_OPERATOR_BLS_PRIVATE_KEY)
 	if err != nil {
-		return nil, err
+		return nil, nil, err
 	}
 	operatorKeypair := bls.NewKeyPair(blsPrivateKey)
+
+	mockConsumer := createMockConsumer()
 
 	operator := &Operator{
 		logger:                    logger,
@@ -49,6 +76,8 @@ func createMockOperator() (*Operator, error) {
 		metrics:                   noopMetrics,
 		checkpointTaskCreatedChan: make(chan *taskmanager.ContractSFFLTaskManagerCheckpointTaskCreated),
 		operatorId:                MOCK_OPERATOR_ID,
+		consumer:                  mockConsumer,
 	}
-	return operator, nil
+
+	return operator, mockConsumer, nil
 }

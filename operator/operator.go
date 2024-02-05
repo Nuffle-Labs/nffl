@@ -64,7 +64,7 @@ type Operator struct {
 	// needed when opting in to avs (allow this service manager contract to slash operator)
 	sfflServiceManagerAddr common.Address
 	// NEAR DA indexer consumer
-	consumer *Consumer
+	consumer Consumerer
 }
 
 // TODO(samlaf): config is a mess right now, since the chainio client constructors

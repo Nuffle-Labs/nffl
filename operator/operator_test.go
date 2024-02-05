@@ -22,7 +22,7 @@ import (
 )
 
 func TestOperator(t *testing.T) {
-	operator, err := createMockOperator()
+	operator, _, err := createMockOperator()
 	assert.Nil(t, err)
 	const taskIndex = 1
 
