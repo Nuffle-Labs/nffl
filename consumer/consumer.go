@@ -33,8 +33,8 @@ type BlockData struct {
 }
 
 type Consumer struct {
-	consumerTag string
-	blockstream chan BlockData
+	consumerTag     string
+	receivedBlocksC chan BlockData
 
 	rollupIds []uint32
 
@@ -54,7 +54,7 @@ func NewConsumer(config ConsumerConfig, logger logging.Logger) Consumer {
 	consumer := Consumer{
 		consumerTag:       config.ConsumerTag,
 		rollupIds:         config.RollupIds,
-		blockstream:       make(chan BlockData),
+		receivedBlocksC:   make(chan BlockData),
 		contextCancelFunc: cancel,
 		logger:            logger,
 	}
@@ -127,8 +127,8 @@ func (consumer *Consumer) connect(addr string) (*rmq.Connection, error) {
 func (consumer *Consumer) changeConnection(conn *rmq.Connection) {
 	consumer.connection = conn
 
-	closeNotifier := make(chan *rmq.Error)
-	consumer.connClosedErrC = conn.NotifyClose(closeNotifier)
+	connClosedErrC := make(chan *rmq.Error)
+	consumer.connClosedErrC = conn.NotifyClose(connClosedErrC)
 }
 
 func (consumer *Consumer) ResetChannel(conn *rmq.Connection, ctx context.Context) bool {
@@ -174,7 +174,7 @@ func (consumer *Consumer) setupChannel(conn *rmq.Connection, ctx context.Context
 			return err
 		}
 
-		deliveries, err := channel.Consume(
+		rollupDataC, err := channel.Consume(
 			queue.Name,
 			consumer.consumerTag,
 			false,
@@ -188,7 +188,7 @@ func (consumer *Consumer) setupChannel(conn *rmq.Connection, ctx context.Context
 			return err
 		}
 
-		go consumer.listen(rollupId, deliveries, ctx)
+		go consumer.listen(rollupId, rollupDataC, ctx)
 	}
 
 	consumer.changeChannel(channel)
@@ -199,18 +199,18 @@ func (consumer *Consumer) setupChannel(conn *rmq.Connection, ctx context.Context
 func (consumer *Consumer) changeChannel(channel *rmq.Channel) {
 	consumer.channel = channel
 
-	closeNotifer := make(chan *rmq.Error)
-	consumer.chanClosedErrC = channel.NotifyClose(closeNotifer)
+	chanClosedErrC := make(chan *rmq.Error)
+	consumer.chanClosedErrC = channel.NotifyClose(chanClosedErrC)
 }
 
 func (consumer *Consumer) getQueueName(rollupId uint32) string {
 	return "rollup" + strconv.FormatUint(uint64(rollupId), 10)
 }
 
-func (consumer *Consumer) listen(rollupId uint32, stream <-chan rmq.Delivery, ctx context.Context) {
+func (consumer *Consumer) listen(rollupId uint32, rollupDataC <-chan rmq.Delivery, ctx context.Context) {
 	for {
 		select {
-		case d, ok := <-stream:
+		case d, ok := <-rollupDataC:
 			if !ok {
 				consumer.logger.Info("Deliveries channel close", "rollupId", rollupId)
 				break
@@ -224,7 +224,7 @@ func (consumer *Consumer) listen(rollupId uint32, stream <-chan rmq.Delivery, ct
 				continue
 			}
 
-			consumer.blockstream <- BlockData{RollupId: rollupId, Block: block}
+			consumer.receivedBlocksC <- BlockData{RollupId: rollupId, Block: block}
 			d.Ack(true)
 
 		case <-ctx.Done():
@@ -258,5 +258,5 @@ func (consumer *Consumer) Close() error {
 }
 
 func (consumer Consumer) GetBlockStream() <-chan BlockData {
-	return consumer.blockstream
+	return consumer.receivedBlocksC
 }
