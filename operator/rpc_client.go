@@ -99,6 +99,7 @@ func (c *AggregatorRpcClient) SendSignedStateRootUpdateToAggregator(signedStateR
 			c.logger.Info("Received error from aggregator", "err", err)
 		} else {
 			c.logger.Info("Signed state root update message accepted by aggregator.", "reply", reply)
+			c.metrics.IncNumMessagesAcceptedByAggregator()
 		}
 
 		return err

@@ -17,3 +17,7 @@ func NewNoopMetrics() *NoopMetrics {
 func (m *NoopMetrics) IncNumTasksReceived() {}
 
 func (m *NoopMetrics) IncNumTasksAcceptedByAggregator() {}
+
+func (m *NoopMetrics) IncNumMessagesReceived() {}
+
+func (m *NoopMetrics) IncNumMessagesAcceptedByAggregator() {}
