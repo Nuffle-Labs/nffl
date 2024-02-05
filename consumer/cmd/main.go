@@ -5,6 +5,7 @@ import (
 	"fmt"
 
 	"github.com/Layr-Labs/eigensdk-go/logging"
+
 	"github.com/NethermindEth/near-sffl/consumer"
 )
 
