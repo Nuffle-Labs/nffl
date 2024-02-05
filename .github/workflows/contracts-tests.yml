@@ -10,6 +10,7 @@ jobs:
   Test:
     name: Contracts Forge Test
     runs-on: ubuntu-latest
+    timeout-minutes: 5
     steps:
       - uses: actions/checkout@v3
 
