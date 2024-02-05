@@ -6,9 +6,8 @@ import (
 	"os"
 
 	"github.com/Layr-Labs/eigensdk-go/logging"
+	"github.com/NethermindEth/near-sffl/operator"
 	"github.com/urfave/cli"
-
-	"github.com/NethermindEth/near-sffl/consumer"
 )
 
 func main() {
@@ -60,7 +59,7 @@ func consumerMain(ctx *cli.Context) error {
 		rollupIds[i] = uint32(el)
 	}
 
-	consumer := consumer.NewConsumer(consumer.ConsumerConfig{
+	consumer := operator.NewConsumer(operator.ConsumerConfig{
 		Addr:        ctx.GlobalString("rmq-address"),
 		ConsumerTag: ctx.GlobalString("consumer-tag"),
 		RollupIds:   rollupIds,
