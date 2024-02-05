@@ -21,8 +21,8 @@ var (
 )
 
 func compilerDefaultQueues() []string {
-	keys := make([]string, 0, len(consumer.QueueNamesToNetworkId))
-	for k := range consumer.QueueNamesToNetworkId {
+	keys := make([]string, 0, len(consumer.QueueNamesToRollupId))
+	for k := range consumer.QueueNamesToRollupId {
 		keys = append(keys, k)
 	}
 

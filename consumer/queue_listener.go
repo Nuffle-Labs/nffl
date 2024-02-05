@@ -32,7 +32,7 @@ func (listener *QueuesListener) Add(name string, stream <-chan rmq.Delivery, ctx
 }
 
 func (listener *QueuesListener) listen(name string, stream <-chan rmq.Delivery, ctx context.Context) {
-	id := QueueNamesToNetworkId[name]
+	id := QueueNamesToRollupId[name]
 	for {
 		select {
 		case d, ok := <-stream:
@@ -51,7 +51,7 @@ func (listener *QueuesListener) listen(name string, stream <-chan rmq.Delivery, 
 			}
 
 			// TODO: case with multiple consumers from same queue
-			listener.blockstream <- BlockData{NetworkId: id, Block: block}
+			listener.blockstream <- BlockData{RollupId: id, Block: block}
 			d.Ack(true)
 
 		case <-ctx.Done():

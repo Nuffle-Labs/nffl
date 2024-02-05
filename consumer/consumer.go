@@ -17,7 +17,7 @@ const (
 
 var (
 	// TODO:
-	QueueNamesToNetworkId = map[string]uint{
+	QueueNamesToRollupId = map[string]uint32{
 		"da-mq": 0,
 		// Add mappings
 	}
@@ -32,8 +32,8 @@ type ConsumerConfig struct {
 }
 
 type BlockData struct {
-	NetworkId uint
-	Block     types.Block
+	RollupId uint32
+	Block    types.Block
 }
 
 // TODO: add logger
