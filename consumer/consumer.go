@@ -204,7 +204,7 @@ func (consumer *Consumer) changeChannel(channel *rmq.Channel) {
 }
 
 func (consumer *Consumer) getQueueName(rollupId uint32) string {
-	return strconv.FormatUint(uint64(rollupId), 10)
+	return "rollup" + strconv.FormatUint(uint64(rollupId), 10)
 }
 
 func (consumer *Consumer) listen(rollupId uint32, stream <-chan rmq.Delivery, ctx context.Context) {
