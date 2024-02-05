@@ -5,7 +5,6 @@ import (
 	"errors"
 	"net/http"
 	"net/rpc"
-	"time"
 
 	"github.com/NethermindEth/near-sffl/aggregator/types"
 	servicemanager "github.com/NethermindEth/near-sffl/contracts/bindings/SFFLServiceManager"
@@ -92,7 +91,7 @@ func (agg *Aggregator) ProcessSignedStateRootUpdateMessage(signedStateRootUpdate
 	agg.stateRootUpdates[messageDigest] = signedStateRootUpdateMessage.Message
 	agg.stateRootUpdatesMu.Unlock()
 
-	agg.messageBlsAggregationService.InitializeNewMessage(messageDigest, types.QUORUM_NUMBERS, []uint32{types.QUORUM_THRESHOLD_NUMERATOR}, 1*time.Hour, true)
+	agg.messageBlsAggregationService.InitializeNewMessage(messageDigest, types.QUORUM_NUMBERS, []uint32{types.QUORUM_THRESHOLD_NUMERATOR}, types.MESSAGE_TTL, true)
 
 	err = agg.messageBlsAggregationService.ProcessNewSignature(
 		context.Background(), messageDigest,

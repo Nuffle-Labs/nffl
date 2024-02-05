@@ -1,6 +1,8 @@
 package types
 
 import (
+	"time"
+
 	"github.com/Layr-Labs/eigensdk-go/crypto/bls"
 	sdktypes "github.com/Layr-Labs/eigensdk-go/types"
 	"github.com/ethereum/go-ethereum/common"
@@ -12,6 +14,8 @@ const QUORUM_THRESHOLD_NUMERATOR = uint32(100)
 const QUORUM_THRESHOLD_DENOMINATOR = uint32(100)
 
 const QUERY_FILTER_FROM_BLOCK = uint64(1)
+
+const MESSAGE_TTL = 1 * time.Minute
 
 // we only use a single quorum (quorum 0) for sffl
 var QUORUM_NUMBERS = []byte{0}
