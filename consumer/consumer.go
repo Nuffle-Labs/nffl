@@ -41,9 +41,9 @@ type Consumer struct {
 	isReady           bool
 	contextCancelFunc context.CancelFunc
 	connection        *rmq.Connection
-	onConnClosed      <-chan *rmq.Error
+	connClosedErrC    <-chan *rmq.Error
 	channel           *rmq.Channel
-	onChanClosed      <-chan *rmq.Error
+	chanClosedErrC    <-chan *rmq.Error
 
 	logger logging.Logger
 }
@@ -95,7 +95,7 @@ func (consumer *Consumer) Reconnect(addr string, ctx context.Context) {
 			// deref cancel smth?
 			break
 
-		case err := <-consumer.onConnClosed:
+		case err := <-consumer.connClosedErrC:
 			if !err.Recover {
 				consumer.logger.Error("Can't recover connection", "err", err)
 				break
@@ -103,7 +103,7 @@ func (consumer *Consumer) Reconnect(addr string, ctx context.Context) {
 
 			consumer.logger.Warn("Recovering connection, closed with:", "err", err)
 
-		case err := <-consumer.onChanClosed:
+		case err := <-consumer.chanClosedErrC:
 			if !err.Recover {
 				consumer.logger.Error("Can't recover connection", "err", err)
 				break
@@ -128,7 +128,7 @@ func (consumer *Consumer) changeConnection(conn *rmq.Connection) {
 	consumer.connection = conn
 
 	closeNotifier := make(chan *rmq.Error)
-	consumer.onConnClosed = conn.NotifyClose(closeNotifier)
+	consumer.connClosedErrC = conn.NotifyClose(closeNotifier)
 }
 
 func (consumer *Consumer) ResetChannel(conn *rmq.Connection, ctx context.Context) bool {
@@ -144,7 +144,7 @@ func (consumer *Consumer) ResetChannel(conn *rmq.Connection, ctx context.Context
 				consumer.logger.Info("Consumer context canceled")
 				return true
 
-			case rmqError := <-consumer.onConnClosed:
+			case rmqError := <-consumer.connClosedErrC:
 				if rmqError.Recover {
 					consumer.logger.Error("Can't recover connection", "err", err)
 					return true
@@ -200,7 +200,7 @@ func (consumer *Consumer) changeChannel(channel *rmq.Channel) {
 	consumer.channel = channel
 
 	closeNotifer := make(chan *rmq.Error)
-	consumer.onChanClosed = channel.NotifyClose(closeNotifer)
+	consumer.chanClosedErrC = channel.NotifyClose(closeNotifer)
 }
 
 func (consumer *Consumer) getQueueName(rollupId uint32) string {
@@ -235,7 +235,7 @@ func (consumer *Consumer) listen(rollupId uint32, stream <-chan rmq.Delivery, ct
 	}
 }
 
-func (consumer *Consumer) Close(ctx context.Context) error {
+func (consumer *Consumer) Close() error {
 	if !consumer.isReady {
 		return AlreadyClosedError
 	}
