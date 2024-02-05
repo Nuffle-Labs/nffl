@@ -18,7 +18,7 @@ const (
 )
 
 var (
-	errAlreadyClosed = errors.New("already closed: not connected to the server")
+	AlreadyClosedError = errors.New("consumer connection is already closed")
 )
 
 type ConsumerConfig struct {
@@ -242,7 +242,7 @@ func (consumer *Consumer) listen(rollupId uint32, stream <-chan rmq.Delivery, ct
 
 func (consumer *Consumer) Close(ctx context.Context) error {
 	if !consumer.isReady {
-		return errAlreadyClosed
+		return AlreadyClosedError
 	}
 
 	// shut down goroutines
