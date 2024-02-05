@@ -223,8 +223,7 @@ func (consumer *Consumer) listen(rollupId uint32, stream <-chan rmq.Delivery, ct
 
 			var block types.Block
 			if err := rlp.DecodeBytes(d.Body, &block); err != nil {
-				// TODO: pass error smwr
-				consumer.logger.Warn("Invalid block", "err", err)
+				consumer.logger.Warn("Invalid block", "rollupId", rollupId, "err", err)
 				continue
 			}
 
