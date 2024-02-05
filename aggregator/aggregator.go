@@ -247,8 +247,19 @@ func (agg *Aggregator) handleStateRootUpdateReachedQuorum(blsAggServiceResp type
 	msg, ok := agg.stateRootUpdates[blsAggServiceResp.MessageDigest]
 	agg.stateRootUpdatesMu.RUnlock()
 
+	defer func() {
+		agg.stateRootUpdatesMu.RLock()
+		delete(agg.stateRootUpdates, blsAggServiceResp.MessageDigest)
+		agg.stateRootUpdatesMu.RUnlock()
+	}()
+
 	if !ok {
 		agg.logger.Error("Aggregator could not find matching message")
+		return
+	}
+
+	if blsAggServiceResp.Err != nil {
+		agg.logger.Error("Aggregator BLS service returned error", "err", blsAggServiceResp.Err)
 		return
 	}
 
