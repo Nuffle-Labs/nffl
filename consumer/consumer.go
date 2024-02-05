@@ -3,10 +3,12 @@ package consumer
 import (
 	"context"
 	"errors"
+	"strconv"
 	"time"
 
 	"github.com/Layr-Labs/eigensdk-go/logging"
 	"github.com/ethereum/go-ethereum/core/types"
+	"github.com/ethereum/go-ethereum/rlp"
 	rmq "github.com/rabbitmq/amqp091-go"
 )
 
@@ -16,19 +18,13 @@ const (
 )
 
 var (
-	// TODO:
-	QueueNamesToRollupId = map[string]uint32{
-		"da-mq": 0,
-		// Add mappings
-	}
-
 	errAlreadyClosed = errors.New("already closed: not connected to the server")
 )
 
 type ConsumerConfig struct {
 	Addr        string
 	ConsumerTag string
-	QueueNames  []string
+	RollupIds   []uint32
 }
 
 type BlockData struct {
@@ -40,8 +36,7 @@ type Consumer struct {
 	consumerTag string
 	blockstream chan BlockData
 
-	queues         []string
-	queuesListener QueuesListener
+	rollupIds []uint32
 
 	isReady           bool
 	contextCancelFunc context.CancelFunc
@@ -56,15 +51,17 @@ type Consumer struct {
 // TODO: Pass default queues in config?
 func NewConsumer(config ConsumerConfig, logger logging.Logger) Consumer {
 	ctx, cancel := context.WithCancel(context.Background())
+
 	consumer := Consumer{
 		consumerTag:       config.ConsumerTag,
-		queues:            config.QueueNames,
+		rollupIds:         config.RollupIds,
 		blockstream:       make(chan BlockData),
 		contextCancelFunc: cancel,
 		logger:            logger,
 	}
 
 	go consumer.Reconnect(config.Addr, ctx)
+
 	return consumer
 }
 
@@ -174,9 +171,8 @@ func (consumer *Consumer) setupChannel(conn *rmq.Connection, ctx context.Context
 		return err
 	}
 
-	queueDeliveries := make(map[string]<-chan rmq.Delivery)
-	for i := range consumer.queues {
-		queue, err := channel.QueueDeclare(consumer.queues[i], true, false, false, false, nil)
+	for _, rollupId := range consumer.rollupIds {
+		queue, err := channel.QueueDeclare(consumer.getQueueName(rollupId), true, false, false, false, nil)
 		if err != nil {
 			return err
 		}
@@ -195,11 +191,8 @@ func (consumer *Consumer) setupChannel(conn *rmq.Connection, ctx context.Context
 			return err
 		}
 
-		queueDeliveries[queue.Name] = deliveries
+		go consumer.listen(rollupId, deliveries, ctx)
 	}
-
-	listener := NewQueuesListener(queueDeliveries, consumer.blockstream, consumer.logger, ctx)
-	consumer.queuesListener = listener
 
 	consumer.changeChannel(channel)
 	consumer.isReady = true
@@ -211,6 +204,40 @@ func (consumer *Consumer) changeChannel(channel *rmq.Channel) {
 
 	closeNotifer := make(chan *rmq.Error)
 	consumer.onChanClosed = channel.NotifyClose(closeNotifer)
+}
+
+func (consumer *Consumer) getQueueName(rollupId uint32) string {
+	return strconv.FormatUint(uint64(rollupId), 10)
+}
+
+func (consumer *Consumer) listen(rollupId uint32, stream <-chan rmq.Delivery, ctx context.Context) {
+	for {
+		select {
+		case d, ok := <-stream:
+			if !ok {
+				consumer.logger.Info("Deliveries channel close", "rollupId", rollupId)
+				break
+			}
+
+			consumer.logger.Info("New delivery", "rollupId", rollupId)
+
+			var block types.Block
+			if err := rlp.DecodeBytes(d.Body, &block); err != nil {
+				// TODO: pass error smwr
+				consumer.logger.Warn("Invalid block", "err", err)
+				continue
+			}
+
+			// TODO: case with multiple consumers from same queue
+			consumer.blockstream <- BlockData{RollupId: rollupId, Block: block}
+			d.Ack(true)
+
+		case <-ctx.Done():
+			consumer.logger.Info("Consumer context canceled")
+			// TODO: some closing and canceling here
+			break
+		}
+	}
 }
 
 func (consumer *Consumer) Close(ctx context.Context) error {

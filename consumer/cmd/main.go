@@ -17,19 +17,6 @@ const (
 	defaultConsumerTag = "da-consumer"
 )
 
-var (
-	defaultQueues = compilerDefaultQueues()
-)
-
-func compilerDefaultQueues() []string {
-	keys := make([]string, 0, len(consumer.QueueNamesToRollupId))
-	for k := range consumer.QueueNamesToRollupId {
-		keys = append(keys, k)
-	}
-
-	return keys
-}
-
 func parse() consumer.ConsumerConfig {
 	addr := flag.String(rmqAddressF, defaultRmqAddress, "RMQ address(required)")
 	consumerTag := flag.String(rmqConsumerTagF, defaultConsumerTag, "Consumer tag")
@@ -44,7 +31,7 @@ func parse() consumer.ConsumerConfig {
 	return consumer.ConsumerConfig{
 		Addr:        *addr,
 		ConsumerTag: *consumerTag,
-		QueueNames:  defaultQueues,
+		RollupIds:   []uint32{0},
 	}
 }
 
