@@ -1,10 +1,18 @@
 [workspace]
 
+resolver = "2"
+
 members = [
-    "indexer"
+    "indexer",
+    "contracts/evm/test/ffi/bls-utils",
+    "contracts/near/sffl-agreement-registry",
+    "contracts/near/sffl-agreement-registry/sandbox-rs"
 ]
 
 [workspace.package]
 version = "0.0.1"
 edition = "2021"
 repository = "https://github.com/NethermindEth/near-sffl"
+
+[patch.crates-io]
+parity-secp256k1 = { git = 'https://github.com/paritytech/rust-secp256k1.git' }
