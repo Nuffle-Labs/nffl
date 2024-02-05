@@ -4,6 +4,7 @@ import (
 	"flag"
 	"fmt"
 
+	"github.com/Layr-Labs/eigensdk-go/logging"
 	"github.com/NethermindEth/near-sffl/consumer"
 )
 
@@ -48,8 +49,13 @@ func parse() consumer.ConsumerConfig {
 
 func main() {
 	config := parse()
-	consumer := consumer.NewConsumer(config)
+	logLevel := logging.Development
+	logger, err := logging.NewZapLogger(logLevel)
+	if err != nil {
+		panic(err)
+	}
 
+	consumer := consumer.NewConsumer(config, logger)
 	blockStream := consumer.GetBlockStream()
 
 	for {

@@ -3,9 +3,9 @@ package consumer
 import (
 	"context"
 	"errors"
-	"fmt"
 	"time"
 
+	"github.com/Layr-Labs/eigensdk-go/logging"
 	"github.com/ethereum/go-ethereum/core/types"
 	rmq "github.com/rabbitmq/amqp091-go"
 )
@@ -41,6 +41,9 @@ type Consumer struct {
 	consumerTag string
 	blockstream chan BlockData
 
+	queues         []string
+	queuesListener QueuesListener
+
 	isReady           bool
 	contextCancelFunc context.CancelFunc
 	connection        *rmq.Connection
@@ -48,12 +51,11 @@ type Consumer struct {
 	channel           *rmq.Channel
 	onChanClosed      <-chan *rmq.Error
 
-	queues         []string
-	queuesListener QueuesListener
+	logger logging.Logger
 }
 
 // TODO: Pass default queues in config?
-func NewConsumer(config ConsumerConfig) Consumer {
+func NewConsumer(config ConsumerConfig, logger logging.Logger) Consumer {
 	// TODO: context.TODO() or background?
 	ctx, cancel := context.WithCancel(context.TODO())
 	consumer := Consumer{
@@ -61,6 +63,7 @@ func NewConsumer(config ConsumerConfig) Consumer {
 		queues:            config.QueueNames,
 		blockstream:       make(chan BlockData),
 		contextCancelFunc: cancel,
+		logger:            logger,
 	}
 
 	go consumer.Reconnect(config.Addr, ctx)
@@ -69,15 +72,16 @@ func NewConsumer(config ConsumerConfig) Consumer {
 
 func (consumer *Consumer) Reconnect(addr string, ctx context.Context) {
 	for {
-		fmt.Println("Reconnecting...")
+		consumer.logger.Infof("Reconnecting...")
 
 		consumer.isReady = false
 		conn, err := consumer.connect(addr)
 		if err != nil {
-			fmt.Println(err)
+			consumer.logger.Warn("Connection setup failed", "err", err)
 
 			select {
 			case <-ctx.Done():
+				consumer.logger.Info("Consumer context canceled")
 				return
 			case <-time.After(reconnectDelay):
 			}
@@ -89,30 +93,30 @@ func (consumer *Consumer) Reconnect(addr string, ctx context.Context) {
 			return
 		}
 
-		fmt.Println("Connected")
+		consumer.logger.Infof("Connected")
+
 		select {
-		case err := <-ctx.Done():
-			ctx.Err()
-			fmt.Println(err)
+		case <-ctx.Done():
+			consumer.logger.Info("Consumer context canceled")
 			// deref cancel smth?
 			break
 
 		case err := <-consumer.onConnClosed:
 			if !err.Recover {
-				fmt.Println(err)
+				consumer.logger.Error("Can't recover connection", "err", err)
 				break
 			}
 
-			fmt.Println("Connection closed with err:", err, "Reconnecting...")
+			consumer.logger.Warnf("Recovering connection, closed with:", "err", err)
 
 		case err := <-consumer.onChanClosed:
 			if !err.Recover {
-				fmt.Println(err)
+				consumer.logger.Error("Can't recover connection", "err", err)
 				break
 			}
 
 			// TODO: Reconnect not the whole connection but just a channel?
-			fmt.Println("Channel closed with err:", err, "Reconnecting...")
+			consumer.logger.Warnf("Reconnecting channel, closed with:", "err", err)
 		}
 	}
 }
@@ -140,20 +144,20 @@ func (consumer *Consumer) ResetChannel(conn *rmq.Connection, ctx context.Context
 
 		err := consumer.setupChannel(conn, ctx)
 		if err != nil {
-			fmt.Println(err)
+			consumer.logger.Warn("Channel setup failed", "err", err)
 
 			select {
 			case <-ctx.Done():
-				fmt.Println("Consumer ctx canceled")
+				consumer.logger.Info("Consumer context canceled")
 				return true
 
 			case rmqError := <-consumer.onConnClosed:
 				if rmqError.Recover {
-					fmt.Println("channel can't recover error")
+					consumer.logger.Error("Can't recover connection", "err", err)
 					return true
 				}
 
-				fmt.Println("ResetChannel err:", rmqError)
+				consumer.logger.Warnf("Recovering connection, closed with:", "err", err)
 				return false
 			case <-time.After(rechannelDelay):
 			}
@@ -196,7 +200,7 @@ func (consumer *Consumer) setupChannel(conn *rmq.Connection, ctx context.Context
 		queueDeliveries[queue.Name] = deliveries
 	}
 
-	listener := NewQueuesListener(queueDeliveries, consumer.blockstream, ctx)
+	listener := NewQueuesListener(queueDeliveries, consumer.blockstream, consumer.logger, ctx)
 	consumer.queuesListener = listener
 
 	consumer.changeChannel(channel)
@@ -228,6 +232,7 @@ func (consumer *Consumer) Close(ctx context.Context) error {
 	if err != nil {
 		return err
 	}
+
 	consumer.isReady = false
 	return nil
 }
