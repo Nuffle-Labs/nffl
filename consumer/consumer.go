@@ -36,7 +36,6 @@ type BlockData struct {
 	Block    types.Block
 }
 
-// TODO: add logger
 type Consumer struct {
 	consumerTag string
 	blockstream chan BlockData
