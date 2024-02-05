@@ -48,7 +48,6 @@ type Consumer struct {
 	logger logging.Logger
 }
 
-// TODO: Pass default queues in config?
 func NewConsumer(config ConsumerConfig, logger logging.Logger) Consumer {
 	ctx, cancel := context.WithCancel(context.Background())
 
@@ -110,7 +109,6 @@ func (consumer *Consumer) Reconnect(addr string, ctx context.Context) {
 				break
 			}
 
-			// TODO: Reconnect not the whole connection but just a channel?
 			consumer.logger.Warn("Reconnecting channel, closed with:", "err", err)
 		}
 	}
@@ -165,7 +163,6 @@ func (consumer *Consumer) ResetChannel(conn *rmq.Connection, ctx context.Context
 }
 
 func (consumer *Consumer) setupChannel(conn *rmq.Connection, ctx context.Context) error {
-	// TODO: create multiple chanels?
 	channel, err := conn.Channel()
 	if err != nil {
 		return err
@@ -227,7 +224,6 @@ func (consumer *Consumer) listen(rollupId uint32, stream <-chan rmq.Delivery, ct
 				continue
 			}
 
-			// TODO: case with multiple consumers from same queue
 			consumer.blockstream <- BlockData{RollupId: rollupId, Block: block}
 			d.Ack(true)
 
