@@ -51,6 +51,17 @@ type SignedMessageDigest struct {
 	SignatureVerificationErrorC chan error
 }
 
+type signedMessageDigestValidationInfo struct {
+	operatorsAvsStateDict         map[[32]byte]types.OperatorAvsState
+	quorumsAvsStakeDict           map[uint8]types.QuorumAvsState
+	totalStakePerQuorum           map[uint8]*big.Int
+	quorumApksG1                  []*bls.G1Point
+	aggregatedOperatorsDict       map[types.TaskResponseDigest]AggregatedOperators
+	quorumThresholdPercentagesMap map[uint8]uint32
+	quorumNumbers                 []types.QuorumNum
+	curBlockNum                   uint64
+}
+
 type MessageBlsAggregationService interface {
 	InitializeNewMessage(
 		messageDigest aggtypes.MessageDigest,
@@ -153,6 +164,25 @@ func (a *MessageBlsAggregatorService) singleMessageAggregatorGoroutineFunc(
 ) {
 	defer a.closeMessageGoroutine(messageDigest)
 
+	validationInfo := a.fetchValidationInfo(quorumNumbers, quorumThresholdPercentages)
+	messageExpiredTimer := time.NewTimer(timeToExpiry)
+
+	for {
+		select {
+		case signedMessageDigest := <-signedMessageDigestsC:
+			a.logger.Debug("Message goroutine received new signed message digest", "messageDigest", messageDigest)
+			a.handleSignedMessageDigest(signedMessageDigest, validationInfo)
+			return
+		case <-messageExpiredTimer.C:
+			a.aggregatedResponsesC <- aggtypes.MessageBlsAggregationServiceResponse{
+				Err: MessageExpiredError,
+			}
+			return
+		}
+	}
+}
+
+func (a *MessageBlsAggregatorService) fetchValidationInfo(quorumNumbers []types.QuorumNum, quorumThresholdPercentages []types.QuorumThresholdPercentage) signedMessageDigestValidationInfo {
 	curBlockNum, err := a.ethClient.BlockNumber(context.Background())
 
 	if err != nil {
@@ -180,86 +210,84 @@ func (a *MessageBlsAggregatorService) singleMessageAggregatorGoroutineFunc(
 		quorumApksG1 = append(quorumApksG1, quorumsAvsStakeDict[quorumNumber].AggPubkeyG1)
 	}
 
-	messageExpiredTimer := time.NewTimer(timeToExpiry)
-
 	quorumThresholdPercentagesMap := make(map[types.QuorumNum]types.QuorumThresholdPercentage)
 	for i, quorumNumber := range quorumNumbers {
 		quorumThresholdPercentagesMap[quorumNumber] = quorumThresholdPercentages[i]
 	}
 
-	aggregatedOperatorsDict := map[types.TaskResponseDigest]AggregatedOperators{}
-	for {
-		select {
-		case signedMessageDigest := <-signedMessageDigestsC:
-			a.logger.Debug("Message goroutine received new signed message digest", "messageDigest", messageDigest)
+	return signedMessageDigestValidationInfo{
+		operatorsAvsStateDict:         operatorsAvsStateDict,
+		quorumsAvsStakeDict:           quorumsAvsStakeDict,
+		totalStakePerQuorum:           totalStakePerQuorum,
+		quorumApksG1:                  quorumApksG1,
+		aggregatedOperatorsDict:       make(map[types.TaskResponseDigest]AggregatedOperators),
+		quorumThresholdPercentagesMap: quorumThresholdPercentagesMap,
+		quorumNumbers:                 quorumNumbers,
+		curBlockNum:                   curBlockNum,
+	}
+}
 
-			signedMessageDigest.SignatureVerificationErrorC <- a.verifySignature(messageDigest, signedMessageDigest, operatorsAvsStateDict)
-			digestAggregatedOperators, ok := aggregatedOperatorsDict[signedMessageDigest.MessageDigest]
-			if !ok {
-				digestAggregatedOperators = AggregatedOperators{
-					// we've already verified that the operator is part of the task's quorum, so we don't need checks here
-					signersApkG2:               bls.NewZeroG2Point().Add(operatorsAvsStateDict[signedMessageDigest.OperatorId].Pubkeys.G2Pubkey),
-					signersAggSigG1:            signedMessageDigest.BlsSignature,
-					signersOperatorIdsSet:      map[types.OperatorId]bool{signedMessageDigest.OperatorId: true},
-					signersTotalStakePerQuorum: operatorsAvsStateDict[signedMessageDigest.OperatorId].StakePerQuorum,
-				}
-			} else {
-				digestAggregatedOperators.signersAggSigG1.Add(signedMessageDigest.BlsSignature)
-				digestAggregatedOperators.signersApkG2.Add(operatorsAvsStateDict[signedMessageDigest.OperatorId].Pubkeys.G2Pubkey)
-				digestAggregatedOperators.signersOperatorIdsSet[signedMessageDigest.OperatorId] = true
-				for quorumNum, stake := range operatorsAvsStateDict[signedMessageDigest.OperatorId].StakePerQuorum {
-					if _, ok := digestAggregatedOperators.signersTotalStakePerQuorum[quorumNum]; !ok {
-						digestAggregatedOperators.signersTotalStakePerQuorum[quorumNum] = big.NewInt(0)
-					}
-					digestAggregatedOperators.signersTotalStakePerQuorum[quorumNum].Add(digestAggregatedOperators.signersTotalStakePerQuorum[quorumNum], stake)
-				}
+func (a *MessageBlsAggregatorService) handleSignedMessageDigest(signedMessageDigest SignedMessageDigest, validationInfo signedMessageDigestValidationInfo) {
+	signedMessageDigest.SignatureVerificationErrorC <- a.verifySignature(signedMessageDigest, validationInfo.operatorsAvsStateDict)
+	digestAggregatedOperators, ok := validationInfo.aggregatedOperatorsDict[signedMessageDigest.MessageDigest]
+	if !ok {
+		digestAggregatedOperators = AggregatedOperators{
+			// we've already verified that the operator is part of the task's quorum, so we don't need checks here
+			signersApkG2:               bls.NewZeroG2Point().Add(validationInfo.operatorsAvsStateDict[signedMessageDigest.OperatorId].Pubkeys.G2Pubkey),
+			signersAggSigG1:            signedMessageDigest.BlsSignature,
+			signersOperatorIdsSet:      map[types.OperatorId]bool{signedMessageDigest.OperatorId: true},
+			signersTotalStakePerQuorum: validationInfo.operatorsAvsStateDict[signedMessageDigest.OperatorId].StakePerQuorum,
+		}
+	} else {
+		digestAggregatedOperators.signersAggSigG1.Add(signedMessageDigest.BlsSignature)
+		digestAggregatedOperators.signersApkG2.Add(validationInfo.operatorsAvsStateDict[signedMessageDigest.OperatorId].Pubkeys.G2Pubkey)
+		digestAggregatedOperators.signersOperatorIdsSet[signedMessageDigest.OperatorId] = true
+		for quorumNum, stake := range validationInfo.operatorsAvsStateDict[signedMessageDigest.OperatorId].StakePerQuorum {
+			if _, ok := digestAggregatedOperators.signersTotalStakePerQuorum[quorumNum]; !ok {
+				digestAggregatedOperators.signersTotalStakePerQuorum[quorumNum] = big.NewInt(0)
 			}
-			// update the aggregatedOperatorsDict. Note that we need to assign the whole struct value at once,
-			// because of https://github.com/golang/go/issues/3117
-			aggregatedOperatorsDict[signedMessageDigest.MessageDigest] = digestAggregatedOperators
+			digestAggregatedOperators.signersTotalStakePerQuorum[quorumNum].Add(digestAggregatedOperators.signersTotalStakePerQuorum[quorumNum], stake)
+		}
+	}
+	// update the aggregatedOperatorsDict. Note that we need to assign the whole struct value at once,
+	// because of https://github.com/golang/go/issues/3117
+	validationInfo.aggregatedOperatorsDict[signedMessageDigest.MessageDigest] = digestAggregatedOperators
 
-			if checkIfStakeThresholdsMet(digestAggregatedOperators.signersTotalStakePerQuorum, totalStakePerQuorum, quorumThresholdPercentagesMap) {
-				nonSignersOperatorIds := []types.OperatorId{}
-				for operatorId := range operatorsAvsStateDict {
-					if _, operatorSigned := digestAggregatedOperators.signersOperatorIdsSet[operatorId]; !operatorSigned {
-						nonSignersOperatorIds = append(nonSignersOperatorIds, operatorId)
-					}
-				}
+	if !checkIfStakeThresholdsMet(digestAggregatedOperators.signersTotalStakePerQuorum, validationInfo.totalStakePerQuorum, validationInfo.quorumThresholdPercentagesMap) {
+		return
+	}
 
-				indices, err := a.avsRegistryService.GetCheckSignaturesIndices(&bind.CallOpts{}, uint32(curBlockNum), quorumNumbers, nonSignersOperatorIds)
-				if err != nil {
-					a.logger.Error("Failed to get check signatures indices", "err", err)
-					a.aggregatedResponsesC <- aggtypes.MessageBlsAggregationServiceResponse{
-						Err: err,
-					}
-					return
-				}
-
-				messageBlsAggregationServiceResponse := aggtypes.MessageBlsAggregationServiceResponse{
-					Err:                          nil,
-					EthBlockNumber:               curBlockNum,
-					MessageDigest:                messageDigest,
-					NonSignersPubkeysG1:          getG1PubkeysOfNonSigners(digestAggregatedOperators.signersOperatorIdsSet, operatorsAvsStateDict),
-					QuorumApksG1:                 quorumApksG1,
-					SignersApkG2:                 digestAggregatedOperators.signersApkG2,
-					SignersAggSigG1:              digestAggregatedOperators.signersAggSigG1,
-					NonSignerQuorumBitmapIndices: indices.NonSignerQuorumBitmapIndices,
-					QuorumApkIndices:             indices.QuorumApkIndices,
-					TotalStakeIndices:            indices.TotalStakeIndices,
-					NonSignerStakeIndices:        indices.NonSignerStakeIndices,
-				}
-
-				a.aggregatedResponsesC <- messageBlsAggregationServiceResponse
-				return
-			}
-		case <-messageExpiredTimer.C:
-			a.aggregatedResponsesC <- aggtypes.MessageBlsAggregationServiceResponse{
-				Err: MessageExpiredError,
-			}
-			return
+	nonSignersOperatorIds := []types.OperatorId{}
+	for operatorId := range validationInfo.operatorsAvsStateDict {
+		if _, operatorSigned := digestAggregatedOperators.signersOperatorIdsSet[operatorId]; !operatorSigned {
+			nonSignersOperatorIds = append(nonSignersOperatorIds, operatorId)
 		}
 	}
 
+	indices, err := a.avsRegistryService.GetCheckSignaturesIndices(&bind.CallOpts{}, uint32(validationInfo.curBlockNum), validationInfo.quorumNumbers, nonSignersOperatorIds)
+	if err != nil {
+		a.logger.Error("Failed to get check signatures indices", "err", err)
+		a.aggregatedResponsesC <- aggtypes.MessageBlsAggregationServiceResponse{
+			Err: err,
+		}
+		return
+	}
+
+	messageBlsAggregationServiceResponse := aggtypes.MessageBlsAggregationServiceResponse{
+		Err:                          nil,
+		EthBlockNumber:               validationInfo.curBlockNum,
+		MessageDigest:                signedMessageDigest.MessageDigest,
+		NonSignersPubkeysG1:          getG1PubkeysOfNonSigners(digestAggregatedOperators.signersOperatorIdsSet, validationInfo.operatorsAvsStateDict),
+		QuorumApksG1:                 validationInfo.quorumApksG1,
+		SignersApkG2:                 digestAggregatedOperators.signersApkG2,
+		SignersAggSigG1:              digestAggregatedOperators.signersAggSigG1,
+		NonSignerQuorumBitmapIndices: indices.NonSignerQuorumBitmapIndices,
+		QuorumApkIndices:             indices.QuorumApkIndices,
+		TotalStakeIndices:            indices.TotalStakeIndices,
+		NonSignerStakeIndices:        indices.NonSignerStakeIndices,
+	}
+
+	a.aggregatedResponsesC <- messageBlsAggregationServiceResponse
 }
 
 func (a *MessageBlsAggregatorService) closeMessageGoroutine(messageDigest aggtypes.MessageDigest) {
@@ -269,14 +297,13 @@ func (a *MessageBlsAggregatorService) closeMessageGoroutine(messageDigest aggtyp
 }
 
 func (a *MessageBlsAggregatorService) verifySignature(
-	messageDigest aggtypes.MessageDigest,
 	signedMessageDigest SignedMessageDigest,
 	operatorsAvsStateDict map[types.OperatorId]types.OperatorAvsState,
 ) error {
 	_, ok := operatorsAvsStateDict[signedMessageDigest.OperatorId]
 	if !ok {
 		a.logger.Warnf("Operator %#v not found. Skipping message.", signedMessageDigest.OperatorId)
-		return OperatorNotPartOfMessageQuorumErrorFn(signedMessageDigest.OperatorId, messageDigest)
+		return OperatorNotPartOfMessageQuorumErrorFn(signedMessageDigest.OperatorId, signedMessageDigest.MessageDigest)
 	}
 
 	// 0. verify that the msg actually came from the correct operator
