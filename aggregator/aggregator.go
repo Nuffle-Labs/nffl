@@ -13,8 +13,6 @@ import (
 	oppubkeysserv "github.com/Layr-Labs/eigensdk-go/services/operatorpubkeys"
 	sdktypes "github.com/Layr-Labs/eigensdk-go/types"
 
-	badger "github.com/dgraph-io/badger/v4"
-
 	"github.com/NethermindEth/near-sffl/aggregator/types"
 	"github.com/NethermindEth/near-sffl/core"
 	"github.com/NethermindEth/near-sffl/core/chainio"
@@ -70,7 +68,6 @@ type Aggregator struct {
 	logger               logging.Logger
 	serverIpPortAddr     string
 	restServerIpPortAddr string
-	databasePath         string
 	avsWriter            chainio.AvsWriterer
 	// aggregation related fields
 	taskBlsAggregationService    blsagg.BlsAggregationService
@@ -79,8 +76,7 @@ type Aggregator struct {
 	tasksMu                      sync.RWMutex
 	taskResponses                map[types.TaskIndex]map[sdktypes.TaskResponseDigest]taskmanager.CheckpointTaskResponse
 	taskResponsesMu              sync.RWMutex
-	database                     *badger.DB
-	databaseMu                   sync.RWMutex
+	msgDb                        *MessageDatabase
 	stateRootUpdates             map[types.MessageDigest]servicemanager.StateRootUpdateMessage
 	stateRootUpdatesMu           sync.RWMutex
 }
@@ -113,6 +109,12 @@ func NewAggregator(c *config.Config) (*Aggregator, error) {
 		return nil, err
 	}
 
+	msgDb, err := NewMessageDatabase(c.AggregatorDatabasePath)
+	if err != nil {
+		c.Logger.Errorf("Cannot create database", "err", err)
+		return nil, err
+	}
+
 	operatorPubkeysService := oppubkeysserv.NewOperatorPubkeysServiceInMemory(context.Background(), clients.AvsRegistryChainSubscriber, clients.AvsRegistryChainReader, c.Logger)
 	avsRegistryService := avsregistry.NewAvsRegistryServiceChainCaller(avsReader, operatorPubkeysService, c.Logger)
 	taskBlsAggregationService := blsagg.NewBlsAggregatorService(avsRegistryService, c.Logger)
@@ -122,10 +124,10 @@ func NewAggregator(c *config.Config) (*Aggregator, error) {
 		logger:                       c.Logger,
 		serverIpPortAddr:             c.AggregatorServerIpPortAddr,
 		restServerIpPortAddr:         c.AggregatorRestServerIpPortAddr,
-		databasePath:                 c.AggregatorDatabasePath,
 		avsWriter:                    avsWriter,
 		taskBlsAggregationService:    taskBlsAggregationService,
 		messageBlsAggregationService: messageBlsAggregationService,
+		msgDb:                        msgDb,
 		tasks:                        make(map[types.TaskIndex]taskmanager.CheckpointTask),
 		taskResponses:                make(map[types.TaskIndex]map[sdktypes.TaskResponseDigest]taskmanager.CheckpointTaskResponse),
 		stateRootUpdates:             make(map[types.MessageDigest]servicemanager.StateRootUpdateMessage),
@@ -157,7 +159,7 @@ func (agg *Aggregator) Start(ctx context.Context) error {
 	for {
 		select {
 		case <-ctx.Done():
-			return nil
+			return agg.Close()
 		case blsAggServiceResp := <-agg.taskBlsAggregationService.GetResponseChannel():
 			agg.logger.Info("Received response from taskBlsAggregationService", "blsAggServiceResp", blsAggServiceResp)
 			agg.sendAggregatedResponseToContract(blsAggServiceResp)
@@ -173,6 +175,14 @@ func (agg *Aggregator) Start(ctx context.Context) error {
 			}
 		}
 	}
+}
+
+func (agg *Aggregator) Close() error {
+	if err := agg.msgDb.Close(); err != nil {
+		return err
+	}
+
+	return nil
 }
 
 func (agg *Aggregator) sendAggregatedResponseToContract(blsAggServiceResp blsagg.BlsAggregationServiceResponse) {
@@ -263,12 +273,12 @@ func (agg *Aggregator) handleStateRootUpdateReachedQuorum(blsAggServiceResp type
 		return
 	}
 
-	err := agg.storeStateRootUpdate(msg)
+	err := agg.msgDb.StoreStateRootUpdate(msg)
 	if err != nil {
 		agg.logger.Error("Aggregator could not store message")
 		return
 	}
-	agg.storeStateRootUpdateAggregation(msg, blsAggServiceResp)
+	agg.msgDb.StoreStateRootUpdateAggregation(msg, blsAggServiceResp)
 	if err != nil {
 		agg.logger.Error("Aggregator could not store message aggregation")
 		return

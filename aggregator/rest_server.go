@@ -46,13 +46,13 @@ func (agg *Aggregator) handleGetStateRootUpdateAggregation(w http.ResponseWriter
 	var message servicemanager.StateRootUpdateMessage
 	var aggregation types.MessageBlsAggregationServiceResponse
 
-	err = agg.fetchStateRootUpdate(uint32(rollupId), blockHeight, &message)
+	err = agg.msgDb.FetchStateRootUpdate(uint32(rollupId), blockHeight, &message)
 	if err != nil {
 		http.Error(w, "StateRootUpdate not found", http.StatusNotFound)
 		return
 	}
 
-	err = agg.fetchStateRootUpdateAggregation(uint32(rollupId), blockHeight, &aggregation)
+	err = agg.msgDb.FetchStateRootUpdateAggregation(uint32(rollupId), blockHeight, &aggregation)
 	if err != nil {
 		http.Error(w, "StateRootUpdate aggregation not found", http.StatusNotFound)
 		return
