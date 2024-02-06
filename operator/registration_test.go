@@ -13,6 +13,7 @@ import (
 
 	taskmanager "github.com/NethermindEth/near-sffl/contracts/bindings/SFFLTaskManager"
 	"github.com/NethermindEth/near-sffl/metrics"
+	"github.com/NethermindEth/near-sffl/operator/consumer"
 	"github.com/NethermindEth/near-sffl/tests"
 )
 
@@ -34,12 +35,12 @@ func IntegrationTestOperatorRegistration(t *testing.T) {
 }
 
 type MockConsumer struct {
-	blockReceivedC chan BlockData
+	blockReceivedC chan consumer.BlockData
 }
 
 func createMockConsumer() *MockConsumer {
 	return &MockConsumer{
-		blockReceivedC: make(chan BlockData),
+		blockReceivedC: make(chan consumer.BlockData),
 	}
 }
 func (c *MockConsumer) Reconnect(addr string, ctx context.Context) {}
@@ -49,10 +50,10 @@ func (c *MockConsumer) ResetChannel(conn *rmq.Connection, ctx context.Context) b
 func (c *MockConsumer) Close() error {
 	return nil
 }
-func (c *MockConsumer) GetBlockStream() <-chan BlockData {
+func (c *MockConsumer) GetBlockStream() <-chan consumer.BlockData {
 	return c.blockReceivedC
 }
-func (c *MockConsumer) MockReceiveBlockData(data BlockData) {
+func (c *MockConsumer) MockReceiveBlockData(data consumer.BlockData) {
 	c.blockReceivedC <- data
 }
 
