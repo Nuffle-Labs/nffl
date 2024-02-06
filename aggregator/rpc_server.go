@@ -92,7 +92,7 @@ func (agg *Aggregator) ProcessSignedStateRootUpdateMessage(signedStateRootUpdate
 		return TaskResponseDigestNotFoundError500
 	}
 
-	agg.messageBlsAggregationService.InitializeNewMessage(messageDigest, types.QUORUM_NUMBERS, []uint32{types.QUORUM_THRESHOLD_NUMERATOR}, types.MESSAGE_TTL, true)
+	agg.messageBlsAggregationService.InitializeMessageIfNotExists(messageDigest, types.QUORUM_NUMBERS, []uint32{types.QUORUM_THRESHOLD_NUMERATOR}, types.MESSAGE_TTL)
 
 	err = agg.messageBlsAggregationService.ProcessNewSignature(
 		context.Background(), messageDigest,

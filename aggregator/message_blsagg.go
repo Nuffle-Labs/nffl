@@ -63,12 +63,11 @@ type signedMessageDigestValidationInfo struct {
 }
 
 type MessageBlsAggregationService interface {
-	InitializeNewMessage(
+	InitializeMessageIfNotExists(
 		messageDigest aggtypes.MessageDigest,
 		quorumNumbers []types.QuorumNum,
 		quorumThresholdPercentages []types.QuorumThresholdPercentage,
 		timeToExpiry time.Duration,
-		allowAlreadyInitialized bool,
 	) error
 
 	ProcessNewSignature(
@@ -107,19 +106,14 @@ func (a *MessageBlsAggregatorService) GetResponseChannel() <-chan aggtypes.Messa
 	return a.aggregatedResponsesC
 }
 
-func (a *MessageBlsAggregatorService) InitializeNewMessage(
+func (a *MessageBlsAggregatorService) InitializeMessageIfNotExists(
 	messageDigest aggtypes.MessageDigest,
 	quorumNumbers []types.QuorumNum,
 	quorumThresholdPercentages []types.QuorumThresholdPercentage,
 	timeToExpiry time.Duration,
-	allowAlreadyInitialized bool,
 ) error {
 	if _, taskExists := a.signedMessageDigestsCs[messageDigest]; taskExists {
-		if allowAlreadyInitialized {
-			return nil
-		} else {
-			return MessageAlreadyInitializedErrorFn(messageDigest)
-		}
+		return nil
 	}
 
 	signedMessageDigestsC := make(chan SignedMessageDigest)

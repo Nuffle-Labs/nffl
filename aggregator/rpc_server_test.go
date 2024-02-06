@@ -100,7 +100,7 @@ func TestProcessSignedStateRootUpdateMessage(t *testing.T) {
 
 	mockMessageBlsAggServ.EXPECT().ProcessNewSignature(context.Background(), messageDigest,
 		&signedMessage.BlsSignature, signedMessage.OperatorId)
-	mockMessageBlsAggServ.EXPECT().InitializeNewMessage(messageDigest, types.QUORUM_NUMBERS, []uint32{types.QUORUM_THRESHOLD_NUMERATOR}, types.MESSAGE_TTL, true)
+	mockMessageBlsAggServ.EXPECT().InitializeMessageIfNotExists(messageDigest, types.QUORUM_NUMBERS, []uint32{types.QUORUM_THRESHOLD_NUMERATOR}, types.MESSAGE_TTL)
 	err = aggregator.ProcessSignedStateRootUpdateMessage(signedMessage, nil)
 	assert.Nil(t, err)
 }
