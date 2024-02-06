@@ -57,6 +57,15 @@ func (agg *Aggregator) ProcessSignedCheckpointTaskResponse(signedCheckpointTaskR
 		agg.logger.Error("Failed to get task response digest", "err", err)
 		return TaskResponseDigestNotFoundError500
 	}
+
+	err = agg.taskBlsAggregationService.ProcessNewSignature(
+		context.Background(), taskIndex, taskResponseDigest,
+		&signedCheckpointTaskResponse.BlsSignature, signedCheckpointTaskResponse.OperatorId,
+	)
+	if err != nil {
+		return err
+	}
+
 	agg.taskResponsesMu.Lock()
 	if _, ok := agg.taskResponses[taskIndex]; !ok {
 		agg.taskResponses[taskIndex] = make(map[sdktypes.TaskResponseDigest]taskmanager.CheckpointTaskResponse)
@@ -66,11 +75,7 @@ func (agg *Aggregator) ProcessSignedCheckpointTaskResponse(signedCheckpointTaskR
 	}
 	agg.taskResponsesMu.Unlock()
 
-	err = agg.taskBlsAggregationService.ProcessNewSignature(
-		context.Background(), taskIndex, taskResponseDigest,
-		&signedCheckpointTaskResponse.BlsSignature, signedCheckpointTaskResponse.OperatorId,
-	)
-	return err
+	return nil
 }
 
 type SignedStateRootUpdateMessage struct {
@@ -87,15 +92,19 @@ func (agg *Aggregator) ProcessSignedStateRootUpdateMessage(signedStateRootUpdate
 		return TaskResponseDigestNotFoundError500
 	}
 
-	agg.stateRootUpdatesMu.Lock()
-	agg.stateRootUpdates[messageDigest] = signedStateRootUpdateMessage.Message
-	agg.stateRootUpdatesMu.Unlock()
-
 	agg.messageBlsAggregationService.InitializeNewMessage(messageDigest, types.QUORUM_NUMBERS, []uint32{types.QUORUM_THRESHOLD_NUMERATOR}, types.MESSAGE_TTL, true)
 
 	err = agg.messageBlsAggregationService.ProcessNewSignature(
 		context.Background(), messageDigest,
 		&signedStateRootUpdateMessage.BlsSignature, signedStateRootUpdateMessage.OperatorId,
 	)
-	return err
+	if err != nil {
+		return err
+	}
+
+	agg.stateRootUpdatesMu.Lock()
+	agg.stateRootUpdates[messageDigest] = signedStateRootUpdateMessage.Message
+	agg.stateRootUpdatesMu.Unlock()
+
+	return nil
 }
