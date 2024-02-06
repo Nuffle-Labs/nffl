@@ -74,7 +74,7 @@ func AbiEncodeStateRootUpdateMessage(h *servicemanager.StateRootUpdateMessage) (
 			Type: "uint64",
 		},
 		{
-			Name: "nearBlockHeight",
+			Name: "timestamp",
 			Type: "uint64",
 		},
 		{

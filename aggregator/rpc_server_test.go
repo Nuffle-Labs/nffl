@@ -87,10 +87,10 @@ func TestProcessSignedStateRootUpdateMessage(t *testing.T) {
 	assert.Nil(t, err)
 
 	message := servicemanager.StateRootUpdateMessage{
-		RollupId:        1,
-		BlockHeight:     2,
-		NearBlockHeight: 3,
-		StateRoot:       keccak256(4),
+		RollupId:    1,
+		BlockHeight: 2,
+		Timestamp:   3,
+		StateRoot:   keccak256(4),
 	}
 
 	signedMessage, err := createMockSignedStateRootUpdateMessage(message, *MOCK_OPERATOR_KEYPAIR)
