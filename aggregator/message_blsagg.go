@@ -83,7 +83,7 @@ type MessageBlsAggregationService interface {
 type MessageBlsAggregatorService struct {
 	aggregatedResponsesC   chan aggtypes.MessageBlsAggregationServiceResponse
 	signedMessageDigestsCs map[aggtypes.MessageDigest]chan SignedMessageDigest
-	messageChansMutex      sync.RWMutex
+	messageChansLock       sync.RWMutex
 	avsRegistryService     avsregistry.AvsRegistryService
 	ethClient              eth.EthClient
 	logger                 logging.Logger
@@ -95,7 +95,7 @@ func NewMessageBlsAggregatorService(avsRegistryService avsregistry.AvsRegistrySe
 	return &MessageBlsAggregatorService{
 		aggregatedResponsesC:   make(chan aggtypes.MessageBlsAggregationServiceResponse),
 		signedMessageDigestsCs: make(map[aggtypes.MessageDigest]chan SignedMessageDigest),
-		messageChansMutex:      sync.RWMutex{},
+		messageChansLock:       sync.RWMutex{},
 		avsRegistryService:     avsRegistryService,
 		ethClient:              ethClient,
 		logger:                 logger,
@@ -117,9 +117,9 @@ func (mbas *MessageBlsAggregatorService) InitializeMessageIfNotExists(
 	}
 
 	signedMessageDigestsC := make(chan SignedMessageDigest)
-	mbas.messageChansMutex.Lock()
+	mbas.messageChansLock.Lock()
 	mbas.signedMessageDigestsCs[messageDigest] = signedMessageDigestsC
-	mbas.messageChansMutex.Unlock()
+	mbas.messageChansLock.Unlock()
 	go mbas.singleMessageAggregatorGoroutineFunc(messageDigest, quorumNumbers, quorumThresholdPercentages, timeToExpiry, signedMessageDigestsC)
 	return nil
 }
@@ -130,9 +130,9 @@ func (mbas *MessageBlsAggregatorService) ProcessNewSignature(
 	blsSignature *bls.Signature,
 	operatorId bls.OperatorId,
 ) error {
-	mbas.messageChansMutex.Lock()
+	mbas.messageChansLock.Lock()
 	messageC, taskInitialized := mbas.signedMessageDigestsCs[messageDigest]
-	mbas.messageChansMutex.Unlock()
+	mbas.messageChansLock.Unlock()
 	if !taskInitialized {
 		return MessageNotFoundErrorFn(messageDigest)
 	}
@@ -293,9 +293,9 @@ func (mbas *MessageBlsAggregatorService) handleSignedMessageDigest(signedMessage
 }
 
 func (mbas *MessageBlsAggregatorService) closeMessageGoroutine(messageDigest aggtypes.MessageDigest) {
-	mbas.messageChansMutex.Lock()
+	mbas.messageChansLock.Lock()
 	delete(mbas.signedMessageDigestsCs, messageDigest)
-	mbas.messageChansMutex.Unlock()
+	mbas.messageChansLock.Unlock()
 }
 
 func (mbas *MessageBlsAggregatorService) verifySignature(

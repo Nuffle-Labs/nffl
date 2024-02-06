@@ -73,12 +73,12 @@ type Aggregator struct {
 	taskBlsAggregationService    blsagg.BlsAggregationService
 	messageBlsAggregationService MessageBlsAggregationService
 	tasks                        map[types.TaskIndex]taskmanager.CheckpointTask
-	tasksMu                      sync.RWMutex
+	tasksLock                    sync.RWMutex
 	taskResponses                map[types.TaskIndex]map[sdktypes.TaskResponseDigest]taskmanager.CheckpointTaskResponse
-	taskResponsesMu              sync.RWMutex
+	taskResponsesLock            sync.RWMutex
 	msgDb                        *MessageDatabase
 	stateRootUpdates             map[types.MessageDigest]servicemanager.StateRootUpdateMessage
-	stateRootUpdatesMu           sync.RWMutex
+	stateRootUpdatesLock         sync.RWMutex
 }
 
 // NewAggregator creates a new Aggregator with the provided config.
@@ -214,12 +214,12 @@ func (agg *Aggregator) sendAggregatedResponseToContract(blsAggServiceResp blsagg
 	agg.logger.Info("Threshold reached. Sending aggregated response onchain.",
 		"taskIndex", blsAggServiceResp.TaskIndex,
 	)
-	agg.tasksMu.RLock()
+	agg.tasksLock.RLock()
 	task := agg.tasks[blsAggServiceResp.TaskIndex]
-	agg.tasksMu.RUnlock()
-	agg.taskResponsesMu.RLock()
+	agg.tasksLock.RUnlock()
+	agg.taskResponsesLock.RLock()
 	taskResponse := agg.taskResponses[blsAggServiceResp.TaskIndex][blsAggServiceResp.TaskResponseDigest]
-	agg.taskResponsesMu.RUnlock()
+	agg.taskResponsesLock.RUnlock()
 	_, err := agg.avsWriter.SendAggregatedResponse(context.Background(), task, taskResponse, nonSignerStakesAndSignature)
 	if err != nil {
 		agg.logger.Error("Aggregator failed to respond to task", "err", err)
@@ -237,9 +237,9 @@ func (agg *Aggregator) sendNewCheckpointTask(fromTimestamp uint64, toTimestamp u
 		return err
 	}
 
-	agg.tasksMu.Lock()
+	agg.tasksLock.Lock()
 	agg.tasks[taskIndex] = newTask
-	agg.tasksMu.Unlock()
+	agg.tasksLock.Unlock()
 
 	quorumThresholds := make([]uint32, len(newTask.QuorumNumbers))
 	for i, _ := range newTask.QuorumNumbers {
@@ -253,14 +253,14 @@ func (agg *Aggregator) sendNewCheckpointTask(fromTimestamp uint64, toTimestamp u
 }
 
 func (agg *Aggregator) handleStateRootUpdateReachedQuorum(blsAggServiceResp types.MessageBlsAggregationServiceResponse) {
-	agg.stateRootUpdatesMu.RLock()
+	agg.stateRootUpdatesLock.RLock()
 	msg, ok := agg.stateRootUpdates[blsAggServiceResp.MessageDigest]
-	agg.stateRootUpdatesMu.RUnlock()
+	agg.stateRootUpdatesLock.RUnlock()
 
 	defer func() {
-		agg.stateRootUpdatesMu.RLock()
+		agg.stateRootUpdatesLock.RLock()
 		delete(agg.stateRootUpdates, blsAggServiceResp.MessageDigest)
-		agg.stateRootUpdatesMu.RUnlock()
+		agg.stateRootUpdatesLock.RUnlock()
 	}()
 
 	if !ok {

@@ -66,14 +66,14 @@ func (agg *Aggregator) ProcessSignedCheckpointTaskResponse(signedCheckpointTaskR
 		return err
 	}
 
-	agg.taskResponsesMu.Lock()
+	agg.taskResponsesLock.Lock()
 	if _, ok := agg.taskResponses[taskIndex]; !ok {
 		agg.taskResponses[taskIndex] = make(map[sdktypes.TaskResponseDigest]taskmanager.CheckpointTaskResponse)
 	}
 	if _, ok := agg.taskResponses[taskIndex][taskResponseDigest]; !ok {
 		agg.taskResponses[taskIndex][taskResponseDigest] = signedCheckpointTaskResponse.TaskResponse
 	}
-	agg.taskResponsesMu.Unlock()
+	agg.taskResponsesLock.Unlock()
 
 	return nil
 }
@@ -102,9 +102,9 @@ func (agg *Aggregator) ProcessSignedStateRootUpdateMessage(signedStateRootUpdate
 		return err
 	}
 
-	agg.stateRootUpdatesMu.Lock()
+	agg.stateRootUpdatesLock.Lock()
 	agg.stateRootUpdates[messageDigest] = signedStateRootUpdateMessage.Message
-	agg.stateRootUpdatesMu.Unlock()
+	agg.stateRootUpdatesLock.Unlock()
 
 	return nil
 }

@@ -14,7 +14,7 @@ import (
 type MessageDatabase struct {
 	db     *badger.DB
 	dbPath string
-	mu     sync.RWMutex
+	lock   sync.RWMutex
 }
 
 func NewMessageDatabase(dbPath string) (*MessageDatabase, error) {
@@ -40,8 +40,8 @@ func (md *MessageDatabase) Close() error {
 }
 
 func (md *MessageDatabase) Store(prefix string, key string, value any) error {
-	md.mu.Lock()
-	defer md.mu.Unlock()
+	md.lock.Lock()
+	defer md.lock.Unlock()
 
 	fullKey := prefix + key
 
