@@ -228,7 +228,13 @@ func (a *MessageBlsAggregatorService) fetchValidationInfo(quorumNumbers []types.
 }
 
 func (a *MessageBlsAggregatorService) handleSignedMessageDigest(signedMessageDigest SignedMessageDigest, validationInfo signedMessageDigestValidationInfo) {
-	signedMessageDigest.SignatureVerificationErrorC <- a.verifySignature(signedMessageDigest, validationInfo.operatorsAvsStateDict)
+	err := a.verifySignature(signedMessageDigest, validationInfo.operatorsAvsStateDict)
+	signedMessageDigest.SignatureVerificationErrorC <- err
+
+	if err != nil {
+		return
+	}
+
 	digestAggregatedOperators, ok := validationInfo.aggregatedOperatorsDict[signedMessageDigest.MessageDigest]
 	if !ok {
 		digestAggregatedOperators = AggregatedOperators{
