@@ -102,37 +102,37 @@ func NewMessageBlsAggregatorService(avsRegistryService avsregistry.AvsRegistrySe
 	}
 }
 
-func (a *MessageBlsAggregatorService) GetResponseChannel() <-chan aggtypes.MessageBlsAggregationServiceResponse {
-	return a.aggregatedResponsesC
+func (mbas *MessageBlsAggregatorService) GetResponseChannel() <-chan aggtypes.MessageBlsAggregationServiceResponse {
+	return mbas.aggregatedResponsesC
 }
 
-func (a *MessageBlsAggregatorService) InitializeMessageIfNotExists(
+func (mbas *MessageBlsAggregatorService) InitializeMessageIfNotExists(
 	messageDigest aggtypes.MessageDigest,
 	quorumNumbers []types.QuorumNum,
 	quorumThresholdPercentages []types.QuorumThresholdPercentage,
 	timeToExpiry time.Duration,
 ) error {
-	if _, taskExists := a.signedMessageDigestsCs[messageDigest]; taskExists {
+	if _, taskExists := mbas.signedMessageDigestsCs[messageDigest]; taskExists {
 		return nil
 	}
 
 	signedMessageDigestsC := make(chan SignedMessageDigest)
-	a.messageChansMutex.Lock()
-	a.signedMessageDigestsCs[messageDigest] = signedMessageDigestsC
-	a.messageChansMutex.Unlock()
-	go a.singleMessageAggregatorGoroutineFunc(messageDigest, quorumNumbers, quorumThresholdPercentages, timeToExpiry, signedMessageDigestsC)
+	mbas.messageChansMutex.Lock()
+	mbas.signedMessageDigestsCs[messageDigest] = signedMessageDigestsC
+	mbas.messageChansMutex.Unlock()
+	go mbas.singleMessageAggregatorGoroutineFunc(messageDigest, quorumNumbers, quorumThresholdPercentages, timeToExpiry, signedMessageDigestsC)
 	return nil
 }
 
-func (a *MessageBlsAggregatorService) ProcessNewSignature(
+func (mbas *MessageBlsAggregatorService) ProcessNewSignature(
 	ctx context.Context,
 	messageDigest aggtypes.MessageDigest,
 	blsSignature *bls.Signature,
 	operatorId bls.OperatorId,
 ) error {
-	a.messageChansMutex.Lock()
-	messageC, taskInitialized := a.signedMessageDigestsCs[messageDigest]
-	a.messageChansMutex.Unlock()
+	mbas.messageChansMutex.Lock()
+	messageC, taskInitialized := mbas.signedMessageDigestsCs[messageDigest]
+	mbas.messageChansMutex.Unlock()
 	if !taskInitialized {
 		return MessageNotFoundErrorFn(messageDigest)
 	}
@@ -151,26 +151,26 @@ func (a *MessageBlsAggregatorService) ProcessNewSignature(
 	}
 }
 
-func (a *MessageBlsAggregatorService) singleMessageAggregatorGoroutineFunc(
+func (mbas *MessageBlsAggregatorService) singleMessageAggregatorGoroutineFunc(
 	messageDigest aggtypes.MessageDigest,
 	quorumNumbers []types.QuorumNum,
 	quorumThresholdPercentages []types.QuorumThresholdPercentage,
 	timeToExpiry time.Duration,
 	signedMessageDigestsC <-chan SignedMessageDigest,
 ) {
-	defer a.closeMessageGoroutine(messageDigest)
+	defer mbas.closeMessageGoroutine(messageDigest)
 
-	validationInfo := a.fetchValidationInfo(quorumNumbers, quorumThresholdPercentages)
+	validationInfo := mbas.fetchValidationInfo(quorumNumbers, quorumThresholdPercentages)
 	messageExpiredTimer := time.NewTimer(timeToExpiry)
 
 	for {
 		select {
 		case signedMessageDigest := <-signedMessageDigestsC:
-			a.logger.Debug("Message goroutine received new signed message digest", "messageDigest", messageDigest)
-			a.handleSignedMessageDigest(signedMessageDigest, validationInfo)
+			mbas.logger.Debug("Message goroutine received new signed message digest", "messageDigest", messageDigest)
+			mbas.handleSignedMessageDigest(signedMessageDigest, validationInfo)
 			return
 		case <-messageExpiredTimer.C:
-			a.aggregatedResponsesC <- aggtypes.MessageBlsAggregationServiceResponse{
+			mbas.aggregatedResponsesC <- aggtypes.MessageBlsAggregationServiceResponse{
 				Err: MessageExpiredError,
 			}
 			return
@@ -178,22 +178,22 @@ func (a *MessageBlsAggregatorService) singleMessageAggregatorGoroutineFunc(
 	}
 }
 
-func (a *MessageBlsAggregatorService) fetchValidationInfo(quorumNumbers []types.QuorumNum, quorumThresholdPercentages []types.QuorumThresholdPercentage) signedMessageDigestValidationInfo {
-	curBlockNum, err := a.ethClient.BlockNumber(context.Background())
+func (mbas *MessageBlsAggregatorService) fetchValidationInfo(quorumNumbers []types.QuorumNum, quorumThresholdPercentages []types.QuorumThresholdPercentage) signedMessageDigestValidationInfo {
+	curBlockNum, err := mbas.ethClient.BlockNumber(context.Background())
 
 	if err != nil {
-		a.logger.Fatal("Aggregator failed to get current block number", "err", err)
+		mbas.logger.Fatal("Aggregator failed to get current block number", "err", err)
 	}
 
-	operatorsAvsStateDict, err := a.avsRegistryService.GetOperatorsAvsStateAtBlock(context.Background(), quorumNumbers, uint32(curBlockNum))
+	operatorsAvsStateDict, err := mbas.avsRegistryService.GetOperatorsAvsStateAtBlock(context.Background(), quorumNumbers, uint32(curBlockNum))
 	if err != nil {
 		// TODO: how should we handle such an error?
-		a.logger.Fatal("Aggregator failed to get operators state from avs registry", "err", err)
+		mbas.logger.Fatal("Aggregator failed to get operators state from avs registry", "err", err)
 	}
 
-	quorumsAvsStakeDict, err := a.avsRegistryService.GetQuorumsAvsStateAtBlock(context.Background(), quorumNumbers, uint32(curBlockNum))
+	quorumsAvsStakeDict, err := mbas.avsRegistryService.GetQuorumsAvsStateAtBlock(context.Background(), quorumNumbers, uint32(curBlockNum))
 	if err != nil {
-		a.logger.Fatal("Aggregator failed to get quorums state from avs registry", "err", err)
+		mbas.logger.Fatal("Aggregator failed to get quorums state from avs registry", "err", err)
 	}
 
 	totalStakePerQuorum := make(map[types.QuorumNum]*big.Int)
@@ -223,8 +223,8 @@ func (a *MessageBlsAggregatorService) fetchValidationInfo(quorumNumbers []types.
 	}
 }
 
-func (a *MessageBlsAggregatorService) handleSignedMessageDigest(signedMessageDigest SignedMessageDigest, validationInfo signedMessageDigestValidationInfo) {
-	err := a.verifySignature(signedMessageDigest, validationInfo.operatorsAvsStateDict)
+func (mbas *MessageBlsAggregatorService) handleSignedMessageDigest(signedMessageDigest SignedMessageDigest, validationInfo signedMessageDigestValidationInfo) {
+	err := mbas.verifySignature(signedMessageDigest, validationInfo.operatorsAvsStateDict)
 	signedMessageDigest.SignatureVerificationErrorC <- err
 
 	if err != nil {
@@ -266,10 +266,10 @@ func (a *MessageBlsAggregatorService) handleSignedMessageDigest(signedMessageDig
 		}
 	}
 
-	indices, err := a.avsRegistryService.GetCheckSignaturesIndices(&bind.CallOpts{}, uint32(validationInfo.curBlockNum), validationInfo.quorumNumbers, nonSignersOperatorIds)
+	indices, err := mbas.avsRegistryService.GetCheckSignaturesIndices(&bind.CallOpts{}, uint32(validationInfo.curBlockNum), validationInfo.quorumNumbers, nonSignersOperatorIds)
 	if err != nil {
-		a.logger.Error("Failed to get check signatures indices", "err", err)
-		a.aggregatedResponsesC <- aggtypes.MessageBlsAggregationServiceResponse{
+		mbas.logger.Error("Failed to get check signatures indices", "err", err)
+		mbas.aggregatedResponsesC <- aggtypes.MessageBlsAggregationServiceResponse{
 			Err: err,
 		}
 		return
@@ -289,42 +289,42 @@ func (a *MessageBlsAggregatorService) handleSignedMessageDigest(signedMessageDig
 		NonSignerStakeIndices:        indices.NonSignerStakeIndices,
 	}
 
-	a.aggregatedResponsesC <- messageBlsAggregationServiceResponse
+	mbas.aggregatedResponsesC <- messageBlsAggregationServiceResponse
 }
 
-func (a *MessageBlsAggregatorService) closeMessageGoroutine(messageDigest aggtypes.MessageDigest) {
-	a.messageChansMutex.Lock()
-	delete(a.signedMessageDigestsCs, messageDigest)
-	a.messageChansMutex.Unlock()
+func (mbas *MessageBlsAggregatorService) closeMessageGoroutine(messageDigest aggtypes.MessageDigest) {
+	mbas.messageChansMutex.Lock()
+	delete(mbas.signedMessageDigestsCs, messageDigest)
+	mbas.messageChansMutex.Unlock()
 }
 
-func (a *MessageBlsAggregatorService) verifySignature(
+func (mbas *MessageBlsAggregatorService) verifySignature(
 	signedMessageDigest SignedMessageDigest,
 	operatorsAvsStateDict map[types.OperatorId]types.OperatorAvsState,
 ) error {
 	_, ok := operatorsAvsStateDict[signedMessageDigest.OperatorId]
 	if !ok {
-		a.logger.Warnf("Operator %#v not found. Skipping message.", signedMessageDigest.OperatorId)
+		mbas.logger.Warnf("Operator %#v not found. Skipping message.", signedMessageDigest.OperatorId)
 		return OperatorNotPartOfMessageQuorumErrorFn(signedMessageDigest.OperatorId, signedMessageDigest.MessageDigest)
 	}
 
 	// 0. verify that the msg actually came from the correct operator
 	operatorG2Pubkey := operatorsAvsStateDict[signedMessageDigest.OperatorId].Pubkeys.G2Pubkey
 	if operatorG2Pubkey == nil {
-		a.logger.Fatal("Operator G2 pubkey not found")
+		mbas.logger.Fatal("Operator G2 pubkey not found")
 	}
-	a.logger.Debug("Verifying signed message digest signature",
+	mbas.logger.Debug("Verifying signed message digest signature",
 		"operatorG2Pubkey", operatorG2Pubkey,
 		"messageDigest", signedMessageDigest.MessageDigest,
 		"blsSignature", signedMessageDigest.BlsSignature,
 	)
 	signatureVerified, err := signedMessageDigest.BlsSignature.Verify(operatorG2Pubkey, signedMessageDigest.MessageDigest)
 	if err != nil {
-		a.logger.Error(SignatureVerificationError(err).Error())
+		mbas.logger.Error(SignatureVerificationError(err).Error())
 		return SignatureVerificationError(err)
 	}
 	if !signatureVerified {
-		a.logger.Error(IncorrectSignatureError.Error())
+		mbas.logger.Error(IncorrectSignatureError.Error())
 		return IncorrectSignatureError
 	}
 	return nil

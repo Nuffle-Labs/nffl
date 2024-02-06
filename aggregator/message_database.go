@@ -35,17 +35,17 @@ func NewMessageDatabase(dbPath string) (*MessageDatabase, error) {
 	}, nil
 }
 
-func (messageDb *MessageDatabase) Close() error {
-	return messageDb.db.Close()
+func (md *MessageDatabase) Close() error {
+	return md.db.Close()
 }
 
-func (messageDb *MessageDatabase) Store(prefix string, key string, value any) error {
-	messageDb.mu.Lock()
-	defer messageDb.mu.Unlock()
+func (md *MessageDatabase) Store(prefix string, key string, value any) error {
+	md.mu.Lock()
+	defer md.mu.Unlock()
 
 	fullKey := prefix + key
 
-	err := messageDb.db.Update(func(txn *badger.Txn) error {
+	err := md.db.Update(func(txn *badger.Txn) error {
 		value, err := json.Marshal(value)
 		if err != nil {
 			return err
@@ -57,10 +57,10 @@ func (messageDb *MessageDatabase) Store(prefix string, key string, value any) er
 	return err
 }
 
-func (messageDb *MessageDatabase) Fetch(prefix string, key string, value any) error {
+func (md *MessageDatabase) Fetch(prefix string, key string, value any) error {
 	fullKey := prefix + key
 
-	err := messageDb.db.View(func(txn *badger.Txn) error {
+	err := md.db.View(func(txn *badger.Txn) error {
 		item, err := txn.Get([]byte(fullKey))
 		if err != nil {
 			return err
@@ -74,18 +74,18 @@ func (messageDb *MessageDatabase) Fetch(prefix string, key string, value any) er
 	return err
 }
 
-func (messageDb *MessageDatabase) StoreStateRootUpdate(stateRootUpdateMessage servicemanager.StateRootUpdateMessage) error {
-	return messageDb.Store("stateRootUpdates", fmt.Sprintf("%d_%d", stateRootUpdateMessage.RollupId, stateRootUpdateMessage.BlockHeight), stateRootUpdateMessage)
+func (md *MessageDatabase) StoreStateRootUpdate(stateRootUpdateMessage servicemanager.StateRootUpdateMessage) error {
+	return md.Store("stateRootUpdates", fmt.Sprintf("%d_%d", stateRootUpdateMessage.RollupId, stateRootUpdateMessage.BlockHeight), stateRootUpdateMessage)
 }
 
-func (messageDb *MessageDatabase) FetchStateRootUpdate(rollupId uint32, blockHeight uint64, stateRootUpdateMessage *servicemanager.StateRootUpdateMessage) error {
-	return messageDb.Fetch("stateRootUpdates", fmt.Sprintf("%d_%d", rollupId, blockHeight), stateRootUpdateMessage)
+func (md *MessageDatabase) FetchStateRootUpdate(rollupId uint32, blockHeight uint64, stateRootUpdateMessage *servicemanager.StateRootUpdateMessage) error {
+	return md.Fetch("stateRootUpdates", fmt.Sprintf("%d_%d", rollupId, blockHeight), stateRootUpdateMessage)
 }
 
-func (messageDb *MessageDatabase) StoreStateRootUpdateAggregation(stateRootUpdateMessage servicemanager.StateRootUpdateMessage, aggregation types.MessageBlsAggregationServiceResponse) error {
-	return messageDb.Store("stateRootUpdates", fmt.Sprintf("%d_%d", stateRootUpdateMessage.RollupId, stateRootUpdateMessage.BlockHeight), aggregation)
+func (md *MessageDatabase) StoreStateRootUpdateAggregation(stateRootUpdateMessage servicemanager.StateRootUpdateMessage, aggregation types.MessageBlsAggregationServiceResponse) error {
+	return md.Store("stateRootUpdates", fmt.Sprintf("%d_%d", stateRootUpdateMessage.RollupId, stateRootUpdateMessage.BlockHeight), aggregation)
 }
 
-func (messageDb *MessageDatabase) FetchStateRootUpdateAggregation(rollupId uint32, blockHeight uint64, aggregation *types.MessageBlsAggregationServiceResponse) error {
-	return messageDb.Fetch("stateRootUpdates", fmt.Sprintf("%d_%d", rollupId, blockHeight), aggregation)
+func (md *MessageDatabase) FetchStateRootUpdateAggregation(rollupId uint32, blockHeight uint64, aggregation *types.MessageBlsAggregationServiceResponse) error {
+	return md.Fetch("stateRootUpdates", fmt.Sprintf("%d_%d", rollupId, blockHeight), aggregation)
 }
