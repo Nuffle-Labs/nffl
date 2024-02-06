@@ -48,6 +48,6 @@ register_operator_on_startup: true
 # addresses.erc20MockStrategy in tests/anvil/sffl_avs_deployment_output.json
 token_strategy_addr: 0xa85233C63b9Ee964Add6F2cffe00Fd84eb32338f
 
-near_da_indexer_ip_port_address: localhost:5672
+near_da_indexer_ip_port_address: amqp://localhost:5672
 near_da_indexer_consumer_tag: operator
 near_da_indexer_rollup_ids: [0]
