@@ -40,7 +40,7 @@ func (c *AggregatorRpcClient) dialAggregatorRpcClient() error {
 	return nil
 }
 
-func (c *AggregatorRpcClient) sendRequest(sendCb func(retryCount int) error, maxRetries int, retryInterval time.Duration) {
+func (c *AggregatorRpcClient) sendRequest(sendCb func() error, maxRetries int, retryInterval time.Duration) {
 	if c.rpcClient == nil {
 		c.logger.Info("rpc client is nil. Dialing aggregator rpc client")
 		err := c.dialAggregatorRpcClient()
@@ -52,7 +52,7 @@ func (c *AggregatorRpcClient) sendRequest(sendCb func(retryCount int) error, max
 
 	c.logger.Info("Sending data to aggregator")
 	for i := 0; i < maxRetries; i++ {
-		err := sendCb(i)
+		err := sendCb()
 
 		if err == nil {
 			c.logger.Info("Data successfully sent to aggregator")
@@ -63,16 +63,14 @@ func (c *AggregatorRpcClient) sendRequest(sendCb func(retryCount int) error, max
 		time.Sleep(retryInterval)
 	}
 
-	c.logger.Error("Could not send data to aggregator. Tried 5 times.")
+	c.logger.Errorf("Could not send data to aggregator. Tried %d times.", maxRetries)
 }
 
 func (c *AggregatorRpcClient) SendSignedCheckpointTaskResponseToAggregator(signedCheckpointTaskResponse *aggregator.SignedCheckpointTaskResponse) {
-	c.sendRequest(func(retryCount int) error {
-		var reply bool
+	c.logger.Info("Sending signed task response header to aggregator", "signedCheckpointTaskResponse", fmt.Sprintf("%#v", signedCheckpointTaskResponse))
 
-		if retryCount == 0 {
-			c.logger.Info("Sending signed task response header to aggregator", "signedCheckpointTaskResponse", fmt.Sprintf("%#v", signedCheckpointTaskResponse))
-		}
+	c.sendRequest(func() error {
+		var reply bool
 
 		err := c.rpcClient.Call("Aggregator.ProcessSignedCheckpointTaskResponse", signedCheckpointTaskResponse, &reply)
 		if err != nil {
@@ -87,12 +85,10 @@ func (c *AggregatorRpcClient) SendSignedCheckpointTaskResponseToAggregator(signe
 }
 
 func (c *AggregatorRpcClient) SendSignedStateRootUpdateToAggregator(signedStateRootUpdateMessage *aggregator.SignedStateRootUpdateMessage) {
-	c.sendRequest(func(retryCount int) error {
-		var reply bool
+	c.logger.Info("Sending signed state root update message to aggregator", "signedStateRootUpdateMessage", fmt.Sprintf("%#v", signedStateRootUpdateMessage))
 
-		if retryCount == 0 {
-			c.logger.Info("Sending signed state root update message to aggregator", "signedStateRootUpdateMessage", fmt.Sprintf("%#v", signedStateRootUpdateMessage))
-		}
+	c.sendRequest(func() error {
+		var reply bool
 
 		err := c.rpcClient.Call("Aggregator.ProcessSignedStateRootUpdateMessage", signedStateRootUpdateMessage, &reply)
 		if err != nil {
