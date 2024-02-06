@@ -290,7 +290,7 @@ func (o *Operator) Start(ctx context.Context) error {
 	for {
 		select {
 		case <-ctx.Done():
-			return nil
+			return o.Close()
 		case err := <-metricsErrChan:
 			// TODO(samlaf); we should also register the service as unhealthy in the node api
 			// https://eigen.nethermind.io/docs/spec/api/
@@ -325,6 +325,14 @@ func (o *Operator) Start(ctx context.Context) error {
 			o.aggregatorRpcClient.SendSignedStateRootUpdateToAggregator(signedStateRootUpdateMessage)
 		}
 	}
+}
+
+func (o *Operator) Close() error {
+	if err := o.consumer.Close(); err != nil {
+		return err
+	}
+
+	return nil
 }
 
 // Takes a CheckpointTaskCreatedLog struct as input and returns a TaskResponseHeader struct.
