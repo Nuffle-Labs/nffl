@@ -70,17 +70,53 @@ type Operator struct {
 	consumer consumer.Consumerer
 }
 
-// TODO(samlaf): config is a mess right now, since the chainio client constructors
-//
-//	take the config in core (which is shared with aggregator and challenger)
-func NewOperatorFromConfig(c types.NodeConfig) (*Operator, error) {
+func createEthClients(config types.NodeConfig, registry *prometheus.Registry, logger sdklogging.Logger) (eth.EthClient, eth.EthClient, error) {
+	if config.EnableMetrics {
+		rpcCallsCollector := rpccalls.NewCollector(AVS_NAME, registry)
+		ethRpcClient, err := eth.NewInstrumentedClient(config.EthRpcUrl, rpcCallsCollector)
+		if err != nil {
+			logger.Errorf("Cannot create http ethclient", "err", err)
+			return nil, nil, err
+		}
+		ethWsClient, err := eth.NewInstrumentedClient(config.EthWsUrl, rpcCallsCollector)
+		if err != nil {
+			logger.Errorf("Cannot create ws ethclient", "err", err)
+			return nil, nil, err
+		}
+
+		return ethRpcClient, ethWsClient, nil
+	}
+
+	ethRpcClient, err := eth.NewClient(config.EthRpcUrl)
+	if err != nil {
+		logger.Errorf("Cannot create http ethclient", "err", err)
+		return nil, nil, err
+	}
+	ethWsClient, err := eth.NewClient(config.EthWsUrl)
+	if err != nil {
+		logger.Errorf("Cannot create ws ethclient", "err", err)
+		return nil, nil, err
+	}
+
+	return ethRpcClient, ethWsClient, nil
+}
+
+func createLogger(config *types.NodeConfig) (sdklogging.Logger, error) {
 	var logLevel logging.LogLevel
-	if c.Production {
+	if config.Production {
 		logLevel = sdklogging.Production
 	} else {
 		logLevel = sdklogging.Development
 	}
-	logger, err := sdklogging.NewZapLogger(logLevel)
+
+	return sdklogging.NewZapLogger(logLevel)
+}
+
+// TODO(samlaf): config is a mess right now, since the chainio client constructors
+//
+//	take the config in core (which is shared with aggregator and challenger)
+func NewOperatorFromConfig(c types.NodeConfig) (*Operator, error) {
+	logger, err := createLogger(&c)
 	if err != nil {
 		return nil, err
 	}
@@ -91,36 +127,16 @@ func NewOperatorFromConfig(c types.NodeConfig) (*Operator, error) {
 	// Setup Node Api
 	nodeApi := nodeapi.NewNodeApi(AVS_NAME, SEM_VER, c.NodeApiIpPortAddress, logger)
 
-	var ethRpcClient, ethWsClient eth.EthClient
-	if c.EnableMetrics {
-		rpcCallsCollector := rpccalls.NewCollector(AVS_NAME, reg)
-		ethRpcClient, err = eth.NewInstrumentedClient(c.EthRpcUrl, rpcCallsCollector)
-		if err != nil {
-			logger.Errorf("Cannot create http ethclient", "err", err)
-			return nil, err
-		}
-		ethWsClient, err = eth.NewInstrumentedClient(c.EthWsUrl, rpcCallsCollector)
-		if err != nil {
-			logger.Errorf("Cannot create ws ethclient", "err", err)
-			return nil, err
-		}
-	} else {
-		ethRpcClient, err = eth.NewClient(c.EthRpcUrl)
-		if err != nil {
-			logger.Errorf("Cannot create http ethclient", "err", err)
-			return nil, err
-		}
-		ethWsClient, err = eth.NewClient(c.EthWsUrl)
-		if err != nil {
-			logger.Errorf("Cannot create ws ethclient", "err", err)
-			return nil, err
-		}
+	ethRpcClient, ethWsClient, err := createEthClients(c, reg, logger)
+	if err != nil {
+		return nil, err
 	}
 
 	blsKeyPassword, ok := os.LookupEnv("OPERATOR_BLS_KEY_PASSWORD")
 	if !ok {
 		logger.Warnf("OPERATOR_BLS_KEY_PASSWORD env var not set. using empty string")
 	}
+
 	blsKeyPair, err := bls.ReadPrivateKeyFromFile(c.BlsPrivateKeyStorePath, blsKeyPassword)
 	if err != nil {
 		logger.Errorf("Cannot parse bls private key", "err", err)
@@ -159,8 +175,8 @@ func NewOperatorFromConfig(c types.NodeConfig) (*Operator, error) {
 	if err != nil {
 		panic(err)
 	}
-	txMgr := txmgr.NewSimpleTxManager(ethRpcClient, logger, signerV2, common.HexToAddress(c.OperatorAddress))
 
+	txMgr := txmgr.NewSimpleTxManager(ethRpcClient, logger, signerV2, common.HexToAddress(c.OperatorAddress))
 	avsWriter, err := chainio.BuildAvsWriter(
 		txMgr, common.HexToAddress(c.AVSRegistryCoordinatorAddress),
 		common.HexToAddress(c.OperatorStateRetrieverAddress), ethRpcClient, logger,
@@ -256,7 +272,6 @@ func NewOperatorFromConfig(c types.NodeConfig) (*Operator, error) {
 	)
 
 	return operator, nil
-
 }
 
 func (o *Operator) Start(ctx context.Context) error {
@@ -276,6 +291,7 @@ func (o *Operator) Start(ctx context.Context) error {
 	if o.config.EnableNodeApi {
 		o.nodeApi.Start()
 	}
+
 	var metricsErrChan <-chan error
 	if o.config.EnableMetrics {
 		metricsErrChan = o.metrics.Start(ctx, o.metricsReg)
@@ -373,36 +389,4 @@ func (o *Operator) SignTaskResponse(taskResponse *taskmanager.CheckpointTaskResp
 	}
 	o.logger.Debug("Signed task response", "signedCheckpointTaskResponse", signedCheckpointTaskResponse)
 	return signedCheckpointTaskResponse, nil
-}
-
-func (o *Operator) SignStateRootUpdateMessage(stateRootUpdateMessage *servicemanager.StateRootUpdateMessage) (*coretypes.SignedStateRootUpdateMessage, error) {
-	messageDigest, err := core.GetStateRootUpdateMessageDigest(stateRootUpdateMessage)
-	if err != nil {
-		o.logger.Error("Error getting state root update message digest. skipping message (this is not expected and should be investigated)", "err", err)
-		return nil, err
-	}
-	blsSignature := o.blsKeypair.SignMessage(messageDigest)
-	signedStateRootUpdateMessage := &coretypes.SignedStateRootUpdateMessage{
-		Message:      *stateRootUpdateMessage,
-		BlsSignature: *blsSignature,
-		OperatorId:   o.operatorId,
-	}
-	o.logger.Debug("Signed message", "signedStateRootUpdateMessage", signedStateRootUpdateMessage)
-	return signedStateRootUpdateMessage, nil
-}
-
-func (o *Operator) SignOperatorSetUpdateMessage(operatorSetUpdateMessage *registryrollup.OperatorSetUpdateMessage) (*coretypes.SignedOperatorSetUpdateMessage, error) {
-	messageDigest, err := core.GetOperatorSetUpdateMessageDigest(operatorSetUpdateMessage)
-	if err != nil {
-		o.logger.Error("Error getting operator set update message digest. skipping message (this is not expected and should be investigated)", "err", err)
-		return nil, err
-	}
-	blsSignature := o.blsKeypair.SignMessage(messageDigest)
-	signedOperatorSetUpdateMessage := &coretypes.SignedOperatorSetUpdateMessage{
-		Message:      *operatorSetUpdateMessage,
-		BlsSignature: *blsSignature,
-		OperatorId:   o.operatorId,
-	}
-	o.logger.Debug("Signed message", "signedOperatorSetUpdateMessage", signedOperatorSetUpdateMessage)
-	return signedOperatorSetUpdateMessage, nil
 }
