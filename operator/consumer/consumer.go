@@ -1,4 +1,4 @@
-package operator
+package consumer
 
 import (
 	"context"
@@ -8,7 +8,6 @@ import (
 
 	"github.com/Layr-Labs/eigensdk-go/logging"
 	"github.com/ethereum/go-ethereum/core/types"
-	"github.com/ethereum/go-ethereum/rlp"
 	rmq "github.com/rabbitmq/amqp091-go"
 )
 
@@ -18,8 +17,12 @@ const (
 )
 
 var (
-	AlreadyClosedError = errors.New("consumer connection is already closed")
+	AlreadyClosedError = errors.New("Consumer connection is already closed")
 )
+
+func getQueueName(rollupId uint32) string {
+	return "rollup" + strconv.FormatUint(uint64(rollupId), 10)
+}
 
 type ConsumerConfig struct {
 	Addr        string
@@ -42,6 +45,7 @@ type Consumerer interface {
 type Consumer struct {
 	consumerTag     string
 	receivedBlocksC chan BlockData
+	queuesListener  QueuesListener
 
 	rollupIds []uint32
 
@@ -175,8 +179,9 @@ func (consumer *Consumer) setupChannel(conn *rmq.Connection, ctx context.Context
 		return err
 	}
 
+	listener := NewQueuesListener(consumer.receivedBlocksC, consumer.logger)
 	for _, rollupId := range consumer.rollupIds {
-		queue, err := channel.QueueDeclare(consumer.getQueueName(rollupId), true, false, false, false, nil)
+		queue, err := channel.QueueDeclare(getQueueName(rollupId), true, false, false, false, nil)
 		if err != nil {
 			return err
 		}
@@ -195,9 +200,13 @@ func (consumer *Consumer) setupChannel(conn *rmq.Connection, ctx context.Context
 			return err
 		}
 
-		go consumer.listen(rollupId, rollupDataC, ctx)
+		err = listener.Add(rollupId, rollupDataC, ctx)
+		if err != nil {
+			return err
+		}
 	}
 
+	consumer.queuesListener = listener
 	consumer.changeChannel(channel)
 	consumer.isReady = true
 	return nil
@@ -208,38 +217,6 @@ func (consumer *Consumer) changeChannel(channel *rmq.Channel) {
 
 	chanClosedErrC := make(chan *rmq.Error)
 	consumer.chanClosedErrC = channel.NotifyClose(chanClosedErrC)
-}
-
-func (consumer *Consumer) getQueueName(rollupId uint32) string {
-	return "rollup" + strconv.FormatUint(uint64(rollupId), 10)
-}
-
-func (consumer *Consumer) listen(rollupId uint32, rollupDataC <-chan rmq.Delivery, ctx context.Context) {
-	for {
-		select {
-		case d, ok := <-rollupDataC:
-			if !ok {
-				consumer.logger.Info("Deliveries channel close", "rollupId", rollupId)
-				break
-			}
-
-			consumer.logger.Info("New delivery", "rollupId", rollupId)
-
-			var block types.Block
-			if err := rlp.DecodeBytes(d.Body, &block); err != nil {
-				consumer.logger.Warn("Invalid block", "rollupId", rollupId, "err", err)
-				continue
-			}
-
-			consumer.receivedBlocksC <- BlockData{RollupId: rollupId, Block: block}
-			d.Ack(false)
-
-		case <-ctx.Done():
-			consumer.logger.Info("Consumer context canceled")
-			// TODO: some closing and canceling here
-			break
-		}
-	}
 }
 
 func (consumer *Consumer) Close() error {
