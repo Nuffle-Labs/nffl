@@ -14,6 +14,7 @@ import (
 	"github.com/NethermindEth/near-sffl/core"
 	"github.com/NethermindEth/near-sffl/core/chainio"
 	"github.com/NethermindEth/near-sffl/metrics"
+	"github.com/NethermindEth/near-sffl/operator/consumer"
 	"github.com/NethermindEth/near-sffl/types"
 
 	"github.com/Layr-Labs/eigensdk-go/chainio/clients"
@@ -64,7 +65,7 @@ type Operator struct {
 	// needed when opting in to avs (allow this service manager contract to slash operator)
 	sfflServiceManagerAddr common.Address
 	// NEAR DA indexer consumer
-	consumer Consumerer
+	consumer consumer.Consumerer
 }
 
 // TODO(samlaf): config is a mess right now, since the chainio client constructors
@@ -199,7 +200,7 @@ func NewOperatorFromConfig(c types.NodeConfig) (*Operator, error) {
 		return nil, err
 	}
 
-	consumer := NewConsumer(ConsumerConfig{
+	consumer := consumer.NewConsumer(consumer.ConsumerConfig{
 		Addr:        c.NearDaIndexerRmqIpPortAddress,
 		ConsumerTag: c.NearDaIndexerConsumerTag,
 		RollupIds:   c.NearDaIndexerRollupIds,
