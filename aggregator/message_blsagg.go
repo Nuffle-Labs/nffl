@@ -114,8 +114,10 @@ func (a *MessageBlsAggregatorService) InitializeNewMessage(
 	timeToExpiry time.Duration,
 	allowAlreadyInitialized bool,
 ) error {
-	if !allowAlreadyInitialized {
-		if _, taskExists := a.signedMessageDigestsCs[messageDigest]; taskExists {
+	if _, taskExists := a.signedMessageDigestsCs[messageDigest]; taskExists {
+		if allowAlreadyInitialized {
+			return nil
+		} else {
 			return MessageAlreadyInitializedErrorFn(messageDigest)
 		}
 	}
