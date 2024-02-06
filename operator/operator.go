@@ -10,6 +10,7 @@ import (
 	"github.com/prometheus/client_golang/prometheus"
 
 	"github.com/NethermindEth/near-sffl/aggregator"
+	servicemanager "github.com/NethermindEth/near-sffl/contracts/bindings/SFFLServiceManager"
 	taskmanager "github.com/NethermindEth/near-sffl/contracts/bindings/SFFLTaskManager"
 	"github.com/NethermindEth/near-sffl/core"
 	"github.com/NethermindEth/near-sffl/core/chainio"
@@ -310,7 +311,18 @@ func (o *Operator) Start(ctx context.Context) error {
 			go o.aggregatorRpcClient.SendSignedCheckpointTaskResponseToAggregator(signedCheckpointTaskResponse)
 		case blockData := <-blockReceivedChan:
 			o.logger.Info("Block received on operator", "rollupId", blockData.RollupId, "block", blockData.Block)
-			continue
+
+			signedStateRootUpdateMessage, err := o.SignStateRootUpdateMessage(&servicemanager.StateRootUpdateMessage{
+				RollupId:    blockData.RollupId,
+				BlockHeight: blockData.Block.NumberU64(),
+				Timestamp:   blockData.Block.Header().Time,
+				StateRoot:   blockData.Block.Header().Root,
+			})
+			if err != nil {
+				continue
+			}
+
+			o.aggregatorRpcClient.SendSignedStateRootUpdateToAggregator(signedStateRootUpdateMessage)
 		}
 	}
 }
@@ -352,4 +364,20 @@ func (o *Operator) SignTaskResponse(taskResponse *taskmanager.CheckpointTaskResp
 	}
 	o.logger.Debug("Signed task response", "signedCheckpointTaskResponse", signedCheckpointTaskResponse)
 	return signedCheckpointTaskResponse, nil
+}
+
+func (o *Operator) SignStateRootUpdateMessage(stateRootUpdateMessage *servicemanager.StateRootUpdateMessage) (*aggregator.SignedStateRootUpdateMessage, error) {
+	messageDigest, err := core.GetStateRootUpdateMessageDigest(stateRootUpdateMessage)
+	if err != nil {
+		o.logger.Error("Error getting message digest. skipping message (this is not expected and should be investigated)", "err", err)
+		return nil, err
+	}
+	blsSignature := o.blsKeypair.SignMessage(messageDigest)
+	signedStateRootUpdateMessage := &aggregator.SignedStateRootUpdateMessage{
+		Message:      *stateRootUpdateMessage,
+		BlsSignature: *blsSignature,
+		OperatorId:   o.operatorId,
+	}
+	o.logger.Debug("Signed message", "signedStateRootUpdateMessage", signedStateRootUpdateMessage)
+	return signedStateRootUpdateMessage, nil
 }
