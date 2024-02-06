@@ -5,19 +5,20 @@ import (
 	"sync"
 	"time"
 
-	"github.com/Layr-Labs/eigensdk-go/logging"
-
 	"github.com/Layr-Labs/eigensdk-go/chainio/clients"
 	sdkclients "github.com/Layr-Labs/eigensdk-go/chainio/clients"
+	"github.com/Layr-Labs/eigensdk-go/logging"
 	"github.com/Layr-Labs/eigensdk-go/services/avsregistry"
 	blsagg "github.com/Layr-Labs/eigensdk-go/services/bls_aggregation"
 	oppubkeysserv "github.com/Layr-Labs/eigensdk-go/services/operatorpubkeys"
 	sdktypes "github.com/Layr-Labs/eigensdk-go/types"
+
 	"github.com/NethermindEth/near-sffl/aggregator/types"
 	"github.com/NethermindEth/near-sffl/core"
 	"github.com/NethermindEth/near-sffl/core/chainio"
 	"github.com/NethermindEth/near-sffl/core/config"
 
+	servicemanager "github.com/NethermindEth/near-sffl/contracts/bindings/SFFLServiceManager"
 	taskmanager "github.com/NethermindEth/near-sffl/contracts/bindings/SFFLTaskManager"
 )
 
@@ -64,20 +65,24 @@ const (
 // Upon sending a task onchain (or receiving a CheckpointTaskCreated Event if the tasks were sent by an external task generator), the aggregator can get the list of all operators opted into each quorum at that
 // block number by calling the getOperatorState() function of the BLSOperatorStateRetriever.sol contract.
 type Aggregator struct {
-	logger           logging.Logger
-	serverIpPortAddr string
-	avsWriter        chainio.AvsWriterer
+	logger               logging.Logger
+	serverIpPortAddr     string
+	restServerIpPortAddr string
+	avsWriter            chainio.AvsWriterer
 	// aggregation related fields
-	blsAggregationService blsagg.BlsAggregationService
-	tasks                 map[types.TaskIndex]taskmanager.CheckpointTask
-	tasksMu               sync.RWMutex
-	taskResponses         map[types.TaskIndex]map[sdktypes.TaskResponseDigest]taskmanager.CheckpointTaskResponse
-	taskResponsesMu       sync.RWMutex
+	taskBlsAggregationService    blsagg.BlsAggregationService
+	messageBlsAggregationService MessageBlsAggregationService
+	tasks                        map[types.TaskIndex]taskmanager.CheckpointTask
+	tasksLock                    sync.RWMutex
+	taskResponses                map[types.TaskIndex]map[sdktypes.TaskResponseDigest]taskmanager.CheckpointTaskResponse
+	taskResponsesLock            sync.RWMutex
+	msgDb                        *MessageDatabase
+	stateRootUpdates             map[types.MessageDigest]servicemanager.StateRootUpdateMessage
+	stateRootUpdatesLock         sync.RWMutex
 }
 
 // NewAggregator creates a new Aggregator with the provided config.
 func NewAggregator(c *config.Config) (*Aggregator, error) {
-
 	avsReader, err := chainio.BuildAvsReaderFromConfig(c)
 	if err != nil {
 		c.Logger.Error("Cannot create avsReader", "err", err)
@@ -104,24 +109,39 @@ func NewAggregator(c *config.Config) (*Aggregator, error) {
 		return nil, err
 	}
 
+	msgDb, err := NewMessageDatabase(c.AggregatorDatabasePath)
+	if err != nil {
+		c.Logger.Errorf("Cannot create database", "err", err)
+		return nil, err
+	}
+
 	operatorPubkeysService := oppubkeysserv.NewOperatorPubkeysServiceInMemory(context.Background(), clients.AvsRegistryChainSubscriber, clients.AvsRegistryChainReader, c.Logger)
 	avsRegistryService := avsregistry.NewAvsRegistryServiceChainCaller(avsReader, operatorPubkeysService, c.Logger)
-	blsAggregationService := blsagg.NewBlsAggregatorService(avsRegistryService, c.Logger)
+	taskBlsAggregationService := blsagg.NewBlsAggregatorService(avsRegistryService, c.Logger)
+	messageBlsAggregationService := NewMessageBlsAggregatorService(avsRegistryService, clients.EthHttpClient, c.Logger)
 
 	return &Aggregator{
-		logger:                c.Logger,
-		serverIpPortAddr:      c.AggregatorServerIpPortAddr,
-		avsWriter:             avsWriter,
-		blsAggregationService: blsAggregationService,
-		tasks:                 make(map[types.TaskIndex]taskmanager.CheckpointTask),
-		taskResponses:         make(map[types.TaskIndex]map[sdktypes.TaskResponseDigest]taskmanager.CheckpointTaskResponse),
+		logger:                       c.Logger,
+		serverIpPortAddr:             c.AggregatorServerIpPortAddr,
+		restServerIpPortAddr:         c.AggregatorRestServerIpPortAddr,
+		avsWriter:                    avsWriter,
+		taskBlsAggregationService:    taskBlsAggregationService,
+		messageBlsAggregationService: messageBlsAggregationService,
+		msgDb:                        msgDb,
+		tasks:                        make(map[types.TaskIndex]taskmanager.CheckpointTask),
+		taskResponses:                make(map[types.TaskIndex]map[sdktypes.TaskResponseDigest]taskmanager.CheckpointTaskResponse),
+		stateRootUpdates:             make(map[types.MessageDigest]servicemanager.StateRootUpdateMessage),
 	}, nil
 }
 
 func (agg *Aggregator) Start(ctx context.Context) error {
 	agg.logger.Infof("Starting aggregator.")
+
 	agg.logger.Infof("Starting aggregator rpc server.")
 	go agg.startServer(ctx)
+
+	agg.logger.Infof("Starting aggregator REST API.")
+	go agg.startRestServer(ctx)
 
 	// TODO(soubhik): refactor task generation/sending into a separate function that we can run as goroutine
 	ticker := time.NewTicker(10 * time.Second)
@@ -139,10 +159,13 @@ func (agg *Aggregator) Start(ctx context.Context) error {
 	for {
 		select {
 		case <-ctx.Done():
-			return nil
-		case blsAggServiceResp := <-agg.blsAggregationService.GetResponseChannel():
-			agg.logger.Info("Received response from blsAggregationService", "blsAggServiceResp", blsAggServiceResp)
+			return agg.Close()
+		case blsAggServiceResp := <-agg.taskBlsAggregationService.GetResponseChannel():
+			agg.logger.Info("Received response from taskBlsAggregationService", "blsAggServiceResp", blsAggServiceResp)
 			agg.sendAggregatedResponseToContract(blsAggServiceResp)
+		case blsAggServiceResp := <-agg.messageBlsAggregationService.GetResponseChannel():
+			agg.logger.Info("Received response from messageBlsAggregationService", "blsAggServiceResp", blsAggServiceResp)
+			agg.handleStateRootUpdateReachedQuorum(blsAggServiceResp)
 		case <-ticker.C:
 			err := agg.sendNewCheckpointTask(block, block)
 			block++
@@ -152,6 +175,14 @@ func (agg *Aggregator) Start(ctx context.Context) error {
 			}
 		}
 	}
+}
+
+func (agg *Aggregator) Close() error {
+	if err := agg.msgDb.Close(); err != nil {
+		return err
+	}
+
+	return nil
 }
 
 func (agg *Aggregator) sendAggregatedResponseToContract(blsAggServiceResp blsagg.BlsAggregationServiceResponse) {
@@ -183,12 +214,12 @@ func (agg *Aggregator) sendAggregatedResponseToContract(blsAggServiceResp blsagg
 	agg.logger.Info("Threshold reached. Sending aggregated response onchain.",
 		"taskIndex", blsAggServiceResp.TaskIndex,
 	)
-	agg.tasksMu.RLock()
+	agg.tasksLock.RLock()
 	task := agg.tasks[blsAggServiceResp.TaskIndex]
-	agg.tasksMu.RUnlock()
-	agg.taskResponsesMu.RLock()
+	agg.tasksLock.RUnlock()
+	agg.taskResponsesLock.RLock()
 	taskResponse := agg.taskResponses[blsAggServiceResp.TaskIndex][blsAggServiceResp.TaskResponseDigest]
-	agg.taskResponsesMu.RUnlock()
+	agg.taskResponsesLock.RUnlock()
 	_, err := agg.avsWriter.SendAggregatedResponse(context.Background(), task, taskResponse, nonSignerStakesAndSignature)
 	if err != nil {
 		agg.logger.Error("Aggregator failed to respond to task", "err", err)
@@ -206,9 +237,9 @@ func (agg *Aggregator) sendNewCheckpointTask(fromTimestamp uint64, toTimestamp u
 		return err
 	}
 
-	agg.tasksMu.Lock()
+	agg.tasksLock.Lock()
 	agg.tasks[taskIndex] = newTask
-	agg.tasksMu.Unlock()
+	agg.tasksLock.Unlock()
 
 	quorumThresholds := make([]uint32, len(newTask.QuorumNumbers))
 	for i, _ := range newTask.QuorumNumbers {
@@ -217,6 +248,39 @@ func (agg *Aggregator) sendNewCheckpointTask(fromTimestamp uint64, toTimestamp u
 	// TODO(samlaf): we use seconds for now, but we should ideally pass a blocknumber to the blsAggregationService
 	// and it should monitor the chain and only expire the task aggregation once the chain has reached that block number.
 	taskTimeToExpiry := taskChallengeWindowBlock * blockTimeSeconds
-	agg.blsAggregationService.InitializeNewTask(taskIndex, newTask.TaskCreatedBlock, newTask.QuorumNumbers, quorumThresholds, taskTimeToExpiry)
+	agg.taskBlsAggregationService.InitializeNewTask(taskIndex, newTask.TaskCreatedBlock, newTask.QuorumNumbers, quorumThresholds, taskTimeToExpiry)
 	return nil
+}
+
+func (agg *Aggregator) handleStateRootUpdateReachedQuorum(blsAggServiceResp types.MessageBlsAggregationServiceResponse) {
+	agg.stateRootUpdatesLock.RLock()
+	msg, ok := agg.stateRootUpdates[blsAggServiceResp.MessageDigest]
+	agg.stateRootUpdatesLock.RUnlock()
+
+	defer func() {
+		agg.stateRootUpdatesLock.RLock()
+		delete(agg.stateRootUpdates, blsAggServiceResp.MessageDigest)
+		agg.stateRootUpdatesLock.RUnlock()
+	}()
+
+	if !ok {
+		agg.logger.Error("Aggregator could not find matching message")
+		return
+	}
+
+	if blsAggServiceResp.Err != nil {
+		agg.logger.Error("Aggregator BLS service returned error", "err", blsAggServiceResp.Err)
+		return
+	}
+
+	err := agg.msgDb.StoreStateRootUpdate(msg)
+	if err != nil {
+		agg.logger.Error("Aggregator could not store message")
+		return
+	}
+	agg.msgDb.StoreStateRootUpdateAggregation(msg, blsAggServiceResp)
+	if err != nil {
+		agg.logger.Error("Aggregator could not store message aggregation")
+		return
+	}
 }

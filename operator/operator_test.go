@@ -2,11 +2,13 @@ package operator
 
 import (
 	"context"
+	"encoding/hex"
 	"fmt"
 	"math/big"
 	"testing"
 	"time"
 
+	"github.com/ethereum/go-ethereum/common"
 	"github.com/ethereum/go-ethereum/core/types"
 	"github.com/ethereum/go-ethereum/event"
 	"github.com/stretchr/testify/assert"
@@ -16,13 +18,15 @@ import (
 
 	"github.com/NethermindEth/near-sffl/aggregator"
 	aggtypes "github.com/NethermindEth/near-sffl/aggregator/types"
+	servicemanager "github.com/NethermindEth/near-sffl/contracts/bindings/SFFLServiceManager"
 	taskmanager "github.com/NethermindEth/near-sffl/contracts/bindings/SFFLTaskManager"
 	chainiomocks "github.com/NethermindEth/near-sffl/core/chainio/mocks"
+	"github.com/NethermindEth/near-sffl/operator/consumer"
 	operatormocks "github.com/NethermindEth/near-sffl/operator/mocks"
 )
 
 func TestOperator(t *testing.T) {
-	operator, _, err := createMockOperator()
+	operator, mockConsumer, err := createMockOperator()
 	assert.Nil(t, err)
 	const taskIndex = 1
 
@@ -67,10 +71,12 @@ func TestOperator(t *testing.T) {
 			Raw: types.Log{},
 		}
 		fmt.Println("newTaskCreatedEvent", newTaskCreatedEvent)
+
 		X, ok := big.NewInt(0).SetString("9996820285347616229516447695531482442433381089408864937966952807215923228881", 10)
 		assert.True(t, ok)
 		Y, ok := big.NewInt(0).SetString("10403462274336311613113322623477208113332192454020049193133394900674966403334", 10)
 		assert.True(t, ok)
+		taskResponseSignature := bls.Signature{G1Point: bls.NewG1Point(X, Y)}
 
 		signedTaskResponse := &aggregator.SignedCheckpointTaskResponse{
 			TaskResponse: taskmanager.CheckpointTaskResponse{
@@ -78,16 +84,42 @@ func TestOperator(t *testing.T) {
 				StateRootUpdatesRoot:   [32]byte{0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0},
 				OperatorSetUpdatesRoot: [32]byte{0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0},
 			},
-			BlsSignature: bls.Signature{
-				G1Point: bls.NewG1Point(X, Y),
-			},
-			OperatorId: operator.operatorId,
+			BlsSignature: taskResponseSignature,
+			OperatorId:   operator.operatorId,
 		}
+
+		stateRoot, err := hex.DecodeString("04d855ea9fbfefca9069335296aaa5108fa16d36ecd200bf133a1f5b5a7f5fe2")
+		assert.Nil(t, err)
+
+		X, ok = big.NewInt(0).SetString("11290223320119541059506650081001398560835662629535951352639311217634399300639", 10)
+		assert.True(t, ok)
+		Y, ok = big.NewInt(0).SetString("13733759189688049392641040177512184151496910984279779370238986310773365898082", 10)
+		assert.True(t, ok)
+		stateRootUpdateMessageSignature := bls.Signature{G1Point: bls.NewG1Point(X, Y)}
+
+		block := types.NewBlockWithHeader(&types.Header{
+			Number: big.NewInt(0).SetInt64(2),
+			Time:   3,
+			Root:   common.Hash(stateRoot),
+		})
+		signedStateRootUpdateMessage := &aggregator.SignedStateRootUpdateMessage{
+			Message: servicemanager.StateRootUpdateMessage{
+				RollupId:    1,
+				BlockHeight: block.NumberU64(),
+				Timestamp:   block.Header().Time,
+				StateRoot:   [32]byte(stateRoot),
+			},
+			BlsSignature: stateRootUpdateMessageSignature,
+			OperatorId:   operator.operatorId,
+		}
+
 		mockCtrl := gomock.NewController(t)
 		defer mockCtrl.Finish()
 
 		mockAggregatorRpcClient := operatormocks.NewMockAggregatorRpcClienter(mockCtrl)
 		mockAggregatorRpcClient.EXPECT().SendSignedCheckpointTaskResponseToAggregator(signedTaskResponse)
+		mockAggregatorRpcClient.EXPECT().SendSignedStateRootUpdateToAggregator(signedStateRootUpdateMessage)
+
 		operator.aggregatorRpcClient = mockAggregatorRpcClient
 
 		mockSubscriber := chainiomocks.NewMockAvsSubscriberer(mockCtrl)
@@ -107,7 +139,13 @@ func TestOperator(t *testing.T) {
 			err := operator.Start(ctx)
 			assert.Nil(t, err)
 		}()
+
 		operator.checkpointTaskCreatedChan <- newTaskCreatedEvent
+		mockConsumer.MockReceiveBlockData(consumer.BlockData{
+			RollupId: signedStateRootUpdateMessage.Message.RollupId,
+			Block:    *block,
+		})
+
 		time.Sleep(1 * time.Second)
 
 		cancel()

@@ -7,12 +7,22 @@ toolchain go1.21.0
 require (
 	github.com/Layr-Labs/eigensdk-go v0.0.10-0.20240103024128-1f8562000045
 	github.com/ethereum/go-ethereum v1.13.5
+	github.com/gorilla/mux v1.8.1
 	github.com/prometheus/client_golang v1.18.0
 	github.com/stretchr/testify v1.8.4
 	github.com/testcontainers/testcontainers-go v0.26.0
 	github.com/urfave/cli v1.22.14
 	go.uber.org/mock v0.3.0
 	golang.org/x/crypto v0.18.0
+)
+
+require (
+	github.com/dgraph-io/ristretto v0.1.1 // indirect
+	github.com/dustin/go-humanize v1.0.0 // indirect
+	github.com/golang/glog v1.1.0 // indirect
+	github.com/golang/groupcache v0.0.0-20210331224755-41bb18bfe9da // indirect
+	github.com/google/flatbuffers v1.12.1 // indirect
+	go.opencensus.io v0.24.0 // indirect
 )
 
 require (
@@ -43,6 +53,7 @@ require (
 	github.com/davecgh/go-spew v1.1.1 // indirect
 	github.com/deckarep/golang-set/v2 v2.6.0 // indirect
 	github.com/decred/dcrd/dcrec/secp256k1/v4 v4.2.0 // indirect
+	github.com/dgraph-io/badger/v4 v4.2.0
 	github.com/docker/distribution v2.8.2+incompatible // indirect
 	github.com/docker/docker v24.0.7+incompatible // indirect
 	github.com/docker/go-connections v0.4.0 // indirect

@@ -3,8 +3,10 @@ package core
 import (
 	"math/big"
 
-	"github.com/Layr-Labs/eigensdk-go/crypto/bls"
+	servicemanager "github.com/NethermindEth/near-sffl/contracts/bindings/SFFLServiceManager"
 	taskmanager "github.com/NethermindEth/near-sffl/contracts/bindings/SFFLTaskManager"
+
+	"github.com/Layr-Labs/eigensdk-go/crypto/bls"
 	"github.com/ethereum/go-ethereum/accounts/abi"
 	"golang.org/x/crypto/sha3"
 )
@@ -49,6 +51,57 @@ func AbiEncodeCheckpointTaskResponse(h *taskmanager.CheckpointTaskResponse) ([]b
 func GetCheckpointTaskResponseDigest(h *taskmanager.CheckpointTaskResponse) ([32]byte, error) {
 
 	encodeTaskResponseByte, err := AbiEncodeCheckpointTaskResponse(h)
+	if err != nil {
+		return [32]byte{}, err
+	}
+
+	var taskResponseDigest [32]byte
+	hasher := sha3.NewLegacyKeccak256()
+	hasher.Write(encodeTaskResponseByte)
+	copy(taskResponseDigest[:], hasher.Sum(nil)[:32])
+
+	return taskResponseDigest, nil
+}
+
+func AbiEncodeStateRootUpdateMessage(h *servicemanager.StateRootUpdateMessage) ([]byte, error) {
+	taskResponseType, err := abi.NewType("tuple", "", []abi.ArgumentMarshaling{
+		{
+			Name: "rollupId",
+			Type: "uint32",
+		},
+		{
+			Name: "blockHeight",
+			Type: "uint64",
+		},
+		{
+			Name: "timestamp",
+			Type: "uint64",
+		},
+		{
+			Name: "stateRoot",
+			Type: "bytes32",
+		},
+	})
+	if err != nil {
+		return nil, err
+	}
+	arguments := abi.Arguments{
+		{
+			Type: taskResponseType,
+		},
+	}
+
+	bytes, err := arguments.Pack(h)
+	if err != nil {
+		return nil, err
+	}
+
+	return bytes, nil
+}
+
+// GetCheckpointTaskResponseDigest returns the hash of the TaskResponse, which is what operators sign over
+func GetStateRootUpdateMessageDigest(h *servicemanager.StateRootUpdateMessage) ([32]byte, error) {
+	encodeTaskResponseByte, err := AbiEncodeStateRootUpdateMessage(h)
 	if err != nil {
 		return [32]byte{}, err
 	}

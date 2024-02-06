@@ -28,14 +28,16 @@ type Config struct {
 	EigenMetricsIpPortAddress string
 	// we need the url for the eigensdk currently... eventually standardize api so as to
 	// only take an ethclient or an rpcUrl (and build the ethclient at each constructor site)
-	EthHttpRpcUrl               string
-	EthWsRpcUrl                 string
-	EthHttpClient               eth.EthClient
-	EthWsClient                 eth.EthClient
-	OperatorStateRetrieverAddr  common.Address
-	SFFLRegistryCoordinatorAddr common.Address
-	AggregatorServerIpPortAddr  string
-	RegisterOperatorOnStartup   bool
+	EthHttpRpcUrl                  string
+	EthWsRpcUrl                    string
+	EthHttpClient                  eth.EthClient
+	EthWsClient                    eth.EthClient
+	OperatorStateRetrieverAddr     common.Address
+	SFFLRegistryCoordinatorAddr    common.Address
+	AggregatorServerIpPortAddr     string
+	AggregatorRestServerIpPortAddr string
+	AggregatorDatabasePath         string
+	RegisterOperatorOnStartup      bool
 	// json:"-" skips this field when marshaling (only used for logging to stdout), since SignerFn doesnt implement marshalJson
 	SignerFn          signerv2.SignerFn `json:"-"`
 	TxMgr             txmgr.TxManager
@@ -44,11 +46,13 @@ type Config struct {
 
 // These are read from ConfigFileFlag
 type ConfigRaw struct {
-	Environment                sdklogging.LogLevel `yaml:"environment"`
-	EthRpcUrl                  string              `yaml:"eth_rpc_url"`
-	EthWsUrl                   string              `yaml:"eth_ws_url"`
-	AggregatorServerIpPortAddr string              `yaml:"aggregator_server_ip_port_address"`
-	RegisterOperatorOnStartup  bool                `yaml:"register_operator_on_startup"`
+	Environment                    sdklogging.LogLevel `yaml:"environment"`
+	EthRpcUrl                      string              `yaml:"eth_rpc_url"`
+	EthWsUrl                       string              `yaml:"eth_ws_url"`
+	AggregatorServerIpPortAddr     string              `yaml:"aggregator_server_ip_port_address"`
+	AggregatorRestServerIpPortAddr string              `yaml:"aggregator_rest_server_ip_port_address"`
+	AggregatorDatabasePath         string              `yaml:"aggregator_database_path"`
+	RegisterOperatorOnStartup      bool                `yaml:"register_operator_on_startup"`
 }
 
 // These are read from SFFLDeploymentFileFlag

@@ -94,18 +94,20 @@ func TestIntegration(t *testing.T) {
 	txMgr := txmgr.NewSimpleTxManager(ethRpcClient, logger, privateKeySigner, aggregatorAddr)
 
 	config := &config.Config{
-		EcdsaPrivateKey:             aggregatorEcdsaPrivateKey,
-		Logger:                      logger,
-		EthHttpRpcUrl:               aggConfigRaw.EthRpcUrl,
-		EthHttpClient:               ethRpcClient,
-		EthWsRpcUrl:                 aggConfigRaw.EthWsUrl,
-		EthWsClient:                 ethWsClient,
-		OperatorStateRetrieverAddr:  common.HexToAddress(sfflDeploymentRaw.Addresses.OperatorStateRetrieverAddr),
-		SFFLRegistryCoordinatorAddr: common.HexToAddress(sfflDeploymentRaw.Addresses.RegistryCoordinatorAddr),
-		AggregatorServerIpPortAddr:  aggConfigRaw.AggregatorServerIpPortAddr,
-		RegisterOperatorOnStartup:   aggConfigRaw.RegisterOperatorOnStartup,
-		TxMgr:                       txMgr,
-		AggregatorAddress:           aggregatorAddr,
+		EcdsaPrivateKey:                aggregatorEcdsaPrivateKey,
+		Logger:                         logger,
+		EthHttpRpcUrl:                  aggConfigRaw.EthRpcUrl,
+		EthHttpClient:                  ethRpcClient,
+		EthWsRpcUrl:                    aggConfigRaw.EthWsUrl,
+		EthWsClient:                    ethWsClient,
+		OperatorStateRetrieverAddr:     common.HexToAddress(sfflDeploymentRaw.Addresses.OperatorStateRetrieverAddr),
+		SFFLRegistryCoordinatorAddr:    common.HexToAddress(sfflDeploymentRaw.Addresses.RegistryCoordinatorAddr),
+		AggregatorServerIpPortAddr:     aggConfigRaw.AggregatorServerIpPortAddr,
+		AggregatorRestServerIpPortAddr: aggConfigRaw.AggregatorRestServerIpPortAddr,
+		AggregatorDatabasePath:         aggConfigRaw.AggregatorDatabasePath,
+		RegisterOperatorOnStartup:      aggConfigRaw.RegisterOperatorOnStartup,
+		TxMgr:                          txMgr,
+		AggregatorAddress:              aggregatorAddr,
 	}
 
 	/* Prepare the config file for operator */
