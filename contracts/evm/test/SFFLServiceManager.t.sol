@@ -76,7 +76,7 @@ contract SFFLServiceManagerTest is TestUtils {
         StateRootUpdate.Message memory message = StateRootUpdate.Message({
             rollupId: 0,
             blockHeight: 1,
-            nearBlockHeight: 2,
+            timestamp: 2,
             stateRoot: bytes32(keccak256(hex"f00d"))
         });
 
@@ -97,7 +97,7 @@ contract SFFLServiceManagerTest is TestUtils {
         StateRootUpdate.Message memory message = StateRootUpdate.Message({
             rollupId: 0,
             blockHeight: 1,
-            nearBlockHeight: 2,
+            timestamp: 2,
             stateRoot: bytes32(keccak256(hex"f00d"))
         });
 

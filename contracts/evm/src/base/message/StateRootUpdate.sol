@@ -14,7 +14,7 @@ library StateRootUpdate {
     struct Message {
         uint32 rollupId;
         uint64 blockHeight;
-        uint64 nearBlockHeight;
+        uint64 timestamp;
         bytes32 stateRoot;
     }
 
