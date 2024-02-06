@@ -16,7 +16,7 @@ var (
 
 type QueuesListener struct {
 	receivedBlocksC chan<- BlockData
-	queueDeliveries map[uint32]<-chan rmq.Delivery
+	queueDeliveryCs map[uint32]<-chan rmq.Delivery
 
 	logger logging.Logger
 }
@@ -24,7 +24,7 @@ type QueuesListener struct {
 func NewQueuesListener(receivedBlocksC chan<- BlockData, logger logging.Logger) QueuesListener {
 	listener := QueuesListener{
 		receivedBlocksC: receivedBlocksC,
-		queueDeliveries: make(map[uint32]<-chan rmq.Delivery),
+		queueDeliveryCs: make(map[uint32]<-chan rmq.Delivery),
 		logger:          logger,
 	}
 
@@ -32,11 +32,11 @@ func NewQueuesListener(receivedBlocksC chan<- BlockData, logger logging.Logger) 
 }
 
 func (listener *QueuesListener) Add(rollupId uint32, rollupDataC <-chan rmq.Delivery, ctx context.Context) error {
-	if _, exists := listener.queueDeliveries[rollupId]; exists {
+	if _, exists := listener.queueDeliveryCs[rollupId]; exists {
 		return QueueExistsError
 	}
 
-	listener.queueDeliveries[rollupId] = rollupDataC
+	listener.queueDeliveryCs[rollupId] = rollupDataC
 	go listener.listen(rollupId, rollupDataC, ctx)
 
 	return nil
