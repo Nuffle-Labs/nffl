@@ -14,6 +14,7 @@ import (
 	"github.com/NethermindEth/near-sffl/core"
 	"github.com/NethermindEth/near-sffl/core/chainio"
 	"github.com/NethermindEth/near-sffl/metrics"
+	"github.com/NethermindEth/near-sffl/operator/consumer"
 	"github.com/NethermindEth/near-sffl/types"
 
 	"github.com/Layr-Labs/eigensdk-go/chainio/clients"
@@ -63,6 +64,8 @@ type Operator struct {
 	aggregatorRpcClient AggregatorRpcClienter
 	// needed when opting in to avs (allow this service manager contract to slash operator)
 	sfflServiceManagerAddr common.Address
+	// NEAR DA indexer consumer
+	consumer consumer.Consumerer
 }
 
 // TODO(samlaf): config is a mess right now, since the chainio client constructors
@@ -197,6 +200,12 @@ func NewOperatorFromConfig(c types.NodeConfig) (*Operator, error) {
 		return nil, err
 	}
 
+	consumer := consumer.NewConsumer(consumer.ConsumerConfig{
+		Addr:        c.NearDaIndexerRmqIpPortAddress,
+		ConsumerTag: c.NearDaIndexerConsumerTag,
+		RollupIds:   c.NearDaIndexerRollupIds,
+	}, logger)
+
 	operator := &Operator{
 		config:                     c,
 		logger:                     logger,
@@ -216,7 +225,7 @@ func NewOperatorFromConfig(c types.NodeConfig) (*Operator, error) {
 		checkpointTaskCreatedChan:  make(chan *taskmanager.ContractSFFLTaskManagerCheckpointTaskCreated),
 		sfflServiceManagerAddr:     common.HexToAddress(c.AVSRegistryCoordinatorAddress),
 		operatorId:                 [32]byte{0}, // this is set below
-
+		consumer:                   &consumer,
 	}
 
 	if c.RegisterOperatorOnStartup {
@@ -274,6 +283,9 @@ func (o *Operator) Start(ctx context.Context) error {
 
 	// TODO(samlaf): wrap this call with increase in avs-node-spec metric
 	sub := o.avsSubscriber.SubscribeToNewTasks(o.checkpointTaskCreatedChan)
+
+	blockReceivedChan := o.consumer.GetBlockStream()
+
 	for {
 		select {
 		case <-ctx.Done():
@@ -296,6 +308,9 @@ func (o *Operator) Start(ctx context.Context) error {
 				continue
 			}
 			go o.aggregatorRpcClient.SendSignedCheckpointTaskResponseToAggregator(signedCheckpointTaskResponse)
+		case blockData := <-blockReceivedChan:
+			o.logger.Info("Block received on operator", "rollupId", blockData.RollupId, "block", blockData.Block)
+			continue
 		}
 	}
 }

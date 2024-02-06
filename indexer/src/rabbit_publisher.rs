@@ -10,6 +10,7 @@ use crate::errors::{Error, Result};
 
 const DEFAULT_EXCHANGE: &str = "";
 const DEFAULT_ROUTING_KEY: &str = "da-mq";
+const PERSISTENT_DELIVERY_MODE: u8 = 2;
 
 pub(crate) type Connection = deadpool::managed::Object<Manager>;
 
@@ -27,7 +28,7 @@ impl Default for PublishOptions {
             exchange: DEFAULT_EXCHANGE.into(),
             routing_key: DEFAULT_ROUTING_KEY.into(),
             basic_publish_options: BasicPublishOptions::default(),
-            basic_properties: BasicProperties::default(),
+            basic_properties: BasicProperties::default().with_delivery_mode(PERSISTENT_DELIVERY_MODE)
         }
     }
 }

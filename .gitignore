@@ -29,6 +29,7 @@ target
 
 # IDE
 .idea
+.vscode
 
 # just for example
 id_rsa
