@@ -59,22 +59,22 @@ contract SFFLTaskManagerTest is TestUtils {
     function test_createCheckpointTask_RevertWhen_CallerNotTaskGenerator() public {
         Checkpoint.Task memory task = Checkpoint.Task({
             taskCreatedBlock: 100,
-            fromNearBlock: 0,
-            toNearBlock: 1,
+            fromTimestamp: 0,
+            toTimestamp: 1,
             quorumThreshold: quorumThreshold(thresholdDenominator, 1),
             quorumNumbers: hex"00"
         });
 
         vm.expectRevert("Task generator must be the caller");
 
-        taskManager.createCheckpointTask(task.fromNearBlock, task.toNearBlock, task.quorumThreshold, task.quorumNumbers);
+        taskManager.createCheckpointTask(task.fromTimestamp, task.toTimestamp, task.quorumThreshold, task.quorumNumbers);
     }
 
     function test_createCheckpointTask_RevertWhen_ThresholdGreaterThanDenominator() public {
         Checkpoint.Task memory task = Checkpoint.Task({
             taskCreatedBlock: 100,
-            fromNearBlock: 0,
-            toNearBlock: 1,
+            fromTimestamp: 0,
+            toTimestamp: 1,
             quorumThreshold: thresholdDenominator + 1,
             quorumNumbers: hex"00"
         });
@@ -82,14 +82,14 @@ contract SFFLTaskManagerTest is TestUtils {
         vm.expectRevert("Quorum threshold greater than denominator");
 
         vm.prank(generator);
-        taskManager.createCheckpointTask(task.fromNearBlock, task.toNearBlock, task.quorumThreshold, task.quorumNumbers);
+        taskManager.createCheckpointTask(task.fromTimestamp, task.toTimestamp, task.quorumThreshold, task.quorumNumbers);
     }
 
     function test_createCheckpointTask() public {
         Checkpoint.Task memory task = Checkpoint.Task({
             taskCreatedBlock: 100,
-            fromNearBlock: 0,
-            toNearBlock: 1,
+            fromTimestamp: 0,
+            toTimestamp: 1,
             quorumThreshold: quorumThreshold(thresholdDenominator, 1),
             quorumNumbers: hex"00"
         });
@@ -103,7 +103,7 @@ contract SFFLTaskManagerTest is TestUtils {
         emit CheckpointTaskCreated(0, task);
 
         vm.prank(generator);
-        taskManager.createCheckpointTask(task.fromNearBlock, task.toNearBlock, task.quorumThreshold, task.quorumNumbers);
+        taskManager.createCheckpointTask(task.fromTimestamp, task.toTimestamp, task.quorumThreshold, task.quorumNumbers);
 
         assertEq(taskManager.nextCheckpointTaskNum(), 1);
         assertEq(taskManager.allCheckpointTaskHashes(0), task.hash());
@@ -112,8 +112,8 @@ contract SFFLTaskManagerTest is TestUtils {
     function test_respondToCheckpointTask() public {
         Checkpoint.Task memory task = Checkpoint.Task({
             taskCreatedBlock: 1000,
-            fromNearBlock: 0,
-            toNearBlock: 1,
+            fromTimestamp: 0,
+            toTimestamp: 1,
             quorumThreshold: quorumThreshold(thresholdDenominator, 1),
             quorumNumbers: hex"00"
         });
@@ -135,7 +135,7 @@ contract SFFLTaskManagerTest is TestUtils {
         });
 
         vm.prank(generator);
-        taskManager.createCheckpointTask(task.fromNearBlock, task.toNearBlock, task.quorumThreshold, task.quorumNumbers);
+        taskManager.createCheckpointTask(task.fromTimestamp, task.toTimestamp, task.quorumThreshold, task.quorumNumbers);
 
         assertEq(taskManager.allCheckpointTaskResponses(0), bytes32(0));
 
@@ -153,8 +153,8 @@ contract SFFLTaskManagerTest is TestUtils {
     function test_respondToCheckpointTask_RevertWhen_InvalidTaskHash() public {
         Checkpoint.Task memory task = Checkpoint.Task({
             taskCreatedBlock: 1000,
-            fromNearBlock: 0,
-            toNearBlock: 1,
+            fromTimestamp: 0,
+            toTimestamp: 1,
             quorumThreshold: quorumThreshold(thresholdDenominator, 1),
             quorumNumbers: hex"00"
         });
@@ -176,7 +176,7 @@ contract SFFLTaskManagerTest is TestUtils {
         });
 
         vm.prank(generator);
-        taskManager.createCheckpointTask(task.fromNearBlock, task.toNearBlock, task.quorumThreshold, task.quorumNumbers);
+        taskManager.createCheckpointTask(task.fromTimestamp, task.toTimestamp, task.quorumThreshold, task.quorumNumbers);
 
         assertEq(taskManager.allCheckpointTaskResponses(0), bytes32(0));
 
@@ -191,8 +191,8 @@ contract SFFLTaskManagerTest is TestUtils {
     function test_respondToCheckpointTask_RevertWhen_ReResponding() public {
         Checkpoint.Task memory task = Checkpoint.Task({
             taskCreatedBlock: 1000,
-            fromNearBlock: 0,
-            toNearBlock: 1,
+            fromTimestamp: 0,
+            toTimestamp: 1,
             quorumThreshold: quorumThreshold(thresholdDenominator, 1),
             quorumNumbers: hex"00"
         });
@@ -214,7 +214,7 @@ contract SFFLTaskManagerTest is TestUtils {
         });
 
         vm.prank(generator);
-        taskManager.createCheckpointTask(task.fromNearBlock, task.toNearBlock, task.quorumThreshold, task.quorumNumbers);
+        taskManager.createCheckpointTask(task.fromTimestamp, task.toTimestamp, task.quorumThreshold, task.quorumNumbers);
 
         assertEq(taskManager.allCheckpointTaskResponses(0), bytes32(0));
 
@@ -232,8 +232,8 @@ contract SFFLTaskManagerTest is TestUtils {
     function test_respondToCheckpointTask_RevertWhen_ResponseTimeExceeded() public {
         Checkpoint.Task memory task = Checkpoint.Task({
             taskCreatedBlock: 1000,
-            fromNearBlock: 0,
-            toNearBlock: 1,
+            fromTimestamp: 0,
+            toTimestamp: 1,
             quorumThreshold: quorumThreshold(thresholdDenominator, 1),
             quorumNumbers: hex"00"
         });
@@ -255,7 +255,7 @@ contract SFFLTaskManagerTest is TestUtils {
         });
 
         vm.prank(generator);
-        taskManager.createCheckpointTask(task.fromNearBlock, task.toNearBlock, task.quorumThreshold, task.quorumNumbers);
+        taskManager.createCheckpointTask(task.fromTimestamp, task.toTimestamp, task.quorumThreshold, task.quorumNumbers);
 
         assertEq(taskManager.allCheckpointTaskResponses(0), bytes32(0));
 
@@ -270,8 +270,8 @@ contract SFFLTaskManagerTest is TestUtils {
     function test_respondToCheckpointTask_RevertWhen_QuorumNotMet() public {
         Checkpoint.Task memory task = Checkpoint.Task({
             taskCreatedBlock: 1000,
-            fromNearBlock: 0,
-            toNearBlock: 1,
+            fromTimestamp: 0,
+            toTimestamp: 1,
             quorumThreshold: quorumThreshold(thresholdDenominator, 1) + 1,
             quorumNumbers: hex"00"
         });
@@ -293,7 +293,7 @@ contract SFFLTaskManagerTest is TestUtils {
         });
 
         vm.prank(generator);
-        taskManager.createCheckpointTask(task.fromNearBlock, task.toNearBlock, task.quorumThreshold, task.quorumNumbers);
+        taskManager.createCheckpointTask(task.fromTimestamp, task.toTimestamp, task.quorumThreshold, task.quorumNumbers);
 
         assertEq(taskManager.allCheckpointTaskResponses(0), bytes32(0));
 
@@ -308,8 +308,8 @@ contract SFFLTaskManagerTest is TestUtils {
     function test_respondToCheckpointTask_RevertWhen_CallerNotAggregator() public {
         Checkpoint.Task memory task = Checkpoint.Task({
             taskCreatedBlock: 1000,
-            fromNearBlock: 0,
-            toNearBlock: 1,
+            fromTimestamp: 0,
+            toTimestamp: 1,
             quorumThreshold: quorumThreshold(thresholdDenominator, 1),
             quorumNumbers: hex"00"
         });

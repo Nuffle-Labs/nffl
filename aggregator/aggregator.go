@@ -197,10 +197,10 @@ func (agg *Aggregator) sendAggregatedResponseToContract(blsAggServiceResp blsagg
 
 // sendNewCheckpointTask sends a new task to the task manager contract, and updates the Task dict struct
 // with the information of operators opted into quorum 0 at the block of task creation.
-func (agg *Aggregator) sendNewCheckpointTask(fromNearBlock uint64, toNearBlock uint64) error {
-	agg.logger.Info("Aggregator sending new task", "fromNearBlock", fromNearBlock, "toNearBlock", toNearBlock)
+func (agg *Aggregator) sendNewCheckpointTask(fromTimestamp uint64, toTimestamp uint64) error {
+	agg.logger.Info("Aggregator sending new task", "fromTimestamp", fromTimestamp, "toTimestamp", toTimestamp)
 	// Send checkpoint to the task manager contract
-	newTask, taskIndex, err := agg.avsWriter.SendNewCheckpointTask(context.Background(), fromNearBlock, toNearBlock, types.QUORUM_THRESHOLD_NUMERATOR, types.QUORUM_NUMBERS)
+	newTask, taskIndex, err := agg.avsWriter.SendNewCheckpointTask(context.Background(), fromTimestamp, toTimestamp, types.QUORUM_THRESHOLD_NUMERATOR, types.QUORUM_NUMBERS)
 	if err != nil {
 		agg.logger.Error("Aggregator failed to send checkpoint", "err", err)
 		return err

@@ -30,8 +30,8 @@ var MOCK_OPERATOR_BLS_PRIVATE_KEY_STRING = "50"
 type MockTask struct {
 	TaskNum       uint32
 	BlockNumber   uint32
-	FromNearBlock uint64
-	ToNearBlock   uint64
+	FromTimestamp uint64
+	ToTimestamp   uint64
 }
 
 func TestSendNewTask(t *testing.T) {

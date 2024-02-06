@@ -320,8 +320,8 @@ func (o *Operator) Start(ctx context.Context) error {
 func (o *Operator) ProcessCheckpointTaskCreatedLog(checkpointTaskCreatedLog *taskmanager.ContractSFFLTaskManagerCheckpointTaskCreated) *taskmanager.CheckpointTaskResponse {
 	o.logger.Debug("Received new task", "task", checkpointTaskCreatedLog)
 	o.logger.Info("Received new task",
-		"fromNearBlock", checkpointTaskCreatedLog.Task.FromNearBlock,
-		"toNearBlock", checkpointTaskCreatedLog.Task.ToNearBlock,
+		"fromTimestamp", checkpointTaskCreatedLog.Task.FromTimestamp,
+		"toTimestamp", checkpointTaskCreatedLog.Task.ToTimestamp,
 		"taskIndex", checkpointTaskCreatedLog.TaskIndex,
 		"taskCreatedBlock", checkpointTaskCreatedLog.Task.TaskCreatedBlock,
 		"quorumNumbers", checkpointTaskCreatedLog.Task.QuorumNumbers,

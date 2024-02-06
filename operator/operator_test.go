@@ -27,14 +27,14 @@ func TestOperator(t *testing.T) {
 	const taskIndex = 1
 
 	t.Run("ProcessNewTaskCreatedLog", func(t *testing.T) {
-		var fromNearBlock = uint64(3)
-		var toNearBlock = uint64(4)
+		var fromTimestamp = uint64(3)
+		var toTimestamp = uint64(4)
 
 		newTaskCreatedLog := &taskmanager.ContractSFFLTaskManagerCheckpointTaskCreated{
 			TaskIndex: taskIndex,
 			Task: taskmanager.CheckpointTask{
-				FromNearBlock:    fromNearBlock,
-				ToNearBlock:      toNearBlock,
+				FromTimestamp:    fromTimestamp,
+				ToTimestamp:      toTimestamp,
 				TaskCreatedBlock: 1000,
 				QuorumNumbers:    aggtypes.QUORUM_NUMBERS,
 				QuorumThreshold:  aggtypes.QUORUM_THRESHOLD_NUMERATOR,
@@ -51,15 +51,15 @@ func TestOperator(t *testing.T) {
 	})
 
 	t.Run("Start", func(t *testing.T) {
-		var fromNearBlock = uint64(3)
-		var toNearBlock = uint64(4)
+		var fromTimestamp = uint64(3)
+		var toTimestamp = uint64(4)
 
 		// new task event
 		newTaskCreatedEvent := &taskmanager.ContractSFFLTaskManagerCheckpointTaskCreated{
 			TaskIndex: taskIndex,
 			Task: taskmanager.CheckpointTask{
-				FromNearBlock:    fromNearBlock,
-				ToNearBlock:      toNearBlock,
+				FromTimestamp:    fromTimestamp,
+				ToTimestamp:      toTimestamp,
 				TaskCreatedBlock: 1000,
 				QuorumNumbers:    aggtypes.QUORUM_NUMBERS,
 				QuorumThreshold:  aggtypes.QUORUM_THRESHOLD_NUMERATOR,
