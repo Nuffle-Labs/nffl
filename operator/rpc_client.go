@@ -13,6 +13,7 @@ import (
 
 type AggregatorRpcClienter interface {
 	SendSignedCheckpointTaskResponseToAggregator(signedCheckpointTaskResponse *aggregator.SignedCheckpointTaskResponse)
+	SendSignedStateRootUpdateToAggregator(signedStateRootUpdateMessage *aggregator.SignedStateRootUpdateMessage)
 }
 type AggregatorRpcClient struct {
 	rpcClient            *rpc.Client
