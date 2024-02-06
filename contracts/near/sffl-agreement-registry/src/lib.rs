@@ -18,7 +18,7 @@ sol! {
     struct StateRootUpdateMessage {
         uint32 rollupId;
         uint64 blockHeight;
-        uint64 nearBlockHeight;
+        uint64 timestamp;
         bytes32 stateRoot;
     }
 
@@ -40,7 +40,7 @@ sol! {
     #[serde(crate = "near_sdk::serde")]
     struct OperatorSetUpdateMessage {
         uint64 id;
-        uint64 nearBlockHeight;
+        uint64 timestamp;
         Operator[] operators;
     }
 
@@ -438,7 +438,7 @@ mod tests {
         let msg = StateRootUpdateMessage {
             rollupId: 1,
             blockHeight: 2,
-            nearBlockHeight: 3,
+            timestamp: 3,
             stateRoot: FixedBytes::<32>::ZERO,
         };
 
@@ -463,7 +463,7 @@ mod tests {
         let msg = StateRootUpdateMessage {
             rollupId: 1,
             blockHeight: 2,
-            nearBlockHeight: 3,
+            timestamp: 3,
             stateRoot: FixedBytes::<32>::ZERO,
         };
 
@@ -508,7 +508,7 @@ mod tests {
         let msg = StateRootUpdateMessage {
             rollupId: 1,
             blockHeight: 2,
-            nearBlockHeight: 3,
+            timestamp: 3,
             stateRoot: FixedBytes::<32>::ZERO,
         };
 
@@ -568,7 +568,7 @@ mod tests {
         let msg = StateRootUpdateMessage {
             rollupId: 1,
             blockHeight: 2,
-            nearBlockHeight: 3,
+            timestamp: 3,
             stateRoot: FixedBytes::<32>::ZERO,
         };
 
@@ -587,7 +587,7 @@ mod tests {
         let msg2 = StateRootUpdateMessage {
             rollupId: 1,
             blockHeight: 2,
-            nearBlockHeight: 4,
+            timestamp: 4,
             stateRoot: FixedBytes::<32>::left_padding_from(&hex!("f00d")),
         };
 
@@ -644,7 +644,7 @@ mod tests {
 
         let msg = OperatorSetUpdateMessage {
             id: 1,
-            nearBlockHeight: 2,
+            timestamp: 2,
             operators: vec![],
         };
 
@@ -668,7 +668,7 @@ mod tests {
 
         let msg = OperatorSetUpdateMessage {
             id: 1,
-            nearBlockHeight: 2,
+            timestamp: 2,
             operators: vec![],
         };
 
@@ -709,7 +709,7 @@ mod tests {
 
         let msg = OperatorSetUpdateMessage {
             id: 1,
-            nearBlockHeight: 2,
+            timestamp: 2,
             operators: vec![],
         };
 
@@ -762,7 +762,7 @@ mod tests {
 
         let msg = OperatorSetUpdateMessage {
             id: 1,
-            nearBlockHeight: 2,
+            timestamp: 2,
             operators: vec![],
         };
 
@@ -780,7 +780,7 @@ mod tests {
 
         let msg2 = OperatorSetUpdateMessage {
             id: 1,
-            nearBlockHeight: 3,
+            timestamp: 3,
             operators: vec![Operator {
                 pubkey: G1Point {
                     X: U256::ZERO,

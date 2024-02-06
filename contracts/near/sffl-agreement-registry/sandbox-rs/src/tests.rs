@@ -11,7 +11,7 @@ sol! {
     struct StateRootUpdateMessage {
         uint32 rollupId;
         uint64 blockHeight;
-        uint64 nearBlockHeight;
+        uint64 timestamp;
         bytes32 stateRoot;
     }
 
@@ -30,7 +30,7 @@ sol! {
     #[derive(Serialize, Deserialize, PartialEq, Debug)]
     struct OperatorSetUpdateMessage {
         uint64 id;
-        uint64 nearBlockHeight;
+        uint64 timestamp;
         Operator[] operators;
     }
 
@@ -143,7 +143,7 @@ async fn test_message_submission(account: &Account, contract: &Contract) -> Resu
     let msg = StateRootUpdateMessage {
         rollupId: 1,
         blockHeight: 2,
-        nearBlockHeight: 3,
+        timestamp: 3,
         stateRoot: FixedBytes::<32>::ZERO,
     };
 

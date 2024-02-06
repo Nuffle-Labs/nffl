@@ -11,10 +11,10 @@ import (
 
 // ====== TaskManager Mocks ======
 
-func MockSendNewCheckpointTask(blockNum, taskNum uint32, fromNearBlock, toNearBlock uint64) (taskmanager.CheckpointTask, uint32, error) {
+func MockSendNewCheckpointTask(blockNum, taskNum uint32, fromTimestamp, toTimestamp uint64) (taskmanager.CheckpointTask, uint32, error) {
 	task := taskmanager.CheckpointTask{
-		FromNearBlock:    fromNearBlock,
-		ToNearBlock:      toNearBlock,
+		FromTimestamp:    fromTimestamp,
+		ToTimestamp:      toTimestamp,
 		TaskCreatedBlock: blockNum,
 		QuorumNumbers:    types.QUORUM_NUMBERS,
 		QuorumThreshold:  types.QUORUM_THRESHOLD_NUMERATOR,

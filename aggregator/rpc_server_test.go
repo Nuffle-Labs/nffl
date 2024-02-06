@@ -47,8 +47,8 @@ func TestProcessSignedCheckpointTaskResponse(t *testing.T) {
 	signedCheckpointTaskResponse, err := createMockSignedCheckpointTaskResponse(MockTask{
 		TaskNum:       TASK_INDEX,
 		BlockNumber:   BLOCK_NUMBER,
-		FromNearBlock: FROM_NEAR_BLOCK,
-		ToNearBlock:   TO_NEAR_BLOCK,
+		FromTimestamp: FROM_NEAR_BLOCK,
+		ToTimestamp:   TO_NEAR_BLOCK,
 	}, *MOCK_OPERATOR_KEYPAIR)
 	assert.Nil(t, err)
 	signedCheckpointTaskResponseDigest, err := core.GetCheckpointTaskResponseDigest(&signedCheckpointTaskResponse.TaskResponse)
@@ -76,8 +76,8 @@ func keccak256(num uint64) [32]byte {
 func createMockSignedCheckpointTaskResponse(mockTask MockTask, keypair bls.KeyPair) (*SignedCheckpointTaskResponse, error) {
 	taskResponse := &taskmanager.CheckpointTaskResponse{
 		ReferenceTaskIndex:     mockTask.TaskNum,
-		StateRootUpdatesRoot:   keccak256(mockTask.FromNearBlock),
-		OperatorSetUpdatesRoot: keccak256(mockTask.ToNearBlock),
+		StateRootUpdatesRoot:   keccak256(mockTask.FromTimestamp),
+		OperatorSetUpdatesRoot: keccak256(mockTask.ToTimestamp),
 	}
 	taskResponseHash, err := core.GetCheckpointTaskResponseDigest(taskResponse)
 	if err != nil {

@@ -20,8 +20,8 @@ type AvsWriterer interface {
 
 	SendNewCheckpointTask(
 		ctx context.Context,
-		fromNearBlock uint64,
-		toNearBlock uint64,
+		fromTimestamp uint64,
+		toTimestamp uint64,
 		quorumThreshold uint32,
 		quorumNumbers []byte,
 	) (taskmanager.CheckpointTask, uint32, error)
@@ -75,13 +75,13 @@ func NewAvsWriter(avsRegistryWriter avsregistry.AvsRegistryWriter, avsServiceBin
 }
 
 // returns the tx receipt, as well as the task index (which it gets from parsing the tx receipt logs)
-func (w *AvsWriter) SendNewCheckpointTask(ctx context.Context, fromNearBlock uint64, toNearBlock uint64, quorumThreshold uint32, quorumNumbers []byte) (taskmanager.CheckpointTask, uint32, error) {
+func (w *AvsWriter) SendNewCheckpointTask(ctx context.Context, fromTimestamp uint64, toTimestamp uint64, quorumThreshold uint32, quorumNumbers []byte) (taskmanager.CheckpointTask, uint32, error) {
 	txOpts, err := w.TxMgr.GetNoSendTxOpts()
 	if err != nil {
 		w.logger.Errorf("Error getting tx opts")
 		return taskmanager.CheckpointTask{}, 0, err
 	}
-	tx, err := w.AvsContractBindings.TaskManager.CreateCheckpointTask(txOpts, fromNearBlock, toNearBlock, quorumThreshold, quorumNumbers)
+	tx, err := w.AvsContractBindings.TaskManager.CreateCheckpointTask(txOpts, fromTimestamp, toTimestamp, quorumThreshold, quorumNumbers)
 	if err != nil {
 		w.logger.Errorf("Error assembling CreateCheckpointTask tx")
 		return taskmanager.CheckpointTask{}, 0, err

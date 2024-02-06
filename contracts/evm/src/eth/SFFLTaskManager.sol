@@ -129,14 +129,14 @@ contract SFFLTaskManager is Initializable, OwnableUpgradeable, Pausable, BLSSign
     /**
      * @notice Creates a new checkpoint task
      * @dev Only callable by the task generator
-     * @param fromNearBlock NEAR block range start
-     * @param toNearBlock NEAR block range end
+     * @param fromTimestamp NEAR block range start
+     * @param toTimestamp NEAR block range end
      * @param quorumThreshold Necessary quorum, based on THRESHOLD_DENOMINATOR
      * @param quorumNumbers Byte array of quorum numbers
      */
     function createCheckpointTask(
-        uint64 fromNearBlock,
-        uint64 toNearBlock,
+        uint64 fromTimestamp,
+        uint64 toTimestamp,
         uint32 quorumThreshold,
         bytes calldata quorumNumbers
     ) external onlyTaskGenerator {
@@ -144,8 +144,8 @@ contract SFFLTaskManager is Initializable, OwnableUpgradeable, Pausable, BLSSign
 
         Checkpoint.Task memory newTask = Checkpoint.Task({
             taskCreatedBlock: uint32(block.number),
-            fromNearBlock: fromNearBlock,
-            toNearBlock: toNearBlock,
+            fromTimestamp: fromTimestamp,
+            toTimestamp: toTimestamp,
             quorumThreshold: quorumThreshold,
             quorumNumbers: quorumNumbers
         });

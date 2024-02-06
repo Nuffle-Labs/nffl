@@ -14,8 +14,8 @@ pragma solidity ^0.8.12;
 library Checkpoint {
     struct Task {
         uint32 taskCreatedBlock;
-        uint64 fromNearBlock;
-        uint64 toNearBlock;
+        uint64 fromTimestamp;
+        uint64 toTimestamp;
         uint32 quorumThreshold;
         bytes quorumNumbers;
     }
