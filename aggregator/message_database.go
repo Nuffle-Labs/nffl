@@ -6,6 +6,7 @@ import (
 	"sync"
 
 	"github.com/NethermindEth/near-sffl/aggregator/types"
+	registryrollup "github.com/NethermindEth/near-sffl/contracts/bindings/SFFLRegistryRollup"
 	servicemanager "github.com/NethermindEth/near-sffl/contracts/bindings/SFFLServiceManager"
 
 	badger "github.com/dgraph-io/badger/v4"
@@ -88,4 +89,20 @@ func (md *MessageDatabase) StoreStateRootUpdateAggregation(stateRootUpdateMessag
 
 func (md *MessageDatabase) FetchStateRootUpdateAggregation(rollupId uint32, blockHeight uint64, aggregation *types.MessageBlsAggregationServiceResponse) error {
 	return md.Fetch("stateRootUpdates", fmt.Sprintf("%d_%d", rollupId, blockHeight), aggregation)
+}
+
+func (md *MessageDatabase) StoreOperatorSetUpdate(operatorSetUpdateMessage registryrollup.OperatorSetUpdateMessage) error {
+	return md.Store("operatorSetUpdates", fmt.Sprintf("%d", operatorSetUpdateMessage.Id), operatorSetUpdateMessage)
+}
+
+func (md *MessageDatabase) FetchOperatorSetUpdate(id uint32, operatorSetUpdateMessage *registryrollup.OperatorSetUpdateMessage) error {
+	return md.Fetch("operatorSetUpdates", fmt.Sprintf("%d", id), operatorSetUpdateMessage)
+}
+
+func (md *MessageDatabase) StoreOperatorSetUpdateAggregation(operatorSetUpdateMessage registryrollup.OperatorSetUpdateMessage, aggregation types.MessageBlsAggregationServiceResponse) error {
+	return md.Store("operatorSetUpdates", fmt.Sprintf("%d", operatorSetUpdateMessage.Id), aggregation)
+}
+
+func (md *MessageDatabase) FetchOperatorSetUpdateAggregation(id uint32, aggregation *types.MessageBlsAggregationServiceResponse) error {
+	return md.Fetch("operatorSetUpdates", fmt.Sprintf("%d", id), aggregation)
 }

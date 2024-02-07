@@ -19,6 +19,7 @@ import (
 
 	"github.com/NethermindEth/near-sffl/aggregator/mocks"
 	"github.com/NethermindEth/near-sffl/aggregator/types"
+	registryrollup "github.com/NethermindEth/near-sffl/contracts/bindings/SFFLRegistryRollup"
 	servicemanager "github.com/NethermindEth/near-sffl/contracts/bindings/SFFLServiceManager"
 	taskmanager "github.com/NethermindEth/near-sffl/contracts/bindings/SFFLTaskManager"
 	chainiomocks "github.com/NethermindEth/near-sffl/core/chainio/mocks"
@@ -55,7 +56,7 @@ func TestSendNewTask(t *testing.T) {
 		},
 	}
 
-	aggregator, mockAvsWriterer, mockTaskBlsAggService, _, err := createMockAggregator(mockCtrl, operatorPubkeyDict)
+	aggregator, mockAvsWriterer, mockTaskBlsAggService, _, _, err := createMockAggregator(mockCtrl, operatorPubkeyDict)
 	assert.Nil(t, err)
 
 	var TASK_INDEX = uint32(0)
@@ -80,22 +81,25 @@ func TestSendNewTask(t *testing.T) {
 
 func createMockAggregator(
 	mockCtrl *gomock.Controller, operatorPubkeyDict map[bls.OperatorId]types.OperatorInfo,
-) (*Aggregator, *chainiomocks.MockAvsWriterer, *blsaggservmock.MockBlsAggregationService, *mocks.MockMessageBlsAggregationService, error) {
+) (*Aggregator, *chainiomocks.MockAvsWriterer, *blsaggservmock.MockBlsAggregationService, *mocks.MockMessageBlsAggregationService, *mocks.MockMessageBlsAggregationService, error) {
 	logger := sdklogging.NewNoopLogger()
 	mockAvsWriter := chainiomocks.NewMockAvsWriterer(mockCtrl)
 	mockTaskBlsAggregationService := blsaggservmock.NewMockBlsAggregationService(mockCtrl)
-	mockMessageBlsAggregationService := mocks.NewMockMessageBlsAggregationService(mockCtrl)
+	mockStateRootUpdateBlsAggregationService := mocks.NewMockMessageBlsAggregationService(mockCtrl)
+	mockOperatorSetUpdateBlsAggregationService := mocks.NewMockMessageBlsAggregationService(mockCtrl)
 
 	aggregator := &Aggregator{
-		logger:                       logger,
-		avsWriter:                    mockAvsWriter,
-		taskBlsAggregationService:    mockTaskBlsAggregationService,
-		messageBlsAggregationService: mockMessageBlsAggregationService,
-		tasks:                        make(map[types.TaskIndex]taskmanager.CheckpointTask),
-		taskResponses:                make(map[types.TaskIndex]map[sdktypes.TaskResponseDigest]taskmanager.CheckpointTaskResponse),
-		stateRootUpdates:             make(map[types.MessageDigest]servicemanager.StateRootUpdateMessage),
+		logger:                                 logger,
+		avsWriter:                              mockAvsWriter,
+		taskBlsAggregationService:              mockTaskBlsAggregationService,
+		stateRootUpdateBlsAggregationService:   mockStateRootUpdateBlsAggregationService,
+		operatorSetUpdateBlsAggregationService: mockOperatorSetUpdateBlsAggregationService,
+		tasks:                                  make(map[types.TaskIndex]taskmanager.CheckpointTask),
+		taskResponses:                          make(map[types.TaskIndex]map[sdktypes.TaskResponseDigest]taskmanager.CheckpointTaskResponse),
+		stateRootUpdates:                       make(map[types.MessageDigest]servicemanager.StateRootUpdateMessage),
+		operatorSetUpdates:                     make(map[types.MessageDigest]registryrollup.OperatorSetUpdateMessage),
 	}
-	return aggregator, mockAvsWriter, mockTaskBlsAggregationService, mockMessageBlsAggregationService, nil
+	return aggregator, mockAvsWriter, mockTaskBlsAggregationService, mockStateRootUpdateBlsAggregationService, mockOperatorSetUpdateBlsAggregationService, nil
 }
 
 // just a mock ethclient to pass to bindings

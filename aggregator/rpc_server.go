@@ -7,6 +7,7 @@ import (
 	"net/rpc"
 
 	"github.com/NethermindEth/near-sffl/aggregator/types"
+	registryrollup "github.com/NethermindEth/near-sffl/contracts/bindings/SFFLRegistryRollup"
 	servicemanager "github.com/NethermindEth/near-sffl/contracts/bindings/SFFLServiceManager"
 	taskmanager "github.com/NethermindEth/near-sffl/contracts/bindings/SFFLTaskManager"
 	"github.com/NethermindEth/near-sffl/core"
@@ -92,9 +93,9 @@ func (agg *Aggregator) ProcessSignedStateRootUpdateMessage(signedStateRootUpdate
 		return TaskResponseDigestNotFoundError500
 	}
 
-	agg.messageBlsAggregationService.InitializeMessageIfNotExists(messageDigest, types.QUORUM_NUMBERS, []uint32{types.QUORUM_THRESHOLD_NUMERATOR}, types.MESSAGE_TTL)
+	agg.stateRootUpdateBlsAggregationService.InitializeMessageIfNotExists(messageDigest, types.QUORUM_NUMBERS, []uint32{types.QUORUM_THRESHOLD_NUMERATOR}, types.MESSAGE_TTL)
 
-	err = agg.messageBlsAggregationService.ProcessNewSignature(
+	err = agg.stateRootUpdateBlsAggregationService.ProcessNewSignature(
 		context.Background(), messageDigest,
 		&signedStateRootUpdateMessage.BlsSignature, signedStateRootUpdateMessage.OperatorId,
 	)
@@ -105,6 +106,37 @@ func (agg *Aggregator) ProcessSignedStateRootUpdateMessage(signedStateRootUpdate
 	agg.stateRootUpdatesLock.Lock()
 	agg.stateRootUpdates[messageDigest] = signedStateRootUpdateMessage.Message
 	agg.stateRootUpdatesLock.Unlock()
+
+	return nil
+}
+
+type SignedOperatorSetUpdateMessage struct {
+	Message      registryrollup.OperatorSetUpdateMessage
+	BlsSignature bls.Signature
+	OperatorId   bls.OperatorId
+}
+
+func (agg *Aggregator) ProcessSignedOperatorSetUpdateMessage(signedOperatorSetUpdateMessage *SignedOperatorSetUpdateMessage, reply *bool) error {
+	agg.logger.Infof("Received signed operator set update message: %#v", signedOperatorSetUpdateMessage)
+	messageDigest, err := core.GetOperatorSetUpdateMessageDigest(&signedOperatorSetUpdateMessage.Message)
+	if err != nil {
+		agg.logger.Error("Failed to get message digest", "err", err)
+		return TaskResponseDigestNotFoundError500
+	}
+
+	agg.operatorSetUpdateBlsAggregationService.InitializeMessageIfNotExists(messageDigest, types.QUORUM_NUMBERS, []uint32{types.QUORUM_THRESHOLD_NUMERATOR}, types.MESSAGE_TTL)
+
+	err = agg.operatorSetUpdateBlsAggregationService.ProcessNewSignature(
+		context.Background(), messageDigest,
+		&signedOperatorSetUpdateMessage.BlsSignature, signedOperatorSetUpdateMessage.OperatorId,
+	)
+	if err != nil {
+		return err
+	}
+
+	agg.operatorSetUpdatesLock.Lock()
+	agg.operatorSetUpdates[messageDigest] = signedOperatorSetUpdateMessage.Message
+	agg.operatorSetUpdatesLock.Unlock()
 
 	return nil
 }

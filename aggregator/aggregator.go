@@ -18,6 +18,7 @@ import (
 	"github.com/NethermindEth/near-sffl/core/chainio"
 	"github.com/NethermindEth/near-sffl/core/config"
 
+	registryrollup "github.com/NethermindEth/near-sffl/contracts/bindings/SFFLRegistryRollup"
 	servicemanager "github.com/NethermindEth/near-sffl/contracts/bindings/SFFLServiceManager"
 	taskmanager "github.com/NethermindEth/near-sffl/contracts/bindings/SFFLTaskManager"
 )
@@ -70,15 +71,18 @@ type Aggregator struct {
 	restServerIpPortAddr string
 	avsWriter            chainio.AvsWriterer
 	// aggregation related fields
-	taskBlsAggregationService    blsagg.BlsAggregationService
-	messageBlsAggregationService MessageBlsAggregationService
-	tasks                        map[types.TaskIndex]taskmanager.CheckpointTask
-	tasksLock                    sync.RWMutex
-	taskResponses                map[types.TaskIndex]map[sdktypes.TaskResponseDigest]taskmanager.CheckpointTaskResponse
-	taskResponsesLock            sync.RWMutex
-	msgDb                        *MessageDatabase
-	stateRootUpdates             map[types.MessageDigest]servicemanager.StateRootUpdateMessage
-	stateRootUpdatesLock         sync.RWMutex
+	taskBlsAggregationService              blsagg.BlsAggregationService
+	stateRootUpdateBlsAggregationService   MessageBlsAggregationService
+	operatorSetUpdateBlsAggregationService MessageBlsAggregationService
+	tasks                                  map[types.TaskIndex]taskmanager.CheckpointTask
+	tasksLock                              sync.RWMutex
+	taskResponses                          map[types.TaskIndex]map[sdktypes.TaskResponseDigest]taskmanager.CheckpointTaskResponse
+	taskResponsesLock                      sync.RWMutex
+	msgDb                                  *MessageDatabase
+	stateRootUpdates                       map[types.MessageDigest]servicemanager.StateRootUpdateMessage
+	stateRootUpdatesLock                   sync.RWMutex
+	operatorSetUpdates                     map[types.MessageDigest]registryrollup.OperatorSetUpdateMessage
+	operatorSetUpdatesLock                 sync.RWMutex
 }
 
 // NewAggregator creates a new Aggregator with the provided config.
@@ -118,19 +122,22 @@ func NewAggregator(c *config.Config) (*Aggregator, error) {
 	operatorPubkeysService := oppubkeysserv.NewOperatorPubkeysServiceInMemory(context.Background(), clients.AvsRegistryChainSubscriber, clients.AvsRegistryChainReader, c.Logger)
 	avsRegistryService := avsregistry.NewAvsRegistryServiceChainCaller(avsReader, operatorPubkeysService, c.Logger)
 	taskBlsAggregationService := blsagg.NewBlsAggregatorService(avsRegistryService, c.Logger)
-	messageBlsAggregationService := NewMessageBlsAggregatorService(avsRegistryService, clients.EthHttpClient, c.Logger)
+	stateRootUpdateBlsAggregationService := NewMessageBlsAggregatorService(avsRegistryService, clients.EthHttpClient, c.Logger)
+	operatorSetUpdateBlsAggregationService := NewMessageBlsAggregatorService(avsRegistryService, clients.EthHttpClient, c.Logger)
 
 	return &Aggregator{
-		logger:                       c.Logger,
-		serverIpPortAddr:             c.AggregatorServerIpPortAddr,
-		restServerIpPortAddr:         c.AggregatorRestServerIpPortAddr,
-		avsWriter:                    avsWriter,
-		taskBlsAggregationService:    taskBlsAggregationService,
-		messageBlsAggregationService: messageBlsAggregationService,
-		msgDb:                        msgDb,
-		tasks:                        make(map[types.TaskIndex]taskmanager.CheckpointTask),
-		taskResponses:                make(map[types.TaskIndex]map[sdktypes.TaskResponseDigest]taskmanager.CheckpointTaskResponse),
-		stateRootUpdates:             make(map[types.MessageDigest]servicemanager.StateRootUpdateMessage),
+		logger:                                 c.Logger,
+		serverIpPortAddr:                       c.AggregatorServerIpPortAddr,
+		restServerIpPortAddr:                   c.AggregatorRestServerIpPortAddr,
+		avsWriter:                              avsWriter,
+		taskBlsAggregationService:              taskBlsAggregationService,
+		stateRootUpdateBlsAggregationService:   stateRootUpdateBlsAggregationService,
+		operatorSetUpdateBlsAggregationService: operatorSetUpdateBlsAggregationService,
+		msgDb:                                  msgDb,
+		tasks:                                  make(map[types.TaskIndex]taskmanager.CheckpointTask),
+		taskResponses:                          make(map[types.TaskIndex]map[sdktypes.TaskResponseDigest]taskmanager.CheckpointTaskResponse),
+		stateRootUpdates:                       make(map[types.MessageDigest]servicemanager.StateRootUpdateMessage),
+		operatorSetUpdates:                     make(map[types.MessageDigest]registryrollup.OperatorSetUpdateMessage),
 	}, nil
 }
 
@@ -163,9 +170,12 @@ func (agg *Aggregator) Start(ctx context.Context) error {
 		case blsAggServiceResp := <-agg.taskBlsAggregationService.GetResponseChannel():
 			agg.logger.Info("Received response from taskBlsAggregationService", "blsAggServiceResp", blsAggServiceResp)
 			agg.sendAggregatedResponseToContract(blsAggServiceResp)
-		case blsAggServiceResp := <-agg.messageBlsAggregationService.GetResponseChannel():
-			agg.logger.Info("Received response from messageBlsAggregationService", "blsAggServiceResp", blsAggServiceResp)
+		case blsAggServiceResp := <-agg.stateRootUpdateBlsAggregationService.GetResponseChannel():
+			agg.logger.Info("Received response from stateRootUpdateBlsAggregationService", "blsAggServiceResp", blsAggServiceResp)
 			agg.handleStateRootUpdateReachedQuorum(blsAggServiceResp)
+		case blsAggServiceResp := <-agg.operatorSetUpdateBlsAggregationService.GetResponseChannel():
+			agg.logger.Info("Received response from operatorSetUpdateBlsAggregationService", "blsAggServiceResp", blsAggServiceResp)
+			agg.handleOperatorSetUpdateReachedQuorum(blsAggServiceResp)
 		case <-ticker.C:
 			err := agg.sendNewCheckpointTask(block, block)
 			block++
@@ -279,6 +289,39 @@ func (agg *Aggregator) handleStateRootUpdateReachedQuorum(blsAggServiceResp type
 		return
 	}
 	agg.msgDb.StoreStateRootUpdateAggregation(msg, blsAggServiceResp)
+	if err != nil {
+		agg.logger.Error("Aggregator could not store message aggregation")
+		return
+	}
+}
+
+func (agg *Aggregator) handleOperatorSetUpdateReachedQuorum(blsAggServiceResp types.MessageBlsAggregationServiceResponse) {
+	agg.operatorSetUpdatesLock.RLock()
+	msg, ok := agg.operatorSetUpdates[blsAggServiceResp.MessageDigest]
+	agg.operatorSetUpdatesLock.RUnlock()
+
+	defer func() {
+		agg.operatorSetUpdatesLock.RLock()
+		delete(agg.operatorSetUpdates, blsAggServiceResp.MessageDigest)
+		agg.operatorSetUpdatesLock.RUnlock()
+	}()
+
+	if !ok {
+		agg.logger.Error("Aggregator could not find matching message")
+		return
+	}
+
+	if blsAggServiceResp.Err != nil {
+		agg.logger.Error("Aggregator BLS service returned error", "err", blsAggServiceResp.Err)
+		return
+	}
+
+	err := agg.msgDb.StoreOperatorSetUpdate(msg)
+	if err != nil {
+		agg.logger.Error("Aggregator could not store message")
+		return
+	}
+	agg.msgDb.StoreOperatorSetUpdateAggregation(msg, blsAggServiceResp)
 	if err != nil {
 		agg.logger.Error("Aggregator could not store message aggregation")
 		return
