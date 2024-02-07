@@ -378,7 +378,7 @@ func (o *Operator) SignTaskResponse(taskResponse *taskmanager.CheckpointTaskResp
 func (o *Operator) SignStateRootUpdateMessage(stateRootUpdateMessage *servicemanager.StateRootUpdateMessage) (*aggregator.SignedStateRootUpdateMessage, error) {
 	messageDigest, err := core.GetStateRootUpdateMessageDigest(stateRootUpdateMessage)
 	if err != nil {
-		o.logger.Error("Error getting message digest. skipping message (this is not expected and should be investigated)", "err", err)
+		o.logger.Error("Error getting state root update message digest. skipping message (this is not expected and should be investigated)", "err", err)
 		return nil, err
 	}
 	blsSignature := o.blsKeypair.SignMessage(messageDigest)
@@ -394,7 +394,7 @@ func (o *Operator) SignStateRootUpdateMessage(stateRootUpdateMessage *serviceman
 func (o *Operator) SignOperatorSetUpdateMessage(operatorSetUpdateMessage *registryrollup.OperatorSetUpdateMessage) (*aggregator.SignedOperatorSetUpdateMessage, error) {
 	messageDigest, err := core.GetOperatorSetUpdateMessageDigest(operatorSetUpdateMessage)
 	if err != nil {
-		o.logger.Error("Error getting message digest. skipping message (this is not expected and should be investigated)", "err", err)
+		o.logger.Error("Error getting operator set update message digest. skipping message (this is not expected and should be investigated)", "err", err)
 		return nil, err
 	}
 	blsSignature := o.blsKeypair.SignMessage(messageDigest)
