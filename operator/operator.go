@@ -339,7 +339,7 @@ func (o *Operator) Start(ctx context.Context) error {
 }
 
 func (o *Operator) Close() error {
-	if err := o.consumer.Close(); err != nil {
+	if err := o.attestor.Close(); err != nil {
 		return err
 	}
 
