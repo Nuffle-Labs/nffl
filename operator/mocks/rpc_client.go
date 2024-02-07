@@ -50,6 +50,18 @@ func (mr *MockAggregatorRpcClienterMockRecorder) SendSignedCheckpointTaskRespons
 	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "SendSignedCheckpointTaskResponseToAggregator", reflect.TypeOf((*MockAggregatorRpcClienter)(nil).SendSignedCheckpointTaskResponseToAggregator), arg0)
 }
 
+// SendSignedOperatorSetUpdateToAggregator mocks base method.
+func (m *MockAggregatorRpcClienter) SendSignedOperatorSetUpdateToAggregator(arg0 *aggregator.SignedOperatorSetUpdateMessage) {
+	m.ctrl.T.Helper()
+	m.ctrl.Call(m, "SendSignedOperatorSetUpdateToAggregator", arg0)
+}
+
+// SendSignedOperatorSetUpdateToAggregator indicates an expected call of SendSignedOperatorSetUpdateToAggregator.
+func (mr *MockAggregatorRpcClienterMockRecorder) SendSignedOperatorSetUpdateToAggregator(arg0 any) *gomock.Call {
+	mr.mock.ctrl.T.Helper()
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "SendSignedOperatorSetUpdateToAggregator", reflect.TypeOf((*MockAggregatorRpcClienter)(nil).SendSignedOperatorSetUpdateToAggregator), arg0)
+}
+
 // SendSignedStateRootUpdateToAggregator mocks base method.
 func (m *MockAggregatorRpcClienter) SendSignedStateRootUpdateToAggregator(arg0 *aggregator.SignedStateRootUpdateMessage) {
 	m.ctrl.T.Helper()
