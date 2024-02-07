@@ -10,6 +10,7 @@ import (
 	"github.com/prometheus/client_golang/prometheus"
 
 	"github.com/NethermindEth/near-sffl/aggregator"
+	registryrollup "github.com/NethermindEth/near-sffl/contracts/bindings/SFFLRegistryRollup"
 	servicemanager "github.com/NethermindEth/near-sffl/contracts/bindings/SFFLServiceManager"
 	taskmanager "github.com/NethermindEth/near-sffl/contracts/bindings/SFFLTaskManager"
 	"github.com/NethermindEth/near-sffl/core"
@@ -388,4 +389,20 @@ func (o *Operator) SignStateRootUpdateMessage(stateRootUpdateMessage *serviceman
 	}
 	o.logger.Debug("Signed message", "signedStateRootUpdateMessage", signedStateRootUpdateMessage)
 	return signedStateRootUpdateMessage, nil
+}
+
+func (o *Operator) SignOperatorSetUpdateMessage(operatorSetUpdateMessage *registryrollup.OperatorSetUpdateMessage) (*aggregator.SignedOperatorSetUpdateMessage, error) {
+	messageDigest, err := core.GetOperatorSetUpdateMessageDigest(operatorSetUpdateMessage)
+	if err != nil {
+		o.logger.Error("Error getting message digest. skipping message (this is not expected and should be investigated)", "err", err)
+		return nil, err
+	}
+	blsSignature := o.blsKeypair.SignMessage(messageDigest)
+	signedOperatorSetUpdateMessage := &aggregator.SignedOperatorSetUpdateMessage{
+		Message:      *operatorSetUpdateMessage,
+		BlsSignature: *blsSignature,
+		OperatorId:   o.operatorId,
+	}
+	o.logger.Debug("Signed message", "signedOperatorSetUpdateMessage", signedOperatorSetUpdateMessage)
+	return signedOperatorSetUpdateMessage, nil
 }
