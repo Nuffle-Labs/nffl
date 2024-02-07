@@ -67,7 +67,7 @@ type Operator struct {
 	// needed when opting in to avs (allow this service manager contract to slash operator)
 	sfflServiceManagerAddr common.Address
 	// NEAR DA indexer consumer
-	consumer consumer.Consumerer
+	attestor *RollupBlocksAttestor
 }
 
 func createEthClients(config types.NodeConfig, registry *prometheus.Registry, logger sdklogging.Logger) (eth.EthClient, eth.EthClient, error) {
@@ -218,12 +218,6 @@ func NewOperatorFromConfig(c types.NodeConfig) (*Operator, error) {
 		return nil, err
 	}
 
-	consumer := consumer.NewConsumer(consumer.ConsumerConfig{
-		Addr:        c.NearDaIndexerRmqIpPortAddress,
-		ConsumerTag: c.NearDaIndexerConsumerTag,
-		RollupIds:   c.NearDaIndexerRollupIds,
-	}, logger)
-
 	operator := &Operator{
 		config:                     c,
 		logger:                     logger,
@@ -243,7 +237,6 @@ func NewOperatorFromConfig(c types.NodeConfig) (*Operator, error) {
 		checkpointTaskCreatedChan:  make(chan *taskmanager.ContractSFFLTaskManagerCheckpointTaskCreated),
 		sfflServiceManagerAddr:     common.HexToAddress(c.AVSRegistryCoordinatorAddress),
 		operatorId:                 [32]byte{0}, // this is set below
-		consumer:                   &consumer,
 	}
 
 	if c.RegisterOperatorOnStartup {
@@ -271,6 +264,12 @@ func NewOperatorFromConfig(c types.NodeConfig) (*Operator, error) {
 		"operatorG2Pubkey", operator.blsKeypair.GetPubKeyG2(),
 	)
 
+	attestor, err := NewRollupBlocksAttestor(&c, blsKeyPair, operatorId, reg, logger)
+	if err != nil {
+		return nil, err
+	}
+	operator.attestor = attestor
+
 	return operator, nil
 }
 
@@ -284,6 +283,11 @@ func (o *Operator) Start(ctx context.Context) error {
 		// We bubble the error all the way up instead of using logger.Fatal because logger.Fatal prints a huge stack trace
 		// that hides the actual error message. This error msg is more explicit and doesn't require showing a stack trace to the user.
 		return fmt.Errorf("operator is not registered. Registering operator using the operator-cli before starting operator")
+	}
+
+	// TODO: hmm maybe remove start from attestor?
+	if err := o.attestor.Start(ctx); err != nil {
+		return err
 	}
 
 	o.logger.Infof("Starting operator.")
@@ -301,8 +305,7 @@ func (o *Operator) Start(ctx context.Context) error {
 
 	// TODO(samlaf): wrap this call with increase in avs-node-spec metric
 	sub := o.avsSubscriber.SubscribeToNewTasks(o.checkpointTaskCreatedChan)
-
-	blockReceivedChan := o.consumer.GetBlockStream()
+	signedRootsC := o.attestor.GetSingedRootC()
 
 	for {
 		select {
@@ -325,21 +328,12 @@ func (o *Operator) Start(ctx context.Context) error {
 			if err != nil {
 				continue
 			}
+
 			go o.aggregatorRpcClient.SendSignedCheckpointTaskResponseToAggregator(signedCheckpointTaskResponse)
-		case blockData := <-blockReceivedChan:
-			o.logger.Info("Block received on operator", "rollupId", blockData.RollupId, "block", blockData.Block)
+		case signedStateRootUpdateMessage := <-signedRootsC:
+			o.aggregatorRpcClient.SendSignedStateRootUpdateToAggregator(&signedStateRootUpdateMessage)
 
-			signedStateRootUpdateMessage, err := o.SignStateRootUpdateMessage(&servicemanager.StateRootUpdateMessage{
-				RollupId:    blockData.RollupId,
-				BlockHeight: blockData.Block.NumberU64(),
-				Timestamp:   blockData.Block.Header().Time,
-				StateRoot:   blockData.Block.Header().Root,
-			})
-			if err != nil {
-				continue
-			}
-
-			o.aggregatorRpcClient.SendSignedStateRootUpdateToAggregator(signedStateRootUpdateMessage)
+			continue
 		}
 	}
 }
