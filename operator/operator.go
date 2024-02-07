@@ -3,6 +3,7 @@ package operator
 import (
 	"context"
 	"fmt"
+	attestor2 "github.com/NethermindEth/near-sffl/operator/attestor"
 	"os"
 
 	"github.com/ethereum/go-ethereum/accounts/abi/bind"
@@ -67,7 +68,7 @@ type Operator struct {
 	// needed when opting in to avs (allow this service manager contract to slash operator)
 	sfflServiceManagerAddr common.Address
 	// NEAR DA indexer consumer
-	attestor *RollupBlocksAttestor
+	attestor *attestor2.RollupBlocksAttestor
 }
 
 func createEthClients(config types.NodeConfig, registry *prometheus.Registry, logger sdklogging.Logger) (eth.EthClient, eth.EthClient, error) {
@@ -264,7 +265,7 @@ func NewOperatorFromConfig(c types.NodeConfig) (*Operator, error) {
 		"operatorG2Pubkey", operator.blsKeypair.GetPubKeyG2(),
 	)
 
-	attestor, err := NewRollupBlocksAttestor(&c, blsKeyPair, operatorId, reg, logger)
+	attestor, err := attestor2.NewRollupBlocksAttestor(&c, blsKeyPair, operatorId, reg, logger)
 	if err != nil {
 		return nil, err
 	}
