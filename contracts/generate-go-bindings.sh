@@ -23,7 +23,7 @@ rm -rf bindings/*
 forge clean --root ./evm
 forge build --root ./evm
 
-avs_service_contracts="SFFLServiceManager SFFLTaskManager SFFLRegistryRollup"
+avs_service_contracts="SFFLServiceManager SFFLTaskManager SFFLRegistryRollup SFFLRegistryCoordinator"
 for contract in $avs_service_contracts; do
     create_binding . $contract ./bindings
 done
