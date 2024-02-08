@@ -11,6 +11,7 @@ package mocks
 import (
 	reflect "reflect"
 
+	contractSFFLRegistryCoordinator "github.com/NethermindEth/near-sffl/contracts/bindings/SFFLRegistryCoordinator"
 	contractSFFLTaskManager "github.com/NethermindEth/near-sffl/contracts/bindings/SFFLTaskManager"
 	types "github.com/ethereum/go-ethereum/core/types"
 	event "github.com/ethereum/go-ethereum/event"
@@ -67,6 +68,20 @@ func (m *MockAvsSubscriberer) SubscribeToNewTasks(arg0 chan *contractSFFLTaskMan
 func (mr *MockAvsSubscribererMockRecorder) SubscribeToNewTasks(arg0 any) *gomock.Call {
 	mr.mock.ctrl.T.Helper()
 	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "SubscribeToNewTasks", reflect.TypeOf((*MockAvsSubscriberer)(nil).SubscribeToNewTasks), arg0)
+}
+
+// SubscribeToOperatorSetUpdates mocks base method.
+func (m *MockAvsSubscriberer) SubscribeToOperatorSetUpdates(arg0 chan *contractSFFLRegistryCoordinator.ContractSFFLRegistryCoordinatorOperatorSetUpdatedAtBlock) event.Subscription {
+	m.ctrl.T.Helper()
+	ret := m.ctrl.Call(m, "SubscribeToOperatorSetUpdates", arg0)
+	ret0, _ := ret[0].(event.Subscription)
+	return ret0
+}
+
+// SubscribeToOperatorSetUpdates indicates an expected call of SubscribeToOperatorSetUpdates.
+func (mr *MockAvsSubscribererMockRecorder) SubscribeToOperatorSetUpdates(arg0 any) *gomock.Call {
+	mr.mock.ctrl.T.Helper()
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "SubscribeToOperatorSetUpdates", reflect.TypeOf((*MockAvsSubscriberer)(nil).SubscribeToOperatorSetUpdates), arg0)
 }
 
 // SubscribeToTaskResponses mocks base method.
