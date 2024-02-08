@@ -7,12 +7,9 @@ import (
 	"net/rpc"
 
 	"github.com/NethermindEth/near-sffl/aggregator/types"
-	registryrollup "github.com/NethermindEth/near-sffl/contracts/bindings/SFFLRegistryRollup"
-	servicemanager "github.com/NethermindEth/near-sffl/contracts/bindings/SFFLServiceManager"
 	taskmanager "github.com/NethermindEth/near-sffl/contracts/bindings/SFFLTaskManager"
 	"github.com/NethermindEth/near-sffl/core"
 
-	"github.com/Layr-Labs/eigensdk-go/crypto/bls"
 	sdktypes "github.com/Layr-Labs/eigensdk-go/types"
 )
 
@@ -41,16 +38,10 @@ func (agg *Aggregator) startServer(ctx context.Context) error {
 	return nil
 }
 
-type SignedCheckpointTaskResponse struct {
-	TaskResponse taskmanager.CheckpointTaskResponse
-	BlsSignature bls.Signature
-	OperatorId   bls.OperatorId
-}
-
 // rpc endpoint which is called by operator
 // reply doesn't need to be checked. If there are no errors, the task response is accepted
 // rpc framework forces a reply type to exist, so we put bool as a placeholder
-func (agg *Aggregator) ProcessSignedCheckpointTaskResponse(signedCheckpointTaskResponse *SignedCheckpointTaskResponse, reply *bool) error {
+func (agg *Aggregator) ProcessSignedCheckpointTaskResponse(signedCheckpointTaskResponse *core.SignedCheckpointTaskResponse, reply *bool) error {
 	agg.logger.Infof("Received signed task response: %#v", signedCheckpointTaskResponse)
 	taskIndex := signedCheckpointTaskResponse.TaskResponse.ReferenceTaskIndex
 	taskResponseDigest, err := core.GetCheckpointTaskResponseDigest(&signedCheckpointTaskResponse.TaskResponse)
@@ -79,13 +70,7 @@ func (agg *Aggregator) ProcessSignedCheckpointTaskResponse(signedCheckpointTaskR
 	return nil
 }
 
-type SignedStateRootUpdateMessage struct {
-	Message      servicemanager.StateRootUpdateMessage
-	BlsSignature bls.Signature
-	OperatorId   bls.OperatorId
-}
-
-func (agg *Aggregator) ProcessSignedStateRootUpdateMessage(signedStateRootUpdateMessage *SignedStateRootUpdateMessage, reply *bool) error {
+func (agg *Aggregator) ProcessSignedStateRootUpdateMessage(signedStateRootUpdateMessage *core.SignedStateRootUpdateMessage, reply *bool) error {
 	agg.logger.Infof("Received signed state root update message: %#v", signedStateRootUpdateMessage)
 	messageDigest, err := core.GetStateRootUpdateMessageDigest(&signedStateRootUpdateMessage.Message)
 	if err != nil {
@@ -93,7 +78,7 @@ func (agg *Aggregator) ProcessSignedStateRootUpdateMessage(signedStateRootUpdate
 		return TaskResponseDigestNotFoundError500
 	}
 
-	agg.stateRootUpdateBlsAggregationService.InitializeMessageIfNotExists(messageDigest, types.QUORUM_NUMBERS, []uint32{types.QUORUM_THRESHOLD_NUMERATOR}, types.MESSAGE_TTL)
+	agg.stateRootUpdateBlsAggregationService.InitializeMessageIfNotExists(messageDigest, core.QUORUM_NUMBERS, []uint32{types.QUORUM_THRESHOLD_NUMERATOR}, types.MESSAGE_TTL)
 
 	err = agg.stateRootUpdateBlsAggregationService.ProcessNewSignature(
 		context.Background(), messageDigest,
@@ -110,13 +95,7 @@ func (agg *Aggregator) ProcessSignedStateRootUpdateMessage(signedStateRootUpdate
 	return nil
 }
 
-type SignedOperatorSetUpdateMessage struct {
-	Message      registryrollup.OperatorSetUpdateMessage
-	BlsSignature bls.Signature
-	OperatorId   bls.OperatorId
-}
-
-func (agg *Aggregator) ProcessSignedOperatorSetUpdateMessage(signedOperatorSetUpdateMessage *SignedOperatorSetUpdateMessage, reply *bool) error {
+func (agg *Aggregator) ProcessSignedOperatorSetUpdateMessage(signedOperatorSetUpdateMessage *core.SignedOperatorSetUpdateMessage, reply *bool) error {
 	agg.logger.Infof("Received signed operator set update message: %#v", signedOperatorSetUpdateMessage)
 	messageDigest, err := core.GetOperatorSetUpdateMessageDigest(&signedOperatorSetUpdateMessage.Message)
 	if err != nil {
@@ -124,7 +103,7 @@ func (agg *Aggregator) ProcessSignedOperatorSetUpdateMessage(signedOperatorSetUp
 		return TaskResponseDigestNotFoundError500
 	}
 
-	agg.operatorSetUpdateBlsAggregationService.InitializeMessageIfNotExists(messageDigest, types.QUORUM_NUMBERS, []uint32{types.QUORUM_THRESHOLD_NUMERATOR}, types.MESSAGE_TTL)
+	agg.operatorSetUpdateBlsAggregationService.InitializeMessageIfNotExists(messageDigest, core.QUORUM_NUMBERS, []uint32{types.QUORUM_THRESHOLD_NUMERATOR}, types.MESSAGE_TTL)
 
 	err = agg.operatorSetUpdateBlsAggregationService.ProcessNewSignature(
 		context.Background(), messageDigest,

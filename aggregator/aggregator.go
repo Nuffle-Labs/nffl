@@ -74,14 +74,14 @@ type Aggregator struct {
 	taskBlsAggregationService              blsagg.BlsAggregationService
 	stateRootUpdateBlsAggregationService   MessageBlsAggregationService
 	operatorSetUpdateBlsAggregationService MessageBlsAggregationService
-	tasks                                  map[types.TaskIndex]taskmanager.CheckpointTask
+	tasks                                  map[core.TaskIndex]taskmanager.CheckpointTask
 	tasksLock                              sync.RWMutex
-	taskResponses                          map[types.TaskIndex]map[sdktypes.TaskResponseDigest]taskmanager.CheckpointTaskResponse
+	taskResponses                          map[core.TaskIndex]map[sdktypes.TaskResponseDigest]taskmanager.CheckpointTaskResponse
 	taskResponsesLock                      sync.RWMutex
 	msgDb                                  *MessageDatabase
-	stateRootUpdates                       map[types.MessageDigest]servicemanager.StateRootUpdateMessage
+	stateRootUpdates                       map[core.MessageDigest]servicemanager.StateRootUpdateMessage
 	stateRootUpdatesLock                   sync.RWMutex
-	operatorSetUpdates                     map[types.MessageDigest]registryrollup.OperatorSetUpdateMessage
+	operatorSetUpdates                     map[core.MessageDigest]registryrollup.OperatorSetUpdateMessage
 	operatorSetUpdatesLock                 sync.RWMutex
 }
 
@@ -134,10 +134,10 @@ func NewAggregator(c *config.Config) (*Aggregator, error) {
 		stateRootUpdateBlsAggregationService:   stateRootUpdateBlsAggregationService,
 		operatorSetUpdateBlsAggregationService: operatorSetUpdateBlsAggregationService,
 		msgDb:                                  msgDb,
-		tasks:                                  make(map[types.TaskIndex]taskmanager.CheckpointTask),
-		taskResponses:                          make(map[types.TaskIndex]map[sdktypes.TaskResponseDigest]taskmanager.CheckpointTaskResponse),
-		stateRootUpdates:                       make(map[types.MessageDigest]servicemanager.StateRootUpdateMessage),
-		operatorSetUpdates:                     make(map[types.MessageDigest]registryrollup.OperatorSetUpdateMessage),
+		tasks:                                  make(map[core.TaskIndex]taskmanager.CheckpointTask),
+		taskResponses:                          make(map[core.TaskIndex]map[sdktypes.TaskResponseDigest]taskmanager.CheckpointTaskResponse),
+		stateRootUpdates:                       make(map[core.MessageDigest]servicemanager.StateRootUpdateMessage),
+		operatorSetUpdates:                     make(map[core.MessageDigest]registryrollup.OperatorSetUpdateMessage),
 	}, nil
 }
 
@@ -241,7 +241,7 @@ func (agg *Aggregator) sendAggregatedResponseToContract(blsAggServiceResp blsagg
 func (agg *Aggregator) sendNewCheckpointTask(fromTimestamp uint64, toTimestamp uint64) error {
 	agg.logger.Info("Aggregator sending new task", "fromTimestamp", fromTimestamp, "toTimestamp", toTimestamp)
 	// Send checkpoint to the task manager contract
-	newTask, taskIndex, err := agg.avsWriter.SendNewCheckpointTask(context.Background(), fromTimestamp, toTimestamp, types.QUORUM_THRESHOLD_NUMERATOR, types.QUORUM_NUMBERS)
+	newTask, taskIndex, err := agg.avsWriter.SendNewCheckpointTask(context.Background(), fromTimestamp, toTimestamp, types.QUORUM_THRESHOLD_NUMERATOR, core.QUORUM_NUMBERS)
 	if err != nil {
 		agg.logger.Error("Aggregator failed to send checkpoint", "err", err)
 		return err

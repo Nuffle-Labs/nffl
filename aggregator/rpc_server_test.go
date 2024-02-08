@@ -13,6 +13,7 @@ import (
 
 	"github.com/Layr-Labs/eigensdk-go/crypto/bls"
 	sdktypes "github.com/Layr-Labs/eigensdk-go/types"
+
 	"github.com/NethermindEth/near-sffl/aggregator/types"
 	registryrollup "github.com/NethermindEth/near-sffl/contracts/bindings/SFFLRegistryRollup"
 	servicemanager "github.com/NethermindEth/near-sffl/contracts/bindings/SFFLServiceManager"
@@ -102,7 +103,7 @@ func TestProcessSignedStateRootUpdateMessage(t *testing.T) {
 
 	mockMessageBlsAggServ.EXPECT().ProcessNewSignature(context.Background(), messageDigest,
 		&signedMessage.BlsSignature, signedMessage.OperatorId)
-	mockMessageBlsAggServ.EXPECT().InitializeMessageIfNotExists(messageDigest, types.QUORUM_NUMBERS, []uint32{types.QUORUM_THRESHOLD_NUMERATOR}, types.MESSAGE_TTL)
+	mockMessageBlsAggServ.EXPECT().InitializeMessageIfNotExists(messageDigest, core.QUORUM_NUMBERS, []uint32{types.QUORUM_THRESHOLD_NUMERATOR}, types.MESSAGE_TTL)
 	err = aggregator.ProcessSignedStateRootUpdateMessage(signedMessage, nil)
 	assert.Nil(t, err)
 }
@@ -144,7 +145,7 @@ func TestProcessOperatorSetUpdateMessage(t *testing.T) {
 
 	mockMessageBlsAggServ.EXPECT().ProcessNewSignature(context.Background(), messageDigest,
 		&signedMessage.BlsSignature, signedMessage.OperatorId)
-	mockMessageBlsAggServ.EXPECT().InitializeMessageIfNotExists(messageDigest, types.QUORUM_NUMBERS, []uint32{types.QUORUM_THRESHOLD_NUMERATOR}, types.MESSAGE_TTL)
+	mockMessageBlsAggServ.EXPECT().InitializeMessageIfNotExists(messageDigest, core.QUORUM_NUMBERS, []uint32{types.QUORUM_THRESHOLD_NUMERATOR}, types.MESSAGE_TTL)
 	err = aggregator.ProcessSignedOperatorSetUpdateMessage(signedMessage, nil)
 	assert.Nil(t, err)
 }
@@ -158,7 +159,7 @@ func keccak256(num uint64) [32]byte {
 	return hash
 }
 
-func createMockSignedCheckpointTaskResponse(mockTask MockTask, keypair bls.KeyPair) (*SignedCheckpointTaskResponse, error) {
+func createMockSignedCheckpointTaskResponse(mockTask MockTask, keypair bls.KeyPair) (*core.SignedCheckpointTaskResponse, error) {
 	taskResponse := &taskmanager.CheckpointTaskResponse{
 		ReferenceTaskIndex:     mockTask.TaskNum,
 		StateRootUpdatesRoot:   keccak256(mockTask.FromTimestamp),
@@ -169,7 +170,7 @@ func createMockSignedCheckpointTaskResponse(mockTask MockTask, keypair bls.KeyPa
 		return nil, err
 	}
 	blsSignature := keypair.SignMessage(taskResponseHash)
-	signedCheckpointTaskResponse := &SignedCheckpointTaskResponse{
+	signedCheckpointTaskResponse := &core.SignedCheckpointTaskResponse{
 		TaskResponse: *taskResponse,
 		BlsSignature: *blsSignature,
 		OperatorId:   MOCK_OPERATOR_ID,
@@ -177,13 +178,13 @@ func createMockSignedCheckpointTaskResponse(mockTask MockTask, keypair bls.KeyPa
 	return signedCheckpointTaskResponse, nil
 }
 
-func createMockSignedStateRootUpdateMessage(mockMessage servicemanager.StateRootUpdateMessage, keypair bls.KeyPair) (*SignedStateRootUpdateMessage, error) {
+func createMockSignedStateRootUpdateMessage(mockMessage servicemanager.StateRootUpdateMessage, keypair bls.KeyPair) (*core.SignedStateRootUpdateMessage, error) {
 	messageDigest, err := core.GetStateRootUpdateMessageDigest(&mockMessage)
 	if err != nil {
 		return nil, err
 	}
 	blsSignature := keypair.SignMessage(messageDigest)
-	signedStateRootUpdateMessage := &SignedStateRootUpdateMessage{
+	signedStateRootUpdateMessage := &core.SignedStateRootUpdateMessage{
 		Message:      mockMessage,
 		BlsSignature: *blsSignature,
 		OperatorId:   MOCK_OPERATOR_ID,
@@ -191,13 +192,13 @@ func createMockSignedStateRootUpdateMessage(mockMessage servicemanager.StateRoot
 	return signedStateRootUpdateMessage, nil
 }
 
-func createMockSignedOperatorSetUpdateMessage(mockMessage registryrollup.OperatorSetUpdateMessage, keypair bls.KeyPair) (*SignedOperatorSetUpdateMessage, error) {
+func createMockSignedOperatorSetUpdateMessage(mockMessage registryrollup.OperatorSetUpdateMessage, keypair bls.KeyPair) (*core.SignedOperatorSetUpdateMessage, error) {
 	messageDigest, err := core.GetOperatorSetUpdateMessageDigest(&mockMessage)
 	if err != nil {
 		return nil, err
 	}
 	blsSignature := keypair.SignMessage(messageDigest)
-	signedOperatorSetUpdateMessage := &SignedOperatorSetUpdateMessage{
+	signedOperatorSetUpdateMessage := &core.SignedOperatorSetUpdateMessage{
 		Message:      mockMessage,
 		BlsSignature: *blsSignature,
 		OperatorId:   MOCK_OPERATOR_ID,

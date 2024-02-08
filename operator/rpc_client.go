@@ -5,16 +5,16 @@ import (
 	"net/rpc"
 	"time"
 
-	"github.com/NethermindEth/near-sffl/aggregator"
+	"github.com/NethermindEth/near-sffl/core"
 	"github.com/NethermindEth/near-sffl/metrics"
 
 	"github.com/Layr-Labs/eigensdk-go/logging"
 )
 
 type AggregatorRpcClienter interface {
-	SendSignedCheckpointTaskResponseToAggregator(signedCheckpointTaskResponse *aggregator.SignedCheckpointTaskResponse)
-	SendSignedStateRootUpdateToAggregator(signedStateRootUpdateMessage *aggregator.SignedStateRootUpdateMessage)
-	SendSignedOperatorSetUpdateToAggregator(signedOperatorSetUpdateMessage *aggregator.SignedOperatorSetUpdateMessage)
+	SendSignedCheckpointTaskResponseToAggregator(signedCheckpointTaskResponse *core.SignedCheckpointTaskResponse)
+	SendSignedStateRootUpdateToAggregator(signedStateRootUpdateMessage *core.SignedStateRootUpdateMessage)
+	SendSignedOperatorSetUpdateToAggregator(signedOperatorSetUpdateMessage *core.SignedOperatorSetUpdateMessage)
 }
 type AggregatorRpcClient struct {
 	rpcClient            *rpc.Client
@@ -68,7 +68,7 @@ func (c *AggregatorRpcClient) sendRequest(sendCb func() error, maxRetries int, r
 	c.logger.Errorf("Could not send data to aggregator. Tried %d times.", maxRetries)
 }
 
-func (c *AggregatorRpcClient) SendSignedCheckpointTaskResponseToAggregator(signedCheckpointTaskResponse *aggregator.SignedCheckpointTaskResponse) {
+func (c *AggregatorRpcClient) SendSignedCheckpointTaskResponseToAggregator(signedCheckpointTaskResponse *core.SignedCheckpointTaskResponse) {
 	c.logger.Info("Sending signed task response header to aggregator", "signedCheckpointTaskResponse", fmt.Sprintf("%#v", signedCheckpointTaskResponse))
 
 	c.sendRequest(func() error {
@@ -86,7 +86,7 @@ func (c *AggregatorRpcClient) SendSignedCheckpointTaskResponseToAggregator(signe
 	}, 5, 2*time.Second)
 }
 
-func (c *AggregatorRpcClient) SendSignedStateRootUpdateToAggregator(signedStateRootUpdateMessage *aggregator.SignedStateRootUpdateMessage) {
+func (c *AggregatorRpcClient) SendSignedStateRootUpdateToAggregator(signedStateRootUpdateMessage *core.SignedStateRootUpdateMessage) {
 	c.logger.Info("Sending signed state root update message to aggregator", "signedStateRootUpdateMessage", fmt.Sprintf("%#v", signedStateRootUpdateMessage))
 
 	c.sendRequest(func() error {
@@ -104,7 +104,7 @@ func (c *AggregatorRpcClient) SendSignedStateRootUpdateToAggregator(signedStateR
 	}, 5, 2*time.Second)
 }
 
-func (c *AggregatorRpcClient) SendSignedOperatorSetUpdateToAggregator(signedOperatorSetUpdateMessage *aggregator.SignedOperatorSetUpdateMessage) {
+func (c *AggregatorRpcClient) SendSignedOperatorSetUpdateToAggregator(signedOperatorSetUpdateMessage *core.SignedOperatorSetUpdateMessage) {
 	c.logger.Info("Sending signed state root update message to aggregator", "signedOperatorSetUpdateMessage", fmt.Sprintf("%#v", signedOperatorSetUpdateMessage))
 
 	c.sendRequest(func() error {
