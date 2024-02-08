@@ -4,7 +4,7 @@ use tokio::sync::mpsc;
 use tracing::info;
 
 use crate::block_listener::CandidateData;
-use crate::rabbit_publisher::{PublishData, PublishOptions, PublisherContext};
+use crate::rabbit_publisher::{get_routing_key, PublishData, PublishOptions, PublisherContext};
 use crate::{errors::Result, rabbit_publisher::RabbitPublisher};
 
 pub(crate) struct CandidatesValidator {
@@ -55,7 +55,10 @@ impl CandidatesValidator {
             for payload in candidate_data.payloads {
                 rabbit_publisher
                     .publish(PublishData {
-                        publish_options: PublishOptions::default(),
+                        publish_options: PublishOptions {
+                            routing_key: get_routing_key(candidate_data.rollup_id),
+                            ..PublishOptions::default()
+                        },
                         cx: PublisherContext {
                             block_hash: execution_outcome.outcome_proof.block_hash,
                             id: candidate_data.transaction_or_receipt_id.clone(),

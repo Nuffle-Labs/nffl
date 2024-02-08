@@ -1,6 +1,5 @@
 use clap::Parser;
 use configs::{Opts, SubCommand};
-use near_indexer::near_primitives::types::AccountId;
 use tokio::sync::mpsc;
 use tracing::error;
 
@@ -19,7 +18,7 @@ mod errors;
 mod rabbit_publisher;
 
 fn run(home_dir: std::path::PathBuf, config: RunConfigArgs) -> Result<()> {
-    let da_contract_id: AccountId = config.da_contract_id.parse()?;
+    let addresses_to_rollup_ids = config.compile_addresses_to_ids_map()?;
     let rabbit_builder = RabbitBuilder::new(config.rmq_address);
 
     let indexer_config = near_indexer::IndexerConfig {
@@ -40,7 +39,7 @@ fn run(home_dir: std::path::PathBuf, config: RunConfigArgs) -> Result<()> {
 
         let rabbit_publisher = rabbit_builder.build()?;
 
-        let block_listener = BlockListener::new(stream, sender, da_contract_id);
+        let block_listener = BlockListener::new(stream, sender, addresses_to_rollup_ids);
         let receipt_validator = CandidatesValidator::new(view_client, receiver, rabbit_publisher);
 
         let result = tokio::select! {

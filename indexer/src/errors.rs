@@ -20,6 +20,8 @@ pub enum Error {
     MailboxError(#[from] actix::MailboxError),
     #[error(transparent)]
     GetExecutionOutcomeError(#[from] near_client_primitives::types::GetExecutionOutcomeError),
+    #[error("Number of da_contract_ids shall match rollup_ids")]
+    IDsAndContractAddressesError,
 }
 
 impl<T> From<SendError<T>> for Error {

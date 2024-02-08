@@ -1,4 +1,7 @@
-use near_indexer::near_primitives::types::Gas;
+use near_indexer::near_primitives::types::{AccountId, Gas};
+use std::collections::HashMap;
+
+use crate::errors::{Error, Result};
 
 #[derive(clap::Parser, Debug)]
 #[clap(version = "0.0.1")]
@@ -21,12 +24,36 @@ pub(crate) enum SubCommand {
 
 #[derive(clap::Parser, Debug)]
 pub(crate) struct RunConfigArgs {
-    /// Data availability contract
-    #[clap(short, long)]
-    pub da_contract_id: String,
     /// Rabbit mq address
     #[clap(long)]
     pub rmq_address: String,
+    /// Data availability contract
+    #[clap(short, long)]
+    pub da_contract_ids: Vec<String>,
+    /// Target Rollup ID
+    pub rollup_ids: Vec<u32>,
+}
+
+impl RunConfigArgs {
+    pub(crate) fn compile_addresses_to_ids_map(&self) -> Result<HashMap<AccountId, u32>> {
+        if self.rollup_ids.len() != self.da_contract_ids.len() {
+            return Err(Error::IDsAndContractAddressesError);
+        }
+
+        let addresses: Vec<AccountId> = self
+            .da_contract_ids
+            .iter()
+            .map(|el| el.parse())
+            .collect::<Result<_, _>>()?;
+
+        let map = self
+            .rollup_ids
+            .iter()
+            .zip(addresses)
+            .map(|(id, addr)| (addr, *id))
+            .collect::<HashMap<AccountId, u32>>();
+        Ok(map)
+    }
 }
 
 #[derive(clap::Parser, Debug)]

@@ -4,12 +4,14 @@ use near_indexer::near_primitives::{
     types::{AccountId, TransactionOrReceiptId},
     views::{ActionView, ReceiptEnumView},
 };
+use std::collections::HashMap;
 use tokio::sync::mpsc;
 
 use crate::errors::Result;
 
 #[derive(Clone, Debug)]
 pub(crate) struct CandidateData {
+    pub rollup_id: u32,
     pub transaction_or_receipt_id: TransactionOrReceiptId,
     pub payloads: Vec<Vec<u8>>,
 }
@@ -17,24 +19,29 @@ pub(crate) struct CandidateData {
 pub(crate) struct BlockListener {
     stream: mpsc::Receiver<near_indexer::StreamerMessage>,
     receipt_sender: mpsc::Sender<CandidateData>,
-    da_contract_id: AccountId,
+    addresses_to_rollup_ids: HashMap<AccountId, u32>,
+}
+
+pub(crate) struct ReceiptViewWithRollupId {
+    pub(crate) rollup_id: u32,
+    pub(crate) receipt_view: ReceiptView,
 }
 
 impl BlockListener {
     pub(crate) fn new(
         stream: mpsc::Receiver<near_indexer::StreamerMessage>,
         receipt_sender: mpsc::Sender<CandidateData>,
-        da_contract_id: AccountId,
+        addresses_to_rollup_ids: HashMap<AccountId, u32>,
     ) -> Self {
         Self {
             stream,
             receipt_sender,
-            da_contract_id,
+            addresses_to_rollup_ids,
         }
     }
 
-    fn receipt_filer_map(receipt: ReceiptView) -> Option<CandidateData> {
-        let actions = if let ReceiptEnumView::Action { actions, .. } = receipt.receipt {
+    fn receipt_filer_map(receipt: ReceiptViewWithRollupId) -> Option<CandidateData> {
+        let actions = if let ReceiptEnumView::Action { actions, .. } = receipt.receipt_view.receipt {
             actions
         } else {
             return None;
@@ -50,9 +57,10 @@ impl BlockListener {
         }
 
         Some(CandidateData {
+            rollup_id: receipt.rollup_id,
             transaction_or_receipt_id: TransactionOrReceiptId::Receipt {
-                receipt_id: receipt.receipt_id,
-                receiver_id: receipt.receiver_id,
+                receipt_id: receipt.receipt_view.receipt_id,
+                receiver_id: receipt.receipt_view.receiver_id,
             },
             payloads,
         })
@@ -69,7 +77,7 @@ impl BlockListener {
         let Self {
             mut stream,
             receipt_sender,
-            da_contract_id,
+            addresses_to_rollup_ids,
         } = self;
 
         while let Some(streamer_message) = stream.recv().await {
@@ -82,7 +90,16 @@ impl BlockListener {
                     chunk
                         .receipts
                         .into_iter()
-                        .filter(|receipt| receipt.receiver_id == da_contract_id)
+                        .filter_map(|receipt| {
+                            if let Some(rollup_id) = addresses_to_rollup_ids.get(&receipt.receiver_id) {
+                                Some(ReceiptViewWithRollupId {
+                                    rollup_id: *rollup_id,
+                                    receipt_view: receipt,
+                                })
+                            } else {
+                                None
+                            }
+                        })
                         .filter_map(Self::receipt_filer_map)
                 })
                 .collect();
