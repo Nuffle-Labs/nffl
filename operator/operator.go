@@ -68,7 +68,7 @@ type Operator struct {
 	// needed when opting in to avs (allow this service manager contract to slash operator)
 	sfflServiceManagerAddr common.Address
 	// NEAR DA indexer consumer
-	attestor *attestor2.RollupBlocksAttestor
+	attestor *attestor2.Attestor
 }
 
 func createEthClients(config types.NodeConfig, registry *prometheus.Registry, logger sdklogging.Logger) (eth.EthClient, eth.EthClient, error) {
@@ -265,7 +265,7 @@ func NewOperatorFromConfig(c types.NodeConfig) (*Operator, error) {
 		"operatorG2Pubkey", operator.blsKeypair.GetPubKeyG2(),
 	)
 
-	attestor, err := attestor2.NewRollupBlocksAttestor(&c, blsKeyPair, operatorId, reg, logger)
+	attestor, err := attestor2.NewAttestor(&c, blsKeyPair, operatorId, logger)
 	if err != nil {
 		return nil, err
 	}
