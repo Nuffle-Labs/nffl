@@ -21,7 +21,7 @@ func NewNotifier() Notifier {
 
 func (notifier *Notifier) Subscribe(rollupId uint32) (chan consumer.BlockData, *list.Element) {
 	notifier.notifierLock.Lock()
-	defer notifier.notifierLock.Lock()
+	defer notifier.notifierLock.Unlock()
 
 	if _, exists := notifier.rollupIdsToSubscribers[rollupId]; !exists {
 		notifier.rollupIdsToSubscribers[rollupId] = list.New()
@@ -35,7 +35,7 @@ func (notifier *Notifier) Subscribe(rollupId uint32) (chan consumer.BlockData, *
 
 func (notifier *Notifier) Notify(rollupId uint32, block consumer.BlockData) error {
 	notifier.notifierLock.Lock()
-	defer notifier.notifierLock.Lock()
+	defer notifier.notifierLock.Unlock()
 
 	subscribers, exists := notifier.rollupIdsToSubscribers[rollupId]
 	if !exists {
@@ -56,7 +56,7 @@ func (notifier *Notifier) Notify(rollupId uint32, block consumer.BlockData) erro
 
 func (notifier *Notifier) Unsubscribe(rollupId uint32, el *list.Element) {
 	notifier.notifierLock.Lock()
-	defer notifier.notifierLock.Lock()
+	defer notifier.notifierLock.Unlock()
 
 	notifier.rollupIdsToSubscribers[rollupId].Remove(el)
 }
