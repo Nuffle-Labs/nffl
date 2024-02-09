@@ -22,6 +22,7 @@ pub(crate) struct BlockListener {
     addresses_to_rollup_ids: HashMap<AccountId, u32>,
 }
 
+#[derive(Clone, Debug, PartialEq, Eq, serde::Serialize, serde::Deserialize)]
 pub(crate) struct ReceiptViewWithRollupId {
     pub(crate) rollup_id: u32,
     pub(crate) receipt_view: ReceiptView,
@@ -128,7 +129,8 @@ impl BlockListener {
 
 #[cfg(test)]
 mod tests {
-    use crate::block_listener::{BlockListener, CandidateData};
+    use std::collections::HashMap;
+    use crate::block_listener::{BlockListener, CandidateData, ReceiptViewWithRollupId};
     use near_crypto::{KeyType, PublicKey};
     use near_indexer::near_primitives::hash::CryptoHash;
     use near_indexer::near_primitives::types::{AccountId, TransactionOrReceiptId};
@@ -172,6 +174,7 @@ mod tests {
 
     #[test]
     fn test_candidate_data_extraction() {
+        let rollup_id = 0;
         let da_contract_id = AccountId::from_str("a.test").unwrap();
 
         let test_predecessor_id = AccountId::from_str("test_predecessor").unwrap();
@@ -193,6 +196,10 @@ mod tests {
                 }],
             },
         };
+        let valid_receipt = ReceiptViewWithRollupId {
+            rollup_id,
+            receipt_view: valid_receipt,
+        };
 
         let invalid_action_receipt = ReceiptView {
             predecessor_id: test_predecessor_id.clone(),
@@ -204,13 +211,19 @@ mod tests {
             },
         };
 
+        let invalid_action_receipt = ReceiptViewWithRollupId {
+            rollup_id,
+            receipt_view: invalid_action_receipt,
+        };
+
         // Test valid receipt
         assert_eq!(
             BlockListener::receipt_filer_map(valid_receipt.clone()),
             Some(CandidateData {
+                rollup_id,
                 transaction_or_receipt_id: TransactionOrReceiptId::Receipt {
-                    receipt_id: valid_receipt.receipt_id.clone(),
-                    receiver_id: valid_receipt.receiver_id.clone(),
+                    receipt_id: valid_receipt.receipt_view.receipt_id.clone(),
+                    receiver_id: valid_receipt.receipt_view.receiver_id.clone(),
                 },
                 payloads: vec![vec![1, 2, 3]],
             })
@@ -222,6 +235,7 @@ mod tests {
 
     #[test]
     fn test_multiple_submit_actions() {
+        let rollup_id = 10;
         let da_contract_id = AccountId::from_str("a.test").unwrap();
         let common_action_receipt = ReceiptEnumView::Action {
             signer_id: AccountId::from_str("test_signer").unwrap(),
@@ -261,14 +275,19 @@ mod tests {
             receipt_id: CryptoHash::hash_bytes(b"test_receipt_id"),
             receipt: common_action_receipt.clone(),
         };
+        let valid_receipt = ReceiptViewWithRollupId {
+            rollup_id,
+            receipt_view: valid_receipt,
+        };
 
         // Test valid receipt
         assert_eq!(
             BlockListener::receipt_filer_map(valid_receipt.clone()),
             Some(CandidateData {
+                rollup_id,
                 transaction_or_receipt_id: TransactionOrReceiptId::Receipt {
-                    receipt_id: valid_receipt.receipt_id.clone(),
-                    receiver_id: valid_receipt.receiver_id.clone(),
+                    receipt_id: valid_receipt.receipt_view.receipt_id.clone(),
+                    receiver_id: valid_receipt.receipt_view.receiver_id.clone(),
                 },
                 payloads: vec![vec![1, 2, 3], vec![4, 4, 4]],
             })
@@ -317,13 +336,15 @@ mod tests {
 
     #[tokio::test]
     async fn test_empty_listener() {
-        let da_contract_id = "da.test.near".parse().unwrap();
+        let rollup_id = 1;
+        let da_contract_id: AccountId = "da.test.near".parse().unwrap();
+
         let streamer_messages = StreamerMessagesLoader::load();
 
         let (sender, receiver) = mpsc::channel(10);
         let (receipt_sender, mut receipt_receiver) = mpsc::channel(10);
 
-        let listener = BlockListener::new(receiver, receipt_sender, da_contract_id);
+        let listener = BlockListener::new(receiver, receipt_sender, HashMap::from([(da_contract_id, rollup_id)]));
         let _ = tokio::spawn(listener.start());
 
         for el in streamer_messages.empty {
@@ -337,13 +358,14 @@ mod tests {
 
     #[tokio::test]
     async fn test_candidates_listener() {
+        let rollup_id = 1;
         let da_contract_id = "da.test.near".parse().unwrap();
         let streamer_messages = StreamerMessagesLoader::load();
 
         let (sender, receiver) = mpsc::channel(10);
         let (receipt_sender, mut receipt_receiver) = mpsc::channel(10);
 
-        let listener = BlockListener::new(receiver, receipt_sender, da_contract_id);
+        let listener = BlockListener::new(receiver, receipt_sender, HashMap::from([(da_contract_id, rollup_id)]));
         let handle = tokio::spawn(listener.start());
 
         let expected = streamer_messages.candidates.len();
@@ -364,13 +386,14 @@ mod tests {
 
     #[tokio::test]
     async fn test_shutdown() {
+        let rollup_id=5;
         let da_contract_id = "da.test.near".parse().unwrap();
         let streamer_messages = StreamerMessagesLoader::load();
 
         let (sender, receiver) = mpsc::channel(10);
         let (receipt_sender, receipt_receiver) = mpsc::channel(10);
 
-        let listener = BlockListener::new(receiver, receipt_sender, da_contract_id);
+        let listener = BlockListener::new(receiver, receipt_sender, HashMap::from([(da_contract_id, rollup_id)]));
         let handle = tokio::spawn(listener.start());
         for (i, el) in streamer_messages.empty.into_iter().enumerate() {
             sender.send(el).await.unwrap();
