@@ -22,13 +22,17 @@ pub struct PublishOptions {
     pub basic_properties: BasicProperties,
 }
 
+pub(crate) fn get_routing_key(rollup_id: u32) -> String {
+    return format!("rollup{}", rollup_id);
+}
+
 impl Default for PublishOptions {
     fn default() -> Self {
         Self {
             exchange: DEFAULT_EXCHANGE.into(),
             routing_key: DEFAULT_ROUTING_KEY.into(),
             basic_publish_options: BasicPublishOptions::default(),
-            basic_properties: BasicProperties::default().with_delivery_mode(PERSISTENT_DELIVERY_MODE)
+            basic_properties: BasicProperties::default().with_delivery_mode(PERSISTENT_DELIVERY_MODE),
         }
     }
 }
