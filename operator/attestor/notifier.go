@@ -2,8 +2,9 @@ package attestor
 
 import (
 	"container/list"
-	"github.com/NethermindEth/near-sffl/operator/consumer"
 	"sync"
+
+	"github.com/NethermindEth/near-sffl/operator/consumer"
 )
 
 // Notifier Broadcasts block from some rollup
