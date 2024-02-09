@@ -1,11 +1,10 @@
 package operator
 
 import (
-	"context"
+	"github.com/NethermindEth/near-sffl/operator/mocks"
 	"testing"
 
 	"github.com/prometheus/client_golang/prometheus"
-	rmq "github.com/rabbitmq/amqp091-go"
 	"github.com/stretchr/testify/assert"
 
 	"github.com/Layr-Labs/eigensdk-go/crypto/bls"
@@ -13,7 +12,6 @@ import (
 
 	taskmanager "github.com/NethermindEth/near-sffl/contracts/bindings/SFFLTaskManager"
 	"github.com/NethermindEth/near-sffl/metrics"
-	"github.com/NethermindEth/near-sffl/operator/consumer"
 	"github.com/NethermindEth/near-sffl/tests"
 )
 
@@ -34,30 +32,7 @@ func IntegrationTestOperatorRegistration(t *testing.T) {
 	assert.Nil(t, err)
 }
 
-type MockConsumer struct {
-	blockReceivedC chan consumer.BlockData
-}
-
-func createMockConsumer() *MockConsumer {
-	return &MockConsumer{
-		blockReceivedC: make(chan consumer.BlockData),
-	}
-}
-func (c *MockConsumer) Reconnect(addr string, ctx context.Context) {}
-func (c *MockConsumer) ResetChannel(conn *rmq.Connection, ctx context.Context) bool {
-	return true
-}
-func (c *MockConsumer) Close() error {
-	return nil
-}
-func (c *MockConsumer) GetBlockStream() <-chan consumer.BlockData {
-	return c.blockReceivedC
-}
-func (c *MockConsumer) MockReceiveBlockData(data consumer.BlockData) {
-	c.blockReceivedC <- data
-}
-
-func createMockOperator() (*Operator, *MockConsumer, error) {
+func createMockOperator() (*Operator, *mocks.MockConsumer, error) {
 	logger := sdklogging.NewNoopLogger()
 	reg := prometheus.NewRegistry()
 	noopMetrics := metrics.NewNoopMetrics()
@@ -68,7 +43,7 @@ func createMockOperator() (*Operator, *MockConsumer, error) {
 	}
 	operatorKeypair := bls.NewKeyPair(blsPrivateKey)
 
-	mockConsumer := createMockConsumer()
+	mockAttestor := mocks.NewMockAttestor(operatorKeypair, MOCK_OPERATOR_ID)
 
 	operator := &Operator{
 		logger:                    logger,
@@ -77,8 +52,8 @@ func createMockOperator() (*Operator, *MockConsumer, error) {
 		metrics:                   noopMetrics,
 		checkpointTaskCreatedChan: make(chan *taskmanager.ContractSFFLTaskManagerCheckpointTaskCreated),
 		operatorId:                MOCK_OPERATOR_ID,
-		consumer:                  mockConsumer,
+		attestor:                  mockAttestor,
 	}
 
-	return operator, mockConsumer, nil
+	return operator, mockAttestor.MockGetConsumer(), nil
 }
