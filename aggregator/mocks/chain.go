@@ -5,8 +5,10 @@ import (
 
 	opstateretriever "github.com/Layr-Labs/eigensdk-go/contracts/bindings/OperatorStateRetriever"
 	"github.com/Layr-Labs/eigensdk-go/crypto/bls"
+
 	"github.com/NethermindEth/near-sffl/aggregator/types"
 	taskmanager "github.com/NethermindEth/near-sffl/contracts/bindings/SFFLTaskManager"
+	coretypes "github.com/NethermindEth/near-sffl/core/types"
 )
 
 // ====== TaskManager Mocks ======
@@ -16,7 +18,7 @@ func MockSendNewCheckpointTask(blockNum, taskNum uint32, fromTimestamp, toTimest
 		FromTimestamp:    fromTimestamp,
 		ToTimestamp:      toTimestamp,
 		TaskCreatedBlock: blockNum,
-		QuorumNumbers:    types.QUORUM_NUMBERS,
+		QuorumNumbers:    coretypes.QUORUM_NUMBERS,
 		QuorumThreshold:  types.QUORUM_THRESHOLD_NUMERATOR,
 	}
 

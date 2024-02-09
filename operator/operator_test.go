@@ -16,11 +16,11 @@ import (
 
 	"github.com/Layr-Labs/eigensdk-go/crypto/bls"
 
-	"github.com/NethermindEth/near-sffl/aggregator"
 	aggtypes "github.com/NethermindEth/near-sffl/aggregator/types"
 	servicemanager "github.com/NethermindEth/near-sffl/contracts/bindings/SFFLServiceManager"
 	taskmanager "github.com/NethermindEth/near-sffl/contracts/bindings/SFFLTaskManager"
 	chainiomocks "github.com/NethermindEth/near-sffl/core/chainio/mocks"
+	coretypes "github.com/NethermindEth/near-sffl/core/types"
 	"github.com/NethermindEth/near-sffl/operator/consumer"
 	operatormocks "github.com/NethermindEth/near-sffl/operator/mocks"
 )
@@ -40,7 +40,7 @@ func TestOperator(t *testing.T) {
 				FromTimestamp:    fromTimestamp,
 				ToTimestamp:      toTimestamp,
 				TaskCreatedBlock: 1000,
-				QuorumNumbers:    aggtypes.QUORUM_NUMBERS,
+				QuorumNumbers:    coretypes.QUORUM_NUMBERS,
 				QuorumThreshold:  aggtypes.QUORUM_THRESHOLD_NUMERATOR,
 			},
 			Raw: types.Log{},
@@ -65,7 +65,7 @@ func TestOperator(t *testing.T) {
 				FromTimestamp:    fromTimestamp,
 				ToTimestamp:      toTimestamp,
 				TaskCreatedBlock: 1000,
-				QuorumNumbers:    aggtypes.QUORUM_NUMBERS,
+				QuorumNumbers:    coretypes.QUORUM_NUMBERS,
 				QuorumThreshold:  aggtypes.QUORUM_THRESHOLD_NUMERATOR,
 			},
 			Raw: types.Log{},
@@ -78,7 +78,7 @@ func TestOperator(t *testing.T) {
 		assert.True(t, ok)
 		taskResponseSignature := bls.Signature{G1Point: bls.NewG1Point(X, Y)}
 
-		signedTaskResponse := &aggregator.SignedCheckpointTaskResponse{
+		signedTaskResponse := &coretypes.SignedCheckpointTaskResponse{
 			TaskResponse: taskmanager.CheckpointTaskResponse{
 				ReferenceTaskIndex:     taskIndex,
 				StateRootUpdatesRoot:   [32]byte{0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0},
@@ -102,7 +102,7 @@ func TestOperator(t *testing.T) {
 			Time:   3,
 			Root:   common.Hash(stateRoot),
 		})
-		signedStateRootUpdateMessage := &aggregator.SignedStateRootUpdateMessage{
+		signedStateRootUpdateMessage := &coretypes.SignedStateRootUpdateMessage{
 			Message: servicemanager.StateRootUpdateMessage{
 				RollupId:    1,
 				BlockHeight: block.NumberU64(),

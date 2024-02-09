@@ -3,12 +3,13 @@ package core
 import (
 	"math/big"
 
-	servicemanager "github.com/NethermindEth/near-sffl/contracts/bindings/SFFLServiceManager"
-	taskmanager "github.com/NethermindEth/near-sffl/contracts/bindings/SFFLTaskManager"
-
 	"github.com/Layr-Labs/eigensdk-go/crypto/bls"
 	"github.com/ethereum/go-ethereum/accounts/abi"
 	"golang.org/x/crypto/sha3"
+
+	registryrollup "github.com/NethermindEth/near-sffl/contracts/bindings/SFFLRegistryRollup"
+	servicemanager "github.com/NethermindEth/near-sffl/contracts/bindings/SFFLServiceManager"
+	taskmanager "github.com/NethermindEth/near-sffl/contracts/bindings/SFFLTaskManager"
 )
 
 // this hardcodes abi.encode() for taskmanager.CheckpointTaskResponse
@@ -102,6 +103,72 @@ func AbiEncodeStateRootUpdateMessage(h *servicemanager.StateRootUpdateMessage) (
 // GetCheckpointTaskResponseDigest returns the hash of the TaskResponse, which is what operators sign over
 func GetStateRootUpdateMessageDigest(h *servicemanager.StateRootUpdateMessage) ([32]byte, error) {
 	encodeTaskResponseByte, err := AbiEncodeStateRootUpdateMessage(h)
+	if err != nil {
+		return [32]byte{}, err
+	}
+
+	var taskResponseDigest [32]byte
+	hasher := sha3.NewLegacyKeccak256()
+	hasher.Write(encodeTaskResponseByte)
+	copy(taskResponseDigest[:], hasher.Sum(nil)[:32])
+
+	return taskResponseDigest, nil
+}
+
+func AbiEncodeOperatorSetUpdateMessage(h *registryrollup.OperatorSetUpdateMessage) ([]byte, error) {
+	operatorSetUpdateMessageType, err := abi.NewType("tuple", "", []abi.ArgumentMarshaling{
+		{
+			Name: "id",
+			Type: "uint64",
+		},
+		{
+			Name: "timestamp",
+			Type: "uint64",
+		},
+		{
+			Name: "operators",
+			Type: "tuple[]",
+			Components: []abi.ArgumentMarshaling{
+				{
+					Name: "pubkey",
+					Type: "tuple",
+					Components: []abi.ArgumentMarshaling{
+						{
+							Name: "X",
+							Type: "uint256",
+						},
+						{
+							Name: "Y",
+							Type: "uint256",
+						},
+					},
+				},
+				{
+					Name: "weight",
+					Type: "uint128",
+				},
+			},
+		},
+	})
+	if err != nil {
+		return nil, err
+	}
+	arguments := abi.Arguments{
+		{
+			Type: operatorSetUpdateMessageType,
+		},
+	}
+
+	bytes, err := arguments.Pack(h)
+	if err != nil {
+		return nil, err
+	}
+
+	return bytes, nil
+}
+
+func GetOperatorSetUpdateMessageDigest(h *registryrollup.OperatorSetUpdateMessage) ([32]byte, error) {
+	encodeTaskResponseByte, err := AbiEncodeOperatorSetUpdateMessage(h)
 	if err != nil {
 		return [32]byte{}, err
 	}

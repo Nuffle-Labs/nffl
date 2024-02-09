@@ -15,7 +15,6 @@ import (
 	"github.com/Layr-Labs/eigensdk-go/crypto/bls"
 	sdklogging "github.com/Layr-Labs/eigensdk-go/logging"
 	"github.com/Layr-Labs/eigensdk-go/signerv2"
-
 	sdkutils "github.com/Layr-Labs/eigensdk-go/utils"
 )
 
