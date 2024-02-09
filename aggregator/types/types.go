@@ -7,7 +7,7 @@ import (
 	sdktypes "github.com/Layr-Labs/eigensdk-go/types"
 	"github.com/ethereum/go-ethereum/common"
 
-	"github.com/NethermindEth/near-sffl/core"
+	coretypes "github.com/NethermindEth/near-sffl/core/types"
 )
 
 // TODO: Hardcoded for now
@@ -27,7 +27,7 @@ type OperatorInfo struct {
 type MessageBlsAggregationServiceResponse struct {
 	Err                          error
 	EthBlockNumber               uint64
-	MessageDigest                core.MessageDigest
+	MessageDigest                coretypes.MessageDigest
 	NonSignersPubkeysG1          []*bls.G1Point
 	QuorumApksG1                 []*bls.G1Point
 	SignersApkG2                 *bls.G2Point

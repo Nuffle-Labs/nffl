@@ -9,15 +9,6 @@ import (
 	"github.com/ethereum/go-ethereum/common"
 	"github.com/prometheus/client_golang/prometheus"
 
-	registryrollup "github.com/NethermindEth/near-sffl/contracts/bindings/SFFLRegistryRollup"
-	servicemanager "github.com/NethermindEth/near-sffl/contracts/bindings/SFFLServiceManager"
-	taskmanager "github.com/NethermindEth/near-sffl/contracts/bindings/SFFLTaskManager"
-	"github.com/NethermindEth/near-sffl/core"
-	"github.com/NethermindEth/near-sffl/core/chainio"
-	"github.com/NethermindEth/near-sffl/metrics"
-	"github.com/NethermindEth/near-sffl/operator/consumer"
-	"github.com/NethermindEth/near-sffl/types"
-
 	"github.com/Layr-Labs/eigensdk-go/chainio/clients"
 	sdkelcontracts "github.com/Layr-Labs/eigensdk-go/chainio/clients/elcontracts"
 	"github.com/Layr-Labs/eigensdk-go/chainio/clients/eth"
@@ -32,6 +23,16 @@ import (
 	"github.com/Layr-Labs/eigensdk-go/nodeapi"
 	"github.com/Layr-Labs/eigensdk-go/signerv2"
 	sdktypes "github.com/Layr-Labs/eigensdk-go/types"
+
+	registryrollup "github.com/NethermindEth/near-sffl/contracts/bindings/SFFLRegistryRollup"
+	servicemanager "github.com/NethermindEth/near-sffl/contracts/bindings/SFFLServiceManager"
+	taskmanager "github.com/NethermindEth/near-sffl/contracts/bindings/SFFLTaskManager"
+	"github.com/NethermindEth/near-sffl/core"
+	"github.com/NethermindEth/near-sffl/core/chainio"
+	coretypes "github.com/NethermindEth/near-sffl/core/types"
+	"github.com/NethermindEth/near-sffl/metrics"
+	"github.com/NethermindEth/near-sffl/operator/consumer"
+	"github.com/NethermindEth/near-sffl/types"
 )
 
 const AVS_NAME = "super-fast-finality-layer"
@@ -358,14 +359,14 @@ func (o *Operator) ProcessCheckpointTaskCreatedLog(checkpointTaskCreatedLog *tas
 	return taskResponse
 }
 
-func (o *Operator) SignTaskResponse(taskResponse *taskmanager.CheckpointTaskResponse) (*core.SignedCheckpointTaskResponse, error) {
+func (o *Operator) SignTaskResponse(taskResponse *taskmanager.CheckpointTaskResponse) (*coretypes.SignedCheckpointTaskResponse, error) {
 	taskResponseHash, err := core.GetCheckpointTaskResponseDigest(taskResponse)
 	if err != nil {
 		o.logger.Error("Error getting task response header hash. skipping task (this is not expected and should be investigated)", "err", err)
 		return nil, err
 	}
 	blsSignature := o.blsKeypair.SignMessage(taskResponseHash)
-	signedCheckpointTaskResponse := &core.SignedCheckpointTaskResponse{
+	signedCheckpointTaskResponse := &coretypes.SignedCheckpointTaskResponse{
 		TaskResponse: *taskResponse,
 		BlsSignature: *blsSignature,
 		OperatorId:   o.operatorId,
@@ -374,14 +375,14 @@ func (o *Operator) SignTaskResponse(taskResponse *taskmanager.CheckpointTaskResp
 	return signedCheckpointTaskResponse, nil
 }
 
-func (o *Operator) SignStateRootUpdateMessage(stateRootUpdateMessage *servicemanager.StateRootUpdateMessage) (*core.SignedStateRootUpdateMessage, error) {
+func (o *Operator) SignStateRootUpdateMessage(stateRootUpdateMessage *servicemanager.StateRootUpdateMessage) (*coretypes.SignedStateRootUpdateMessage, error) {
 	messageDigest, err := core.GetStateRootUpdateMessageDigest(stateRootUpdateMessage)
 	if err != nil {
 		o.logger.Error("Error getting state root update message digest. skipping message (this is not expected and should be investigated)", "err", err)
 		return nil, err
 	}
 	blsSignature := o.blsKeypair.SignMessage(messageDigest)
-	signedStateRootUpdateMessage := &core.SignedStateRootUpdateMessage{
+	signedStateRootUpdateMessage := &coretypes.SignedStateRootUpdateMessage{
 		Message:      *stateRootUpdateMessage,
 		BlsSignature: *blsSignature,
 		OperatorId:   o.operatorId,
@@ -390,14 +391,14 @@ func (o *Operator) SignStateRootUpdateMessage(stateRootUpdateMessage *serviceman
 	return signedStateRootUpdateMessage, nil
 }
 
-func (o *Operator) SignOperatorSetUpdateMessage(operatorSetUpdateMessage *registryrollup.OperatorSetUpdateMessage) (*core.SignedOperatorSetUpdateMessage, error) {
+func (o *Operator) SignOperatorSetUpdateMessage(operatorSetUpdateMessage *registryrollup.OperatorSetUpdateMessage) (*coretypes.SignedOperatorSetUpdateMessage, error) {
 	messageDigest, err := core.GetOperatorSetUpdateMessageDigest(operatorSetUpdateMessage)
 	if err != nil {
 		o.logger.Error("Error getting operator set update message digest. skipping message (this is not expected and should be investigated)", "err", err)
 		return nil, err
 	}
 	blsSignature := o.blsKeypair.SignMessage(messageDigest)
-	signedOperatorSetUpdateMessage := &core.SignedOperatorSetUpdateMessage{
+	signedOperatorSetUpdateMessage := &coretypes.SignedOperatorSetUpdateMessage{
 		Message:      *operatorSetUpdateMessage,
 		BlsSignature: *blsSignature,
 		OperatorId:   o.operatorId,

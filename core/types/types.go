@@ -1,4 +1,4 @@
-package core
+package types
 
 import (
 	"github.com/Layr-Labs/eigensdk-go/crypto/bls"

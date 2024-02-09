@@ -11,7 +11,7 @@ package mocks
 import (
 	reflect "reflect"
 
-	core "github.com/NethermindEth/near-sffl/core"
+	types "github.com/NethermindEth/near-sffl/core/types"
 	gomock "go.uber.org/mock/gomock"
 )
 
@@ -39,7 +39,7 @@ func (m *MockAggregatorRpcClienter) EXPECT() *MockAggregatorRpcClienterMockRecor
 }
 
 // SendSignedCheckpointTaskResponseToAggregator mocks base method.
-func (m *MockAggregatorRpcClienter) SendSignedCheckpointTaskResponseToAggregator(arg0 *core.SignedCheckpointTaskResponse) {
+func (m *MockAggregatorRpcClienter) SendSignedCheckpointTaskResponseToAggregator(arg0 *types.SignedCheckpointTaskResponse) {
 	m.ctrl.T.Helper()
 	m.ctrl.Call(m, "SendSignedCheckpointTaskResponseToAggregator", arg0)
 }
@@ -51,7 +51,7 @@ func (mr *MockAggregatorRpcClienterMockRecorder) SendSignedCheckpointTaskRespons
 }
 
 // SendSignedOperatorSetUpdateToAggregator mocks base method.
-func (m *MockAggregatorRpcClienter) SendSignedOperatorSetUpdateToAggregator(arg0 *core.SignedOperatorSetUpdateMessage) {
+func (m *MockAggregatorRpcClienter) SendSignedOperatorSetUpdateToAggregator(arg0 *types.SignedOperatorSetUpdateMessage) {
 	m.ctrl.T.Helper()
 	m.ctrl.Call(m, "SendSignedOperatorSetUpdateToAggregator", arg0)
 }
@@ -63,7 +63,7 @@ func (mr *MockAggregatorRpcClienterMockRecorder) SendSignedOperatorSetUpdateToAg
 }
 
 // SendSignedStateRootUpdateToAggregator mocks base method.
-func (m *MockAggregatorRpcClienter) SendSignedStateRootUpdateToAggregator(arg0 *core.SignedStateRootUpdateMessage) {
+func (m *MockAggregatorRpcClienter) SendSignedStateRootUpdateToAggregator(arg0 *types.SignedStateRootUpdateMessage) {
 	m.ctrl.T.Helper()
 	m.ctrl.Call(m, "SendSignedStateRootUpdateToAggregator", arg0)
 }

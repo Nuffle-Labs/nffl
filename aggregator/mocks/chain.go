@@ -8,7 +8,7 @@ import (
 
 	"github.com/NethermindEth/near-sffl/aggregator/types"
 	taskmanager "github.com/NethermindEth/near-sffl/contracts/bindings/SFFLTaskManager"
-	"github.com/NethermindEth/near-sffl/core"
+	coretypes "github.com/NethermindEth/near-sffl/core/types"
 )
 
 // ====== TaskManager Mocks ======
@@ -18,7 +18,7 @@ func MockSendNewCheckpointTask(blockNum, taskNum uint32, fromTimestamp, toTimest
 		FromTimestamp:    fromTimestamp,
 		ToTimestamp:      toTimestamp,
 		TaskCreatedBlock: blockNum,
-		QuorumNumbers:    core.QUORUM_NUMBERS,
+		QuorumNumbers:    coretypes.QUORUM_NUMBERS,
 		QuorumThreshold:  types.QUORUM_THRESHOLD_NUMERATOR,
 	}
 

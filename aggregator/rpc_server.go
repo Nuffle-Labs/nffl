@@ -9,6 +9,7 @@ import (
 	"github.com/NethermindEth/near-sffl/aggregator/types"
 	taskmanager "github.com/NethermindEth/near-sffl/contracts/bindings/SFFLTaskManager"
 	"github.com/NethermindEth/near-sffl/core"
+	coretypes "github.com/NethermindEth/near-sffl/core/types"
 
 	sdktypes "github.com/Layr-Labs/eigensdk-go/types"
 )
@@ -41,7 +42,7 @@ func (agg *Aggregator) startServer(ctx context.Context) error {
 // rpc endpoint which is called by operator
 // reply doesn't need to be checked. If there are no errors, the task response is accepted
 // rpc framework forces a reply type to exist, so we put bool as a placeholder
-func (agg *Aggregator) ProcessSignedCheckpointTaskResponse(signedCheckpointTaskResponse *core.SignedCheckpointTaskResponse, reply *bool) error {
+func (agg *Aggregator) ProcessSignedCheckpointTaskResponse(signedCheckpointTaskResponse *coretypes.SignedCheckpointTaskResponse, reply *bool) error {
 	agg.logger.Infof("Received signed task response: %#v", signedCheckpointTaskResponse)
 	taskIndex := signedCheckpointTaskResponse.TaskResponse.ReferenceTaskIndex
 	taskResponseDigest, err := core.GetCheckpointTaskResponseDigest(&signedCheckpointTaskResponse.TaskResponse)
@@ -70,7 +71,7 @@ func (agg *Aggregator) ProcessSignedCheckpointTaskResponse(signedCheckpointTaskR
 	return nil
 }
 
-func (agg *Aggregator) ProcessSignedStateRootUpdateMessage(signedStateRootUpdateMessage *core.SignedStateRootUpdateMessage, reply *bool) error {
+func (agg *Aggregator) ProcessSignedStateRootUpdateMessage(signedStateRootUpdateMessage *coretypes.SignedStateRootUpdateMessage, reply *bool) error {
 	agg.logger.Infof("Received signed state root update message: %#v", signedStateRootUpdateMessage)
 	messageDigest, err := core.GetStateRootUpdateMessageDigest(&signedStateRootUpdateMessage.Message)
 	if err != nil {
@@ -78,7 +79,7 @@ func (agg *Aggregator) ProcessSignedStateRootUpdateMessage(signedStateRootUpdate
 		return TaskResponseDigestNotFoundError500
 	}
 
-	agg.stateRootUpdateBlsAggregationService.InitializeMessageIfNotExists(messageDigest, core.QUORUM_NUMBERS, []uint32{types.QUORUM_THRESHOLD_NUMERATOR}, types.MESSAGE_TTL)
+	agg.stateRootUpdateBlsAggregationService.InitializeMessageIfNotExists(messageDigest, coretypes.QUORUM_NUMBERS, []uint32{types.QUORUM_THRESHOLD_NUMERATOR}, types.MESSAGE_TTL)
 
 	err = agg.stateRootUpdateBlsAggregationService.ProcessNewSignature(
 		context.Background(), messageDigest,
@@ -95,7 +96,7 @@ func (agg *Aggregator) ProcessSignedStateRootUpdateMessage(signedStateRootUpdate
 	return nil
 }
 
-func (agg *Aggregator) ProcessSignedOperatorSetUpdateMessage(signedOperatorSetUpdateMessage *core.SignedOperatorSetUpdateMessage, reply *bool) error {
+func (agg *Aggregator) ProcessSignedOperatorSetUpdateMessage(signedOperatorSetUpdateMessage *coretypes.SignedOperatorSetUpdateMessage, reply *bool) error {
 	agg.logger.Infof("Received signed operator set update message: %#v", signedOperatorSetUpdateMessage)
 	messageDigest, err := core.GetOperatorSetUpdateMessageDigest(&signedOperatorSetUpdateMessage.Message)
 	if err != nil {
@@ -103,7 +104,7 @@ func (agg *Aggregator) ProcessSignedOperatorSetUpdateMessage(signedOperatorSetUp
 		return TaskResponseDigestNotFoundError500
 	}
 
-	agg.operatorSetUpdateBlsAggregationService.InitializeMessageIfNotExists(messageDigest, core.QUORUM_NUMBERS, []uint32{types.QUORUM_THRESHOLD_NUMERATOR}, types.MESSAGE_TTL)
+	agg.operatorSetUpdateBlsAggregationService.InitializeMessageIfNotExists(messageDigest, coretypes.QUORUM_NUMBERS, []uint32{types.QUORUM_THRESHOLD_NUMERATOR}, types.MESSAGE_TTL)
 
 	err = agg.operatorSetUpdateBlsAggregationService.ProcessNewSignature(
 		context.Background(), messageDigest,

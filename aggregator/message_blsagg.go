@@ -18,18 +18,18 @@ import (
 	"github.com/ethereum/go-ethereum/accounts/abi/bind"
 
 	aggtypes "github.com/NethermindEth/near-sffl/aggregator/types"
-	"github.com/NethermindEth/near-sffl/core"
+	coretypes "github.com/NethermindEth/near-sffl/core/types"
 )
 
 var (
-	MessageAlreadyInitializedErrorFn = func(messageDigest core.MessageDigest) error {
+	MessageAlreadyInitializedErrorFn = func(messageDigest coretypes.MessageDigest) error {
 		return fmt.Errorf("message %x already initialized", messageDigest)
 	}
 	MessageExpiredError    = fmt.Errorf("message expired")
-	MessageNotFoundErrorFn = func(messageDigest core.MessageDigest) error {
+	MessageNotFoundErrorFn = func(messageDigest coretypes.MessageDigest) error {
 		return fmt.Errorf("message %x not initialized or already completed", messageDigest)
 	}
-	OperatorNotPartOfMessageQuorumErrorFn = func(operatorId types.OperatorId, messageDigest core.MessageDigest) error {
+	OperatorNotPartOfMessageQuorumErrorFn = func(operatorId types.OperatorId, messageDigest coretypes.MessageDigest) error {
 		return fmt.Errorf("operator %x not part of message %x's quorum", operatorId, messageDigest)
 	}
 	SignatureVerificationError = func(err error) error {
@@ -46,7 +46,7 @@ type AggregatedOperators struct {
 }
 
 type SignedMessageDigest struct {
-	MessageDigest               core.MessageDigest
+	MessageDigest               coretypes.MessageDigest
 	BlsSignature                *bls.Signature
 	OperatorId                  bls.OperatorId
 	SignatureVerificationErrorC chan error
@@ -65,7 +65,7 @@ type signedMessageDigestValidationInfo struct {
 
 type MessageBlsAggregationService interface {
 	InitializeMessageIfNotExists(
-		messageDigest core.MessageDigest,
+		messageDigest coretypes.MessageDigest,
 		quorumNumbers []types.QuorumNum,
 		quorumThresholdPercentages []types.QuorumThresholdPercentage,
 		timeToExpiry time.Duration,
@@ -73,7 +73,7 @@ type MessageBlsAggregationService interface {
 
 	ProcessNewSignature(
 		ctx context.Context,
-		messageDigest core.MessageDigest,
+		messageDigest coretypes.MessageDigest,
 		blsSignature *bls.Signature,
 		operatorId bls.OperatorId,
 	) error
@@ -83,7 +83,7 @@ type MessageBlsAggregationService interface {
 
 type MessageBlsAggregatorService struct {
 	aggregatedResponsesC   chan aggtypes.MessageBlsAggregationServiceResponse
-	signedMessageDigestsCs map[core.MessageDigest]chan SignedMessageDigest
+	signedMessageDigestsCs map[coretypes.MessageDigest]chan SignedMessageDigest
 	messageChansLock       sync.RWMutex
 	avsRegistryService     avsregistry.AvsRegistryService
 	ethClient              eth.EthClient
@@ -95,7 +95,7 @@ var _ MessageBlsAggregationService = (*MessageBlsAggregatorService)(nil)
 func NewMessageBlsAggregatorService(avsRegistryService avsregistry.AvsRegistryService, ethClient eth.EthClient, logger logging.Logger) *MessageBlsAggregatorService {
 	return &MessageBlsAggregatorService{
 		aggregatedResponsesC:   make(chan aggtypes.MessageBlsAggregationServiceResponse),
-		signedMessageDigestsCs: make(map[core.MessageDigest]chan SignedMessageDigest),
+		signedMessageDigestsCs: make(map[coretypes.MessageDigest]chan SignedMessageDigest),
 		messageChansLock:       sync.RWMutex{},
 		avsRegistryService:     avsRegistryService,
 		ethClient:              ethClient,
@@ -108,7 +108,7 @@ func (mbas *MessageBlsAggregatorService) GetResponseChannel() <-chan aggtypes.Me
 }
 
 func (mbas *MessageBlsAggregatorService) InitializeMessageIfNotExists(
-	messageDigest core.MessageDigest,
+	messageDigest coretypes.MessageDigest,
 	quorumNumbers []types.QuorumNum,
 	quorumThresholdPercentages []types.QuorumThresholdPercentage,
 	timeToExpiry time.Duration,
@@ -127,7 +127,7 @@ func (mbas *MessageBlsAggregatorService) InitializeMessageIfNotExists(
 
 func (mbas *MessageBlsAggregatorService) ProcessNewSignature(
 	ctx context.Context,
-	messageDigest core.MessageDigest,
+	messageDigest coretypes.MessageDigest,
 	blsSignature *bls.Signature,
 	operatorId bls.OperatorId,
 ) error {
@@ -153,7 +153,7 @@ func (mbas *MessageBlsAggregatorService) ProcessNewSignature(
 }
 
 func (mbas *MessageBlsAggregatorService) singleMessageAggregatorGoroutineFunc(
-	messageDigest core.MessageDigest,
+	messageDigest coretypes.MessageDigest,
 	quorumNumbers []types.QuorumNum,
 	quorumThresholdPercentages []types.QuorumThresholdPercentage,
 	timeToExpiry time.Duration,
@@ -293,7 +293,7 @@ func (mbas *MessageBlsAggregatorService) handleSignedMessageDigest(signedMessage
 	mbas.aggregatedResponsesC <- messageBlsAggregationServiceResponse
 }
 
-func (mbas *MessageBlsAggregatorService) closeMessageGoroutine(messageDigest core.MessageDigest) {
+func (mbas *MessageBlsAggregatorService) closeMessageGoroutine(messageDigest coretypes.MessageDigest) {
 	mbas.messageChansLock.Lock()
 	delete(mbas.signedMessageDigestsCs, messageDigest)
 	mbas.messageChansLock.Unlock()

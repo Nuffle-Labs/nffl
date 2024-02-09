@@ -22,8 +22,8 @@ import (
 	registryrollup "github.com/NethermindEth/near-sffl/contracts/bindings/SFFLRegistryRollup"
 	servicemanager "github.com/NethermindEth/near-sffl/contracts/bindings/SFFLServiceManager"
 	taskmanager "github.com/NethermindEth/near-sffl/contracts/bindings/SFFLTaskManager"
-	"github.com/NethermindEth/near-sffl/core"
 	chainiomocks "github.com/NethermindEth/near-sffl/core/chainio/mocks"
+	coretypes "github.com/NethermindEth/near-sffl/core/types"
 )
 
 var MOCK_OPERATOR_ID = [32]byte{207, 73, 226, 221, 104, 100, 123, 41, 192, 3, 9, 119, 90, 83, 233, 159, 231, 151, 245, 96, 150, 48, 144, 27, 102, 253, 39, 101, 1, 26, 135, 173}
@@ -66,7 +66,7 @@ func TestSendNewTask(t *testing.T) {
 	var TO_NEAR_BLOCK = uint64(4)
 
 	mockAvsWriterer.EXPECT().SendNewCheckpointTask(
-		context.Background(), FROM_NEAR_BLOCK, TO_NEAR_BLOCK, types.QUORUM_THRESHOLD_NUMERATOR, core.QUORUM_NUMBERS,
+		context.Background(), FROM_NEAR_BLOCK, TO_NEAR_BLOCK, types.QUORUM_THRESHOLD_NUMERATOR, coretypes.QUORUM_NUMBERS,
 	).Return(mocks.MockSendNewCheckpointTask(BLOCK_NUMBER, TASK_INDEX, FROM_NEAR_BLOCK, TO_NEAR_BLOCK))
 
 	// 100 blocks, each takes 12 seconds. We hardcode for now since aggregator also hardcodes this value
@@ -74,7 +74,7 @@ func TestSendNewTask(t *testing.T) {
 	// make sure that initializeNewTask was called on the blsAggService
 	// maybe there's a better way to do this? There's a saying "don't mock 3rd party code"
 	// see https://hynek.me/articles/what-to-mock-in-5-mins/
-	mockTaskBlsAggService.EXPECT().InitializeNewTask(TASK_INDEX, BLOCK_NUMBER, core.QUORUM_NUMBERS, []uint32{types.QUORUM_THRESHOLD_NUMERATOR}, taskTimeToExpiry)
+	mockTaskBlsAggService.EXPECT().InitializeNewTask(TASK_INDEX, BLOCK_NUMBER, coretypes.QUORUM_NUMBERS, []uint32{types.QUORUM_THRESHOLD_NUMERATOR}, taskTimeToExpiry)
 
 	err = aggregator.sendNewCheckpointTask(FROM_NEAR_BLOCK, TO_NEAR_BLOCK)
 	assert.Nil(t, err)
@@ -95,10 +95,10 @@ func createMockAggregator(
 		taskBlsAggregationService:              mockTaskBlsAggregationService,
 		stateRootUpdateBlsAggregationService:   mockStateRootUpdateBlsAggregationService,
 		operatorSetUpdateBlsAggregationService: mockOperatorSetUpdateBlsAggregationService,
-		tasks:                                  make(map[core.TaskIndex]taskmanager.CheckpointTask),
-		taskResponses:                          make(map[core.TaskIndex]map[sdktypes.TaskResponseDigest]taskmanager.CheckpointTaskResponse),
-		stateRootUpdates:                       make(map[core.MessageDigest]servicemanager.StateRootUpdateMessage),
-		operatorSetUpdates:                     make(map[core.MessageDigest]registryrollup.OperatorSetUpdateMessage),
+		tasks:                                  make(map[coretypes.TaskIndex]taskmanager.CheckpointTask),
+		taskResponses:                          make(map[coretypes.TaskIndex]map[sdktypes.TaskResponseDigest]taskmanager.CheckpointTaskResponse),
+		stateRootUpdates:                       make(map[coretypes.MessageDigest]servicemanager.StateRootUpdateMessage),
+		operatorSetUpdates:                     make(map[coretypes.MessageDigest]registryrollup.OperatorSetUpdateMessage),
 	}
 	return aggregator, mockAvsWriter, mockTaskBlsAggregationService, mockStateRootUpdateBlsAggregationService, mockOperatorSetUpdateBlsAggregationService, nil
 }

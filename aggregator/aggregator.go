@@ -17,6 +17,7 @@ import (
 	"github.com/NethermindEth/near-sffl/core"
 	"github.com/NethermindEth/near-sffl/core/chainio"
 	"github.com/NethermindEth/near-sffl/core/config"
+	coretypes "github.com/NethermindEth/near-sffl/core/types"
 
 	registryrollup "github.com/NethermindEth/near-sffl/contracts/bindings/SFFLRegistryRollup"
 	servicemanager "github.com/NethermindEth/near-sffl/contracts/bindings/SFFLServiceManager"
@@ -74,14 +75,14 @@ type Aggregator struct {
 	taskBlsAggregationService              blsagg.BlsAggregationService
 	stateRootUpdateBlsAggregationService   MessageBlsAggregationService
 	operatorSetUpdateBlsAggregationService MessageBlsAggregationService
-	tasks                                  map[core.TaskIndex]taskmanager.CheckpointTask
+	tasks                                  map[coretypes.TaskIndex]taskmanager.CheckpointTask
 	tasksLock                              sync.RWMutex
-	taskResponses                          map[core.TaskIndex]map[sdktypes.TaskResponseDigest]taskmanager.CheckpointTaskResponse
+	taskResponses                          map[coretypes.TaskIndex]map[sdktypes.TaskResponseDigest]taskmanager.CheckpointTaskResponse
 	taskResponsesLock                      sync.RWMutex
 	msgDb                                  *MessageDatabase
-	stateRootUpdates                       map[core.MessageDigest]servicemanager.StateRootUpdateMessage
+	stateRootUpdates                       map[coretypes.MessageDigest]servicemanager.StateRootUpdateMessage
 	stateRootUpdatesLock                   sync.RWMutex
-	operatorSetUpdates                     map[core.MessageDigest]registryrollup.OperatorSetUpdateMessage
+	operatorSetUpdates                     map[coretypes.MessageDigest]registryrollup.OperatorSetUpdateMessage
 	operatorSetUpdatesLock                 sync.RWMutex
 }
 
@@ -134,10 +135,10 @@ func NewAggregator(c *config.Config) (*Aggregator, error) {
 		stateRootUpdateBlsAggregationService:   stateRootUpdateBlsAggregationService,
 		operatorSetUpdateBlsAggregationService: operatorSetUpdateBlsAggregationService,
 		msgDb:                                  msgDb,
-		tasks:                                  make(map[core.TaskIndex]taskmanager.CheckpointTask),
-		taskResponses:                          make(map[core.TaskIndex]map[sdktypes.TaskResponseDigest]taskmanager.CheckpointTaskResponse),
-		stateRootUpdates:                       make(map[core.MessageDigest]servicemanager.StateRootUpdateMessage),
-		operatorSetUpdates:                     make(map[core.MessageDigest]registryrollup.OperatorSetUpdateMessage),
+		tasks:                                  make(map[coretypes.TaskIndex]taskmanager.CheckpointTask),
+		taskResponses:                          make(map[coretypes.TaskIndex]map[sdktypes.TaskResponseDigest]taskmanager.CheckpointTaskResponse),
+		stateRootUpdates:                       make(map[coretypes.MessageDigest]servicemanager.StateRootUpdateMessage),
+		operatorSetUpdates:                     make(map[coretypes.MessageDigest]registryrollup.OperatorSetUpdateMessage),
 	}, nil
 }
 
@@ -241,7 +242,7 @@ func (agg *Aggregator) sendAggregatedResponseToContract(blsAggServiceResp blsagg
 func (agg *Aggregator) sendNewCheckpointTask(fromTimestamp uint64, toTimestamp uint64) error {
 	agg.logger.Info("Aggregator sending new task", "fromTimestamp", fromTimestamp, "toTimestamp", toTimestamp)
 	// Send checkpoint to the task manager contract
-	newTask, taskIndex, err := agg.avsWriter.SendNewCheckpointTask(context.Background(), fromTimestamp, toTimestamp, types.QUORUM_THRESHOLD_NUMERATOR, core.QUORUM_NUMBERS)
+	newTask, taskIndex, err := agg.avsWriter.SendNewCheckpointTask(context.Background(), fromTimestamp, toTimestamp, types.QUORUM_THRESHOLD_NUMERATOR, coretypes.QUORUM_NUMBERS)
 	if err != nil {
 		agg.logger.Error("Aggregator failed to send checkpoint", "err", err)
 		return err
