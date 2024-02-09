@@ -13,9 +13,9 @@ import (
 	ethtypes "github.com/ethereum/go-ethereum/core/types"
 	"github.com/prometheus/client_golang/prometheus"
 
-	"github.com/NethermindEth/near-sffl/aggregator"
 	servicemanager "github.com/NethermindEth/near-sffl/contracts/bindings/SFFLServiceManager"
 	"github.com/NethermindEth/near-sffl/core"
+	coretypes "github.com/NethermindEth/near-sffl/core/types"
 	"github.com/NethermindEth/near-sffl/operator/consumer"
 	"github.com/NethermindEth/near-sffl/types"
 )
@@ -55,7 +55,7 @@ func createEthClient(rpcUrl string, enableMetrics bool, registry *prometheus.Reg
 type Attestorer interface {
 	Start(ctx context.Context) error
 	Close() error
-	GetSingedRootC() <-chan aggregator.SignedStateRootUpdateMessage
+	GetSingedRootC() <-chan coretypes.SignedStateRootUpdateMessage
 }
 
 // Attestor subscribes for RPCs block updates
@@ -64,7 +64,7 @@ type Attestorer interface {
 // In case same block doesn't arrive from MQ block is signed and sent
 // If it arrives it is compared and then sent to Aggregator
 type Attestor struct {
-	signedRootC     chan aggregator.SignedStateRootUpdateMessage
+	signedRootC     chan coretypes.SignedStateRootUpdateMessage
 	rollupIdsToUrls map[uint32]string
 	clients         map[uint32]eth.EthClient
 	notifier        Notifier
@@ -88,7 +88,7 @@ func NewAttestor(config *types.NodeConfig, blsKeypair *bls.KeyPair, operatorId b
 	}, logger)
 
 	attestor := Attestor{
-		signedRootC: make(chan aggregator.SignedStateRootUpdateMessage),
+		signedRootC: make(chan coretypes.SignedStateRootUpdateMessage),
 		clients:     make(map[uint32]eth.EthClient),
 		logger:      logger,
 		notifier:    NewNotifier(),
@@ -269,7 +269,7 @@ loop:
 		return
 	}
 
-	signedStateRootUpdateMessage := aggregator.SignedStateRootUpdateMessage{
+	signedStateRootUpdateMessage := coretypes.SignedStateRootUpdateMessage{
 		Message:      message,
 		BlsSignature: *signature,
 		OperatorId:   attestor.operatorId,
@@ -288,7 +288,7 @@ func SignStateRootUpdateMessage(blsKeypair *bls.KeyPair, stateRootUpdateMessage 
 	return blsSignature, nil
 }
 
-func (attestor *Attestor) GetSingedRootC() <-chan aggregator.SignedStateRootUpdateMessage {
+func (attestor *Attestor) GetSingedRootC() <-chan coretypes.SignedStateRootUpdateMessage {
 	return attestor.signedRootC
 }
 

@@ -2,10 +2,10 @@ package mocks
 
 import (
 	"context"
+	"github.com/NethermindEth/near-sffl/core/types"
 
 	"github.com/Layr-Labs/eigensdk-go/crypto/bls"
 
-	"github.com/NethermindEth/near-sffl/aggregator"
 	servicemanager "github.com/NethermindEth/near-sffl/contracts/bindings/SFFLServiceManager"
 	"github.com/NethermindEth/near-sffl/operator/attestor"
 )
@@ -15,7 +15,7 @@ type MockAttestor struct {
 	blsKeypair *bls.KeyPair
 	operatorId bls.OperatorId
 
-	signedRootC chan aggregator.SignedStateRootUpdateMessage
+	signedRootC chan types.SignedStateRootUpdateMessage
 }
 
 func NewMockAttestor(blsKeypair *bls.KeyPair, operatorId bls.OperatorId) *MockAttestor {
@@ -24,7 +24,7 @@ func NewMockAttestor(blsKeypair *bls.KeyPair, operatorId bls.OperatorId) *MockAt
 		blsKeypair:  blsKeypair,
 		operatorId:  operatorId,
 		consumer:    consumer,
-		signedRootC: make(chan aggregator.SignedStateRootUpdateMessage),
+		signedRootC: make(chan types.SignedStateRootUpdateMessage),
 	}
 }
 
@@ -45,7 +45,7 @@ func (mockAttestor *MockAttestor) Start(ctx context.Context) error {
 				panic(err)
 			}
 
-			signedStateRootUpdateMessage := aggregator.SignedStateRootUpdateMessage{
+			signedStateRootUpdateMessage := types.SignedStateRootUpdateMessage{
 				Message:      message,
 				BlsSignature: *signature,
 				OperatorId:   mockAttestor.operatorId,
@@ -60,7 +60,7 @@ func (mockAttestor *MockAttestor) Start(ctx context.Context) error {
 
 func (mockAttestor *MockAttestor) Close() error { return mockAttestor.consumer.Close() }
 
-func (mockAttestor *MockAttestor) GetSingedRootC() <-chan aggregator.SignedStateRootUpdateMessage {
+func (mockAttestor *MockAttestor) GetSingedRootC() <-chan types.SignedStateRootUpdateMessage {
 	return mockAttestor.signedRootC
 }
 
