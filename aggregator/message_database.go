@@ -5,11 +5,11 @@ import (
 	"fmt"
 	"sync"
 
+	badger "github.com/dgraph-io/badger/v4"
+
 	"github.com/NethermindEth/near-sffl/aggregator/types"
 	registryrollup "github.com/NethermindEth/near-sffl/contracts/bindings/SFFLRegistryRollup"
 	servicemanager "github.com/NethermindEth/near-sffl/contracts/bindings/SFFLServiceManager"
-
-	badger "github.com/dgraph-io/badger/v4"
 )
 
 type MessageDatabase struct {

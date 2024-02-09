@@ -2,6 +2,7 @@ package types
 
 import (
 	"github.com/Layr-Labs/eigensdk-go/crypto/bls"
+
 	registryrollup "github.com/NethermindEth/near-sffl/contracts/bindings/SFFLRegistryRollup"
 	servicemanager "github.com/NethermindEth/near-sffl/contracts/bindings/SFFLServiceManager"
 	taskmanager "github.com/NethermindEth/near-sffl/contracts/bindings/SFFLTaskManager"

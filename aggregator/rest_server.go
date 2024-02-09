@@ -6,10 +6,10 @@ import (
 	"net/http"
 	"strconv"
 
+	"github.com/gorilla/mux"
+
 	"github.com/NethermindEth/near-sffl/aggregator/types"
 	servicemanager "github.com/NethermindEth/near-sffl/contracts/bindings/SFFLServiceManager"
-
-	"github.com/gorilla/mux"
 )
 
 func (agg *Aggregator) startRestServer(ctx context.Context) error {

@@ -6,12 +6,12 @@ import (
 	"net/http"
 	"net/rpc"
 
+	sdktypes "github.com/Layr-Labs/eigensdk-go/types"
+
 	"github.com/NethermindEth/near-sffl/aggregator/types"
 	taskmanager "github.com/NethermindEth/near-sffl/contracts/bindings/SFFLTaskManager"
 	"github.com/NethermindEth/near-sffl/core"
 	coretypes "github.com/NethermindEth/near-sffl/core/types"
-
-	sdktypes "github.com/Layr-Labs/eigensdk-go/types"
 )
 
 var (
