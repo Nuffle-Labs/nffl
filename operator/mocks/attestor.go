@@ -60,7 +60,7 @@ func (mockAttestor *MockAttestor) Start(ctx context.Context) error {
 
 func (mockAttestor *MockAttestor) Close() error { return mockAttestor.consumer.Close() }
 
-func (mockAttestor *MockAttestor) GetSingedRootC() <-chan types.SignedStateRootUpdateMessage {
+func (mockAttestor *MockAttestor) GetSignedRootC() <-chan types.SignedStateRootUpdateMessage {
 	return mockAttestor.signedRootC
 }
 

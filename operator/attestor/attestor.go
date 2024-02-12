@@ -55,7 +55,7 @@ func createEthClient(rpcUrl string, enableMetrics bool, registry *prometheus.Reg
 type Attestorer interface {
 	Start(ctx context.Context) error
 	Close() error
-	GetSingedRootC() <-chan coretypes.SignedStateRootUpdateMessage
+	GetSignedRootC() <-chan coretypes.SignedStateRootUpdateMessage
 }
 
 // Attestor subscribes for RPCs block updates
@@ -288,7 +288,7 @@ func SignStateRootUpdateMessage(blsKeypair *bls.KeyPair, stateRootUpdateMessage 
 	return blsSignature, nil
 }
 
-func (attestor *Attestor) GetSingedRootC() <-chan coretypes.SignedStateRootUpdateMessage {
+func (attestor *Attestor) GetSignedRootC() <-chan coretypes.SignedStateRootUpdateMessage {
 	return attestor.signedRootC
 }
 

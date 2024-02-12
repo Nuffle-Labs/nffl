@@ -306,7 +306,7 @@ func (o *Operator) Start(ctx context.Context) error {
 
 	// TODO(samlaf): wrap this call with increase in avs-node-spec metric
 	sub := o.avsSubscriber.SubscribeToNewTasks(o.checkpointTaskCreatedChan)
-	signedRootsC := o.attestor.GetSingedRootC()
+	signedRootsC := o.attestor.GetSignedRootC()
 
 	for {
 		select {
