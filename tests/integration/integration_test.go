@@ -37,10 +37,18 @@ func TestIntegration(t *testing.T) {
 	log.Println("This test takes ~50 seconds to run...")
 
 	/* Start the anvil chain */
-	anvilC := startAnvilTestContainer()
+	anvilC := startAnvilTestContainer("8545")
 	// Not sure why but deferring anvilC.Terminate() causes a panic when the test finishes...
 	// so letting it terminate silently for now
 	anvilEndpoint, err := anvilC.Endpoint(context.Background(), "")
+	if err != nil {
+		t.Error(err)
+	}
+
+	time.Sleep(5 * time.Second)
+
+	anvilRollupC := startAnvilTestContainer("8547")
+	anvilRollupEndpoint, err := anvilRollupC.Endpoint(context.Background(), "")
 	if err != nil {
 		t.Error(err)
 	}
@@ -140,8 +148,8 @@ func TestIntegration(t *testing.T) {
 	nodeConfig.RegisterOperatorOnStartup = true
 	nodeConfig.EthRpcUrl = "http://" + anvilEndpoint
 	nodeConfig.EthWsUrl = "ws://" + anvilEndpoint
-	for id, url := range nodeConfig.RollupIdsToRpcUrls {
-		nodeConfig.RollupIdsToRpcUrls[id] = "http://" + url
+	for id, _ := range nodeConfig.RollupIdsToRpcUrls {
+		nodeConfig.RollupIdsToRpcUrls[id] = "ws://" + anvilRollupEndpoint
 	}
 
 	operator, err := operator.NewOperatorFromConfig(nodeConfig)
@@ -190,7 +198,7 @@ func TestIntegration(t *testing.T) {
 }
 
 // TODO(samlaf): have to advance chain to a block where the task is answered
-func startAnvilTestContainer() testcontainers.Container {
+func startAnvilTestContainer(exposedPort string) testcontainers.Container {
 	integrationDir, err := os.Getwd()
 	if err != nil {
 		panic(err)
@@ -208,8 +216,8 @@ func startAnvilTestContainer() testcontainers.Container {
 			},
 		},
 		Entrypoint:   []string{"anvil"},
-		Cmd:          []string{"--host", "0.0.0.0", "--load-state", "/root/.anvil/state.json"},
-		ExposedPorts: []string{"8545/tcp"},
+		Cmd:          []string{"--host", "0.0.0.0", "--load-state", "/root/.anvil/state.json", "--port", exposedPort},
+		ExposedPorts: []string{exposedPort + "/tcp"},
 		WaitingFor:   wait.ForLog("Listening on"),
 	}
 	anvilC, err := testcontainers.GenericContainer(ctx, testcontainers.GenericContainerRequest{
@@ -234,7 +242,7 @@ func advanceChain(anvilC testcontainers.Container) {
 	privateKey := "0xac0974bec39a17e36ba4a6b4d238ff944bacb478cbed5efcae784d7bf4f2ff80"
 	cmd := exec.Command("bash", "-c",
 		fmt.Sprintf(
-			`forge script script/utils/Utils.sol --sig "advanceChainByNBlocks(uint256)" 100 --rpc-url %s --private-key %s --broadcast`,
+			`forge script script/utils/Utils.sol --sig "advanceChainByNBlocks(uint256)" 100 --rpc-url %s --private-key %s --broadcast --legacy`,
 			rpcUrl, privateKey),
 	)
 	cmd.Dir = "../../contracts/evm"
