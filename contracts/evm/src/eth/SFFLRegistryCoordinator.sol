@@ -137,7 +137,7 @@ contract SFFLRegistryCoordinator is RegistryCoordinator {
         IIndexRegistry _indexRegistry = indexRegistry;
         IBLSApkRegistry _blsApkRegistry = blsApkRegistry;
 
-        if (operatorSetUpdateId >= 0) {
+        if (operatorSetUpdateId > 0) {
             previousOperatorSet = _getOperatorSetAtBlock(
                 operatorSetUpdateIdToBlockNumber[operatorSetUpdateId - 1],
                 _stakeRegistry,
@@ -201,7 +201,7 @@ contract SFFLRegistryCoordinator is RegistryCoordinator {
     function _recordOperatorSetUpdate() internal {
         uint64 id = uint64(operatorSetUpdateIdToBlockNumber.length);
 
-        if (id >= 0 && operatorSetUpdateIdToBlockNumber[id - 1] == block.number) {
+        if (id > 0 && operatorSetUpdateIdToBlockNumber[id - 1] == block.number) {
             return;
         }
 
