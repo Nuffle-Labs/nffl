@@ -57,7 +57,7 @@ func TestSendNewTask(t *testing.T) {
 		},
 	}
 
-	aggregator, mockAvsWriterer, mockTaskBlsAggService, _, _, err := createMockAggregator(mockCtrl, operatorPubkeyDict)
+	aggregator, mockAvsWriterer, mockTaskBlsAggService, _, _, _, err := createMockAggregator(mockCtrl, operatorPubkeyDict)
 	assert.Nil(t, err)
 
 	var TASK_INDEX = uint32(0)
@@ -82,12 +82,13 @@ func TestSendNewTask(t *testing.T) {
 
 func createMockAggregator(
 	mockCtrl *gomock.Controller, operatorPubkeyDict map[bls.OperatorId]types.OperatorInfo,
-) (*Aggregator, *chainiomocks.MockAvsWriterer, *blsaggservmock.MockBlsAggregationService, *mocks.MockMessageBlsAggregationService, *mocks.MockMessageBlsAggregationService, error) {
+) (*Aggregator, *chainiomocks.MockAvsWriterer, *blsaggservmock.MockBlsAggregationService, *mocks.MockMessageBlsAggregationService, *mocks.MockMessageBlsAggregationService, *mocks.MockMessageDatabaser, error) {
 	logger := sdklogging.NewNoopLogger()
 	mockAvsWriter := chainiomocks.NewMockAvsWriterer(mockCtrl)
 	mockTaskBlsAggregationService := blsaggservmock.NewMockBlsAggregationService(mockCtrl)
 	mockStateRootUpdateBlsAggregationService := mocks.NewMockMessageBlsAggregationService(mockCtrl)
 	mockOperatorSetUpdateBlsAggregationService := mocks.NewMockMessageBlsAggregationService(mockCtrl)
+	mockMsgDb := mocks.NewMockMessageDatabaser(mockCtrl)
 
 	aggregator := &Aggregator{
 		logger:                                 logger,
@@ -95,12 +96,13 @@ func createMockAggregator(
 		taskBlsAggregationService:              mockTaskBlsAggregationService,
 		stateRootUpdateBlsAggregationService:   mockStateRootUpdateBlsAggregationService,
 		operatorSetUpdateBlsAggregationService: mockOperatorSetUpdateBlsAggregationService,
+		msgDb:                                  mockMsgDb,
 		tasks:                                  make(map[coretypes.TaskIndex]taskmanager.CheckpointTask),
 		taskResponses:                          make(map[coretypes.TaskIndex]map[sdktypes.TaskResponseDigest]taskmanager.CheckpointTaskResponse),
 		stateRootUpdates:                       make(map[coretypes.MessageDigest]servicemanager.StateRootUpdateMessage),
 		operatorSetUpdates:                     make(map[coretypes.MessageDigest]registryrollup.OperatorSetUpdateMessage),
 	}
-	return aggregator, mockAvsWriter, mockTaskBlsAggregationService, mockStateRootUpdateBlsAggregationService, mockOperatorSetUpdateBlsAggregationService, nil
+	return aggregator, mockAvsWriter, mockTaskBlsAggregationService, mockStateRootUpdateBlsAggregationService, mockOperatorSetUpdateBlsAggregationService, mockMsgDb, nil
 }
 
 // just a mock ethclient to pass to bindings

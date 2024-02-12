@@ -46,7 +46,7 @@ func TestProcessSignedCheckpointTaskResponse(t *testing.T) {
 			OperatorAddr: common.Address{},
 		},
 	}
-	aggregator, _, mockBlsAggServ, _, _, err := createMockAggregator(mockCtrl, operatorPubkeyDict)
+	aggregator, _, mockBlsAggServ, _, _, _, err := createMockAggregator(mockCtrl, operatorPubkeyDict)
 	assert.Nil(t, err)
 
 	signedCheckpointTaskResponse, err := createMockSignedCheckpointTaskResponse(MockTask{
@@ -87,7 +87,7 @@ func TestProcessSignedStateRootUpdateMessage(t *testing.T) {
 			OperatorAddr: common.Address{},
 		},
 	}
-	aggregator, _, _, mockMessageBlsAggServ, _, err := createMockAggregator(mockCtrl, operatorPubkeyDict)
+	aggregator, _, _, mockMessageBlsAggServ, _, _, err := createMockAggregator(mockCtrl, operatorPubkeyDict)
 	assert.Nil(t, err)
 
 	message := servicemanager.StateRootUpdateMessage{
@@ -128,7 +128,7 @@ func TestProcessOperatorSetUpdateMessage(t *testing.T) {
 			OperatorAddr: common.Address{},
 		},
 	}
-	aggregator, _, _, _, mockMessageBlsAggServ, err := createMockAggregator(mockCtrl, operatorPubkeyDict)
+	aggregator, _, _, _, mockMessageBlsAggServ, _, err := createMockAggregator(mockCtrl, operatorPubkeyDict)
 	assert.Nil(t, err)
 
 	message := registryrollup.OperatorSetUpdateMessage{
