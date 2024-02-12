@@ -2,6 +2,7 @@ package chainio
 
 import (
 	"context"
+	"math/big"
 
 	"github.com/ethereum/go-ethereum/accounts/abi/bind"
 	gethcommon "github.com/ethereum/go-ethereum/common"
@@ -11,6 +12,7 @@ import (
 	logging "github.com/Layr-Labs/eigensdk-go/logging"
 
 	erc20mock "github.com/NethermindEth/near-sffl/contracts/bindings/ERC20Mock"
+	regcoord "github.com/NethermindEth/near-sffl/contracts/bindings/SFFLRegistryCoordinator"
 	taskmanager "github.com/NethermindEth/near-sffl/contracts/bindings/SFFLTaskManager"
 	"github.com/NethermindEth/near-sffl/core/config"
 )
@@ -22,6 +24,7 @@ type AvsReaderer interface {
 		ctx context.Context, msgHash [32]byte, quorumNumbers []byte, referenceBlockNumber uint32, nonSignerStakesAndSignature taskmanager.IBLSSignatureCheckerNonSignerStakesAndSignature,
 	) (taskmanager.IBLSSignatureCheckerQuorumStakeTotals, error)
 	GetErc20Mock(ctx context.Context, tokenAddr gethcommon.Address) (*erc20mock.ContractERC20Mock, error)
+	GetOperatorSetUpdateDelta(ctx context.Context, id uint64) (*[]regcoord.OperatorsOperator, error)
 }
 
 type AvsReader struct {
@@ -73,4 +76,44 @@ func (r *AvsReader) GetErc20Mock(ctx context.Context, tokenAddr gethcommon.Addre
 		return nil, err
 	}
 	return erc20Mock, nil
+}
+
+func (r *AvsReader) GetOperatorSetUpdateDelta(ctx context.Context, id uint64) (*[]regcoord.OperatorsOperator, error) {
+	result, err := r.AvsServiceBindings.RegistryCoordinator.GetOperatorSetUpdate(&bind.CallOpts{}, id)
+	if err != nil {
+		return nil, err
+	}
+
+	type weightUpdate struct {
+		previous *big.Int
+		new      *big.Int
+	}
+
+	operators := make(map[regcoord.BN254G1Point]weightUpdate)
+
+	for _, operator := range result.PreviousOperatorSet {
+		operators[operator.Pubkey] = weightUpdate{operator.Weight, big.NewInt(0)}
+	}
+
+	for _, operator := range result.NewOperatorSet {
+		weights, ok := operators[operator.Pubkey]
+
+		if ok {
+			weights.new = operator.Weight
+		} else {
+			weights = weightUpdate{big.NewInt(0), operator.Weight}
+		}
+
+		operators[operator.Pubkey] = weights
+	}
+
+	var delta []regcoord.OperatorsOperator
+
+	for pubkey, weights := range operators {
+		if weights.previous != weights.new {
+			delta = append(delta, regcoord.OperatorsOperator{Pubkey: pubkey, Weight: weights.new})
+		}
+	}
+
+	return &delta, nil
 }

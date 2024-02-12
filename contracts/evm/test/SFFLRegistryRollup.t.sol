@@ -102,11 +102,11 @@ contract SFFLRegistryRollupTest is TestUtils {
         OperatorSetUpdate.Message memory message =
             OperatorSetUpdate.Message(registry.nextOperatorUpdateId(), 0, operators);
 
-        bytes32[] memory nonSignerPubkeyHashes = new bytes32[](1);
-        nonSignerPubkeyHashes[0] = initialOperators[3].pubkey.hashG1Point();
+        BN254.G1Point[] memory nonSignerPubkeys = new BN254.G1Point[](1);
+        nonSignerPubkeys[0] = initialOperators[3].pubkey;
 
         Operators.SignatureInfo memory signatureInfo = Operators.SignatureInfo({
-            nonSignerPubkeyHashes: nonSignerPubkeyHashes,
+            nonSignerPubkeys: nonSignerPubkeys,
             apkG2: BN254.G2Point(
                 [
                     21774854595736935906777183372431491423672246101465086449723107940773462536091,
@@ -155,12 +155,12 @@ contract SFFLRegistryRollupTest is TestUtils {
         OperatorSetUpdate.Message memory message =
             OperatorSetUpdate.Message(registry.nextOperatorUpdateId(), 0, operators);
 
-        bytes32[] memory nonSignerPubkeyHashes = new bytes32[](2);
-        nonSignerPubkeyHashes[0] = initialOperators[3].pubkey.hashG1Point();
-        nonSignerPubkeyHashes[1] = initialOperators[2].pubkey.hashG1Point();
+        BN254.G1Point[] memory nonSignerPubkeys = new BN254.G1Point[](2);
+        nonSignerPubkeys[0] = initialOperators[3].pubkey;
+        nonSignerPubkeys[1] = initialOperators[2].pubkey;
 
         Operators.SignatureInfo memory signatureInfo = Operators.SignatureInfo({
-            nonSignerPubkeyHashes: nonSignerPubkeyHashes,
+            nonSignerPubkeys: nonSignerPubkeys,
             apkG2: BN254.G2Point(
                 [
                     2907061045990700054725359562461748672178882330951313836195327790258647029271,
@@ -191,12 +191,12 @@ contract SFFLRegistryRollupTest is TestUtils {
         OperatorSetUpdate.Message memory message =
             OperatorSetUpdate.Message(registry.nextOperatorUpdateId() + 1, 0, operators);
 
-        bytes32[] memory nonSignerPubkeyHashes = new bytes32[](2);
-        nonSignerPubkeyHashes[0] = initialOperators[3].pubkey.hashG1Point();
-        nonSignerPubkeyHashes[1] = initialOperators[2].pubkey.hashG1Point();
+        BN254.G1Point[] memory nonSignerPubkeys = new BN254.G1Point[](2);
+        nonSignerPubkeys[0] = initialOperators[3].pubkey;
+        nonSignerPubkeys[1] = initialOperators[2].pubkey;
 
         Operators.SignatureInfo memory signatureInfo = Operators.SignatureInfo({
-            nonSignerPubkeyHashes: nonSignerPubkeyHashes,
+            nonSignerPubkeys: nonSignerPubkeys,
             apkG2: BN254.G2Point(
                 [
                     2907061045990700054725359562461748672178882330951313836195327790258647029271,
@@ -220,11 +220,11 @@ contract SFFLRegistryRollupTest is TestUtils {
     function test_updateStateRoot() public {
         StateRootUpdate.Message memory message = StateRootUpdate.Message(0, 1, 0, keccak256(hex"f00d"));
 
-        bytes32[] memory nonSignerPubkeyHashes = new bytes32[](1);
-        nonSignerPubkeyHashes[0] = initialOperators[3].pubkey.hashG1Point();
+        BN254.G1Point[] memory nonSignerPubkeys = new BN254.G1Point[](1);
+        nonSignerPubkeys[0] = initialOperators[3].pubkey;
 
         Operators.SignatureInfo memory signatureInfo = Operators.SignatureInfo({
-            nonSignerPubkeyHashes: nonSignerPubkeyHashes,
+            nonSignerPubkeys: nonSignerPubkeys,
             apkG2: BN254.G2Point(
                 [
                     21774854595736935906777183372431491423672246101465086449723107940773462536091,
@@ -253,12 +253,12 @@ contract SFFLRegistryRollupTest is TestUtils {
     function test_updateStateRoot_RevertWhen_QuorumNotMet() public {
         StateRootUpdate.Message memory message = StateRootUpdate.Message(0, 1, 0, keccak256(hex"f00d"));
 
-        bytes32[] memory nonSignerPubkeyHashes = new bytes32[](2);
-        nonSignerPubkeyHashes[0] = initialOperators[3].pubkey.hashG1Point();
-        nonSignerPubkeyHashes[1] = initialOperators[2].pubkey.hashG1Point();
+        BN254.G1Point[] memory nonSignerPubkeys = new BN254.G1Point[](2);
+        nonSignerPubkeys[0] = initialOperators[3].pubkey;
+        nonSignerPubkeys[1] = initialOperators[2].pubkey;
 
         Operators.SignatureInfo memory signatureInfo = Operators.SignatureInfo({
-            nonSignerPubkeyHashes: nonSignerPubkeyHashes,
+            nonSignerPubkeys: nonSignerPubkeys,
             apkG2: BN254.G2Point(
                 [
                     2907061045990700054725359562461748672178882330951313836195327790258647029271,

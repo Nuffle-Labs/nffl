@@ -30,14 +30,14 @@ library Operators {
     }
 
     struct OperatorSet {
-        mapping(bytes32 => Operator) pubkeyHashToOperator;
+        mapping(bytes32 => uint128) pubkeyHashToWeight;
         BN254.G1Point apk;
         uint128 totalWeight;
         uint128 quorumThreshold;
     }
 
     struct SignatureInfo {
-        bytes32[] nonSignerPubkeyHashes;
+        BN254.G1Point[] nonSignerPubkeys;
         BN254.G2Point apkG2;
         BN254.G1Point sigma;
     }
@@ -89,7 +89,7 @@ library Operators {
      * @return Operator weight
      */
     function getOperatorWeight(OperatorSet storage self, bytes32 pubkeyHash) internal view returns (uint128) {
-        return self.pubkeyHashToOperator[pubkeyHash].weight;
+        return self.pubkeyHashToWeight[pubkeyHash];
     }
 
     /**
@@ -108,20 +108,18 @@ library Operators {
             operator = operators[i];
 
             bytes32 pubkeyHash = operator.pubkey.hashG1Point();
-            uint128 currentWeight = self.pubkeyHashToOperator[pubkeyHash].weight;
+            uint128 currentWeight = self.pubkeyHashToWeight[pubkeyHash];
 
             require(operator.weight != currentWeight, "Operator is up to date");
 
             newTotalWeight = newTotalWeight - currentWeight + operator.weight;
 
-            self.pubkeyHashToOperator[pubkeyHash].weight = operator.weight;
+            self.pubkeyHashToWeight[pubkeyHash] = operator.weight;
 
             if (currentWeight == 0) {
-                self.pubkeyHashToOperator[pubkeyHash].pubkey = operator.pubkey;
                 newApk = newApk.plus(operator.pubkey);
             } else if (operator.weight == 0) {
                 newApk = newApk.plus(operator.pubkey.negate());
-                delete operator.pubkey;
             }
 
             emit OperatorUpdated(pubkeyHash, operator.weight);
@@ -147,21 +145,22 @@ library Operators {
     {
         BN254.G1Point memory apk = BN254.G1Point(0, 0);
         uint256 weight = self.totalWeight;
-        Operator memory operator;
 
-        for (uint256 i = 0; i < signatureInfo.nonSignerPubkeyHashes.length; i++) {
+        bytes32[] memory nonSignerPubkeyHashes = new bytes32[](signatureInfo.nonSignerPubkeys.length);
+
+        for (uint256 i = 0; i < signatureInfo.nonSignerPubkeys.length; i++) {
+            nonSignerPubkeyHashes[i] = signatureInfo.nonSignerPubkeys[i].hashG1Point();
+
             if (i != 0) {
-                require(
-                    uint256(signatureInfo.nonSignerPubkeyHashes[i])
-                        > uint256(signatureInfo.nonSignerPubkeyHashes[i - 1]),
-                    "Pubkeys not sorted"
-                );
+                require(uint256(nonSignerPubkeyHashes[i]) > uint256(nonSignerPubkeyHashes[i - 1]), "Pubkeys not sorted");
             }
 
-            operator = self.pubkeyHashToOperator[signatureInfo.nonSignerPubkeyHashes[i]];
+            uint256 operatorWeight = self.pubkeyHashToWeight[nonSignerPubkeyHashes[i]];
 
-            apk = apk.plus(operator.pubkey);
-            weight -= operator.weight;
+            require(operatorWeight >= 0, "Operator has zero weight");
+
+            apk = apk.plus(signatureInfo.nonSignerPubkeys[i]);
+            weight -= operatorWeight;
         }
 
         apk = self.apk.plus(apk.negate());

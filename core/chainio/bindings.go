@@ -8,21 +8,22 @@ import (
 	"github.com/ethereum/go-ethereum/common"
 	gethcommon "github.com/ethereum/go-ethereum/common"
 
-	regcoord "github.com/Layr-Labs/eigensdk-go/contracts/bindings/RegistryCoordinator"
 	erc20mock "github.com/NethermindEth/near-sffl/contracts/bindings/ERC20Mock"
+	regcoord "github.com/NethermindEth/near-sffl/contracts/bindings/SFFLRegistryCoordinator"
 	csservicemanager "github.com/NethermindEth/near-sffl/contracts/bindings/SFFLServiceManager"
 	taskmanager "github.com/NethermindEth/near-sffl/contracts/bindings/SFFLTaskManager"
 )
 
 type AvsManagersBindings struct {
-	TaskManager    *taskmanager.ContractSFFLTaskManager
-	ServiceManager *csservicemanager.ContractSFFLServiceManager
-	ethClient      eth.EthClient
-	logger         logging.Logger
+	RegistryCoordinator *regcoord.ContractSFFLRegistryCoordinator
+	TaskManager         *taskmanager.ContractSFFLTaskManager
+	ServiceManager      *csservicemanager.ContractSFFLServiceManager
+	ethClient           eth.EthClient
+	logger              logging.Logger
 }
 
 func NewAvsManagersBindings(registryCoordinatorAddr, operatorStateRetrieverAddr gethcommon.Address, ethclient eth.EthClient, logger logging.Logger) (*AvsManagersBindings, error) {
-	contractRegistryCoordinator, err := regcoord.NewContractRegistryCoordinator(registryCoordinatorAddr, ethclient)
+	contractRegistryCoordinator, err := regcoord.NewContractSFFLRegistryCoordinator(registryCoordinatorAddr, ethclient)
 	if err != nil {
 		return nil, err
 	}

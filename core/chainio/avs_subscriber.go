@@ -9,6 +9,7 @@ import (
 	"github.com/Layr-Labs/eigensdk-go/chainio/clients/eth"
 	sdklogging "github.com/Layr-Labs/eigensdk-go/logging"
 
+	regcoord "github.com/NethermindEth/near-sffl/contracts/bindings/SFFLRegistryCoordinator"
 	taskmanager "github.com/NethermindEth/near-sffl/contracts/bindings/SFFLTaskManager"
 	"github.com/NethermindEth/near-sffl/core/config"
 )
@@ -16,6 +17,7 @@ import (
 type AvsSubscriberer interface {
 	SubscribeToNewTasks(checkpointTaskCreatedChan chan *taskmanager.ContractSFFLTaskManagerCheckpointTaskCreated) event.Subscription
 	SubscribeToTaskResponses(taskResponseLogs chan *taskmanager.ContractSFFLTaskManagerCheckpointTaskResponded) event.Subscription
+	SubscribeToOperatorSetUpdates(operatorSetUpdateChan chan *regcoord.ContractSFFLRegistryCoordinatorOperatorSetUpdatedAtBlock) event.Subscription
 	ParseCheckpointTaskResponded(rawLog types.Log) (*taskmanager.ContractSFFLTaskManagerCheckpointTaskResponded, error)
 }
 
@@ -77,4 +79,15 @@ func (s *AvsSubscriber) SubscribeToTaskResponses(taskResponseChan chan *taskmana
 
 func (s *AvsSubscriber) ParseCheckpointTaskResponded(rawLog types.Log) (*taskmanager.ContractSFFLTaskManagerCheckpointTaskResponded, error) {
 	return s.AvsContractBindings.TaskManager.ContractSFFLTaskManagerFilterer.ParseCheckpointTaskResponded(rawLog)
+}
+
+func (s *AvsSubscriber) SubscribeToOperatorSetUpdates(operatorSetUpdateChan chan *regcoord.ContractSFFLRegistryCoordinatorOperatorSetUpdatedAtBlock) event.Subscription {
+	sub, err := s.AvsContractBindings.RegistryCoordinator.WatchOperatorSetUpdatedAtBlock(
+		&bind.WatchOpts{}, operatorSetUpdateChan, nil,
+	)
+	if err != nil {
+		s.logger.Error("Failed to subscribe to OperatorSetUpdatedAtBlock events", "err", err)
+	}
+	s.logger.Infof("Subscribed to OperatorSetUpdatedAtBlock events")
+	return sub
 }
