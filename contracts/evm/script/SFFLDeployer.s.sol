@@ -93,9 +93,7 @@ contract SFFLDeployer is Script, Utils {
         _deployErc20AndStrategyAndWhitelistStrategy(
             eigenLayerProxyAdmin, eigenLayerPauserReg, baseStrategyImplementation, strategyManager
         );
-        _deploySFFLContracts(
-            delegationManager, erc20MockStrategy, sfflCommunityMultisig, sfflPauser
-        );
+        _deploySFFLContracts(delegationManager, erc20MockStrategy, sfflCommunityMultisig, sfflPauser);
         vm.stopBroadcast();
     }
 
@@ -269,14 +267,10 @@ contract SFFLDeployer is Script, Utils {
         vm.serializeAddress(deployed_addresses, "erc20MockStrategy", address(erc20MockStrategy));
         vm.serializeAddress(deployed_addresses, "sfflServiceManager", address(sfflServiceManager));
         vm.serializeAddress(
-            deployed_addresses,
-            "sfflServiceManagerImplementation",
-            address(sfflServiceManagerImplementation)
+            deployed_addresses, "sfflServiceManagerImplementation", address(sfflServiceManagerImplementation)
         );
         vm.serializeAddress(deployed_addresses, "sfflTaskManager", address(sfflTaskManager));
-        vm.serializeAddress(
-            deployed_addresses, "sfflTaskManagerImplementation", address(sfflTaskManagerImplementation)
-        );
+        vm.serializeAddress(deployed_addresses, "sfflTaskManagerImplementation", address(sfflTaskManagerImplementation));
         vm.serializeAddress(deployed_addresses, "registryCoordinator", address(registryCoordinator));
         vm.serializeAddress(
             deployed_addresses, "registryCoordinatorImplementation", address(registryCoordinatorImplementation)
