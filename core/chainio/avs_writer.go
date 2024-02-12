@@ -65,6 +65,7 @@ func BuildAvsWriter(txMgr txmgr.TxManager, registryCoordinatorAddr, operatorStat
 	}
 	return NewAvsWriter(avsRegistryWriter, avsServiceBindings, logger, txMgr), nil
 }
+
 func NewAvsWriter(avsRegistryWriter avsregistry.AvsRegistryWriter, avsServiceBindings *AvsManagersBindings, logger logging.Logger, txMgr txmgr.TxManager) *AvsWriter {
 	return &AvsWriter{
 		AvsRegistryWriter:   avsRegistryWriter,

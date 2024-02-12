@@ -30,18 +30,20 @@ func main() {
 }
 
 func operatorMain(ctx *cli.Context) error {
-
 	log.Println("Initializing Operator")
+
 	configPath := ctx.GlobalString(config.ConfigFileFlag.Name)
 	nodeConfig := types.NodeConfig{}
 	err := sdkutils.ReadYamlConfig(configPath, &nodeConfig)
 	if err != nil {
 		return err
 	}
+
 	configJson, err := json.MarshalIndent(nodeConfig, "", "  ")
 	if err != nil {
 		log.Fatalf(err.Error())
 	}
+
 	log.Println("Config:", string(configJson))
 
 	log.Println("initializing operator")

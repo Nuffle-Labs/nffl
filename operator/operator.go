@@ -9,6 +9,14 @@ import (
 	"github.com/ethereum/go-ethereum/common"
 	"github.com/prometheus/client_golang/prometheus"
 
+	taskmanager "github.com/NethermindEth/near-sffl/contracts/bindings/SFFLTaskManager"
+	"github.com/NethermindEth/near-sffl/core"
+	"github.com/NethermindEth/near-sffl/core/chainio"
+	coretypes "github.com/NethermindEth/near-sffl/core/types"
+	"github.com/NethermindEth/near-sffl/metrics"
+	"github.com/NethermindEth/near-sffl/operator/attestor"
+	"github.com/NethermindEth/near-sffl/types"
+
 	"github.com/Layr-Labs/eigensdk-go/chainio/clients"
 	sdkelcontracts "github.com/Layr-Labs/eigensdk-go/chainio/clients/elcontracts"
 	"github.com/Layr-Labs/eigensdk-go/chainio/clients/eth"
@@ -23,16 +31,6 @@ import (
 	"github.com/Layr-Labs/eigensdk-go/nodeapi"
 	"github.com/Layr-Labs/eigensdk-go/signerv2"
 	sdktypes "github.com/Layr-Labs/eigensdk-go/types"
-
-	registryrollup "github.com/NethermindEth/near-sffl/contracts/bindings/SFFLRegistryRollup"
-	servicemanager "github.com/NethermindEth/near-sffl/contracts/bindings/SFFLServiceManager"
-	taskmanager "github.com/NethermindEth/near-sffl/contracts/bindings/SFFLTaskManager"
-	"github.com/NethermindEth/near-sffl/core"
-	"github.com/NethermindEth/near-sffl/core/chainio"
-	coretypes "github.com/NethermindEth/near-sffl/core/types"
-	"github.com/NethermindEth/near-sffl/metrics"
-	"github.com/NethermindEth/near-sffl/operator/consumer"
-	"github.com/NethermindEth/near-sffl/types"
 )
 
 const AVS_NAME = "super-fast-finality-layer"
@@ -67,23 +65,60 @@ type Operator struct {
 	// needed when opting in to avs (allow this service manager contract to slash operator)
 	sfflServiceManagerAddr common.Address
 	// NEAR DA indexer consumer
-	consumer consumer.Consumerer
+	attestor attestor.Attestorer
+}
+
+func createEthClients(config types.NodeConfig, registry *prometheus.Registry, logger sdklogging.Logger) (eth.EthClient, eth.EthClient, error) {
+	if config.EnableMetrics {
+		rpcCallsCollector := rpccalls.NewCollector(AVS_NAME, registry)
+		ethRpcClient, err := eth.NewInstrumentedClient(config.EthRpcUrl, rpcCallsCollector)
+		if err != nil {
+			logger.Errorf("Cannot create http ethclient", "err", err)
+			return nil, nil, err
+		}
+		ethWsClient, err := eth.NewInstrumentedClient(config.EthWsUrl, rpcCallsCollector)
+		if err != nil {
+			logger.Errorf("Cannot create ws ethclient", "err", err)
+			return nil, nil, err
+		}
+
+		return ethRpcClient, ethWsClient, nil
+	}
+
+	ethRpcClient, err := eth.NewClient(config.EthRpcUrl)
+	if err != nil {
+		logger.Errorf("Cannot create http ethclient", "err", err)
+		return nil, nil, err
+	}
+	ethWsClient, err := eth.NewClient(config.EthWsUrl)
+	if err != nil {
+		logger.Errorf("Cannot create ws ethclient", "err", err)
+		return nil, nil, err
+	}
+
+	return ethRpcClient, ethWsClient, nil
+}
+
+func createLogger(config *types.NodeConfig) (sdklogging.Logger, error) {
+	var logLevel logging.LogLevel
+	if config.Production {
+		logLevel = sdklogging.Production
+	} else {
+		logLevel = sdklogging.Development
+	}
+
+	return sdklogging.NewZapLogger(logLevel)
 }
 
 // TODO(samlaf): config is a mess right now, since the chainio client constructors
 //
 //	take the config in core (which is shared with aggregator and challenger)
 func NewOperatorFromConfig(c types.NodeConfig) (*Operator, error) {
-	var logLevel logging.LogLevel
-	if c.Production {
-		logLevel = sdklogging.Production
-	} else {
-		logLevel = sdklogging.Development
-	}
-	logger, err := sdklogging.NewZapLogger(logLevel)
+	logger, err := createLogger(&c)
 	if err != nil {
 		return nil, err
 	}
+
 	reg := prometheus.NewRegistry()
 	eigenMetrics := sdkmetrics.NewEigenMetrics(AVS_NAME, c.EigenMetricsIpPortAddress, reg, logger)
 	avsAndEigenMetrics := metrics.NewAvsAndEigenMetrics(AVS_NAME, eigenMetrics, reg)
@@ -91,36 +126,16 @@ func NewOperatorFromConfig(c types.NodeConfig) (*Operator, error) {
 	// Setup Node Api
 	nodeApi := nodeapi.NewNodeApi(AVS_NAME, SEM_VER, c.NodeApiIpPortAddress, logger)
 
-	var ethRpcClient, ethWsClient eth.EthClient
-	if c.EnableMetrics {
-		rpcCallsCollector := rpccalls.NewCollector(AVS_NAME, reg)
-		ethRpcClient, err = eth.NewInstrumentedClient(c.EthRpcUrl, rpcCallsCollector)
-		if err != nil {
-			logger.Errorf("Cannot create http ethclient", "err", err)
-			return nil, err
-		}
-		ethWsClient, err = eth.NewInstrumentedClient(c.EthWsUrl, rpcCallsCollector)
-		if err != nil {
-			logger.Errorf("Cannot create ws ethclient", "err", err)
-			return nil, err
-		}
-	} else {
-		ethRpcClient, err = eth.NewClient(c.EthRpcUrl)
-		if err != nil {
-			logger.Errorf("Cannot create http ethclient", "err", err)
-			return nil, err
-		}
-		ethWsClient, err = eth.NewClient(c.EthWsUrl)
-		if err != nil {
-			logger.Errorf("Cannot create ws ethclient", "err", err)
-			return nil, err
-		}
+	ethRpcClient, ethWsClient, err := createEthClients(c, reg, logger)
+	if err != nil {
+		return nil, err
 	}
 
 	blsKeyPassword, ok := os.LookupEnv("OPERATOR_BLS_KEY_PASSWORD")
 	if !ok {
 		logger.Warnf("OPERATOR_BLS_KEY_PASSWORD env var not set. using empty string")
 	}
+
 	blsKeyPair, err := bls.ReadPrivateKeyFromFile(c.BlsPrivateKeyStorePath, blsKeyPassword)
 	if err != nil {
 		logger.Errorf("Cannot parse bls private key", "err", err)
@@ -147,6 +162,7 @@ func NewOperatorFromConfig(c types.NodeConfig) (*Operator, error) {
 	if err != nil {
 		panic(err)
 	}
+
 	chainioConfig := clients.BuildAllConfig{
 		EthHttpUrl:                 c.EthRpcUrl,
 		EthWsUrl:                   c.EthWsUrl,
@@ -159,8 +175,8 @@ func NewOperatorFromConfig(c types.NodeConfig) (*Operator, error) {
 	if err != nil {
 		panic(err)
 	}
-	txMgr := txmgr.NewSimpleTxManager(ethRpcClient, logger, signerV2, common.HexToAddress(c.OperatorAddress))
 
+	txMgr := txmgr.NewSimpleTxManager(ethRpcClient, logger, signerV2, common.HexToAddress(c.OperatorAddress))
 	avsWriter, err := chainio.BuildAvsWriter(
 		txMgr, common.HexToAddress(c.AVSRegistryCoordinatorAddress),
 		common.HexToAddress(c.OperatorStateRetrieverAddress), ethRpcClient, logger,
@@ -178,6 +194,7 @@ func NewOperatorFromConfig(c types.NodeConfig) (*Operator, error) {
 		logger.Error("Cannot create AvsReader", "err", err)
 		return nil, err
 	}
+
 	avsSubscriber, err := chainio.BuildAvsSubscriber(common.HexToAddress(c.AVSRegistryCoordinatorAddress),
 		common.HexToAddress(c.OperatorStateRetrieverAddress), ethWsClient, logger,
 	)
@@ -202,12 +219,6 @@ func NewOperatorFromConfig(c types.NodeConfig) (*Operator, error) {
 		return nil, err
 	}
 
-	consumer := consumer.NewConsumer(consumer.ConsumerConfig{
-		Addr:        c.NearDaIndexerRmqIpPortAddress,
-		ConsumerTag: c.NearDaIndexerConsumerTag,
-		RollupIds:   c.NearDaIndexerRollupIds,
-	}, logger)
-
 	operator := &Operator{
 		config:                     c,
 		logger:                     logger,
@@ -227,7 +238,6 @@ func NewOperatorFromConfig(c types.NodeConfig) (*Operator, error) {
 		checkpointTaskCreatedChan:  make(chan *taskmanager.ContractSFFLTaskManagerCheckpointTaskCreated),
 		sfflServiceManagerAddr:     common.HexToAddress(c.AVSRegistryCoordinatorAddress),
 		operatorId:                 [32]byte{0}, // this is set below
-		consumer:                   &consumer,
 	}
 
 	if c.RegisterOperatorOnStartup {
@@ -255,8 +265,13 @@ func NewOperatorFromConfig(c types.NodeConfig) (*Operator, error) {
 		"operatorG2Pubkey", operator.blsKeypair.GetPubKeyG2(),
 	)
 
-	return operator, nil
+	attestor, err := attestor.NewAttestor(&c, blsKeyPair, operatorId, logger)
+	if err != nil {
+		return nil, err
+	}
+	operator.attestor = attestor
 
+	return operator, nil
 }
 
 func (o *Operator) Start(ctx context.Context) error {
@@ -271,11 +286,17 @@ func (o *Operator) Start(ctx context.Context) error {
 		return fmt.Errorf("operator is not registered. Registering operator using the operator-cli before starting operator")
 	}
 
+	// TODO: hmm maybe remove start from attestor?
+	if err := o.attestor.Start(ctx); err != nil {
+		return err
+	}
+
 	o.logger.Infof("Starting operator.")
 
 	if o.config.EnableNodeApi {
 		o.nodeApi.Start()
 	}
+
 	var metricsErrChan <-chan error
 	if o.config.EnableMetrics {
 		metricsErrChan = o.metrics.Start(ctx, o.metricsReg)
@@ -285,8 +306,7 @@ func (o *Operator) Start(ctx context.Context) error {
 
 	// TODO(samlaf): wrap this call with increase in avs-node-spec metric
 	sub := o.avsSubscriber.SubscribeToNewTasks(o.checkpointTaskCreatedChan)
-
-	blockReceivedChan := o.consumer.GetBlockStream()
+	signedRootsC := o.attestor.GetSignedRootC()
 
 	for {
 		select {
@@ -309,27 +329,18 @@ func (o *Operator) Start(ctx context.Context) error {
 			if err != nil {
 				continue
 			}
+
 			go o.aggregatorRpcClient.SendSignedCheckpointTaskResponseToAggregator(signedCheckpointTaskResponse)
-		case blockData := <-blockReceivedChan:
-			o.logger.Info("Block received on operator", "rollupId", blockData.RollupId, "block", blockData.Block)
+		case signedStateRootUpdateMessage := <-signedRootsC:
+			o.aggregatorRpcClient.SendSignedStateRootUpdateToAggregator(&signedStateRootUpdateMessage)
 
-			signedStateRootUpdateMessage, err := o.SignStateRootUpdateMessage(&servicemanager.StateRootUpdateMessage{
-				RollupId:    blockData.RollupId,
-				BlockHeight: blockData.Block.NumberU64(),
-				Timestamp:   blockData.Block.Header().Time,
-				StateRoot:   blockData.Block.Header().Root,
-			})
-			if err != nil {
-				continue
-			}
-
-			o.aggregatorRpcClient.SendSignedStateRootUpdateToAggregator(signedStateRootUpdateMessage)
+			continue
 		}
 	}
 }
 
 func (o *Operator) Close() error {
-	if err := o.consumer.Close(); err != nil {
+	if err := o.attestor.Close(); err != nil {
 		return err
 	}
 
@@ -373,36 +384,4 @@ func (o *Operator) SignTaskResponse(taskResponse *taskmanager.CheckpointTaskResp
 	}
 	o.logger.Debug("Signed task response", "signedCheckpointTaskResponse", signedCheckpointTaskResponse)
 	return signedCheckpointTaskResponse, nil
-}
-
-func (o *Operator) SignStateRootUpdateMessage(stateRootUpdateMessage *servicemanager.StateRootUpdateMessage) (*coretypes.SignedStateRootUpdateMessage, error) {
-	messageDigest, err := core.GetStateRootUpdateMessageDigest(stateRootUpdateMessage)
-	if err != nil {
-		o.logger.Error("Error getting state root update message digest. skipping message (this is not expected and should be investigated)", "err", err)
-		return nil, err
-	}
-	blsSignature := o.blsKeypair.SignMessage(messageDigest)
-	signedStateRootUpdateMessage := &coretypes.SignedStateRootUpdateMessage{
-		Message:      *stateRootUpdateMessage,
-		BlsSignature: *blsSignature,
-		OperatorId:   o.operatorId,
-	}
-	o.logger.Debug("Signed message", "signedStateRootUpdateMessage", signedStateRootUpdateMessage)
-	return signedStateRootUpdateMessage, nil
-}
-
-func (o *Operator) SignOperatorSetUpdateMessage(operatorSetUpdateMessage *registryrollup.OperatorSetUpdateMessage) (*coretypes.SignedOperatorSetUpdateMessage, error) {
-	messageDigest, err := core.GetOperatorSetUpdateMessageDigest(operatorSetUpdateMessage)
-	if err != nil {
-		o.logger.Error("Error getting operator set update message digest. skipping message (this is not expected and should be investigated)", "err", err)
-		return nil, err
-	}
-	blsSignature := o.blsKeypair.SignMessage(messageDigest)
-	signedOperatorSetUpdateMessage := &coretypes.SignedOperatorSetUpdateMessage{
-		Message:      *operatorSetUpdateMessage,
-		BlsSignature: *blsSignature,
-		OperatorId:   o.operatorId,
-	}
-	o.logger.Debug("Signed message", "signedOperatorSetUpdateMessage", signedOperatorSetUpdateMessage)
-	return signedOperatorSetUpdateMessage, nil
 }
