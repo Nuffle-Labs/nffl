@@ -10,15 +10,21 @@ import {ISlasher} from "@eigenlayer/contracts/interfaces/ISlasher.sol";
 import {StrategyBaseTVLLimits} from "@eigenlayer/contracts/strategies/StrategyBaseTVLLimits.sol";
 import {EmptyContract} from "@eigenlayer/test/mocks/EmptyContract.sol";
 
-import "eigenlayer-middleware/src/RegistryCoordinator.sol" as regcoord;
-import {IBLSApkRegistry, IIndexRegistry, IStakeRegistry} from "eigenlayer-middleware/src/RegistryCoordinator.sol";
+import {
+    IBLSApkRegistry,
+    IIndexRegistry,
+    IStakeRegistry,
+    IRegistryCoordinator
+} from "eigenlayer-middleware/src/RegistryCoordinator.sol";
 import {BLSApkRegistry} from "eigenlayer-middleware/src/BLSApkRegistry.sol";
 import {IndexRegistry} from "eigenlayer-middleware/src/IndexRegistry.sol";
 import {StakeRegistry} from "eigenlayer-middleware/src/StakeRegistry.sol";
 import {OperatorStateRetriever} from "eigenlayer-middleware/src/OperatorStateRetriever.sol";
 
+import {RegistryCoordinator} from "../src/external/RegistryCoordinator.sol";
 import {SFFLServiceManager} from "../src/eth/SFFLServiceManager.sol";
 import {SFFLTaskManager} from "../src/eth/SFFLTaskManager.sol";
+import {SFFLRegistryCoordinator} from "../src/eth/SFFLRegistryCoordinator.sol";
 import {ERC20Mock, IERC20} from "../test/mock/ERC20Mock.sol";
 
 import {Utils} from "./utils/Utils.sol";
@@ -45,8 +51,8 @@ contract SFFLDeployer is Script, Utils {
     ProxyAdmin public sfflProxyAdmin;
     PauserRegistry public sfflPauserReg;
 
-    regcoord.RegistryCoordinator public registryCoordinator;
-    regcoord.IRegistryCoordinator public registryCoordinatorImplementation;
+    SFFLRegistryCoordinator public registryCoordinator;
+    IRegistryCoordinator public registryCoordinatorImplementation;
 
     IBLSApkRegistry public blsApkRegistry;
     IBLSApkRegistry public blsApkRegistryImplementation;
@@ -147,7 +153,7 @@ contract SFFLDeployer is Script, Utils {
         sfflTaskManager = SFFLTaskManager(
             address(new TransparentUpgradeableProxy(address(emptyContract), address(sfflProxyAdmin), ""))
         );
-        registryCoordinator = regcoord.RegistryCoordinator(
+        registryCoordinator = SFFLRegistryCoordinator(
             address(new TransparentUpgradeableProxy(address(emptyContract), address(sfflProxyAdmin), ""))
         );
         blsApkRegistry = IBLSApkRegistry(
@@ -182,19 +188,19 @@ contract SFFLDeployer is Script, Utils {
             );
         }
 
-        registryCoordinatorImplementation = new regcoord.RegistryCoordinator(
+        registryCoordinatorImplementation = new SFFLRegistryCoordinator(
             sfflServiceManager,
-            regcoord.IStakeRegistry(address(stakeRegistry)),
-            regcoord.IBLSApkRegistry(address(blsApkRegistry)),
-            regcoord.IIndexRegistry(address(indexRegistry))
+            IStakeRegistry(address(stakeRegistry)),
+            IBLSApkRegistry(address(blsApkRegistry)),
+            IIndexRegistry(address(indexRegistry))
         );
 
         {
             uint256 numQuorums = 1;
-            regcoord.IRegistryCoordinator.OperatorSetParam[] memory quorumsOperatorSetParams =
-                new regcoord.IRegistryCoordinator.OperatorSetParam[](numQuorums);
+            IRegistryCoordinator.OperatorSetParam[] memory quorumsOperatorSetParams =
+                new IRegistryCoordinator.OperatorSetParam[](numQuorums);
             for (uint256 i = 0; i < numQuorums; i++) {
-                quorumsOperatorSetParams[i] = regcoord.IRegistryCoordinator.OperatorSetParam({
+                quorumsOperatorSetParams[i] = IRegistryCoordinator.OperatorSetParam({
                     maxOperatorCount: 10000,
                     kickBIPsOfOperatorStake: 15000,
                     kickBIPsOfTotalStake: 100
@@ -220,7 +226,7 @@ contract SFFLDeployer is Script, Utils {
                 TransparentUpgradeableProxy(payable(address(registryCoordinator))),
                 address(registryCoordinatorImplementation),
                 abi.encodeWithSelector(
-                    regcoord.RegistryCoordinator.initialize.selector,
+                    RegistryCoordinator.initialize.selector,
                     sfflCommunityMultisig,
                     sfflCommunityMultisig,
                     sfflCommunityMultisig,
