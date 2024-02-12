@@ -45,7 +45,7 @@ func TestIntegration(t *testing.T) {
 		t.Error(err)
 	}
 
-	time.Sleep(5 * time.Second)
+	time.Sleep(2 * time.Second)
 
 	anvilRollupC := startAnvilTestContainer("8547")
 	anvilRollupEndpoint, err := anvilRollupC.Endpoint(context.Background(), "")
