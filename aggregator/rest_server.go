@@ -103,3 +103,39 @@ func (agg *Aggregator) handleGetOperatorSetUpdateAggregation(w http.ResponseWrit
 		Aggregation: aggregation,
 	})
 }
+
+type GetOperatorSetUpdateAggregationResponse struct {
+	message     registryrollup.OperatorSetUpdateMessage
+	aggregation types.MessageBlsAggregationServiceResponse
+}
+
+func (agg *Aggregator) handleGetOperatorSetUpdateAggregation(w http.ResponseWriter, r *http.Request) {
+	params := r.URL.Query()
+	id, err := strconv.ParseUint(params.Get("id"), 10, 64)
+	if err != nil {
+		http.Error(w, "Invalid id", http.StatusBadRequest)
+		return
+	}
+
+	var message registryrollup.OperatorSetUpdateMessage
+	var aggregation types.MessageBlsAggregationServiceResponse
+
+	err = agg.msgDb.FetchOperatorSetUpdate(id, &message)
+	if err != nil {
+		http.Error(w, "OperatorSetUpdate not found", http.StatusNotFound)
+		return
+	}
+
+	err = agg.msgDb.FetchOperatorSetUpdateAggregation(id, &aggregation)
+	if err != nil {
+		http.Error(w, "OperatorSetUpdate aggregation not found", http.StatusNotFound)
+		return
+	}
+
+	w.WriteHeader(http.StatusOK)
+	w.Header().Set("Content-Type", "application/json")
+	json.NewEncoder(w).Encode(GetOperatorSetUpdateAggregationResponse{
+		message:     message,
+		aggregation: aggregation,
+	})
+}
