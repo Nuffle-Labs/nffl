@@ -78,7 +78,7 @@ type Aggregator struct {
 	tasksLock                              sync.RWMutex
 	taskResponses                          map[coretypes.TaskIndex]map[sdktypes.TaskResponseDigest]taskmanager.CheckpointTaskResponse
 	taskResponsesLock                      sync.RWMutex
-	msgDb                                  *MessageDatabase
+	msgDb                                  MessageDatabaser
 	stateRootUpdates                       map[coretypes.MessageDigest]servicemanager.StateRootUpdateMessage
 	stateRootUpdatesLock                   sync.RWMutex
 	operatorSetUpdates                     map[coretypes.MessageDigest]registryrollup.OperatorSetUpdateMessage

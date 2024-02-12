@@ -12,6 +12,20 @@ import (
 	servicemanager "github.com/NethermindEth/near-sffl/contracts/bindings/SFFLServiceManager"
 )
 
+type MessageDatabaser interface {
+	Close() error
+	Store(prefix string, key string, value any) error
+	Fetch(prefix string, key string, value any) error
+	StoreStateRootUpdate(stateRootUpdateMessage servicemanager.StateRootUpdateMessage) error
+	FetchStateRootUpdate(rollupId uint32, blockHeight uint64, stateRootUpdateMessage *servicemanager.StateRootUpdateMessage) error
+	StoreStateRootUpdateAggregation(stateRootUpdateMessage servicemanager.StateRootUpdateMessage, aggregation types.MessageBlsAggregationServiceResponse) error
+	FetchStateRootUpdateAggregation(rollupId uint32, blockHeight uint64, aggregation *types.MessageBlsAggregationServiceResponse) error
+	StoreOperatorSetUpdate(operatorSetUpdateMessage registryrollup.OperatorSetUpdateMessage) error
+	FetchOperatorSetUpdate(id uint64, operatorSetUpdateMessage *registryrollup.OperatorSetUpdateMessage) error
+	StoreOperatorSetUpdateAggregation(operatorSetUpdateMessage registryrollup.OperatorSetUpdateMessage, aggregation types.MessageBlsAggregationServiceResponse) error
+	FetchOperatorSetUpdateAggregation(id uint64, aggregation *types.MessageBlsAggregationServiceResponse) error
+}
+
 type MessageDatabase struct {
 	db     *badger.DB
 	dbPath string
