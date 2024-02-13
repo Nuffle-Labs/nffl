@@ -157,6 +157,8 @@ func TestOperator(t *testing.T) {
 		operator.avsReader = mockReader
 
 		ctx, cancel := context.WithCancel(context.Background())
+		defer cancel()
+
 		go func() {
 			err := operator.Start(ctx)
 			assert.Nil(t, err)
@@ -170,8 +172,6 @@ func TestOperator(t *testing.T) {
 		})
 
 		time.Sleep(1 * time.Second)
-
-		cancel()
 	})
 
 }
