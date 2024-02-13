@@ -31,5 +31,8 @@ target
 .idea
 .vscode
 
+# Aggregator DB
+aggregator.db
+
 # just for example
 id_rsa
