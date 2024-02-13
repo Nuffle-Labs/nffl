@@ -36,8 +36,8 @@ func TestIntegration(t *testing.T) {
 
 	containersCtx, cancelContainersCtx := context.WithCancel(context.Background())
 
-	mainnetAnvil := startAnvilTestContainer(t, containersCtx, "8545")
-	rollupAnvil := startAnvilTestContainer(t, containersCtx, "8547")
+	mainnetAnvil := startAnvilTestContainer(t, containersCtx, "8545", "1", true)
+	rollupAnvil := startAnvilTestContainer(t, containersCtx, "8547", "2", false)
 	rabbitMq := startRabbitMqContainer(t, containersCtx)
 
 	time.Sleep(4 * time.Second)
@@ -231,27 +231,34 @@ type AnvilInstance struct {
 	ChainID    *big.Int
 }
 
-func startAnvilTestContainer(t *testing.T, ctx context.Context, exposedPort string) *AnvilInstance {
+func startAnvilTestContainer(t *testing.T, ctx context.Context, exposedPort, chainId string, isMainnet bool) *AnvilInstance {
 	integrationDir, err := os.Getwd()
 	if err != nil {
 		panic(err)
 	}
 
 	req := testcontainers.ContainerRequest{
-		Image: "ghcr.io/foundry-rs/foundry:latest",
-		Mounts: testcontainers.ContainerMounts{
+		Image:        "ghcr.io/foundry-rs/foundry:latest",
+		Entrypoint:   []string{"anvil"},
+		Cmd:          []string{"--host", "0.0.0.0", "--load-state", "/root/.anvil/state.json", "--port", exposedPort, "--chain-id", chainId},
+		ExposedPorts: []string{exposedPort + "/tcp"},
+		WaitingFor:   wait.ForLog("Listening on"),
+	}
+
+	if isMainnet {
+		req.Mounts = testcontainers.ContainerMounts{
 			testcontainers.ContainerMount{
 				Source: testcontainers.GenericBindMountSource{
 					HostPath: filepath.Join(integrationDir, "../anvil/data/avs-and-eigenlayer-deployed-anvil-state.json"),
 				},
 				Target: "/root/.anvil/state.json",
 			},
-		},
-		Entrypoint:   []string{"anvil"},
-		Cmd:          []string{"--host", "0.0.0.0", "--load-state", "/root/.anvil/state.json", "--port", exposedPort},
-		ExposedPorts: []string{exposedPort + "/tcp"},
-		WaitingFor:   wait.ForLog("Listening on"),
+		}
+		req.Cmd = []string{"--host", "0.0.0.0", "--load-state", "/root/.anvil/state.json", "--port", exposedPort, "--chain-id", chainId}
+	} else {
+		req.Cmd = []string{"--host", "0.0.0.0", exposedPort, "--chain-id", chainId}
 	}
+
 	anvilC, err := testcontainers.GenericContainer(ctx, testcontainers.GenericContainerRequest{
 		ContainerRequest: req,
 		Started:          true,
@@ -260,7 +267,9 @@ func startAnvilTestContainer(t *testing.T, ctx context.Context, exposedPort stri
 		t.Fatalf("Error starting anvil container: %s", err.Error())
 	}
 
-	advanceChain(t, anvilC)
+	if isMainnet {
+		advanceChain(t, anvilC)
+	}
 
 	anvilEndpoint, err := anvilC.Endpoint(ctx, "")
 	if err != nil {
@@ -279,9 +288,17 @@ func startAnvilTestContainer(t *testing.T, ctx context.Context, exposedPort stri
 		t.Fatalf("Failed to create anvil WS client: %s", err.Error())
 	}
 
-	chainId, err := httpClient.ChainID(ctx)
+	expectedChainId, ok := big.NewInt(0).SetString(chainId, 10)
+	if !ok {
+		t.Fatalf("Bad chain ID: %s", chainId)
+	}
+
+	fetchedChainId, err := httpClient.ChainID(ctx)
 	if err != nil {
 		t.Fatalf("Failed to get anvil chainId: %s", err.Error())
+	}
+	if fetchedChainId != expectedChainId {
+		t.Fatalf("Anvil chainId is not the expected: expected %s, got %s", expectedChainId.String(), fetchedChainId.String())
 	}
 
 	return &AnvilInstance{
@@ -290,7 +307,7 @@ func startAnvilTestContainer(t *testing.T, ctx context.Context, exposedPort stri
 		HttpUrl:    httpUrl,
 		WsClient:   wsClient,
 		WsUrl:      wsUrl,
-		ChainID:    chainId,
+		ChainID:    fetchedChainId,
 	}
 }
 
