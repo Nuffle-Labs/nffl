@@ -53,7 +53,8 @@ func TestIntegration(t *testing.T) {
 		t.Error(err)
 	}
 
-	/* Prepare the config file for aggregator */
+	time.Sleep(4 * time.Second)
+
 	var aggConfigRaw config.ConfigRaw
 	aggConfigFilePath := "../../config-files/aggregator.yaml"
 	sdkutils.ReadYamlConfig(aggConfigFilePath, &aggConfigRaw)
