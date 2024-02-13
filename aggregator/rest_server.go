@@ -27,8 +27,8 @@ func (agg *Aggregator) startRestServer(ctx context.Context) error {
 }
 
 type GetStateRootUpdateAggregationResponse struct {
-	message     servicemanager.StateRootUpdateMessage
-	aggregation types.MessageBlsAggregationServiceResponse
+	Message     servicemanager.StateRootUpdateMessage
+	Aggregation types.MessageBlsAggregationServiceResponse
 }
 
 func (agg *Aggregator) handleGetStateRootUpdateAggregation(w http.ResponseWriter, r *http.Request) {
@@ -63,14 +63,14 @@ func (agg *Aggregator) handleGetStateRootUpdateAggregation(w http.ResponseWriter
 	w.WriteHeader(http.StatusOK)
 	w.Header().Set("Content-Type", "application/json")
 	json.NewEncoder(w).Encode(GetStateRootUpdateAggregationResponse{
-		message:     message,
-		aggregation: aggregation,
+		Message:     message,
+		Aggregation: aggregation,
 	})
 }
 
 type GetOperatorSetUpdateAggregationResponse struct {
-	message     registryrollup.OperatorSetUpdateMessage
-	aggregation types.MessageBlsAggregationServiceResponse
+	Message     registryrollup.OperatorSetUpdateMessage
+	Aggregation types.MessageBlsAggregationServiceResponse
 }
 
 func (agg *Aggregator) handleGetOperatorSetUpdateAggregation(w http.ResponseWriter, r *http.Request) {
@@ -99,7 +99,7 @@ func (agg *Aggregator) handleGetOperatorSetUpdateAggregation(w http.ResponseWrit
 	w.WriteHeader(http.StatusOK)
 	w.Header().Set("Content-Type", "application/json")
 	json.NewEncoder(w).Encode(GetOperatorSetUpdateAggregationResponse{
-		message:     message,
-		aggregation: aggregation,
+		Message:     message,
+		Aggregation: aggregation,
 	})
 }
