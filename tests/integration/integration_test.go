@@ -158,9 +158,9 @@ func buildOperatorConfig(t *testing.T, ctx context.Context, mainnetAnvil, rollup
 	nodeConfig.RegisterOperatorOnStartup = true
 	nodeConfig.EthRpcUrl = mainnetAnvil.HttpUrl
 	nodeConfig.EthWsUrl = mainnetAnvil.WsUrl
-	for id, _ := range nodeConfig.RollupIdsToRpcUrls {
-		nodeConfig.RollupIdsToRpcUrls[id] = mainnetAnvil.WsUrl
-	}
+	nodeConfig.RollupIdsToRpcUrls = make(map[uint32]string)
+	nodeConfig.RollupIdsToRpcUrls[uint32(rollupAnvil.ChainID.Uint64())] = rollupAnvil.WsUrl
+	nodeConfig.NearDaIndexerRollupIds = []uint32{uint32(rollupAnvil.ChainID.Uint64())}
 
 	amqpUrl, err := rabbitMq.AmqpURL(ctx)
 	if err != nil {
@@ -256,7 +256,7 @@ func startAnvilTestContainer(t *testing.T, ctx context.Context, exposedPort, cha
 		}
 		req.Cmd = []string{"--host", "0.0.0.0", "--load-state", "/root/.anvil/state.json", "--port", exposedPort, "--chain-id", chainId}
 	} else {
-		req.Cmd = []string{"--host", "0.0.0.0", exposedPort, "--chain-id", chainId}
+		req.Cmd = []string{"--host", "0.0.0.0", "--port", exposedPort, "--chain-id", chainId}
 	}
 
 	anvilC, err := testcontainers.GenericContainer(ctx, testcontainers.GenericContainerRequest{
@@ -297,7 +297,7 @@ func startAnvilTestContainer(t *testing.T, ctx context.Context, exposedPort, cha
 	if err != nil {
 		t.Fatalf("Failed to get anvil chainId: %s", err.Error())
 	}
-	if fetchedChainId != expectedChainId {
+	if fetchedChainId.Cmp(expectedChainId) != 0 {
 		t.Fatalf("Anvil chainId is not the expected: expected %s, got %s", expectedChainId.String(), fetchedChainId.String())
 	}
 
