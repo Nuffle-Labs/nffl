@@ -345,7 +345,7 @@ func (o *Operator) Start(ctx context.Context) error {
 			operatorSetUpdateSub.Unsubscribe()
 			operatorSetUpdateSub = o.avsSubscriber.SubscribeToOperatorSetUpdates(o.operatorSetUpdateChan)
 		case operatorSetUpdate := <-o.operatorSetUpdateChan:
-			o.handleOperatorSetUpdate(ctx, operatorSetUpdate)
+			go o.handleOperatorSetUpdate(ctx, operatorSetUpdate)
 
 		case signedStateRootUpdateMessage := <-signedRootsC:
 			go o.aggregatorRpcClient.SendSignedStateRootUpdateToAggregator(&signedStateRootUpdateMessage)
@@ -405,6 +405,7 @@ func (o *Operator) SignTaskResponse(taskResponse *taskmanager.CheckpointTaskResp
 func (o *Operator) handleOperatorSetUpdate(ctx context.Context, data *regcoord.ContractSFFLRegistryCoordinatorOperatorSetUpdatedAtBlock) error {
 	operatorSetDelta, err := o.avsReader.GetOperatorSetUpdateDelta(ctx, data.Id)
 	if err != nil {
+		o.logger.Errorf("Couldn't get Operator set update delta: %v for block: %v", err, data.Id)
 		return err
 	}
 
@@ -427,11 +428,12 @@ func (o *Operator) handleOperatorSetUpdate(ctx context.Context, data *regcoord.C
 
 	signedMessage, err := SignOperatorSetUpdate(message, o.blsKeypair, o.operatorId)
 	if err != nil {
+		o.logger.Error("Couldn't sign operator set update message", "err", err)
 		return err
 	}
 	o.logger.Debug("Signed operator set update response", "signedMessage", signedMessage)
 
-	go o.aggregatorRpcClient.SendSignedOperatorSetUpdateToAggregator(signedMessage)
+	o.aggregatorRpcClient.SendSignedOperatorSetUpdateToAggregator(signedMessage)
 	return nil
 }
 
