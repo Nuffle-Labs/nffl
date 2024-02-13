@@ -20,6 +20,7 @@ import (
 	"github.com/ethereum/go-ethereum/common"
 	"github.com/ethereum/go-ethereum/crypto"
 	"github.com/testcontainers/testcontainers-go"
+	"github.com/testcontainers/testcontainers-go/modules/rabbitmq"
 	"github.com/testcontainers/testcontainers-go/wait"
 
 	"github.com/NethermindEth/near-sffl/aggregator"
@@ -35,7 +36,7 @@ func TestIntegration(t *testing.T) {
 
 	mainnetAnvil := startAnvilTestContainer(t, containersCtx, "8545")
 	rollupAnvil := startAnvilTestContainer(t, containersCtx, "8547")
-	rollupAnvil := startAnvilTestContainer(t, ctx, "8547")
+	rabbitMq := startRabbitMqContainer(t, containersCtx)
 
 	time.Sleep(4 * time.Second)
 
@@ -84,7 +85,7 @@ func startOperator(t *testing.T, ctx context.Context, nodeConfig types.NodeConfi
 func startAggregator(t *testing.T, ctx context.Context, config *config.Config) *aggregator.Aggregator {
 	t.Log("starting aggregator for integration tests")
 
-	agg, err := aggregator.NewAggregator(config)
+	agg, err := aggregator.NewAggregator(ctx, config)
 	if err != nil {
 		t.Fatalf("Failed to create aggregator: %s", err.Error())
 	}
@@ -97,6 +98,18 @@ func startAggregator(t *testing.T, ctx context.Context, config *config.Config) *
 	return agg
 }
 
+func startRabbitMqContainer(t *testing.T, ctx context.Context) *rabbitmq.RabbitMQContainer {
+	rabbitMqC, err := rabbitmq.RunContainer(
+		ctx,
+		testcontainers.WithImage("rabbitmq:latest"),
+	)
+	if err != nil {
+		t.Fatalf("Error starting RMQ container: %s", err.Error())
+	}
+
+	return rabbitMqC
+}
+
 func readSfflDeploymentRaw() config.SFFLDeploymentRaw {
 	var sfflDeploymentRaw config.SFFLDeploymentRaw
 	sfflDeploymentFilePath := "../../contracts/evm/script/output/31337/sffl_avs_deployment_output.json"
@@ -105,7 +118,7 @@ func readSfflDeploymentRaw() config.SFFLDeploymentRaw {
 	return sfflDeploymentRaw
 }
 
-func buildOperatorConfig(t *testing.T, mainnetAnvil, rollupAnvil *AnvilInstance) types.NodeConfig {
+func buildOperatorConfig(t *testing.T, ctx context.Context, mainnetAnvil, rollupAnvil *AnvilInstance, rabbitMq *rabbitmq.RabbitMQContainer) types.NodeConfig {
 	nodeConfig := types.NodeConfig{}
 	nodeConfigFilePath := "../../config-files/operator.anvil.yaml"
 	err := sdkutils.ReadYamlConfig(nodeConfigFilePath, &nodeConfig)
@@ -124,6 +137,13 @@ func buildOperatorConfig(t *testing.T, mainnetAnvil, rollupAnvil *AnvilInstance)
 	for id, _ := range nodeConfig.RollupIdsToRpcUrls {
 		nodeConfig.RollupIdsToRpcUrls[id] = mainnetAnvil.WsUrl
 	}
+
+	amqpUrl, err := rabbitMq.AmqpURL(ctx)
+	if err != nil {
+		t.Fatalf("Error getting AMQP URL: %s", err.Error())
+	}
+
+	nodeConfig.NearDaIndexerRmqIpPortAddress = amqpUrl
 
 	return nodeConfig
 }
