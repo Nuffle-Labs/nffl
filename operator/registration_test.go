@@ -1,6 +1,7 @@
 package operator
 
 import (
+	regcoord "github.com/NethermindEth/near-sffl/contracts/bindings/SFFLRegistryCoordinator"
 	"github.com/NethermindEth/near-sffl/operator/mocks"
 	"testing"
 
