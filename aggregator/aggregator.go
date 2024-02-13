@@ -86,7 +86,9 @@ type Aggregator struct {
 }
 
 // NewAggregator creates a new Aggregator with the provided config.
-func NewAggregator(c *config.Config) (*Aggregator, error) {
+// TODO: Remove this context once OperatorPubkeysServiceInMemory's API is
+// changed and we can gracefully exit otherwise
+func NewAggregator(ctx context.Context, c *config.Config) (*Aggregator, error) {
 	avsReader, err := chainio.BuildAvsReaderFromConfig(c)
 	if err != nil {
 		c.Logger.Error("Cannot create avsReader", "err", err)
@@ -119,7 +121,7 @@ func NewAggregator(c *config.Config) (*Aggregator, error) {
 		return nil, err
 	}
 
-	operatorPubkeysService := oppubkeysserv.NewOperatorPubkeysServiceInMemory(context.Background(), clients.AvsRegistryChainSubscriber, clients.AvsRegistryChainReader, c.Logger)
+	operatorPubkeysService := oppubkeysserv.NewOperatorPubkeysServiceInMemory(ctx, clients.AvsRegistryChainSubscriber, clients.AvsRegistryChainReader, c.Logger)
 	avsRegistryService := avsregistry.NewAvsRegistryServiceChainCaller(avsReader, operatorPubkeysService, c.Logger)
 	taskBlsAggregationService := blsagg.NewBlsAggregatorService(avsRegistryService, c.Logger)
 	stateRootUpdateBlsAggregationService := NewMessageBlsAggregatorService(avsRegistryService, clients.EthHttpClient, c.Logger)

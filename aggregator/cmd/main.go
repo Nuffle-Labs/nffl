@@ -49,12 +49,14 @@ func aggregatorMain(ctx *cli.Context) error {
 	}
 	fmt.Println("Config:", string(configJson))
 
-	agg, err := aggregator.NewAggregator(config)
+	bgCtx := context.Background()
+
+	agg, err := aggregator.NewAggregator(bgCtx, config)
 	if err != nil {
 		return err
 	}
 
-	err = agg.Start(context.Background())
+	err = agg.Start(bgCtx)
 	if err != nil {
 		return err
 	}
