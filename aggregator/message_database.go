@@ -95,7 +95,7 @@ func (md *MessageDatabase) StoreOperatorSetUpdate(operatorSetUpdateMessage regis
 	return md.Store("operatorSetUpdates", fmt.Sprintf("%d", operatorSetUpdateMessage.Id), operatorSetUpdateMessage)
 }
 
-func (md *MessageDatabase) FetchOperatorSetUpdate(id uint32, operatorSetUpdateMessage *registryrollup.OperatorSetUpdateMessage) error {
+func (md *MessageDatabase) FetchOperatorSetUpdate(id uint64, operatorSetUpdateMessage *registryrollup.OperatorSetUpdateMessage) error {
 	return md.Fetch("operatorSetUpdates", fmt.Sprintf("%d", id), operatorSetUpdateMessage)
 }
 
@@ -103,6 +103,6 @@ func (md *MessageDatabase) StoreOperatorSetUpdateAggregation(operatorSetUpdateMe
 	return md.Store("operatorSetUpdates", fmt.Sprintf("%d", operatorSetUpdateMessage.Id), aggregation)
 }
 
-func (md *MessageDatabase) FetchOperatorSetUpdateAggregation(id uint32, aggregation *types.MessageBlsAggregationServiceResponse) error {
+func (md *MessageDatabase) FetchOperatorSetUpdateAggregation(id uint64, aggregation *types.MessageBlsAggregationServiceResponse) error {
 	return md.Fetch("operatorSetUpdates", fmt.Sprintf("%d", id), aggregation)
 }
