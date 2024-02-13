@@ -36,19 +36,20 @@ type IntegrationClients struct {
 func TestIntegration(t *testing.T) {
 	log.Println("This test takes ~50 seconds to run...")
 
+	ctx, cancel := context.WithTimeout(context.Background(), 100*time.Second)
+	defer cancel()
+
 	/* Start the anvil chain */
-	anvilC := startAnvilTestContainer("8545")
+	anvilC := startAnvilTestContainer(ctx, "8545")
 	// Not sure why but deferring anvilC.Terminate() causes a panic when the test finishes...
 	// so letting it terminate silently for now
-	anvilEndpoint, err := anvilC.Endpoint(context.Background(), "")
+	anvilEndpoint, err := anvilC.Endpoint(ctx, "")
 	if err != nil {
 		t.Error(err)
 	}
 
-	time.Sleep(2 * time.Second)
-
-	anvilRollupC := startAnvilTestContainer("8547")
-	anvilRollupEndpoint, err := anvilRollupC.Endpoint(context.Background(), "")
+	anvilRollupC := startAnvilTestContainer(ctx, "8547")
+	anvilRollupEndpoint, err := anvilRollupC.Endpoint(ctx, "")
 	if err != nil {
 		t.Error(err)
 	}
@@ -137,8 +138,6 @@ func TestIntegration(t *testing.T) {
 	// 	t.Fatalf("Failed to register operator: %s", err.Error())
 	// }
 
-	ctx, cancel := context.WithTimeout(context.Background(), 65*time.Second)
-	defer cancel()
 	/* start operator */
 	// the passwords are set to empty strings
 	log.Println("starting operator for integration tests")
@@ -199,13 +198,12 @@ func TestIntegration(t *testing.T) {
 }
 
 // TODO(samlaf): have to advance chain to a block where the task is answered
-func startAnvilTestContainer(exposedPort string) testcontainers.Container {
+func startAnvilTestContainer(ctx context.Context, exposedPort string) testcontainers.Container {
 	integrationDir, err := os.Getwd()
 	if err != nil {
 		panic(err)
 	}
 
-	ctx := context.Background()
 	req := testcontainers.ContainerRequest{
 		Image: "ghcr.io/foundry-rs/foundry:latest",
 		Mounts: testcontainers.ContainerMounts{
@@ -228,9 +226,9 @@ func startAnvilTestContainer(exposedPort string) testcontainers.Container {
 	if err != nil {
 		panic(err)
 	}
-	// this is needed temporarily because anvil restarts at 0 block when we load a state...
-	// see comment in start-anvil-chain-with-el-and-avs-deployed.sh
+
 	advanceChain(anvilC)
+
 	return anvilC
 }
 
