@@ -154,6 +154,7 @@ func buildAggregatorConfig(t *testing.T, sfflDeploymentRaw config.SFFLDeployment
 	sdkutils.ReadYamlConfig(aggConfigFilePath, &aggConfigRaw)
 	aggConfigRaw.EthRpcUrl = mainnetAnvil.HttpUrl
 	aggConfigRaw.EthWsUrl = mainnetAnvil.WsUrl
+	aggConfigRaw.AggregatorDatabasePath = ""
 
 	logger, err := sdklogging.NewZapLogger(aggConfigRaw.Environment)
 	if err != nil {
