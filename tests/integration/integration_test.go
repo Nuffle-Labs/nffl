@@ -17,6 +17,7 @@ import (
 	sdklogging "github.com/Layr-Labs/eigensdk-go/logging"
 	"github.com/Layr-Labs/eigensdk-go/signerv2"
 	sdkutils "github.com/Layr-Labs/eigensdk-go/utils"
+	"github.com/ethereum/go-ethereum/accounts/abi/bind"
 	"github.com/ethereum/go-ethereum/common"
 	"github.com/ethereum/go-ethereum/crypto"
 	"github.com/testcontainers/testcontainers-go"
@@ -24,6 +25,7 @@ import (
 	"github.com/testcontainers/testcontainers-go/wait"
 
 	"github.com/NethermindEth/near-sffl/aggregator"
+	"github.com/NethermindEth/near-sffl/core/chainio"
 	"github.com/NethermindEth/near-sffl/core/config"
 	"github.com/NethermindEth/near-sffl/operator"
 	"github.com/NethermindEth/near-sffl/types"
@@ -66,6 +68,28 @@ func TestIntegration(t *testing.T) {
 
 		cancelContainersCtx()
 	})
+
+	avsReader, err := chainio.BuildAvsReaderFromConfig(config)
+	if err != nil {
+		t.Fatalf("Cannot create AVS Reader: %s", err.Error())
+	}
+
+	taskHash, err := avsReader.AvsServiceBindings.TaskManager.AllCheckpointTaskHashes(&bind.CallOpts{}, 1)
+	if err != nil {
+		t.Fatalf("Cannot get task hash: %s", err.Error())
+	}
+	if taskHash == [32]byte{} {
+		t.Fatalf("Task hash is empty")
+	}
+
+	taskResponseHash, err := avsReader.AvsServiceBindings.TaskManager.AllCheckpointTaskResponses(&bind.CallOpts{}, 1)
+	log.Printf("taskResponseHash: %v", taskResponseHash)
+	if err != nil {
+		t.Fatalf("Cannot get task response hash: %s", err.Error())
+	}
+	if taskResponseHash == [32]byte{} {
+		t.Fatalf("Task response hash is empty")
+	}
 }
 
 func startOperator(t *testing.T, ctx context.Context, nodeConfig types.NodeConfig) *operator.Operator {
