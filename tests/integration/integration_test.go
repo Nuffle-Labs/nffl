@@ -46,7 +46,7 @@ func TestIntegration(t *testing.T) {
 
 	ctx, cancel := context.WithTimeout(context.Background(), 100*time.Second)
 	nodeConfig := buildOperatorConfig(t, ctx, mainnetAnvil, rollupAnvil, rabbitMq)
-	config := buildAggregatorConfig(t, sfflDeploymentRaw, mainnetAnvil)
+	config := buildConfig(t, sfflDeploymentRaw, mainnetAnvil)
 
 	_ = startOperator(t, ctx, nodeConfig)
 	_ = startAggregator(t, ctx, config)
@@ -172,7 +172,7 @@ func buildOperatorConfig(t *testing.T, ctx context.Context, mainnetAnvil, rollup
 	return nodeConfig
 }
 
-func buildAggregatorConfig(t *testing.T, sfflDeploymentRaw config.SFFLDeploymentRaw, mainnetAnvil *AnvilInstance) *config.Config {
+func buildConfig(t *testing.T, sfflDeploymentRaw config.SFFLDeploymentRaw, mainnetAnvil *AnvilInstance) *config.Config {
 	var aggConfigRaw config.ConfigRaw
 	aggConfigFilePath := "../../config-files/aggregator.yaml"
 	sdkutils.ReadYamlConfig(aggConfigFilePath, &aggConfigRaw)
