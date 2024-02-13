@@ -5,12 +5,13 @@ import (
 	"fmt"
 	"testing"
 
-	"github.com/NethermindEth/near-sffl/aggregator/types"
-	registryrollup "github.com/NethermindEth/near-sffl/contracts/bindings/SFFLRegistryRollup"
-	servicemanager "github.com/NethermindEth/near-sffl/contracts/bindings/SFFLServiceManager"
 	badger "github.com/dgraph-io/badger/v4"
 	"github.com/stretchr/testify/assert"
 	"go.uber.org/mock/gomock"
+
+	"github.com/NethermindEth/near-sffl/aggregator/types"
+	registryrollup "github.com/NethermindEth/near-sffl/contracts/bindings/SFFLRegistryRollup"
+	servicemanager "github.com/NethermindEth/near-sffl/contracts/bindings/SFFLServiceManager"
 )
 
 func TestFetchUnknown(t *testing.T) {
