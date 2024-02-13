@@ -16,6 +16,7 @@ import (
 )
 
 type AvsManagersBindings struct {
+	RegistryCoordinator *regcoord.ContractSFFLRegistryCoordinator
 	OperatorSetUpdateRegistry *opsetupdatereg.ContractSFFLOperatorSetUpdateRegistry
 	TaskManager               *taskmanager.ContractSFFLTaskManager
 	ServiceManager            *csservicemanager.ContractSFFLServiceManager
@@ -61,6 +62,7 @@ func NewAvsManagersBindings(registryCoordinatorAddr, operatorStateRetrieverAddr 
 	}
 
 	return &AvsManagersBindings{
+	    RegistryCoordinator: contractRegistryCoordinator,
 		OperatorSetUpdateRegistry: contractOperatorSetUpdateRegistry,
 		ServiceManager:            contractServiceManager,
 		TaskManager:               contractTaskManager,

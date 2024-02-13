@@ -17,6 +17,8 @@ import (
 	"github.com/Layr-Labs/eigensdk-go/crypto/bls"
 
 	aggtypes "github.com/NethermindEth/near-sffl/aggregator/types"
+	regcoord "github.com/NethermindEth/near-sffl/contracts/bindings/SFFLRegistryCoordinator"
+	registryrollup "github.com/NethermindEth/near-sffl/contracts/bindings/SFFLRegistryRollup"
 	servicemanager "github.com/NethermindEth/near-sffl/contracts/bindings/SFFLServiceManager"
 	taskmanager "github.com/NethermindEth/near-sffl/contracts/bindings/SFFLTaskManager"
 	chainiomocks "github.com/NethermindEth/near-sffl/core/chainio/mocks"
@@ -113,12 +115,25 @@ func TestOperator(t *testing.T) {
 			OperatorId:   operator.operatorId,
 		}
 
+		operatorSetUpdate := &regcoord.ContractSFFLRegistryCoordinatorOperatorSetUpdatedAtBlock{
+			Id:        1,
+			Timestamp: block.Header().Time,
+			Raw:       types.Log{},
+		}
+		signedOperatorSetUpdateMessage, err := SignOperatorSetUpdate(registryrollup.OperatorSetUpdateMessage{
+			Id:        operatorSetUpdate.Id,
+			Timestamp: operatorSetUpdate.Timestamp,
+			Operators: make([]registryrollup.OperatorsOperator, 0),
+		}, operator.blsKeypair, operator.operatorId)
+		assert.Nil(t, err)
+
 		mockCtrl := gomock.NewController(t)
 		defer mockCtrl.Finish()
 
 		mockAggregatorRpcClient := operatormocks.NewMockAggregatorRpcClienter(mockCtrl)
 		mockAggregatorRpcClient.EXPECT().SendSignedCheckpointTaskResponseToAggregator(signedTaskResponse)
 		mockAggregatorRpcClient.EXPECT().SendSignedStateRootUpdateToAggregator(signedStateRootUpdateMessage)
+		mockAggregatorRpcClient.EXPECT().SendSignedOperatorSetUpdateToAggregator(signedOperatorSetUpdateMessage)
 
 		operator.aggregatorRpcClient = mockAggregatorRpcClient
 
@@ -128,10 +143,17 @@ func TestOperator(t *testing.T) {
 			<-quit
 			return nil
 		}))
+		mockSubscriber.EXPECT().SubscribeToOperatorSetUpdates(operator.operatorSetUpdateChan).Return(event.NewSubscription(func(quit <-chan struct{}) error {
+			// loop forever
+			<-quit
+			return nil
+		}))
 		operator.avsSubscriber = mockSubscriber
 
 		mockReader := chainiomocks.NewMockAvsReaderer(mockCtrl)
 		mockReader.EXPECT().IsOperatorRegistered(gomock.Any(), operator.operatorAddr).Return(true, nil)
+		mockReader.EXPECT().GetOperatorSetUpdateDelta(gomock.Any(), operatorSetUpdate.Id).Return(make([]regcoord.OperatorsOperator, 0), nil)
+
 		operator.avsReader = mockReader
 
 		ctx, cancel := context.WithCancel(context.Background())
@@ -141,6 +163,7 @@ func TestOperator(t *testing.T) {
 		}()
 
 		operator.checkpointTaskCreatedChan <- newTaskCreatedEvent
+		operator.operatorSetUpdateChan <- operatorSetUpdate
 		mockConsumer.MockReceiveBlockData(consumer.BlockData{
 			RollupId: signedStateRootUpdateMessage.Message.RollupId,
 			Block:    *block,

@@ -1,6 +1,7 @@
 package operator
 
 import (
+	regcoord "github.com/NethermindEth/near-sffl/contracts/bindings/SFFLRegistryCoordinator"
 	"github.com/NethermindEth/near-sffl/operator/mocks"
 	"testing"
 
@@ -51,6 +52,7 @@ func createMockOperator() (*Operator, *mocks.MockConsumer, error) {
 		metricsReg:                reg,
 		metrics:                   noopMetrics,
 		checkpointTaskCreatedChan: make(chan *taskmanager.ContractSFFLTaskManagerCheckpointTaskCreated),
+		operatorSetUpdateChan:     make(chan *regcoord.ContractSFFLRegistryCoordinatorOperatorSetUpdatedAtBlock),
 		operatorId:                MOCK_OPERATOR_ID,
 		attestor:                  mockAttestor,
 	}
