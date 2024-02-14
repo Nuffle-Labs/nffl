@@ -240,7 +240,6 @@ func startAnvilTestContainer(t *testing.T, ctx context.Context, exposedPort, cha
 	req := testcontainers.ContainerRequest{
 		Image:        "ghcr.io/foundry-rs/foundry:latest",
 		Entrypoint:   []string{"anvil"},
-		Cmd:          []string{"--host", "0.0.0.0", "--load-state", "/root/.anvil/state.json", "--port", exposedPort, "--chain-id", chainId},
 		ExposedPorts: []string{exposedPort + "/tcp"},
 		WaitingFor:   wait.ForLog("Listening on"),
 	}
