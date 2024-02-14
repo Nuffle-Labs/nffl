@@ -16,7 +16,7 @@ import (
 	contractOperatorStateRetriever "github.com/Layr-Labs/eigensdk-go/contracts/bindings/OperatorStateRetriever"
 	types "github.com/Layr-Labs/eigensdk-go/types"
 	contractERC20Mock "github.com/NethermindEth/near-sffl/contracts/bindings/ERC20Mock"
-	contractSFFLRegistryCoordinator "github.com/NethermindEth/near-sffl/contracts/bindings/SFFLRegistryCoordinator"
+	contractSFFLOperatorSetUpdateRegistry "github.com/NethermindEth/near-sffl/contracts/bindings/SFFLOperatorSetUpdateRegistry"
 	contractSFFLTaskManager "github.com/NethermindEth/near-sffl/contracts/bindings/SFFLTaskManager"
 	bind "github.com/ethereum/go-ethereum/accounts/abi/bind"
 	common "github.com/ethereum/go-ethereum/common"
@@ -137,10 +137,10 @@ func (mr *MockAvsReadererMockRecorder) GetOperatorId(arg0, arg1 any) *gomock.Cal
 }
 
 // GetOperatorSetUpdateDelta mocks base method.
-func (m *MockAvsReaderer) GetOperatorSetUpdateDelta(arg0 context.Context, arg1 uint64) (*[]contractSFFLRegistryCoordinator.OperatorsOperator, error) {
+func (m *MockAvsReaderer) GetOperatorSetUpdateDelta(arg0 context.Context, arg1 uint64) (*[]contractSFFLOperatorSetUpdateRegistry.OperatorsOperator, error) {
 	m.ctrl.T.Helper()
 	ret := m.ctrl.Call(m, "GetOperatorSetUpdateDelta", arg0, arg1)
-	ret0, _ := ret[0].(*[]contractSFFLRegistryCoordinator.OperatorsOperator)
+	ret0, _ := ret[0].(*[]contractSFFLOperatorSetUpdateRegistry.OperatorsOperator)
 	ret1, _ := ret[1].(error)
 	return ret0, ret1
 }

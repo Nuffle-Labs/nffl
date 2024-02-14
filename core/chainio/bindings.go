@@ -9,17 +9,18 @@ import (
 	gethcommon "github.com/ethereum/go-ethereum/common"
 
 	erc20mock "github.com/NethermindEth/near-sffl/contracts/bindings/ERC20Mock"
+	opsetupdatereg "github.com/NethermindEth/near-sffl/contracts/bindings/SFFLOperatorSetUpdateRegistry"
 	regcoord "github.com/NethermindEth/near-sffl/contracts/bindings/SFFLRegistryCoordinator"
 	csservicemanager "github.com/NethermindEth/near-sffl/contracts/bindings/SFFLServiceManager"
 	taskmanager "github.com/NethermindEth/near-sffl/contracts/bindings/SFFLTaskManager"
 )
 
 type AvsManagersBindings struct {
-	RegistryCoordinator *regcoord.ContractSFFLRegistryCoordinator
-	TaskManager         *taskmanager.ContractSFFLTaskManager
-	ServiceManager      *csservicemanager.ContractSFFLServiceManager
-	ethClient           eth.EthClient
-	logger              logging.Logger
+	OperatorSetUpdateRegistry *opsetupdatereg.ContractSFFLOperatorSetUpdateRegistry
+	TaskManager               *taskmanager.ContractSFFLTaskManager
+	ServiceManager            *csservicemanager.ContractSFFLServiceManager
+	ethClient                 eth.EthClient
+	logger                    logging.Logger
 }
 
 func NewAvsManagersBindings(registryCoordinatorAddr, operatorStateRetrieverAddr gethcommon.Address, ethclient eth.EthClient, logger logging.Logger) (*AvsManagersBindings, error) {
@@ -27,6 +28,7 @@ func NewAvsManagersBindings(registryCoordinatorAddr, operatorStateRetrieverAddr 
 	if err != nil {
 		return nil, err
 	}
+
 	serviceManagerAddr, err := contractRegistryCoordinator.ServiceManager(&bind.CallOpts{})
 	if err != nil {
 		return nil, err
@@ -44,15 +46,26 @@ func NewAvsManagersBindings(registryCoordinatorAddr, operatorStateRetrieverAddr 
 	}
 	contractTaskManager, err := taskmanager.NewContractSFFLTaskManager(taskManagerAddr, ethclient)
 	if err != nil {
-		logger.Error("Failed to fetch ISFFLTaskManager contract", "err", err)
+		logger.Error("Failed to fetch SFFLTaskManager contract", "err", err)
+		return nil, err
+	}
+
+	operatorSetUpdateRegistryAddr, err := contractRegistryCoordinator.OperatorSetUpdateRegistry(&bind.CallOpts{})
+	if err != nil {
+		return nil, err
+	}
+	contractOperatorSetUpdateRegistry, err := opsetupdatereg.NewContractSFFLOperatorSetUpdateRegistry(operatorSetUpdateRegistryAddr, ethclient)
+	if err != nil {
+		logger.Error("Failed to fetch OperatorSetUpdateRegistry contract", "err", err)
 		return nil, err
 	}
 
 	return &AvsManagersBindings{
-		ServiceManager: contractServiceManager,
-		TaskManager:    contractTaskManager,
-		ethClient:      ethclient,
-		logger:         logger,
+		OperatorSetUpdateRegistry: contractOperatorSetUpdateRegistry,
+		ServiceManager:            contractServiceManager,
+		TaskManager:               contractTaskManager,
+		ethClient:                 ethclient,
+		logger:                    logger,
 	}, nil
 }
 
