@@ -13,10 +13,18 @@ To run the Indexer connected to a local network we need to have configs and keys
 $ cargo run --release -- --home-dir ~/.near/localnet init
 ```
 
+Also setup environment
+```bash
+export NEAR_ENV="local"
+export NEAR_CLI_LOCALNET_NETWORK_ID="localnet"
+export NEAR_CLI_LOCALNET_KEY_PATH="/path/to/.near/localnet/validator_key.json"
+```
+
 The above commands should initialize necessary configs and keys to run localnet in `~/.near/localnet`.
 
 ```bash
-$ cargo run --release -- --home-dir ~/.near/localnet/ run --da-contract-id "da.test.near"
+$ cargo run --release -- --home-dir ~/.near/localnet/ run --da-contract-ids "your.da1.near" \ 
+--rollup-ids 1 --rmq-address "amqp://rmq:rmq@127.0.0.1:5672/%2f"
 ```
 
 Now the node have started, and we listen to "submit" method in DA contract.
