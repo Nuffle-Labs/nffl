@@ -2,6 +2,7 @@ package chainio
 
 import (
 	"context"
+	"fmt"
 	"math/big"
 
 	"github.com/ethereum/go-ethereum/accounts/abi/bind"
@@ -84,34 +85,37 @@ func (r *AvsReader) GetOperatorSetUpdateDelta(ctx context.Context, id uint64) (*
 		return nil, err
 	}
 
-	type weightUpdate struct {
-		previous *big.Int
-		new      *big.Int
+	type operatorUpdate struct {
+		pubkey         opsetupdatereg.BN254G1Point
+		previousWeight *big.Int
+		newWeight      *big.Int
 	}
 
-	operators := make(map[opsetupdatereg.BN254G1Point]weightUpdate)
+	operators := make(map[string]operatorUpdate)
 
 	for _, operator := range result.PreviousOperatorSet {
-		operators[operator.Pubkey] = weightUpdate{operator.Weight, big.NewInt(0)}
+		operatorKey := fmt.Sprintf("%s_%s", operator.Pubkey.X.String(), operator.Pubkey.Y.String())
+		operators[operatorKey] = operatorUpdate{operator.Pubkey, operator.Weight, big.NewInt(0)}
 	}
 
 	for _, operator := range result.NewOperatorSet {
-		weights, ok := operators[operator.Pubkey]
+		operatorKey := fmt.Sprintf("%s_%s", operator.Pubkey.X.String(), operator.Pubkey.Y.String())
+		weights, ok := operators[operatorKey]
 
 		if ok {
-			weights.new = operator.Weight
+			weights.newWeight = operator.Weight
 		} else {
-			weights = weightUpdate{big.NewInt(0), operator.Weight}
+			weights = operatorUpdate{operator.Pubkey, big.NewInt(0), operator.Weight}
 		}
 
-		operators[operator.Pubkey] = weights
+		operators[operatorKey] = weights
 	}
 
 	var delta []opsetupdatereg.OperatorsOperator
 
-	for pubkey, weights := range operators {
-		if weights.previous != weights.new {
-			delta = append(delta, opsetupdatereg.OperatorsOperator{Pubkey: pubkey, Weight: weights.new})
+	for _, operatorUpdate := range operators {
+		if operatorUpdate.previousWeight != operatorUpdate.newWeight {
+			delta = append(delta, opsetupdatereg.OperatorsOperator{Pubkey: operatorUpdate.pubkey, Weight: operatorUpdate.newWeight})
 		}
 	}
 
