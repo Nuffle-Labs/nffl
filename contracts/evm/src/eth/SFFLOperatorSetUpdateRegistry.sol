@@ -1,3 +1,6 @@
+// SPDX-License-Identifier: UNLICENSED
+pragma solidity ^0.8.12;
+
 import {Initializable} from "@openzeppelin-upgrades/contracts/proxy/utils/Initializable.sol";
 
 import {IBLSApkRegistry} from "eigenlayer-middleware/src/interfaces/IBLSApkRegistry.sol";
