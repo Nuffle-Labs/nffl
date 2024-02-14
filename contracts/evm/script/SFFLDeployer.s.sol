@@ -25,6 +25,7 @@ import {RegistryCoordinator} from "../src/external/RegistryCoordinator.sol";
 import {SFFLServiceManager} from "../src/eth/SFFLServiceManager.sol";
 import {SFFLTaskManager} from "../src/eth/SFFLTaskManager.sol";
 import {SFFLRegistryCoordinator} from "../src/eth/SFFLRegistryCoordinator.sol";
+import {SFFLOperatorSetUpdateRegistry} from "../src/eth/SFFLOperatorSetUpdateRegistry.sol";
 import {ERC20Mock, IERC20} from "../test/mock/ERC20Mock.sol";
 
 import {Utils} from "./utils/Utils.sol";
@@ -62,6 +63,9 @@ contract SFFLDeployer is Script, Utils {
 
     IStakeRegistry public stakeRegistry;
     IStakeRegistry public stakeRegistryImplementation;
+
+    SFFLOperatorSetUpdateRegistry public operatorSetUpdateRegistry;
+    SFFLOperatorSetUpdateRegistry public operatorSetUpdateRegistryImplementation;
 
     OperatorStateRetriever public operatorStateRetriever;
 
@@ -163,6 +167,9 @@ contract SFFLDeployer is Script, Utils {
         stakeRegistry = IStakeRegistry(
             address(new TransparentUpgradeableProxy(address(emptyContract), address(sfflProxyAdmin), ""))
         );
+        operatorSetUpdateRegistry = SFFLOperatorSetUpdateRegistry(
+            address(new TransparentUpgradeableProxy(address(emptyContract), address(sfflProxyAdmin), ""))
+        );
 
         operatorStateRetriever = new OperatorStateRetriever();
 
@@ -184,13 +191,21 @@ contract SFFLDeployer is Script, Utils {
             sfflProxyAdmin.upgrade(
                 TransparentUpgradeableProxy(payable(address(indexRegistry))), address(indexRegistryImplementation)
             );
+
+            operatorSetUpdateRegistryImplementation = new SFFLOperatorSetUpdateRegistry(registryCoordinator);
+
+            sfflProxyAdmin.upgrade(
+                TransparentUpgradeableProxy(payable(address(operatorSetUpdateRegistry))),
+                address(operatorSetUpdateRegistryImplementation)
+            );
         }
 
         registryCoordinatorImplementation = new SFFLRegistryCoordinator(
             sfflServiceManager,
             IStakeRegistry(address(stakeRegistry)),
             IBLSApkRegistry(address(blsApkRegistry)),
-            IIndexRegistry(address(indexRegistry))
+            IIndexRegistry(address(indexRegistry)),
+            SFFLOperatorSetUpdateRegistry(address(operatorSetUpdateRegistry))
         );
 
         {

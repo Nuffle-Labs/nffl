@@ -11,7 +11,7 @@ package mocks
 import (
 	reflect "reflect"
 
-	contractSFFLRegistryCoordinator "github.com/NethermindEth/near-sffl/contracts/bindings/SFFLRegistryCoordinator"
+	contractSFFLOperatorSetUpdateRegistry "github.com/NethermindEth/near-sffl/contracts/bindings/SFFLOperatorSetUpdateRegistry"
 	contractSFFLTaskManager "github.com/NethermindEth/near-sffl/contracts/bindings/SFFLTaskManager"
 	types "github.com/ethereum/go-ethereum/core/types"
 	event "github.com/ethereum/go-ethereum/event"
@@ -71,7 +71,7 @@ func (mr *MockAvsSubscribererMockRecorder) SubscribeToNewTasks(arg0 any) *gomock
 }
 
 // SubscribeToOperatorSetUpdates mocks base method.
-func (m *MockAvsSubscriberer) SubscribeToOperatorSetUpdates(arg0 chan *contractSFFLRegistryCoordinator.ContractSFFLRegistryCoordinatorOperatorSetUpdatedAtBlock) event.Subscription {
+func (m *MockAvsSubscriberer) SubscribeToOperatorSetUpdates(arg0 chan *contractSFFLOperatorSetUpdateRegistry.ContractSFFLOperatorSetUpdateRegistryOperatorSetUpdatedAtBlock) event.Subscription {
 	m.ctrl.T.Helper()
 	ret := m.ctrl.Call(m, "SubscribeToOperatorSetUpdates", arg0)
 	ret0, _ := ret[0].(event.Subscription)
