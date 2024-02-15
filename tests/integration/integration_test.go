@@ -242,7 +242,7 @@ func advanceChain(anvilC testcontainers.Container) {
 	privateKey := "0xac0974bec39a17e36ba4a6b4d238ff944bacb478cbed5efcae784d7bf4f2ff80"
 	cmd := exec.Command("bash", "-c",
 		fmt.Sprintf(
-			`forge script script/utils/Utils.sol --sig "advanceChainByNBlocks(uint256)" 100 --rpc-url %s --private-key %s --broadcast --legacy`,
+			`forge script script/utils/Utils.sol --sig "advanceChainByNBlocks(uint256)" 100 --rpc-url %s --private-key %s --broadcast`,
 			rpcUrl, privateKey),
 	)
 	cmd.Dir = "../../contracts/evm"
