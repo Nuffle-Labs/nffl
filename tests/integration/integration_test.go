@@ -3,6 +3,7 @@ package integration_test
 import (
 	"bytes"
 	"context"
+	"encoding/base64"
 	"fmt"
 	"io"
 	"log"
@@ -22,7 +23,9 @@ import (
 	"github.com/docker/go-connections/nat"
 	"github.com/ethereum/go-ethereum/accounts/abi/bind"
 	"github.com/ethereum/go-ethereum/common"
+	ethtypes "github.com/ethereum/go-ethereum/core/types"
 	"github.com/ethereum/go-ethereum/crypto"
+	"github.com/ethereum/go-ethereum/rlp"
 	"github.com/testcontainers/testcontainers-go"
 	"github.com/testcontainers/testcontainers-go/modules/rabbitmq"
 	"github.com/testcontainers/testcontainers-go/wait"
@@ -77,6 +80,8 @@ func TestIntegration(t *testing.T) {
 	_ = startIndexer(t, containersCtx, rollupAnvil, rabbitMq)
 
 	time.Sleep(4 * time.Second)
+
+	startRollupIndexing(t, containersCtx, "da.test.near", rollupAnvil)
 
 	sfflDeploymentRaw := readSfflDeploymentRaw()
 
@@ -304,7 +309,7 @@ func startAnvilTestContainer(t *testing.T, ctx context.Context, exposedPort, cha
 		}
 		req.Cmd = []string{"--host", "0.0.0.0", "--load-state", "/root/.anvil/state.json", "--port", exposedPort, "--chain-id", chainId}
 	} else {
-		req.Cmd = []string{"--host", "0.0.0.0", "--port", exposedPort, "--chain-id", chainId}
+		req.Cmd = []string{"--host", "0.0.0.0", "--port", exposedPort, "--block-time", "10", "--chain-id", chainId}
 	}
 
 	anvilC, err := testcontainers.GenericContainer(ctx, testcontainers.GenericContainerRequest{
@@ -359,6 +364,33 @@ func startAnvilTestContainer(t *testing.T, ctx context.Context, exposedPort, cha
 	}
 }
 
+func startRollupIndexing(t *testing.T, ctx context.Context, daAccountId string, rollupAnvil *AnvilInstance) {
+	headers := make(chan *ethtypes.Header)
+	sub, err := rollupAnvil.WsClient.SubscribeNewHead(ctx, headers)
+	if err != nil {
+		t.Fatalf("Error subscribing to new rollup block headers: %s", err.Error())
+	}
+
+	go func() {
+		for {
+			select {
+			case err := <-sub.Err():
+				panic(fmt.Errorf("Error on rollup block subscription: %s", err.Error()))
+			case header := <-headers:
+				t.Logf("Got rollup block: #%s", header.Number.String())
+				block, err := rollupAnvil.WsClient.BlockByNumber(ctx, header.Number)
+				if err != nil {
+					panic(fmt.Errorf("Error getting rollup block: %s", err.Error()))
+				}
+				submitBlock(t, daAccountId, block)
+				return
+			case <-ctx.Done():
+				return
+			}
+		}
+	}()
+}
+
 func startIndexer(t *testing.T, ctx context.Context, rollupAnvil *AnvilInstance, rabbitMq *rabbitmq.RabbitMQContainer) testcontainers.Container {
 	integrationDir, err := os.Getwd()
 	if err != nil {
@@ -392,32 +424,78 @@ func startIndexer(t *testing.T, ctx context.Context, rollupAnvil *AnvilInstance,
 		t.Fatalf("Error starting indexer container: %s", err.Error())
 	}
 
-	copyFileFromContainer(ctx, indexerC, "/root/.near/config.json", home+"/.near/localnet/config.json")
-	copyFileFromContainer(ctx, indexerC, "/root/.near/genesis.json", home+"/.near/localnet/genesis.json")
-	copyFileFromContainer(ctx, indexerC, "/root/.near/node_key.json", home+"/.near/localnet/node_key.json")
-	copyFileFromContainer(ctx, indexerC, "/root/.near/validator_key.json", home+"/.near/localnet/validator_key.json")
+	hostPrefix := home + "/.near/localnet/"
+	containerPrefix := "/root/.near/"
 
-	keyPath := home + "/.near/localnet/validator_key.json"
+	copyFileFromContainer(ctx, indexerC, containerPrefix+"config.json", hostPrefix+"config.json")
+	copyFileFromContainer(ctx, indexerC, containerPrefix+"genesis.json", hostPrefix+"genesis.json")
+	copyFileFromContainer(ctx, indexerC, containerPrefix+"node_key.json", hostPrefix+"node_key.json")
+	copyFileFromContainer(ctx, indexerC, containerPrefix+"validator_key.json", hostPrefix+"validator_key.json")
 
-	cmd := exec.Command("near", "create-account", "da.test.near", "--masterAccount", "test.near")
-	env := os.Environ()
-	cmd.Env = append(env, "NEAR_ENV=localnet", "NEAR_HELPER_ACCOUNT=near", "NEAR_CLI_LOCALNET_KEY_PATH="+keyPath)
-	out, err := cmd.CombinedOutput()
-	t.Log(string(out))
+	keyPath := getNearKeyPath()
+
+	err = execCommand(t, "near",
+		[]string{"create-account", "da.test.near", "--masterAccount", "test.near"},
+		append(os.Environ(), "NEAR_ENV=localnet", "NEAR_HELPER_ACCOUNT=near", "NEAR_CLI_LOCALNET_KEY_PATH="+keyPath),
+		true,
+	)
 	if err != nil {
 		t.Fatalf("Error creating NEAR DA account: %s", err.Error())
 	}
 
-	cmd = exec.Command("near", "--keyPath", keyPath, "deploy", "da.test.near", filepath.Join(integrationDir, "../near/near_da_blob_store.wasm"), "--masterAccount", "test.near")
-	env = os.Environ()
-	cmd.Env = append(env, "NEAR_ENV=localnet", "NEAR_HELPER_ACCOUNT=near", "NEAR_CLI_LOCALNET_KEY_PATH="+keyPath)
-	out, err = cmd.CombinedOutput()
-	t.Log(string(out))
+	err = execCommand(t, "near",
+		[]string{"deploy", "da.test.near", filepath.Join(integrationDir, "../near/near_da_blob_store.wasm"), "--initFunction", "new", "--initArgs", "{}", "--masterAccount", "test.near"},
+		append(os.Environ(), "NEAR_ENV=localnet", "NEAR_HELPER_ACCOUNT=near", "NEAR_CLI_LOCALNET_KEY_PATH="+keyPath),
+		true,
+	)
 	if err != nil {
 		t.Fatalf("Error deploying NEAR DA contract: %s", err.Error())
 	}
 
+	err = submitBlock(t, "da.test.near", ethtypes.NewBlockWithHeader(&ethtypes.Header{}))
+	if err != nil {
+		t.Fatalf("Error submitting block to NEAR DA contract: %s", err.Error())
+	}
+
 	return indexerC
+}
+
+func getNearKeyPath() string {
+	home, err := os.UserHomeDir()
+	if err != nil {
+		panic(err)
+	}
+	return home + "/.near/localnet/validator_key.json"
+}
+
+func submitBlock(t *testing.T, accountId string, block *ethtypes.Block) error {
+	t.Log("Submitting block to NEAR DA")
+
+	encodedBlock, err := rlp.EncodeToBytes(block)
+	if err != nil {
+		return err
+	}
+
+	err = execCommand(t, "near",
+		[]string{"call", accountId, "submit", "--base64", base64.StdEncoding.EncodeToString(encodedBlock), "--accountId", accountId},
+		append(os.Environ(), "NEAR_ENV=localnet", "NEAR_HELPER_ACCOUNT=near", "NEAR_CLI_LOCALNET_KEY_PATH="+getNearKeyPath()),
+		false,
+	)
+	if err != nil {
+		return err
+	}
+
+	return nil
+}
+
+func execCommand(t *testing.T, name string, arg, env []string, shouldLog bool) error {
+	cmd := exec.Command(name, arg...)
+	cmd.Env = env
+	out, err := cmd.CombinedOutput()
+	if shouldLog {
+		t.Log(string(out))
+	}
+	return err
 }
 
 func advanceChain(t *testing.T, rpcUrl string) {
