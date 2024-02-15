@@ -4,6 +4,7 @@ import (
 	"bytes"
 	"context"
 	"fmt"
+	"io"
 	"log"
 	"math/big"
 	"os"
@@ -17,6 +18,8 @@ import (
 	sdklogging "github.com/Layr-Labs/eigensdk-go/logging"
 	"github.com/Layr-Labs/eigensdk-go/signerv2"
 	sdkutils "github.com/Layr-Labs/eigensdk-go/utils"
+	"github.com/docker/docker/api/types/container"
+	"github.com/docker/go-connections/nat"
 	"github.com/ethereum/go-ethereum/accounts/abi/bind"
 	"github.com/ethereum/go-ethereum/common"
 	"github.com/ethereum/go-ethereum/crypto"
@@ -31,14 +34,47 @@ import (
 	"github.com/NethermindEth/near-sffl/types"
 )
 
+func copyFileFromContainer(ctx context.Context, container testcontainers.Container, sourcePath, destinationPath string) error {
+	reader, err := container.CopyFileFromContainer(ctx, sourcePath)
+	if err != nil {
+		return err
+	}
+	defer reader.Close()
+
+	// Create the destination file on the host
+	file, err := os.Create(destinationPath)
+	if err != nil {
+		return err
+	}
+	defer file.Close()
+
+	// Copy the content from the container to the file on the host
+	_, err = io.Copy(file, reader)
+	if err != nil {
+		return err
+	}
+
+	return nil
+}
+
 func TestIntegration(t *testing.T) {
 	t.Log("This test takes ~100 seconds to run...")
 
 	containersCtx, cancelContainersCtx := context.WithCancel(context.Background())
+	net, err := testcontainers.GenericNetwork(containersCtx, testcontainers.GenericNetworkRequest{
+		NetworkRequest: testcontainers.NetworkRequest{
+			Name:           "containers",
+			CheckDuplicate: true,
+		},
+	})
+	if err != nil {
+		t.Fatalf("Error creating network: %s", err.Error())
+	}
 
 	mainnetAnvil := startAnvilTestContainer(t, containersCtx, "8545", "1", true)
 	rollupAnvil := startAnvilTestContainer(t, containersCtx, "8547", "2", false)
 	rabbitMq := startRabbitMqContainer(t, containersCtx)
+	_ = startIndexer(t, containersCtx, rollupAnvil, rabbitMq)
 
 	time.Sleep(4 * time.Second)
 
@@ -64,6 +100,9 @@ func TestIntegration(t *testing.T) {
 		}
 		if err := rabbitMq.Terminate(containersCtx); err != nil {
 			t.Fatalf("Error terminating container: %s", err.Error())
+		}
+		if err := net.Remove(containersCtx); err != nil {
+			t.Fatalf("Error removing network: %s", err.Error())
 		}
 
 		cancelContainersCtx()
@@ -276,11 +315,7 @@ func startAnvilTestContainer(t *testing.T, ctx context.Context, exposedPort, cha
 		t.Fatalf("Error starting anvil container: %s", err.Error())
 	}
 
-	if isMainnet {
-		advanceChain(t, anvilC)
-	}
-
-	anvilEndpoint, err := anvilC.Endpoint(ctx, "")
+	anvilEndpoint, err := anvilC.PortEndpoint(ctx, nat.Port(exposedPort), "")
 	if err != nil {
 		t.Fatalf("Error getting anvil endpoint: %s", err.Error())
 	}
@@ -310,6 +345,10 @@ func startAnvilTestContainer(t *testing.T, ctx context.Context, exposedPort, cha
 		t.Fatalf("Anvil chainId is not the expected: expected %s, got %s", expectedChainId.String(), fetchedChainId.String())
 	}
 
+	if isMainnet {
+		advanceChain(t, httpUrl)
+	}
+
 	return &AnvilInstance{
 		Container:  anvilC,
 		HttpClient: httpClient,
@@ -320,12 +359,68 @@ func startAnvilTestContainer(t *testing.T, ctx context.Context, exposedPort, cha
 	}
 }
 
-func advanceChain(t *testing.T, anvilC testcontainers.Container) {
-	anvilEndpoint, err := anvilC.Endpoint(context.Background(), "")
+func startIndexer(t *testing.T, ctx context.Context, rollupAnvil *AnvilInstance, rabbitMq *rabbitmq.RabbitMQContainer) testcontainers.Container {
+	integrationDir, err := os.Getwd()
 	if err != nil {
 		panic(err)
 	}
-	rpcUrl := "http://" + anvilEndpoint
+
+	home, err := os.UserHomeDir()
+	if err != nil {
+		panic(err)
+	}
+
+	amqpUrl, err := rabbitMq.AmqpURL(ctx)
+	if err != nil {
+		t.Fatalf("Error getting RabbitMQ container URL: %s", err.Error())
+	}
+
+	req := testcontainers.ContainerRequest{
+		Image: "near-sffl-indexer",
+		HostConfigModifier: func(hc *container.HostConfig) {
+			hc.NetworkMode = "host"
+		},
+		Cmd:        []string{"--rmq-address", amqpUrl, "--da-contract-ids", "da.test.near", rollupAnvil.ChainID.String()},
+		WaitingFor: wait.ForLog("Starting Streamer..."),
+	}
+
+	indexerC, err := testcontainers.GenericContainer(ctx, testcontainers.GenericContainerRequest{
+		ContainerRequest: req,
+		Started:          true,
+	})
+	if err != nil {
+		t.Fatalf("Error starting indexer container: %s", err.Error())
+	}
+
+	copyFileFromContainer(ctx, indexerC, "/root/.near/config.json", home+"/.near/localnet/config.json")
+	copyFileFromContainer(ctx, indexerC, "/root/.near/genesis.json", home+"/.near/localnet/genesis.json")
+	copyFileFromContainer(ctx, indexerC, "/root/.near/node_key.json", home+"/.near/localnet/node_key.json")
+	copyFileFromContainer(ctx, indexerC, "/root/.near/validator_key.json", home+"/.near/localnet/validator_key.json")
+
+	keyPath := home + "/.near/localnet/validator_key.json"
+
+	cmd := exec.Command("near", "create-account", "da.test.near", "--masterAccount", "test.near")
+	env := os.Environ()
+	cmd.Env = append(env, "NEAR_ENV=localnet", "NEAR_HELPER_ACCOUNT=near", "NEAR_CLI_LOCALNET_KEY_PATH="+keyPath)
+	out, err := cmd.CombinedOutput()
+	t.Log(string(out))
+	if err != nil {
+		t.Fatalf("Error creating NEAR DA account: %s", err.Error())
+	}
+
+	cmd = exec.Command("near", "--keyPath", keyPath, "deploy", "da.test.near", filepath.Join(integrationDir, "../near/near_da_blob_store.wasm"), "--masterAccount", "test.near")
+	env = os.Environ()
+	cmd.Env = append(env, "NEAR_ENV=localnet", "NEAR_HELPER_ACCOUNT=near", "NEAR_CLI_LOCALNET_KEY_PATH="+keyPath)
+	out, err = cmd.CombinedOutput()
+	t.Log(string(out))
+	if err != nil {
+		t.Fatalf("Error deploying NEAR DA contract: %s", err.Error())
+	}
+
+	return indexerC
+}
+
+func advanceChain(t *testing.T, rpcUrl string) {
 	privateKey := "0xac0974bec39a17e36ba4a6b4d238ff944bacb478cbed5efcae784d7bf4f2ff80"
 	cmd := exec.Command("bash", "-c",
 		fmt.Sprintf(
@@ -336,7 +431,7 @@ func advanceChain(t *testing.T, anvilC testcontainers.Container) {
 
 	var stderr bytes.Buffer
 	cmd.Stderr = &stderr
-	err = cmd.Run()
+	err := cmd.Run()
 
 	if err != nil {
 		t.Fatalf("Error advancing chain: %s", stderr.String())
