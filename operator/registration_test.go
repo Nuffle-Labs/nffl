@@ -1,16 +1,15 @@
 package operator
 
 import (
-	regcoord "github.com/NethermindEth/near-sffl/contracts/bindings/SFFLRegistryCoordinator"
 	"github.com/NethermindEth/near-sffl/operator/mocks"
 	"testing"
 
+	"github.com/Layr-Labs/eigensdk-go/crypto/bls"
+	sdklogging "github.com/Layr-Labs/eigensdk-go/logging"
 	"github.com/prometheus/client_golang/prometheus"
 	"github.com/stretchr/testify/assert"
 
-	"github.com/Layr-Labs/eigensdk-go/crypto/bls"
-	sdklogging "github.com/Layr-Labs/eigensdk-go/logging"
-
+	opsetupdatereg "github.com/NethermindEth/near-sffl/contracts/bindings/SFFLOperatorSetUpdateRegistry"
 	taskmanager "github.com/NethermindEth/near-sffl/contracts/bindings/SFFLTaskManager"
 	"github.com/NethermindEth/near-sffl/metrics"
 	"github.com/NethermindEth/near-sffl/tests"
@@ -52,7 +51,7 @@ func createMockOperator() (*Operator, *mocks.MockConsumer, error) {
 		metricsReg:                reg,
 		metrics:                   noopMetrics,
 		checkpointTaskCreatedChan: make(chan *taskmanager.ContractSFFLTaskManagerCheckpointTaskCreated),
-		operatorSetUpdateChan:     make(chan *regcoord.ContractSFFLRegistryCoordinatorOperatorSetUpdatedAtBlock),
+		operatorSetUpdateChan:     make(chan *opsetupdatereg.ContractSFFLOperatorSetUpdateRegistryOperatorSetUpdatedAtBlock),
 		operatorId:                MOCK_OPERATOR_ID,
 		attestor:                  mockAttestor,
 	}

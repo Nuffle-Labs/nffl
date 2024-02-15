@@ -17,7 +17,7 @@ import (
 	"github.com/Layr-Labs/eigensdk-go/crypto/bls"
 
 	aggtypes "github.com/NethermindEth/near-sffl/aggregator/types"
-	regcoord "github.com/NethermindEth/near-sffl/contracts/bindings/SFFLRegistryCoordinator"
+	opsetupdatereg "github.com/NethermindEth/near-sffl/contracts/bindings/SFFLOperatorSetUpdateRegistry"
 	registryrollup "github.com/NethermindEth/near-sffl/contracts/bindings/SFFLRegistryRollup"
 	servicemanager "github.com/NethermindEth/near-sffl/contracts/bindings/SFFLServiceManager"
 	taskmanager "github.com/NethermindEth/near-sffl/contracts/bindings/SFFLTaskManager"
@@ -115,7 +115,7 @@ func TestOperator(t *testing.T) {
 			OperatorId:   operator.operatorId,
 		}
 
-		operatorSetUpdate := &regcoord.ContractSFFLRegistryCoordinatorOperatorSetUpdatedAtBlock{
+		operatorSetUpdate := &opsetupdatereg.ContractSFFLOperatorSetUpdateRegistryOperatorSetUpdatedAtBlock{
 			Id:        1,
 			Timestamp: block.Header().Time,
 			Raw:       types.Log{},
@@ -152,7 +152,7 @@ func TestOperator(t *testing.T) {
 
 		mockReader := chainiomocks.NewMockAvsReaderer(mockCtrl)
 		mockReader.EXPECT().IsOperatorRegistered(gomock.Any(), operator.operatorAddr).Return(true, nil)
-		mockReader.EXPECT().GetOperatorSetUpdateDelta(gomock.Any(), operatorSetUpdate.Id).Return(make([]regcoord.OperatorsOperator, 0), nil)
+		mockReader.EXPECT().GetOperatorSetUpdateDelta(gomock.Any(), operatorSetUpdate.Id).Return(make([]opsetupdatereg.OperatorsOperator, 0), nil)
 
 		operator.avsReader = mockReader
 

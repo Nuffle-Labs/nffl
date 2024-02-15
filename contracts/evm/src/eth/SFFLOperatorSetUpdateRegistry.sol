@@ -47,7 +47,7 @@ contract SFFLOperatorSetUpdateRegistry is Initializable {
      * @notice Emitted when an operator set update is registered
      * @param id Operator set update ID
      */
-    event OperatorSetUpdatedAtBlock(uint64 indexed id);
+    event OperatorSetUpdatedAtBlock(uint64 indexed id, uint64 indexed timestamp);
 
     /**
      * @dev Reverts if the caller is not the RegistryCoordinator contract
@@ -86,7 +86,7 @@ contract SFFLOperatorSetUpdateRegistry is Initializable {
             return;
         }
 
-        emit OperatorSetUpdatedAtBlock(id);
+        emit OperatorSetUpdatedAtBlock(id, uint64(block.timestamp));
 
         operatorSetUpdateIdToBlockNumber.push(uint32(block.number));
     }

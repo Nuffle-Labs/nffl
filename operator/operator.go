@@ -9,7 +9,7 @@ import (
 	"github.com/ethereum/go-ethereum/common"
 	"github.com/prometheus/client_golang/prometheus"
 
-	regcoord "github.com/NethermindEth/near-sffl/contracts/bindings/SFFLRegistryCoordinator"
+	opsetupdatereg "github.com/NethermindEth/near-sffl/contracts/bindings/SFFLOperatorSetUpdateRegistry"
 	registryrollup "github.com/NethermindEth/near-sffl/contracts/bindings/SFFLRegistryRollup"
 	taskmanager "github.com/NethermindEth/near-sffl/contracts/bindings/SFFLTaskManager"
 	"github.com/NethermindEth/near-sffl/core"
@@ -63,7 +63,7 @@ type Operator struct {
 	checkpointTaskCreatedChan chan *taskmanager.ContractSFFLTaskManagerCheckpointTaskCreated
 	// receive operator set updates in this chan
 	// TODO: agree on operatorSetUpdateC vs operatorSetUpdateChan
-	operatorSetUpdateChan chan *regcoord.ContractSFFLRegistryCoordinatorOperatorSetUpdatedAtBlock
+	operatorSetUpdateChan chan *opsetupdatereg.ContractSFFLOperatorSetUpdateRegistryOperatorSetUpdatedAtBlock
 
 	// ip address of aggregator
 	aggregatorServerIpPortAddr string
@@ -243,7 +243,7 @@ func NewOperatorFromConfig(c types.NodeConfig) (*Operator, error) {
 		aggregatorServerIpPortAddr: c.AggregatorServerIpPortAddress,
 		aggregatorRpcClient:        aggregatorRpcClient,
 		checkpointTaskCreatedChan:  make(chan *taskmanager.ContractSFFLTaskManagerCheckpointTaskCreated),
-		operatorSetUpdateChan:      make(chan *regcoord.ContractSFFLRegistryCoordinatorOperatorSetUpdatedAtBlock),
+		operatorSetUpdateChan:      make(chan *opsetupdatereg.ContractSFFLOperatorSetUpdateRegistryOperatorSetUpdatedAtBlock),
 		sfflServiceManagerAddr:     common.HexToAddress(c.AVSRegistryCoordinatorAddress),
 		operatorId:                 [32]byte{0}, // this is set below
 	}
@@ -402,7 +402,7 @@ func (o *Operator) SignTaskResponse(taskResponse *taskmanager.CheckpointTaskResp
 	return signedCheckpointTaskResponse, nil
 }
 
-func (o *Operator) handleOperatorSetUpdate(ctx context.Context, data *regcoord.ContractSFFLRegistryCoordinatorOperatorSetUpdatedAtBlock) error {
+func (o *Operator) handleOperatorSetUpdate(ctx context.Context, data *opsetupdatereg.ContractSFFLOperatorSetUpdateRegistryOperatorSetUpdatedAtBlock) error {
 	operatorSetDelta, err := o.avsReader.GetOperatorSetUpdateDelta(ctx, data.Id)
 	if err != nil {
 		o.logger.Errorf("Couldn't get Operator set update delta: %v for block: %v", err, data.Id)

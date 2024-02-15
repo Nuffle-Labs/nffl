@@ -83,7 +83,7 @@ func (s *AvsSubscriber) ParseCheckpointTaskResponded(rawLog types.Log) (*taskman
 
 func (s *AvsSubscriber) SubscribeToOperatorSetUpdates(operatorSetUpdateChan chan *opsetupdatereg.ContractSFFLOperatorSetUpdateRegistryOperatorSetUpdatedAtBlock) event.Subscription {
 	sub, err := s.AvsContractBindings.OperatorSetUpdateRegistry.WatchOperatorSetUpdatedAtBlock(
-		&bind.WatchOpts{}, operatorSetUpdateChan, nil,
+		&bind.WatchOpts{}, operatorSetUpdateChan, nil, nil,
 	)
 	if err != nil {
 		s.logger.Error("Failed to subscribe to OperatorSetUpdatedAtBlock events", "err", err)
