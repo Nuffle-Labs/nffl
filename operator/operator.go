@@ -2,6 +2,8 @@ package operator
 
 import (
 	"context"
+	"encoding/hex"
+	"encoding/json"
 	"fmt"
 	"os"
 
@@ -15,42 +17,35 @@ import (
 	"github.com/NethermindEth/near-sffl/operator/attestor"
 	"github.com/NethermindEth/near-sffl/types"
 
-	"github.com/Layr-Labs/eigensdk-go/chainio/clients"
-	sdkelcontracts "github.com/Layr-Labs/eigensdk-go/chainio/clients/elcontracts"
 	"github.com/Layr-Labs/eigensdk-go/chainio/clients/eth"
 	"github.com/Layr-Labs/eigensdk-go/crypto/bls"
 	sdkecdsa "github.com/Layr-Labs/eigensdk-go/crypto/ecdsa"
 	"github.com/Layr-Labs/eigensdk-go/logging"
 	sdklogging "github.com/Layr-Labs/eigensdk-go/logging"
 	sdkmetrics "github.com/Layr-Labs/eigensdk-go/metrics"
-	"github.com/Layr-Labs/eigensdk-go/metrics/collectors/economic"
 	rpccalls "github.com/Layr-Labs/eigensdk-go/metrics/collectors/rpc_calls"
 	"github.com/Layr-Labs/eigensdk-go/nodeapi"
 	"github.com/Layr-Labs/eigensdk-go/signerv2"
-	sdktypes "github.com/Layr-Labs/eigensdk-go/types"
 )
 
 const AVS_NAME = "super-fast-finality-layer"
 const SEM_VER = "0.0.1"
 
 type Operator struct {
-	config    types.NodeConfig
-	logger    logging.Logger
-	ethClient eth.EthClient
+	config types.NodeConfig
+	logger logging.Logger
 	// TODO(samlaf): remove both avsWriter and eigenlayerWrite from operator
 	// they are only used for registration, so we should make a special registration package
 	// this way, auditing this operator code makes it obvious that operators don't need to
 	// write to the chain during the course of their normal operations
 	// writing to the chain should be done via the cli only
-	metricsReg       *prometheus.Registry
-	metrics          metrics.Metrics
-	nodeApi          *nodeapi.NodeApi
-	avsManager       AvsManager
-	eigenlayerReader sdkelcontracts.ELReader
-	eigenlayerWriter sdkelcontracts.ELWriter
-	blsKeypair       *bls.KeyPair
-	operatorId       bls.OperatorId
-	operatorAddr     common.Address
+	metricsReg   *prometheus.Registry
+	metrics      metrics.Metrics
+	nodeApi      *nodeapi.NodeApi
+	avsManager   *AvsManager
+	blsKeypair   *bls.KeyPair
+	operatorId   bls.OperatorId
+	operatorAddr common.Address
 
 	// receive new tasks in this chan (typically from listening to onchain event)
 	checkpointTaskCreatedChan chan *taskmanager.ContractSFFLTaskManagerCheckpointTaskCreated
@@ -163,38 +158,16 @@ func NewOperatorFromConfig(c types.NodeConfig) (*Operator, error) {
 		panic(err)
 	}
 
-	chainioConfig := clients.BuildAllConfig{
-		EthHttpUrl:                 c.EthRpcUrl,
-		EthWsUrl:                   c.EthWsUrl,
-		RegistryCoordinatorAddr:    c.AVSRegistryCoordinatorAddress,
-		OperatorStateRetrieverAddr: c.OperatorStateRetrieverAddress,
-		AvsName:                    AVS_NAME,
-		PromMetricsIpPortAddress:   c.EigenMetricsIpPortAddress,
-	}
-	sdkClients, err := clients.BuildAll(chainioConfig, common.HexToAddress(c.OperatorAddress), signerV2, logger)
-	if err != nil {
-		panic(err)
-	}
-
-	// We must register the economic metrics separately because they are exported metrics (from jsonrpc or subgraph calls)
-	// and not instrumented metrics: see https://prometheus.io/docs/instrumenting/writing_clientlibs/#overall-structure
-	quorumNames := map[sdktypes.QuorumNum]string{
-		0: "quorum0",
-	}
-	economicMetricsCollector := economic.NewCollector(
-		sdkClients.ElChainReader, sdkClients.AvsRegistryChainReader,
-		AVS_NAME, logger, common.HexToAddress(c.OperatorAddress), quorumNames)
-	reg.MustRegister(economicMetricsCollector)
-
 	aggregatorRpcClient, err := NewAggregatorRpcClient(c.AggregatorServerIpPortAddress, logger, avsAndEigenMetrics)
 	if err != nil {
 		logger.Error("Cannot create AggregatorRpcClient. Is aggregator running?", "err", err)
 		return nil, err
 	}
 
-	avsManager, err := NewAvsManager(c, ethRpcClient, ethWsClient, signerV2, logger)
+	avsManager, err := NewAvsManager(&c, ethRpcClient, ethWsClient, signerV2, blsKeyPair, reg, logger)
 	if err != nil {
 		logger.Error("Cannot create ")
+		return nil, err
 	}
 
 	operator := &Operator{
@@ -203,9 +176,7 @@ func NewOperatorFromConfig(c types.NodeConfig) (*Operator, error) {
 		metricsReg:                 reg,
 		metrics:                    avsAndEigenMetrics,
 		nodeApi:                    nodeApi,
-		ethClient:                  ethRpcClient,
-		eigenlayerReader:           sdkClients.ElChainReader,
-		eigenlayerWriter:           sdkClients.ElChainWriter,
+		avsManager:                 avsManager,
 		blsKeypair:                 blsKeyPair,
 		operatorAddr:               common.HexToAddress(c.OperatorAddress),
 		aggregatorServerIpPortAddr: c.AggregatorServerIpPortAddress,
@@ -222,7 +193,7 @@ func NewOperatorFromConfig(c types.NodeConfig) (*Operator, error) {
 		if err != nil {
 			return nil, err
 		}
-		operator.registerOperatorOnStartup(operatorEcdsaPrivateKey, common.HexToAddress(c.TokenStrategyAddr))
+		operator.avsManager.registerOperatorOnStartup(operatorEcdsaPrivateKey, common.HexToAddress(c.TokenStrategyAddr))
 	}
 
 	// OperatorId is set in contract during registration so we get it after registering operator.
@@ -231,6 +202,7 @@ func NewOperatorFromConfig(c types.NodeConfig) (*Operator, error) {
 		logger.Error("Cannot get operator id", "err", err)
 		return nil, err
 	}
+
 	operator.operatorId = operatorId
 	logger.Info("Operator info",
 		"operatorId", operatorId,
@@ -301,5 +273,42 @@ func (o *Operator) Close() error {
 		return err
 	}
 
+	return nil
+}
+
+type OperatorStatus struct {
+	EcdsaAddress string
+	// pubkey compendium related
+	PubkeysRegistered bool
+	G1Pubkey          string
+	G2Pubkey          string
+	// avs related
+	RegisteredWithAvs bool
+	OperatorId        string
+}
+
+func (o *Operator) PrintOperatorStatus() error {
+	fmt.Println("Printing operator status")
+	operatorId, err := o.avsManager.GetOperatorId(&bind.CallOpts{}, o.operatorAddr)
+	if err != nil {
+		return err
+	}
+
+	pubkeysRegistered := operatorId != [32]byte{}
+	registeredWithAvs := o.operatorId != [32]byte{}
+	operatorStatus := OperatorStatus{
+		EcdsaAddress:      o.operatorAddr.String(),
+		PubkeysRegistered: pubkeysRegistered,
+		G1Pubkey:          o.blsKeypair.GetPubKeyG1().String(),
+		G2Pubkey:          o.blsKeypair.GetPubKeyG2().String(),
+		RegisteredWithAvs: registeredWithAvs,
+		OperatorId:        hex.EncodeToString(o.operatorId[:]),
+	}
+	operatorStatusJson, err := json.MarshalIndent(operatorStatus, "", " ")
+	if err != nil {
+		return err
+	}
+
+	fmt.Println(string(operatorStatusJson))
 	return nil
 }

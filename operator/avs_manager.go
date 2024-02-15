@@ -2,30 +2,42 @@ package operator
 
 import (
 	"context"
+	"crypto/ecdsa"
 	"fmt"
-	"github.com/Layr-Labs/eigensdk-go/crypto/bls"
-	registryrollup "github.com/NethermindEth/near-sffl/contracts/bindings/SFFLRegistryRollup"
-	"github.com/NethermindEth/near-sffl/core"
-	coretypes "github.com/NethermindEth/near-sffl/core/types"
+	"math/big"
 
+	"github.com/Layr-Labs/eigensdk-go/chainio/clients"
+	"github.com/Layr-Labs/eigensdk-go/chainio/clients/elcontracts"
 	"github.com/Layr-Labs/eigensdk-go/chainio/clients/eth"
 	"github.com/Layr-Labs/eigensdk-go/chainio/txmgr"
+	"github.com/Layr-Labs/eigensdk-go/crypto/bls"
 	sdklogging "github.com/Layr-Labs/eigensdk-go/logging"
+	"github.com/Layr-Labs/eigensdk-go/metrics/collectors/economic"
 	"github.com/Layr-Labs/eigensdk-go/signerv2"
+	eigenSdkTypes "github.com/Layr-Labs/eigensdk-go/types"
+	sdktypes "github.com/Layr-Labs/eigensdk-go/types"
 	"github.com/ethereum/go-ethereum/accounts/abi/bind"
 	"github.com/ethereum/go-ethereum/common"
+	"github.com/prometheus/client_golang/prometheus"
 
 	regcoord "github.com/NethermindEth/near-sffl/contracts/bindings/SFFLRegistryCoordinator"
+	registryrollup "github.com/NethermindEth/near-sffl/contracts/bindings/SFFLRegistryRollup"
 	taskmanager "github.com/NethermindEth/near-sffl/contracts/bindings/SFFLTaskManager"
+	"github.com/NethermindEth/near-sffl/core"
 	"github.com/NethermindEth/near-sffl/core/chainio"
+	coretypes "github.com/NethermindEth/near-sffl/core/types"
 	"github.com/NethermindEth/near-sffl/types"
 )
 
 type AvsManager struct {
-	avsWriter     *chainio.AvsWriter
-	avsReader     chainio.AvsReaderer
-	avsSubscriber chainio.AvsSubscriberer
-	operatorAddr  common.Address
+	ethClient        eth.EthClient
+	avsWriter        *chainio.AvsWriter
+	avsReader        chainio.AvsReaderer
+	avsSubscriber    chainio.AvsSubscriberer
+	eigenlayerReader elcontracts.ELReader
+	eigenlayerWriter elcontracts.ELWriter
+	operatorAddr     common.Address
+	blsKeypair       *bls.KeyPair
 
 	// TODO: agree on operatorSetUpdateC vs operatorSetUpdateChan
 	// receive new tasks in this chan (typically from listening to onchain event)
@@ -38,7 +50,7 @@ type AvsManager struct {
 	logger sdklogging.Logger
 }
 
-func NewAvsManager(config *types.NodeConfig, ethRpcClient eth.EthClient, ethWsClient eth.EthClient, signerV2 signerv2.SignerFn, logger sdklogging.Logger) (*AvsManager, error) {
+func NewAvsManager(config *types.NodeConfig, ethRpcClient eth.EthClient, ethWsClient eth.EthClient, signerV2 signerv2.SignerFn, blsKeypair *bls.KeyPair, registry *prometheus.Registry, logger sdklogging.Logger) (*AvsManager, error) {
 	txMgr := txmgr.NewSimpleTxManager(ethRpcClient, logger, signerV2, common.HexToAddress(config.OperatorAddress))
 	avsWriter, err := chainio.BuildAvsWriter(
 		txMgr, common.HexToAddress(config.AVSRegistryCoordinatorAddress),
@@ -66,11 +78,38 @@ func NewAvsManager(config *types.NodeConfig, ethRpcClient eth.EthClient, ethWsCl
 		return nil, err
 	}
 
+	chainioConfig := clients.BuildAllConfig{
+		EthHttpUrl:                 config.EthRpcUrl,
+		EthWsUrl:                   config.EthWsUrl,
+		RegistryCoordinatorAddr:    config.AVSRegistryCoordinatorAddress,
+		OperatorStateRetrieverAddr: config.OperatorStateRetrieverAddress,
+		AvsName:                    AVS_NAME,
+		PromMetricsIpPortAddress:   config.EigenMetricsIpPortAddress,
+	}
+	sdkClients, err := clients.BuildAll(chainioConfig, common.HexToAddress(config.OperatorAddress), signerV2, logger)
+	if err != nil {
+		panic(err)
+	}
+
+	// We must register the economic metrics separately because they are exported metrics (from jsonrpc or subgraph calls)
+	// and not instrumented metrics: see https://prometheus.io/docs/instrumenting/writing_clientlibs/#overall-structure
+	quorumNames := map[sdktypes.QuorumNum]string{
+		0: "quorum0",
+	}
+	economicMetricsCollector := economic.NewCollector(
+		sdkClients.ElChainReader, sdkClients.AvsRegistryChainReader,
+		AVS_NAME, logger, common.HexToAddress(config.OperatorAddress), quorumNames)
+	registry.MustRegister(economicMetricsCollector)
+
 	return &AvsManager{
+		ethClient:                       ethRpcClient,
 		avsReader:                       avsReader,
 		avsWriter:                       avsWriter,
 		avsSubscriber:                   avsSubscriber,
 		operatorAddr:                    common.HexToAddress(config.OperatorAddress),
+		blsKeypair:                      blsKeypair,
+		eigenlayerReader:                sdkClients.ElChainReader,
+		eigenlayerWriter:                sdkClients.ElChainWriter,
 		checkpointTaskCreatedChan:       make(chan *taskmanager.ContractSFFLTaskManagerCheckpointTaskCreated),
 		operatorSetUpdateChan:           make(chan *regcoord.ContractSFFLRegistryCoordinatorOperatorSetUpdatedAtBlock),
 		signedCheckpointTaskCreatedChan: make(chan *coretypes.SignedCheckpointTaskResponse),
@@ -157,19 +196,19 @@ func (avsManager *AvsManager) ProcessCheckpointTaskCreatedLog(checkpointTaskCrea
 	return taskResponse
 }
 
-func (o *Operator) SignTaskResponse(taskResponse *taskmanager.CheckpointTaskResponse) (*coretypes.SignedCheckpointTaskResponse, error) {
+func (avsManager *AvsManager) SignTaskResponse(taskResponse *taskmanager.CheckpointTaskResponse) (*coretypes.SignedCheckpointTaskResponse, error) {
 	taskResponseHash, err := core.GetCheckpointTaskResponseDigest(taskResponse)
 	if err != nil {
-		o.logger.Error("Error getting task response header hash. skipping task (this is not expected and should be investigated)", "err", err)
+		avsManager.logger.Error("Error getting task response header hash. skipping task (this is not expected and should be investigated)", "err", err)
 		return nil, err
 	}
-	blsSignature := o.blsKeypair.SignMessage(taskResponseHash)
+	blsSignature := avsManager.blsKeypair.SignMessage(taskResponseHash)
 	signedCheckpointTaskResponse := &coretypes.SignedCheckpointTaskResponse{
 		TaskResponse: *taskResponse,
 		BlsSignature: *blsSignature,
-		OperatorId:   o.operatorId,
+		OperatorId:   avsManager.operatorId,
 	}
-	o.logger.Debug("Signed task response", "signedCheckpointTaskResponse", signedCheckpointTaskResponse)
+	avsManager.logger.Debug("Signed task response", "signedCheckpointTaskResponse", signedCheckpointTaskResponse)
 	return signedCheckpointTaskResponse, nil
 }
 
@@ -223,6 +262,118 @@ func SignOperatorSetUpdate(message registryrollup.OperatorSetUpdateMessage, blsK
 	return &signedOperatorSetUpdate, nil
 }
 
+func (avsManager *AvsManager) DepositIntoStrategy(strategyAddr common.Address, amount *big.Int) error {
+	_, tokenAddr, err := avsManager.eigenlayerReader.GetStrategyAndUnderlyingToken(&bind.CallOpts{}, strategyAddr)
+	if err != nil {
+		avsManager.logger.Error("Failed to fetch strategy contract", "err", err)
+		return err
+	}
+	contractErc20Mock, err := avsManager.avsReader.GetErc20Mock(context.Background(), tokenAddr)
+	if err != nil {
+		avsManager.logger.Error("Failed to fetch ERC20Mock contract", "err", err)
+		return err
+	}
+	txOpts, err := avsManager.avsWriter.TxMgr.GetNoSendTxOpts()
+	tx, err := contractErc20Mock.Mint(txOpts, avsManager.operatorAddr, amount)
+	if err != nil {
+		avsManager.logger.Errorf("Error assembling Mint tx")
+		return err
+	}
+	_, err = avsManager.avsWriter.TxMgr.Send(context.Background(), tx)
+	if err != nil {
+		avsManager.logger.Errorf("Error submitting Mint tx")
+		return err
+	}
+
+	_, err = avsManager.eigenlayerWriter.DepositERC20IntoStrategy(context.Background(), strategyAddr, amount)
+	if err != nil {
+		avsManager.logger.Errorf("Error depositing into strategy", "err", err)
+		return err
+	}
+	return nil
+}
+
+func (avsManager *AvsManager) RegisterOperatorWithEigenlayer() error {
+	op := eigenSdkTypes.Operator{
+		Address:                 avsManager.operatorAddr.String(),
+		EarningsReceiverAddress: avsManager.operatorAddr.String(),
+	}
+	_, err := avsManager.eigenlayerWriter.RegisterAsOperator(context.Background(), op)
+	if err != nil {
+		avsManager.logger.Errorf("Error registering operator with eigenlayer")
+		return err
+	}
+	return nil
+}
+
+func (avsManager *AvsManager) registerOperatorOnStartup(
+	operatorEcdsaPrivateKey *ecdsa.PrivateKey,
+	mockTokenStrategyAddr common.Address,
+) {
+	err := avsManager.RegisterOperatorWithEigenlayer()
+	if err != nil {
+		// This error might only be that the operator was already registered with eigenlayer, so we don't want to fatal
+		avsManager.logger.Error("Error registering operator with eigenlayer", "err", err)
+	} else {
+		avsManager.logger.Infof("Registered operator with eigenlayer")
+	}
+
+	// TODO(samlaf): shouldn't hardcode number here
+	amount := big.NewInt(1000)
+	err = avsManager.DepositIntoStrategy(mockTokenStrategyAddr, amount)
+	if err != nil {
+		avsManager.logger.Fatal("Error depositing into strategy", "err", err)
+	}
+	avsManager.logger.Infof("Deposited %s into strategy %s", amount, mockTokenStrategyAddr)
+
+	err = avsManager.RegisterOperatorWithAvs(operatorEcdsaPrivateKey)
+	if err != nil {
+		avsManager.logger.Fatal("Error registering operator with avs", "err", err)
+	}
+	avsManager.logger.Infof("Registered operator with avs")
+}
+
+// Registration specific functions
+func (avsManager *AvsManager) RegisterOperatorWithAvs(
+	operatorEcdsaKeyPair *ecdsa.PrivateKey,
+) error {
+	// hardcode these things for now
+	quorumNumbers := []byte{0}
+	socket := "Not Needed"
+	operatorToAvsRegistrationSigSalt := [32]byte{123}
+	curBlockNum, err := avsManager.ethClient.BlockNumber(context.Background())
+	if err != nil {
+		avsManager.logger.Errorf("Unable to get current block number")
+		return err
+	}
+
+	curBlock, err := avsManager.ethClient.BlockByNumber(context.Background(), big.NewInt(int64(curBlockNum)))
+	if err != nil {
+		avsManager.logger.Errorf("Unable to get current block")
+		return err
+	}
+
+	sigValidForSeconds := int64(1_000_000)
+	operatorToAvsRegistrationSigExpiry := big.NewInt(int64(curBlock.Time()) + sigValidForSeconds)
+	_, err = avsManager.avsWriter.RegisterOperatorWithAVSRegistryCoordinator(
+		context.Background(),
+		operatorEcdsaKeyPair, operatorToAvsRegistrationSigSalt, operatorToAvsRegistrationSigExpiry,
+		avsManager.blsKeypair, quorumNumbers, socket,
+	)
+
+	if err != nil {
+		avsManager.logger.Errorf("Unable to register operator with avs registry coordinator")
+		return err
+	}
+	avsManager.logger.Infof("Registered operator with avs registry coordinator.")
+
+	return nil
+}
+
 func (avsManager *AvsManager) IsOperatorRegistered(options *bind.CallOpts, address common.Address) (bool, error) {
 	return avsManager.avsReader.IsOperatorRegistered(options, address)
+}
+
+func (avsManager *AvsManager) GetOperatorId(options *bind.CallOpts, address common.Address) ([32]byte, error) {
+	return avsManager.avsReader.GetOperatorId(options, address)
 }
