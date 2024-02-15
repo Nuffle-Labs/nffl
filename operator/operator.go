@@ -9,6 +9,8 @@ import (
 	"github.com/ethereum/go-ethereum/common"
 	"github.com/prometheus/client_golang/prometheus"
 
+	opsetupdatereg "github.com/NethermindEth/near-sffl/contracts/bindings/SFFLOperatorSetUpdateRegistry"
+	registryrollup "github.com/NethermindEth/near-sffl/contracts/bindings/SFFLRegistryRollup"
 	taskmanager "github.com/NethermindEth/near-sffl/contracts/bindings/SFFLTaskManager"
 	"github.com/NethermindEth/near-sffl/core"
 	"github.com/NethermindEth/near-sffl/core/chainio"
@@ -56,8 +58,13 @@ type Operator struct {
 	blsKeypair       *bls.KeyPair
 	operatorId       bls.OperatorId
 	operatorAddr     common.Address
+
 	// receive new tasks in this chan (typically from listening to onchain event)
 	checkpointTaskCreatedChan chan *taskmanager.ContractSFFLTaskManagerCheckpointTaskCreated
+	// receive operator set updates in this chan
+	// TODO: agree on operatorSetUpdateC vs operatorSetUpdateChan
+	operatorSetUpdateChan chan *opsetupdatereg.ContractSFFLOperatorSetUpdateRegistryOperatorSetUpdatedAtBlock
+
 	// ip address of aggregator
 	aggregatorServerIpPortAddr string
 	// rpc client to send signed task responses to aggregator
@@ -236,6 +243,7 @@ func NewOperatorFromConfig(c types.NodeConfig) (*Operator, error) {
 		aggregatorServerIpPortAddr: c.AggregatorServerIpPortAddress,
 		aggregatorRpcClient:        aggregatorRpcClient,
 		checkpointTaskCreatedChan:  make(chan *taskmanager.ContractSFFLTaskManagerCheckpointTaskCreated),
+		operatorSetUpdateChan:      make(chan *opsetupdatereg.ContractSFFLOperatorSetUpdateRegistryOperatorSetUpdatedAtBlock),
 		sfflServiceManagerAddr:     common.HexToAddress(c.AVSRegistryCoordinatorAddress),
 		operatorId:                 [32]byte{0}, // this is set below
 	}
@@ -305,9 +313,10 @@ func (o *Operator) Start(ctx context.Context) error {
 	}
 
 	// TODO(samlaf): wrap this call with increase in avs-node-spec metric
-	sub := o.avsSubscriber.SubscribeToNewTasks(o.checkpointTaskCreatedChan)
-	signedRootsC := o.attestor.GetSignedRootC()
+	newTasksSub := o.avsSubscriber.SubscribeToNewTasks(o.checkpointTaskCreatedChan)
+	operatorSetUpdateSub := o.avsSubscriber.SubscribeToOperatorSetUpdates(o.operatorSetUpdateChan)
 
+	signedRootsC := o.attestor.GetSignedRootC()
 	for {
 		select {
 		case <-ctx.Done():
@@ -316,12 +325,12 @@ func (o *Operator) Start(ctx context.Context) error {
 			// TODO(samlaf); we should also register the service as unhealthy in the node api
 			// https://eigen.nethermind.io/docs/spec/api/
 			o.logger.Fatal("Error in metrics server", "err", err)
-		case err := <-sub.Err():
+		case err := <-newTasksSub.Err():
 			o.logger.Error("Error in websocket subscription", "err", err)
 			// TODO(samlaf): write unit tests to check if this fixed the issues we were seeing
-			sub.Unsubscribe()
+			newTasksSub.Unsubscribe()
 			// TODO(samlaf): wrap this call with increase in avs-node-spec metric
-			sub = o.avsSubscriber.SubscribeToNewTasks(o.checkpointTaskCreatedChan)
+			newTasksSub = o.avsSubscriber.SubscribeToNewTasks(o.checkpointTaskCreatedChan)
 		case checkpointTaskCreatedLog := <-o.checkpointTaskCreatedChan:
 			o.metrics.IncNumTasksReceived()
 			taskResponse := o.ProcessCheckpointTaskCreatedLog(checkpointTaskCreatedLog)
@@ -331,8 +340,15 @@ func (o *Operator) Start(ctx context.Context) error {
 			}
 
 			go o.aggregatorRpcClient.SendSignedCheckpointTaskResponseToAggregator(signedCheckpointTaskResponse)
+		case err := <-operatorSetUpdateSub.Err():
+			o.logger.Error("Error in websocket subscription", "err", err)
+			operatorSetUpdateSub.Unsubscribe()
+			operatorSetUpdateSub = o.avsSubscriber.SubscribeToOperatorSetUpdates(o.operatorSetUpdateChan)
+		case operatorSetUpdate := <-o.operatorSetUpdateChan:
+			go o.handleOperatorSetUpdate(ctx, operatorSetUpdate)
+
 		case signedStateRootUpdateMessage := <-signedRootsC:
-			o.aggregatorRpcClient.SendSignedStateRootUpdateToAggregator(&signedStateRootUpdateMessage)
+			go o.aggregatorRpcClient.SendSignedStateRootUpdateToAggregator(&signedStateRootUpdateMessage)
 
 			continue
 		}
@@ -384,4 +400,54 @@ func (o *Operator) SignTaskResponse(taskResponse *taskmanager.CheckpointTaskResp
 	}
 	o.logger.Debug("Signed task response", "signedCheckpointTaskResponse", signedCheckpointTaskResponse)
 	return signedCheckpointTaskResponse, nil
+}
+
+func (o *Operator) handleOperatorSetUpdate(ctx context.Context, data *opsetupdatereg.ContractSFFLOperatorSetUpdateRegistryOperatorSetUpdatedAtBlock) error {
+	operatorSetDelta, err := o.avsReader.GetOperatorSetUpdateDelta(ctx, data.Id)
+	if err != nil {
+		o.logger.Errorf("Couldn't get Operator set update delta: %v for block: %v", err, data.Id)
+		return err
+	}
+
+	operators := make([]registryrollup.OperatorsOperator, len(operatorSetDelta))
+	for i := 0; i < len(operatorSetDelta); i++ {
+		operators[i] = registryrollup.OperatorsOperator{
+			Pubkey: registryrollup.BN254G1Point{
+				X: operatorSetDelta[i].Pubkey.X,
+				Y: operatorSetDelta[i].Pubkey.Y,
+			},
+			Weight: operatorSetDelta[i].Weight,
+		}
+	}
+
+	message := registryrollup.OperatorSetUpdateMessage{
+		Id:        data.Id,
+		Timestamp: data.Timestamp,
+		Operators: operators,
+	}
+
+	signedMessage, err := SignOperatorSetUpdate(message, o.blsKeypair, o.operatorId)
+	if err != nil {
+		o.logger.Error("Couldn't sign operator set update message", "err", err)
+		return err
+	}
+	o.logger.Debug("Signed operator set update response", "signedMessage", signedMessage)
+
+	o.aggregatorRpcClient.SendSignedOperatorSetUpdateToAggregator(signedMessage)
+	return nil
+}
+
+func SignOperatorSetUpdate(message registryrollup.OperatorSetUpdateMessage, blsKeyPair *bls.KeyPair, operatorId bls.OperatorId) (*coretypes.SignedOperatorSetUpdateMessage, error) {
+	messageHash, err := core.GetOperatorSetUpdateMessageDigest(&message)
+	if err != nil {
+		return nil, err
+	}
+	signature := blsKeyPair.SignMessage(messageHash)
+	signedOperatorSetUpdate := coretypes.SignedOperatorSetUpdateMessage{
+		Message:      message,
+		OperatorId:   operatorId,
+		BlsSignature: *signature,
+	}
+
+	return &signedOperatorSetUpdate, nil
 }
