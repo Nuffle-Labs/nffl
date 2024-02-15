@@ -31,6 +31,7 @@ import (
 	"github.com/testcontainers/testcontainers-go/wait"
 
 	"github.com/NethermindEth/near-sffl/aggregator"
+	registryrollup "github.com/NethermindEth/near-sffl/contracts/bindings/SFFLRegistryRollup"
 	"github.com/NethermindEth/near-sffl/core/chainio"
 	"github.com/NethermindEth/near-sffl/core/config"
 	"github.com/NethermindEth/near-sffl/operator"
@@ -85,7 +86,7 @@ func TestIntegration(t *testing.T) {
 
 	sfflDeploymentRaw := readSfflDeploymentRaw()
 
-	ctx, cancel := context.WithTimeout(context.Background(), 100*time.Second)
+	ctx, cancel := context.WithTimeout(context.Background(), 120*time.Second)
 	nodeConfig := buildOperatorConfig(t, ctx, mainnetAnvil, rollupAnvil, rabbitMq)
 	config := buildConfig(t, sfflDeploymentRaw, mainnetAnvil)
 
@@ -117,6 +118,10 @@ func TestIntegration(t *testing.T) {
 	if err != nil {
 		t.Fatalf("Cannot create AVS Reader: %s", err.Error())
 	}
+
+	_ = deployRegistryRollup(t, ctx, avsReader, rollupAnvil)
+
+	time.Sleep(10 * time.Second)
 
 	taskHash, err := avsReader.AvsServiceBindings.TaskManager.AllCheckpointTaskHashes(&bind.CallOpts{}, 1)
 	if err != nil {
@@ -362,6 +367,47 @@ func startAnvilTestContainer(t *testing.T, ctx context.Context, exposedPort, cha
 		WsUrl:      wsUrl,
 		ChainID:    fetchedChainId,
 	}
+}
+
+func deployRegistryRollup(t *testing.T, ctx context.Context, avsReader chainio.AvsReaderer, anvil *AnvilInstance) *registryrollup.ContractSFFLRegistryRollup {
+	t.Logf("Deploying RegistryRollup to chain %s", anvil.ChainID.String())
+
+	privateKeyString := "ac0974bec39a17e36ba4a6b4d238ff944bacb478cbed5efcae784d7bf4f2ff80"
+	privateKey, err := crypto.HexToECDSA(privateKeyString)
+	if err != nil {
+		t.Fatalf("Error generating private key: %s", err.Error())
+	}
+
+	auth, err := bind.NewKeyedTransactorWithChainID(privateKey, anvil.ChainID)
+	if err != nil {
+		t.Fatalf("Error generating transactor: %s", err.Error())
+	}
+
+	operatorSetUpdateId := uint64(0)
+
+	_operators, err := avsReader.GetOperatorSetUpdateDelta(ctx, operatorSetUpdateId)
+	if err != nil {
+		t.Fatalf("Error getting operator set: %s", err.Error())
+	}
+
+	var operators []registryrollup.OperatorsOperator
+	for _, operator := range _operators {
+		operators = append(operators, registryrollup.OperatorsOperator{
+			Pubkey: registryrollup.BN254G1Point(operator.Pubkey),
+			Weight: operator.Weight,
+		})
+	}
+
+	if len(operators) == 0 {
+		t.Fatal("Operator set is empty")
+	}
+
+	_, _, registryRollup, err := registryrollup.DeployContractSFFLRegistryRollup(auth, anvil.WsClient, operators, big.NewInt(66), operatorSetUpdateId+1)
+	if err != nil {
+		t.Fatalf("Error deploying RegistryRollup: %s", err.Error())
+	}
+
+	return registryRollup
 }
 
 func startRollupIndexing(t *testing.T, ctx context.Context, daAccountId string, rollupAnvil *AnvilInstance) {
