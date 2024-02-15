@@ -31,6 +31,7 @@ pub(crate) struct RunConfigArgs {
     #[clap(short, long)]
     pub da_contract_ids: Vec<String>,
     /// Target Rollup ID
+    #[clap(long)]
     pub rollup_ids: Vec<u32>,
 }
 
