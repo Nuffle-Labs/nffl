@@ -126,6 +126,13 @@ func startRabbitMqContainer(t *testing.T, ctx context.Context) *rabbitmq.RabbitM
 	rabbitMqC, err := rabbitmq.RunContainer(
 		ctx,
 		testcontainers.WithImage("rabbitmq:latest"),
+		func() testcontainers.CustomizeRequestOption {
+			return func(req *testcontainers.GenericContainerRequest) {
+				req.HostConfigModifier = func(hc *container.HostConfig) {
+					hc.NetworkMode = "host"
+				}
+			}
+		}(),
 	)
 	if err != nil {
 		t.Fatalf("Error starting RMQ container: %s", err.Error())
@@ -242,6 +249,9 @@ func startAnvilTestContainer(t *testing.T, ctx context.Context, exposedPort, cha
 		Entrypoint:   []string{"anvil"},
 		ExposedPorts: []string{exposedPort + "/tcp"},
 		WaitingFor:   wait.ForLog("Listening on"),
+		HostConfigModifier: func(hc *container.HostConfig) {
+			hc.NetworkMode = "host"
+		},
 	}
 
 	if isMainnet {
