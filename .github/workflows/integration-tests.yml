@@ -38,11 +38,15 @@ jobs:
       - name: Install npm dependencies
         run: npm ci
         working-directory: ./contracts/evm
+        
+      - name: Install near-cli
+        run: npm i -g near-cli@3.5.0
 
       - name: Install Foundry
         uses: foundry-rs/foundry-toolchain@v1
         with:
           version: nightly
+
       - name: Install forge dependencies
         run: forge install
         working-directory: ./contracts/evm
