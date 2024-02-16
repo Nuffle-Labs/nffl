@@ -152,7 +152,7 @@ func TestFetchKnownStateRootUpdateAggregation(t *testing.T) {
 
 	msg := servicemanager.StateRootUpdateMessage{}
 	value := types.MessageBlsAggregationServiceResponse{}
-	prefix := "stateRootUpdates"
+	prefix := "stateRootUpdateAggregations"
 	key := fmt.Sprintf("%d_%d", msg.RollupId, msg.BlockHeight)
 
 	db.db.Update(func(txn *badger.Txn) error {
@@ -274,7 +274,7 @@ func TestFetchKnownOperatorSetUpdateAggregation(t *testing.T) {
 
 	msg := registryrollup.OperatorSetUpdateMessage{}
 	value := types.MessageBlsAggregationServiceResponse{}
-	prefix := "operatorSetUpdates"
+	prefix := "operatorSetUpdateAggregations"
 	key := fmt.Sprintf("%d", msg.Id)
 
 	db.db.Update(func(txn *badger.Txn) error {

@@ -98,11 +98,11 @@ func (md *MessageDatabase) FetchStateRootUpdate(rollupId uint32, blockHeight uin
 }
 
 func (md *MessageDatabase) StoreStateRootUpdateAggregation(stateRootUpdateMessage servicemanager.StateRootUpdateMessage, aggregation types.MessageBlsAggregationServiceResponse) error {
-	return md.Store("stateRootUpdates", fmt.Sprintf("%d_%d", stateRootUpdateMessage.RollupId, stateRootUpdateMessage.BlockHeight), aggregation)
+	return md.Store("stateRootUpdateAggregations", fmt.Sprintf("%d_%d", stateRootUpdateMessage.RollupId, stateRootUpdateMessage.BlockHeight), aggregation)
 }
 
 func (md *MessageDatabase) FetchStateRootUpdateAggregation(rollupId uint32, blockHeight uint64, aggregation *types.MessageBlsAggregationServiceResponse) error {
-	return md.Fetch("stateRootUpdates", fmt.Sprintf("%d_%d", rollupId, blockHeight), aggregation)
+	return md.Fetch("stateRootUpdateAggregations", fmt.Sprintf("%d_%d", rollupId, blockHeight), aggregation)
 }
 
 func (md *MessageDatabase) StoreOperatorSetUpdate(operatorSetUpdateMessage registryrollup.OperatorSetUpdateMessage) error {
@@ -114,9 +114,9 @@ func (md *MessageDatabase) FetchOperatorSetUpdate(id uint64, operatorSetUpdateMe
 }
 
 func (md *MessageDatabase) StoreOperatorSetUpdateAggregation(operatorSetUpdateMessage registryrollup.OperatorSetUpdateMessage, aggregation types.MessageBlsAggregationServiceResponse) error {
-	return md.Store("operatorSetUpdates", fmt.Sprintf("%d", operatorSetUpdateMessage.Id), aggregation)
+	return md.Store("operatorSetUpdateAggregations", fmt.Sprintf("%d", operatorSetUpdateMessage.Id), aggregation)
 }
 
 func (md *MessageDatabase) FetchOperatorSetUpdateAggregation(id uint64, aggregation *types.MessageBlsAggregationServiceResponse) error {
-	return md.Fetch("operatorSetUpdates", fmt.Sprintf("%d", id), aggregation)
+	return md.Fetch("operatorSetUpdateAggregations", fmt.Sprintf("%d", id), aggregation)
 }
