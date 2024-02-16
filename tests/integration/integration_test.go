@@ -71,15 +71,6 @@ func TestIntegration(t *testing.T) {
 	t.Log("This test takes ~100 seconds to run...")
 
 	containersCtx, cancelContainersCtx := context.WithCancel(context.Background())
-	net, err := testcontainers.GenericNetwork(containersCtx, testcontainers.GenericNetworkRequest{
-		NetworkRequest: testcontainers.NetworkRequest{
-			Name:           "containers",
-			CheckDuplicate: true,
-		},
-	})
-	if err != nil {
-		t.Fatalf("Error creating network: %s", err.Error())
-	}
 
 	mainnetAnvil := startAnvilTestContainer(t, containersCtx, "8545", "1", true)
 	rollupAnvils := []*AnvilInstance{
@@ -115,9 +106,6 @@ func TestIntegration(t *testing.T) {
 		}
 		if err := rabbitMq.Terminate(containersCtx); err != nil {
 			t.Fatalf("Error terminating container: %s", err.Error())
-		}
-		if err := net.Remove(containersCtx); err != nil {
-			t.Fatalf("Error removing network: %s", err.Error())
 		}
 
 		cancelContainersCtx()
