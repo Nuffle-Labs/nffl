@@ -512,6 +512,8 @@ func startIndexer(t *testing.T, ctx context.Context, rollupAnvils []*AnvilInstan
 	hostPrefix := home + "/.near/localnet/"
 	containerPrefix := "/root/.near/"
 
+	time.Sleep(5 * time.Second)
+
 	copyFileFromContainer(ctx, indexerC, containerPrefix+"config.json", hostPrefix+"config.json")
 	copyFileFromContainer(ctx, indexerC, containerPrefix+"genesis.json", hostPrefix+"genesis.json")
 	copyFileFromContainer(ctx, indexerC, containerPrefix+"node_key.json", hostPrefix+"node_key.json")
