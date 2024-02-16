@@ -48,14 +48,17 @@ func copyFileFromContainer(ctx context.Context, container testcontainers.Contain
 	}
 	defer reader.Close()
 
-	// Create the destination file on the host
+	err = os.MkdirAll(filepath.Dir(destinationPath), 0770)
+	if err != nil {
+		return err
+	}
+
 	file, err := os.Create(destinationPath)
 	if err != nil {
 		return err
 	}
 	defer file.Close()
 
-	// Copy the content from the container to the file on the host
 	_, err = io.Copy(file, reader)
 	if err != nil {
 		return err
