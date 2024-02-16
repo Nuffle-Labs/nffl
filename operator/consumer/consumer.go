@@ -24,6 +24,10 @@ func getQueueName(rollupId uint32) string {
 	return "rollup" + strconv.FormatUint(uint64(rollupId), 10)
 }
 
+func getConsumerTag(consumerTag string, rollupId uint32) string {
+	return consumerTag + strconv.FormatUint(uint64(rollupId), 10)
+}
+
 type ConsumerConfig struct {
 	Addr        string
 	ConsumerTag string
@@ -186,9 +190,10 @@ func (consumer *Consumer) setupChannel(conn *rmq.Connection, ctx context.Context
 			return err
 		}
 
+		consumerTag := getConsumerTag(consumer.consumerTag, rollupId)
 		rollupDataC, err := channel.Consume(
 			queue.Name,
-			consumer.consumerTag,
+			consumerTag,
 			false,
 			false,
 			false,
