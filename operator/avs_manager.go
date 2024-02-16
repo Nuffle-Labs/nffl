@@ -23,9 +23,7 @@ import (
 	regcoord "github.com/NethermindEth/near-sffl/contracts/bindings/SFFLRegistryCoordinator"
 	registryrollup "github.com/NethermindEth/near-sffl/contracts/bindings/SFFLRegistryRollup"
 	taskmanager "github.com/NethermindEth/near-sffl/contracts/bindings/SFFLTaskManager"
-	"github.com/NethermindEth/near-sffl/core"
 	"github.com/NethermindEth/near-sffl/core/chainio"
-	coretypes "github.com/NethermindEth/near-sffl/core/types"
 	"github.com/NethermindEth/near-sffl/types"
 )
 
@@ -37,20 +35,20 @@ type AvsManager struct {
 	eigenlayerReader elcontracts.ELReader
 	eigenlayerWriter elcontracts.ELWriter
 	operatorAddr     common.Address
-	blsKeypair       *bls.KeyPair
 
-	// TODO: agree on operatorSetUpdateC vs operatorSetUpdateChan
 	// receive new tasks in this chan (typically from listening to onchain event)
 	checkpointTaskCreatedChan chan *taskmanager.ContractSFFLTaskManagerCheckpointTaskCreated
 	// receive operator set updates in this chan
-	operatorSetUpdateChan           chan *regcoord.ContractSFFLRegistryCoordinatorOperatorSetUpdatedAtBlock
-	signedCheckpointTaskCreatedChan chan *coretypes.SignedCheckpointTaskResponse
-	signedOperatorSetUpdateChan     chan *coretypes.SignedOperatorSetUpdateMessage
+	operatorSetUpdateChan chan *regcoord.ContractSFFLRegistryCoordinatorOperatorSetUpdatedAtBlock
+
+	// Prepare message for operator to sign
+	checkpointTaskResponseCreatedChan chan taskmanager.CheckpointTaskResponse
+	operatorSetUpdateMessageChan      chan registryrollup.OperatorSetUpdateMessage
 
 	logger sdklogging.Logger
 }
 
-func NewAvsManager(config *types.NodeConfig, ethRpcClient eth.EthClient, ethWsClient eth.EthClient, signerV2 signerv2.SignerFn, blsKeypair *bls.KeyPair, registry *prometheus.Registry, logger sdklogging.Logger) (*AvsManager, error) {
+func NewAvsManager(config *types.NodeConfig, ethRpcClient eth.EthClient, ethWsClient eth.EthClient, signerV2 signerv2.SignerFn, registry *prometheus.Registry, logger sdklogging.Logger) (*AvsManager, error) {
 	txMgr := txmgr.NewSimpleTxManager(ethRpcClient, logger, signerV2, common.HexToAddress(config.OperatorAddress))
 	avsWriter, err := chainio.BuildAvsWriter(
 		txMgr, common.HexToAddress(config.AVSRegistryCoordinatorAddress),
@@ -102,19 +100,27 @@ func NewAvsManager(config *types.NodeConfig, ethRpcClient eth.EthClient, ethWsCl
 	registry.MustRegister(economicMetricsCollector)
 
 	return &AvsManager{
-		ethClient:                       ethRpcClient,
-		avsReader:                       avsReader,
-		avsWriter:                       avsWriter,
-		avsSubscriber:                   avsSubscriber,
-		operatorAddr:                    common.HexToAddress(config.OperatorAddress),
-		blsKeypair:                      blsKeypair,
-		eigenlayerReader:                sdkClients.ElChainReader,
-		eigenlayerWriter:                sdkClients.ElChainWriter,
-		checkpointTaskCreatedChan:       make(chan *taskmanager.ContractSFFLTaskManagerCheckpointTaskCreated),
-		operatorSetUpdateChan:           make(chan *regcoord.ContractSFFLRegistryCoordinatorOperatorSetUpdatedAtBlock),
-		signedCheckpointTaskCreatedChan: make(chan *coretypes.SignedCheckpointTaskResponse),
-		signedOperatorSetUpdateChan:     make(chan *coretypes.SignedOperatorSetUpdateMessage),
+		ethClient:                         ethRpcClient,
+		avsReader:                         avsReader,
+		avsWriter:                         avsWriter,
+		avsSubscriber:                     avsSubscriber,
+		operatorAddr:                      common.HexToAddress(config.OperatorAddress),
+		eigenlayerReader:                  sdkClients.ElChainReader,
+		eigenlayerWriter:                  sdkClients.ElChainWriter,
+		checkpointTaskCreatedChan:         make(chan *taskmanager.ContractSFFLTaskManagerCheckpointTaskCreated),
+		operatorSetUpdateChan:             make(chan *regcoord.ContractSFFLRegistryCoordinatorOperatorSetUpdatedAtBlock),
+		checkpointTaskResponseCreatedChan: make(chan taskmanager.CheckpointTaskResponse),
+		operatorSetUpdateMessageChan:      make(chan registryrollup.OperatorSetUpdateMessage),
+		logger:                            logger,
 	}, nil
+}
+
+func (avsManager *AvsManager) GetCheckpointTaskResponseChan() <-chan taskmanager.CheckpointTaskResponse {
+	return avsManager.checkpointTaskResponseCreatedChan
+}
+
+func (avsManager *AvsManager) GetOperatorSetUpdateChan() <-chan registryrollup.OperatorSetUpdateMessage {
+	return avsManager.operatorSetUpdateMessageChan
 }
 
 func (avsManager *AvsManager) Start(ctx context.Context) error {
@@ -123,59 +129,63 @@ func (avsManager *AvsManager) Start(ctx context.Context) error {
 		avsManager.logger.Error("Error checking if operator is registered", "err", err)
 		return err
 	}
+
 	if !operatorIsRegistered {
 		// We bubble the error all the way up instead of using logger.Fatal because logger.Fatal prints a huge stack trace
 		// that hides the actual error message. This error msg is more explicit and doesn't require showing a stack trace to the user.
 		return fmt.Errorf("operator is not registered. Registering operator using the operator-cli before starting operator")
 	}
 
-	newTasksSub, err := avsManager.avsSubscriber.SubscribeToNewTasks(avsManager.checkpointTaskCreatedChan)
-	if err != nil {
-		avsManager.logger.Error("Error subscribing to new tasks", "err", err)
-		return err
-	}
+	go func(ctx context.Context) {
+		newTasksSub, err := avsManager.avsSubscriber.SubscribeToNewTasks(avsManager.checkpointTaskCreatedChan)
+		if err != nil {
+			avsManager.logger.Error("Error subscribing to new tasks", "err", err)
+			return err
+		}
 
-	operatorSetUpdateSub, err := avsManager.avsSubscriber.SubscribeToOperatorSetUpdates(avsManager.operatorSetUpdateChan)
-	if err != nil {
-		avsManager.logger.Error("Error subscribing to operator set updates", "err", err)
-		return err
-	}
+		operatorSetUpdateSub, err := avsManager.avsSubscriber.SubscribeToOperatorSetUpdates(avsManager.operatorSetUpdateChan)
+		if err != nil {
+			avsManager.logger.Error("Error subscribing to operator set updates", "err", err)
+			return err
+		}
 
-	for {
-		select {
-		case err := <-newTasksSub.Err():
-			avsManager.logger.Error("Error in websocket subscription", "err", err)
-			// TODO(samlaf): write unit tests to check if this fixed the issues we were seeing
-			newTasksSub.Unsubscribe()
-			// TODO(samlaf): wrap this call with increase in avs-node-spec metric
-			newTasksSub, err = avsManager.avsSubscriber.SubscribeToNewTasks(avsManager.checkpointTaskCreatedChan)
-			if err != nil {
-				avsManager.logger.Error("Error re-subscribing to new tasks", "err", err)
+		for {
+			select {
+			case <-ctx.Done():
 				return
-			}
-		case checkpointTaskCreatedLog := <-avsManager.checkpointTaskCreatedChan:
-			avsManager.metrics.IncNumTasksReceived()
-			taskResponse := avsManager.ProcessCheckpointTaskCreatedLog(checkpointTaskCreatedLog)
-			signedCheckpointTaskResponse, err := avsManager.SignTaskResponse(taskResponse)
-			if err != nil {
+
+			case err := <-newTasksSub.Err():
+				avsManager.logger.Error("Error in websocket subscription", "err", err)
+				// TODO(samlaf): write unit tests to check if this fixed the issues we were seeing
+				newTasksSub.Unsubscribe()
+				// TODO(samlaf): wrap this call with increase in avs-node-spec metric
+				newTasksSub = avsManager.avsSubscriber.SubscribeToNewTasks(avsManager.checkpointTaskCreatedChan)
+				continue
+
+			case checkpointTaskCreatedLog := <-avsManager.checkpointTaskCreatedChan:
+				//avsManager.metrics.IncNumTasksReceived()
+				taskResponse := avsManager.ProcessCheckpointTaskCreatedLog(checkpointTaskCreatedLog)
+				avsManager.checkpointTaskResponseCreatedChan <- taskResponse
+
+			case err := <-operatorSetUpdateSub.Err():
+				avsManager.logger.Error("Error in websocket subscription", "err", err)
+				operatorSetUpdateSub.Unsubscribe()
+				operatorSetUpdateSub = avsManager.avsSubscriber.SubscribeToOperatorSetUpdates(avsManager.operatorSetUpdateChan)
+				continue
+
+			case operatorSetUpdate := <-avsManager.operatorSetUpdateChan:
+				go avsManager.handleOperatorSetUpdate(ctx, operatorSetUpdate)
 				continue
 			}
-
-			avsManager.signedCheckpointTaskCreatedChan <- signedCheckpointTaskResponse
-		case err := <-operatorSetUpdateSub.Err():
-			avsManager.logger.Error("Error in websocket subscription", "err", err)
-			operatorSetUpdateSub.Unsubscribe()
-			operatorSetUpdateSub = avsManager.avsSubscriber.SubscribeToOperatorSetUpdates(avsManager.operatorSetUpdateChan)
-		case operatorSetUpdate := <-avsManager.operatorSetUpdateChan:
-			go avsManager.handleOperatorSetUpdate(ctx, operatorSetUpdate)
 		}
-	}
+	}(ctx)
 
+	return nil
 }
 
 // Takes a CheckpointTaskCreatedLog struct as input and returns a TaskResponseHeader struct.
 // The TaskResponseHeader struct is the struct that is signed and sent to the contract as a task response.
-func (avsManager *AvsManager) ProcessCheckpointTaskCreatedLog(checkpointTaskCreatedLog *taskmanager.ContractSFFLTaskManagerCheckpointTaskCreated) *taskmanager.CheckpointTaskResponse {
+func (avsManager *AvsManager) ProcessCheckpointTaskCreatedLog(checkpointTaskCreatedLog *taskmanager.ContractSFFLTaskManagerCheckpointTaskCreated) taskmanager.CheckpointTaskResponse {
 	avsManager.logger.Debug("Received new task", "task", checkpointTaskCreatedLog)
 	avsManager.logger.Info("Received new task",
 		"fromTimestamp", checkpointTaskCreatedLog.Task.FromTimestamp,
@@ -188,28 +198,12 @@ func (avsManager *AvsManager) ProcessCheckpointTaskCreatedLog(checkpointTaskCrea
 
 	// TODO: build SMT based on stored message agreements and update the test
 
-	taskResponse := &taskmanager.CheckpointTaskResponse{
+	taskResponse := taskmanager.CheckpointTaskResponse{
 		ReferenceTaskIndex:     checkpointTaskCreatedLog.TaskIndex,
 		StateRootUpdatesRoot:   [32]byte{0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0},
 		OperatorSetUpdatesRoot: [32]byte{0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0},
 	}
 	return taskResponse
-}
-
-func (avsManager *AvsManager) SignTaskResponse(taskResponse *taskmanager.CheckpointTaskResponse) (*coretypes.SignedCheckpointTaskResponse, error) {
-	taskResponseHash, err := core.GetCheckpointTaskResponseDigest(taskResponse)
-	if err != nil {
-		avsManager.logger.Error("Error getting task response header hash. skipping task (this is not expected and should be investigated)", "err", err)
-		return nil, err
-	}
-	blsSignature := avsManager.blsKeypair.SignMessage(taskResponseHash)
-	signedCheckpointTaskResponse := &coretypes.SignedCheckpointTaskResponse{
-		TaskResponse: *taskResponse,
-		BlsSignature: *blsSignature,
-		OperatorId:   avsManager.operatorId,
-	}
-	avsManager.logger.Debug("Signed task response", "signedCheckpointTaskResponse", signedCheckpointTaskResponse)
-	return signedCheckpointTaskResponse, nil
 }
 
 func (avsManager *AvsManager) handleOperatorSetUpdate(ctx context.Context, data *regcoord.ContractSFFLRegistryCoordinatorOperatorSetUpdatedAtBlock) error {
@@ -236,30 +230,8 @@ func (avsManager *AvsManager) handleOperatorSetUpdate(ctx context.Context, data 
 		Operators: operators,
 	}
 
-	signedMessage, err := SignOperatorSetUpdate(message, avsManager.blsKeypair, avsManager.operatorId)
-	if err != nil {
-		avsManager.logger.Error("Couldn't sign operator set update message", "err", err)
-		return err
-	}
-	avsManager.logger.Debug("Signed operator set update response", "signedMessage", signedMessage)
-	avsManager.signedOperatorSetUpdateChan <- signedMessage
-
+	avsManager.operatorSetUpdateMessageChan <- message
 	return nil
-}
-
-func SignOperatorSetUpdate(message registryrollup.OperatorSetUpdateMessage, blsKeyPair *bls.KeyPair, operatorId bls.OperatorId) (*coretypes.SignedOperatorSetUpdateMessage, error) {
-	messageHash, err := core.GetOperatorSetUpdateMessageDigest(&message)
-	if err != nil {
-		return nil, err
-	}
-	signature := blsKeyPair.SignMessage(messageHash)
-	signedOperatorSetUpdate := coretypes.SignedOperatorSetUpdateMessage{
-		Message:      message,
-		OperatorId:   operatorId,
-		BlsSignature: *signature,
-	}
-
-	return &signedOperatorSetUpdate, nil
 }
 
 func (avsManager *AvsManager) DepositIntoStrategy(strategyAddr common.Address, amount *big.Int) error {
@@ -294,6 +266,7 @@ func (avsManager *AvsManager) DepositIntoStrategy(strategyAddr common.Address, a
 }
 
 func (avsManager *AvsManager) RegisterOperatorWithEigenlayer() error {
+	// TODO: could pass as param
 	op := eigenSdkTypes.Operator{
 		Address:                 avsManager.operatorAddr.String(),
 		EarningsReceiverAddress: avsManager.operatorAddr.String(),
@@ -309,6 +282,7 @@ func (avsManager *AvsManager) RegisterOperatorWithEigenlayer() error {
 func (avsManager *AvsManager) registerOperatorOnStartup(
 	operatorEcdsaPrivateKey *ecdsa.PrivateKey,
 	mockTokenStrategyAddr common.Address,
+	blsKeyPair *bls.KeyPair,
 ) {
 	err := avsManager.RegisterOperatorWithEigenlayer()
 	if err != nil {
@@ -326,7 +300,7 @@ func (avsManager *AvsManager) registerOperatorOnStartup(
 	}
 	avsManager.logger.Infof("Deposited %s into strategy %s", amount, mockTokenStrategyAddr)
 
-	err = avsManager.RegisterOperatorWithAvs(operatorEcdsaPrivateKey)
+	err = avsManager.RegisterOperatorWithAvs(operatorEcdsaPrivateKey, blsKeyPair)
 	if err != nil {
 		avsManager.logger.Fatal("Error registering operator with avs", "err", err)
 	}
@@ -336,6 +310,7 @@ func (avsManager *AvsManager) registerOperatorOnStartup(
 // Registration specific functions
 func (avsManager *AvsManager) RegisterOperatorWithAvs(
 	operatorEcdsaKeyPair *ecdsa.PrivateKey,
+	blsKeyPair *bls.KeyPair,
 ) error {
 	// hardcode these things for now
 	quorumNumbers := []byte{0}
@@ -358,7 +333,7 @@ func (avsManager *AvsManager) RegisterOperatorWithAvs(
 	_, err = avsManager.avsWriter.RegisterOperatorWithAVSRegistryCoordinator(
 		context.Background(),
 		operatorEcdsaKeyPair, operatorToAvsRegistrationSigSalt, operatorToAvsRegistrationSigExpiry,
-		avsManager.blsKeypair, quorumNumbers, socket,
+		blsKeyPair, quorumNumbers, socket,
 	)
 
 	if err != nil {

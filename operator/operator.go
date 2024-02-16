@@ -2,9 +2,14 @@ package operator
 
 import (
 	"context"
+	"crypto/ecdsa"
 	"encoding/hex"
 	"encoding/json"
 	"fmt"
+	registryrollup "github.com/NethermindEth/near-sffl/contracts/bindings/SFFLRegistryRollup"
+	"github.com/NethermindEth/near-sffl/core"
+	coretypes "github.com/NethermindEth/near-sffl/core/types"
+	"math/big"
 	"os"
 
 	"github.com/ethereum/go-ethereum/accounts/abi/bind"
@@ -164,7 +169,7 @@ func NewOperatorFromConfig(c types.NodeConfig) (*Operator, error) {
 		return nil, err
 	}
 
-	avsManager, err := NewAvsManager(&c, ethRpcClient, ethWsClient, signerV2, blsKeyPair, reg, logger)
+	avsManager, err := NewAvsManager(&c, ethRpcClient, ethWsClient, signerV2, reg, logger)
 	if err != nil {
 		logger.Error("Cannot create ")
 		return nil, err
@@ -193,11 +198,11 @@ func NewOperatorFromConfig(c types.NodeConfig) (*Operator, error) {
 		if err != nil {
 			return nil, err
 		}
-		operator.avsManager.registerOperatorOnStartup(operatorEcdsaPrivateKey, common.HexToAddress(c.TokenStrategyAddr))
+		operator.avsManager.registerOperatorOnStartup(operatorEcdsaPrivateKey, common.HexToAddress(c.TokenStrategyAddr), blsKeyPair)
 	}
 
 	// OperatorId is set in contract during registration so we get it after registering operator.
-	operatorId, err := sdkClients.AvsRegistryChainReader.GetOperatorId(&bind.CallOpts{}, operator.operatorAddr)
+	operatorId, err := avsManager.GetOperatorId(&bind.CallOpts{}, operator.operatorAddr)
 	if err != nil {
 		logger.Error("Cannot get operator id", "err", err)
 		return nil, err
@@ -221,15 +226,8 @@ func NewOperatorFromConfig(c types.NodeConfig) (*Operator, error) {
 }
 
 func (o *Operator) Start(ctx context.Context) error {
-	operatorIsRegistered, err := o.avsManager.IsOperatorRegistered(&bind.CallOpts{}, o.operatorAddr)
-	if err != nil {
-		o.logger.Error("Error checking if operator is registered", "err", err)
+	if err := o.avsManager.Start(ctx); err != nil {
 		return err
-	}
-	if !operatorIsRegistered {
-		// We bubble the error all the way up instead of using logger.Fatal because logger.Fatal prints a huge stack trace
-		// that hides the actual error message. This error msg is more explicit and doesn't require showing a stack trace to the user.
-		return fmt.Errorf("operator is not registered. Registering operator using the operator-cli before starting operator")
 	}
 
 	// TODO: hmm maybe remove start from attestor?
@@ -250,19 +248,44 @@ func (o *Operator) Start(ctx context.Context) error {
 		metricsErrChan = make(chan error, 1)
 	}
 
+	// TODO: decide who have a right to sign
 	signedRootsC := o.attestor.GetSignedRootC()
+	checkpointTaskResponseChan := o.avsManager.GetCheckpointTaskResponseChan()
+	operatorSetUpdateChan := o.avsManager.GetOperatorSetUpdateChan()
+
 	for {
 		select {
 		case <-ctx.Done():
 			return o.Close()
+
 		case err := <-metricsErrChan:
 			// TODO(samlaf); we should also register the service as unhealthy in the node api
 			// https://eigen.nethermind.io/docs/spec/api/
 			o.logger.Fatal("Error in metrics server", "err", err)
+			continue
 
 		case signedStateRootUpdateMessage := <-signedRootsC:
 			go o.aggregatorRpcClient.SendSignedStateRootUpdateToAggregator(&signedStateRootUpdateMessage)
+			continue
 
+		case checkpointTaskResponse := <-checkpointTaskResponseChan:
+			signedCheckpointTaskResponse, err := o.SignTaskResponse(&checkpointTaskResponse)
+			if err != nil {
+				o.logger.Error("Failed to sign checkpoint task response", "checkpointTaskResponse", checkpointTaskResponse)
+				continue
+			}
+
+			go o.aggregatorRpcClient.SendSignedCheckpointTaskResponseToAggregator(signedCheckpointTaskResponse)
+			continue
+
+		case operatorSetUpdate := <-operatorSetUpdateChan:
+			signedOperatorSetUpdate, err := SignOperatorSetUpdate(operatorSetUpdate, o.blsKeypair, o.operatorId)
+			if err != nil {
+				o.logger.Error("Failed to sign operator set update", "signedOperatorSetUpdate", signedOperatorSetUpdate)
+				continue
+			}
+
+			go o.aggregatorRpcClient.SendSignedOperatorSetUpdateToAggregator(signedOperatorSetUpdate)
 			continue
 		}
 	}
@@ -274,6 +297,53 @@ func (o *Operator) Close() error {
 	}
 
 	return nil
+}
+
+func (o *Operator) SignTaskResponse(taskResponse *taskmanager.CheckpointTaskResponse) (*coretypes.SignedCheckpointTaskResponse, error) {
+	taskResponseHash, err := core.GetCheckpointTaskResponseDigest(taskResponse)
+	if err != nil {
+		o.logger.Error("Error getting task response header hash. skipping task (this is not expected and should be investigated)", "err", err)
+		return nil, err
+	}
+
+	blsSignature := o.blsKeypair.SignMessage(taskResponseHash)
+	signedCheckpointTaskResponse := &coretypes.SignedCheckpointTaskResponse{
+		TaskResponse: *taskResponse,
+		BlsSignature: *blsSignature,
+		OperatorId:   o.operatorId,
+	}
+
+	o.logger.Debug("Signed task response", "signedCheckpointTaskResponse", signedCheckpointTaskResponse)
+	return signedCheckpointTaskResponse, nil
+}
+
+func SignOperatorSetUpdate(message registryrollup.OperatorSetUpdateMessage, blsKeyPair *bls.KeyPair, operatorId bls.OperatorId) (*coretypes.SignedOperatorSetUpdateMessage, error) {
+	messageHash, err := core.GetOperatorSetUpdateMessageDigest(&message)
+	if err != nil {
+		return nil, err
+	}
+	signature := blsKeyPair.SignMessage(messageHash)
+	signedOperatorSetUpdate := coretypes.SignedOperatorSetUpdateMessage{
+		Message:      message,
+		OperatorId:   operatorId,
+		BlsSignature: *signature,
+	}
+
+	return &signedOperatorSetUpdate, nil
+}
+
+func (o *Operator) RegisterOperatorWithAvs(
+	operatorEcdsaKeyPair *ecdsa.PrivateKey,
+) error {
+	return o.avsManager.RegisterOperatorWithAvs(operatorEcdsaKeyPair, o.blsKeypair)
+}
+
+func (o *Operator) DepositIntoStrategy(strategyAddr common.Address, amount *big.Int) error {
+	return o.avsManager.DepositIntoStrategy(strategyAddr, amount)
+}
+
+func (o *Operator) RegisterOperatorWithEigenlayer() error {
+	return o.avsManager.RegisterOperatorWithEigenlayer()
 }
 
 type OperatorStatus struct {

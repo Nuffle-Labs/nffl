@@ -47,7 +47,7 @@ func TestOperator(t *testing.T) {
 			},
 			Raw: types.Log{},
 		}
-		got := operator.ProcessCheckpointTaskCreatedLog(newTaskCreatedLog)
+		got := operator.avsManager.ProcessCheckpointTaskCreatedLog(newTaskCreatedLog)
 		want := &taskmanager.CheckpointTaskResponse{
 			ReferenceTaskIndex:     taskIndex,
 			StateRootUpdatesRoot:   [32]byte{0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0},
@@ -147,14 +147,14 @@ func TestOperator(t *testing.T) {
 			// loop forever
 			<-quit
 			return nil
-		}), nil)
-		operator.avsSubscriber = mockSubscriber
+		}))
+		operator.avsManager.avsSubscriber = mockSubscriber
 
 		mockReader := chainiomocks.NewMockAvsReaderer(mockCtrl)
 		mockReader.EXPECT().IsOperatorRegistered(gomock.Any(), operator.operatorAddr).Return(true, nil)
 		mockReader.EXPECT().GetOperatorSetUpdateDelta(gomock.Any(), operatorSetUpdate.Id).Return(make([]opsetupdatereg.OperatorsOperator, 0), nil)
 
-		operator.avsReader = mockReader
+		operator.avsManager.avsReader = mockReader
 
 		ctx, cancel := context.WithCancel(context.Background())
 		defer cancel()
