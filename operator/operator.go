@@ -6,39 +6,43 @@ import (
 	"encoding/hex"
 	"encoding/json"
 	"fmt"
-	registryrollup "github.com/NethermindEth/near-sffl/contracts/bindings/SFFLRegistryRollup"
-	"github.com/NethermindEth/near-sffl/core"
-	coretypes "github.com/NethermindEth/near-sffl/core/types"
 	"math/big"
 	"os"
 
-	"github.com/ethereum/go-ethereum/accounts/abi/bind"
-	"github.com/ethereum/go-ethereum/common"
-	"github.com/prometheus/client_golang/prometheus"
-
 	opsetupdatereg "github.com/NethermindEth/near-sffl/contracts/bindings/SFFLOperatorSetUpdateRegistry"
-	taskmanager "github.com/NethermindEth/near-sffl/contracts/bindings/SFFLTaskManager"
-	"github.com/NethermindEth/near-sffl/metrics"
-	"github.com/NethermindEth/near-sffl/operator/attestor"
-	"github.com/NethermindEth/near-sffl/types"
-
 	"github.com/Layr-Labs/eigensdk-go/chainio/clients/eth"
+	"github.com/Layr-Labs/eigensdk-go/chainio/txmgr"
 	"github.com/Layr-Labs/eigensdk-go/crypto/bls"
 	sdkecdsa "github.com/Layr-Labs/eigensdk-go/crypto/ecdsa"
 	"github.com/Layr-Labs/eigensdk-go/logging"
 	sdklogging "github.com/Layr-Labs/eigensdk-go/logging"
 	sdkmetrics "github.com/Layr-Labs/eigensdk-go/metrics"
+	"github.com/Layr-Labs/eigensdk-go/metrics/collectors/economic"
 	rpccalls "github.com/Layr-Labs/eigensdk-go/metrics/collectors/rpc_calls"
 	"github.com/Layr-Labs/eigensdk-go/nodeapi"
 	"github.com/Layr-Labs/eigensdk-go/signerv2"
+	sdktypes "github.com/Layr-Labs/eigensdk-go/types"
+	"github.com/ethereum/go-ethereum/accounts/abi/bind"
+	"github.com/ethereum/go-ethereum/common"
+	"github.com/prometheus/client_golang/prometheus"
+
+	regcoord "github.com/NethermindEth/near-sffl/contracts/bindings/SFFLRegistryCoordinator"
+	registryrollup "github.com/NethermindEth/near-sffl/contracts/bindings/SFFLRegistryRollup"
+	taskmanager "github.com/NethermindEth/near-sffl/contracts/bindings/SFFLTaskManager"
+	"github.com/NethermindEth/near-sffl/core"
+	coretypes "github.com/NethermindEth/near-sffl/core/types"
+	"github.com/NethermindEth/near-sffl/metrics"
+	"github.com/NethermindEth/near-sffl/operator/attestor"
+	"github.com/NethermindEth/near-sffl/types"
 )
 
 const AVS_NAME = "super-fast-finality-layer"
 const SEM_VER = "0.0.1"
 
 type Operator struct {
-	config types.NodeConfig
-	logger logging.Logger
+	config    types.NodeConfig
+	logger    logging.Logger
+	ethClient eth.EthClient
 	// TODO(samlaf): remove both avsWriter and eigenlayerWrite from operator
 	// they are only used for registration, so we should make a special registration package
 	// this way, auditing this operator code makes it obvious that operators don't need to
@@ -68,7 +72,7 @@ type Operator struct {
 	attestor attestor.Attestorer
 }
 
-func createEthClients(config types.NodeConfig, registry *prometheus.Registry, logger sdklogging.Logger) (eth.EthClient, eth.EthClient, error) {
+func createEthClients(config *types.NodeConfig, registry *prometheus.Registry, logger sdklogging.Logger) (eth.EthClient, eth.EthClient, error) {
 	if config.EnableMetrics {
 		rpcCallsCollector := rpccalls.NewCollector(AVS_NAME, registry)
 		ethRpcClient, err := eth.NewInstrumentedClient(config.EthRpcUrl, rpcCallsCollector)
@@ -119,18 +123,8 @@ func NewOperatorFromConfig(c types.NodeConfig) (*Operator, error) {
 		return nil, err
 	}
 
-	reg := prometheus.NewRegistry()
-	eigenMetrics := sdkmetrics.NewEigenMetrics(AVS_NAME, c.EigenMetricsIpPortAddress, reg, logger)
-	avsAndEigenMetrics := metrics.NewAvsAndEigenMetrics(AVS_NAME, eigenMetrics, reg)
-
 	// Setup Node Api
 	nodeApi := nodeapi.NewNodeApi(AVS_NAME, SEM_VER, c.NodeApiIpPortAddress, logger)
-
-	ethRpcClient, ethWsClient, err := createEthClients(c, reg, logger)
-	if err != nil {
-		return nil, err
-	}
-
 	blsKeyPassword, ok := os.LookupEnv("OPERATOR_BLS_KEY_PASSWORD")
 	if !ok {
 		logger.Warnf("OPERATOR_BLS_KEY_PASSWORD env var not set. using empty string")
@@ -141,6 +135,18 @@ func NewOperatorFromConfig(c types.NodeConfig) (*Operator, error) {
 		logger.Errorf("Cannot parse bls private key", "err", err)
 		return nil, err
 	}
+
+	ecdsaKeyPassword, ok := os.LookupEnv("OPERATOR_ECDSA_KEY_PASSWORD")
+	if !ok {
+		logger.Warnf("OPERATOR_ECDSA_KEY_PASSWORD env var not set. using empty string")
+	}
+
+	reg := prometheus.NewRegistry()
+	ethRpcClient, ethWsClient, err := createEthClients(&c, reg, logger)
+	if err != nil {
+		return nil, err
+	}
+
 	// TODO(samlaf): should we add the chainId to the config instead?
 	// this way we can prevent creating a signer that signs on mainnet by mistake
 	// if the config says chainId=5, then we can only create a goerli signer
@@ -148,11 +154,6 @@ func NewOperatorFromConfig(c types.NodeConfig) (*Operator, error) {
 	if err != nil {
 		logger.Error("Cannot get chainId", "err", err)
 		return nil, err
-	}
-
-	ecdsaKeyPassword, ok := os.LookupEnv("OPERATOR_ECDSA_KEY_PASSWORD")
-	if !ok {
-		logger.Warnf("OPERATOR_ECDSA_KEY_PASSWORD env var not set. using empty string")
 	}
 
 	signerV2, _, err := signerv2.SignerFromConfig(signerv2.Config{
@@ -163,21 +164,49 @@ func NewOperatorFromConfig(c types.NodeConfig) (*Operator, error) {
 		panic(err)
 	}
 
+	txMgr := txmgr.NewSimpleTxManager(ethRpcClient, logger, signerV2, common.HexToAddress(c.OperatorAddress))
+	chainioConfig := clients.BuildAllConfig{
+		EthHttpUrl:                 c.EthRpcUrl,
+		EthWsUrl:                   c.EthWsUrl,
+		RegistryCoordinatorAddr:    c.AVSRegistryCoordinatorAddress,
+		OperatorStateRetrieverAddr: c.OperatorStateRetrieverAddress,
+		AvsName:                    AVS_NAME,
+		PromMetricsIpPortAddress:   c.EigenMetricsIpPortAddress,
+	}
+	sdkClients, err := clients.BuildAll(chainioConfig, common.HexToAddress(c.OperatorAddress), signerV2, logger)
+	if err != nil {
+		panic(err)
+	}
+
+	eigenMetrics := sdkmetrics.NewEigenMetrics(AVS_NAME, c.EigenMetricsIpPortAddress, reg, logger)
+	avsAndEigenMetrics := metrics.NewAvsAndEigenMetrics(AVS_NAME, eigenMetrics, reg)
+
 	aggregatorRpcClient, err := NewAggregatorRpcClient(c.AggregatorServerIpPortAddress, logger, avsAndEigenMetrics)
 	if err != nil {
 		logger.Error("Cannot create AggregatorRpcClient. Is aggregator running?", "err", err)
 		return nil, err
 	}
 
-	avsManager, err := NewAvsManager(&c, ethRpcClient, ethWsClient, signerV2, reg, logger)
+	avsManager, err := NewAvsManager(&c, ethRpcClient, ethWsClient, sdkClients, txMgr, logger)
 	if err != nil {
 		logger.Error("Cannot create ")
 		return nil, err
 	}
 
+	// We must register the economic metrics separately because they are exported metrics (from jsonrpc or subgraph calls)
+	// and not instrumented metrics: see https://prometheus.io/docs/instrumenting/writing_clientlibs/#overall-structure
+	quorumNames := map[sdktypes.QuorumNum]string{
+		0: "quorum0",
+	}
+	economicMetricsCollector := economic.NewCollector(
+		sdkClients.ElChainReader, sdkClients.AvsRegistryChainReader,
+		AVS_NAME, logger, common.HexToAddress(c.OperatorAddress), quorumNames)
+	reg.MustRegister(economicMetricsCollector)
+
 	operator := &Operator{
 		config:                     c,
 		logger:                     logger,
+		ethClient:                  ethRpcClient,
 		metricsReg:                 reg,
 		metrics:                    avsAndEigenMetrics,
 		nodeApi:                    nodeApi,
@@ -198,7 +227,8 @@ func NewOperatorFromConfig(c types.NodeConfig) (*Operator, error) {
 		if err != nil {
 			return nil, err
 		}
-		operator.avsManager.registerOperatorOnStartup(operatorEcdsaPrivateKey, common.HexToAddress(c.TokenStrategyAddr), blsKeyPair)
+
+		operator.avsManager.registerOperatorOnStartup(ethRpcClient, operatorEcdsaPrivateKey, common.HexToAddress(c.TokenStrategyAddr), blsKeyPair)
 	}
 
 	// OperatorId is set in contract during registration so we get it after registering operator.
@@ -335,7 +365,7 @@ func SignOperatorSetUpdate(message registryrollup.OperatorSetUpdateMessage, blsK
 func (o *Operator) RegisterOperatorWithAvs(
 	operatorEcdsaKeyPair *ecdsa.PrivateKey,
 ) error {
-	return o.avsManager.RegisterOperatorWithAvs(operatorEcdsaKeyPair, o.blsKeypair)
+	return o.avsManager.RegisterOperatorWithAvs(o.ethClient, operatorEcdsaKeyPair, o.blsKeypair)
 }
 
 func (o *Operator) DepositIntoStrategy(strategyAddr common.Address, amount *big.Int) error {

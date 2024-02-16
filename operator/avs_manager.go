@@ -12,13 +12,9 @@ import (
 	"github.com/Layr-Labs/eigensdk-go/chainio/txmgr"
 	"github.com/Layr-Labs/eigensdk-go/crypto/bls"
 	sdklogging "github.com/Layr-Labs/eigensdk-go/logging"
-	"github.com/Layr-Labs/eigensdk-go/metrics/collectors/economic"
-	"github.com/Layr-Labs/eigensdk-go/signerv2"
 	eigenSdkTypes "github.com/Layr-Labs/eigensdk-go/types"
-	sdktypes "github.com/Layr-Labs/eigensdk-go/types"
 	"github.com/ethereum/go-ethereum/accounts/abi/bind"
 	"github.com/ethereum/go-ethereum/common"
-	"github.com/prometheus/client_golang/prometheus"
 
 	regcoord "github.com/NethermindEth/near-sffl/contracts/bindings/SFFLRegistryCoordinator"
 	registryrollup "github.com/NethermindEth/near-sffl/contracts/bindings/SFFLRegistryRollup"
@@ -28,7 +24,6 @@ import (
 )
 
 type AvsManager struct {
-	ethClient        eth.EthClient
 	avsWriter        *chainio.AvsWriter
 	avsReader        chainio.AvsReaderer
 	avsSubscriber    chainio.AvsSubscriberer
@@ -48,10 +43,9 @@ type AvsManager struct {
 	logger sdklogging.Logger
 }
 
-func NewAvsManager(config *types.NodeConfig, ethRpcClient eth.EthClient, ethWsClient eth.EthClient, signerV2 signerv2.SignerFn, registry *prometheus.Registry, logger sdklogging.Logger) (*AvsManager, error) {
-	txMgr := txmgr.NewSimpleTxManager(ethRpcClient, logger, signerV2, common.HexToAddress(config.OperatorAddress))
+func NewAvsManager(config *types.NodeConfig, ethRpcClient eth.EthClient, ethWsClient eth.EthClient, sdkClients *clients.Clients, txManager *txmgr.SimpleTxManager, logger sdklogging.Logger) (*AvsManager, error) {
 	avsWriter, err := chainio.BuildAvsWriter(
-		txMgr, common.HexToAddress(config.AVSRegistryCoordinatorAddress),
+		txManager, common.HexToAddress(config.AVSRegistryCoordinatorAddress),
 		common.HexToAddress(config.OperatorStateRetrieverAddress), ethRpcClient, logger,
 	)
 	if err != nil {
@@ -76,31 +70,7 @@ func NewAvsManager(config *types.NodeConfig, ethRpcClient eth.EthClient, ethWsCl
 		return nil, err
 	}
 
-	chainioConfig := clients.BuildAllConfig{
-		EthHttpUrl:                 config.EthRpcUrl,
-		EthWsUrl:                   config.EthWsUrl,
-		RegistryCoordinatorAddr:    config.AVSRegistryCoordinatorAddress,
-		OperatorStateRetrieverAddr: config.OperatorStateRetrieverAddress,
-		AvsName:                    AVS_NAME,
-		PromMetricsIpPortAddress:   config.EigenMetricsIpPortAddress,
-	}
-	sdkClients, err := clients.BuildAll(chainioConfig, common.HexToAddress(config.OperatorAddress), signerV2, logger)
-	if err != nil {
-		panic(err)
-	}
-
-	// We must register the economic metrics separately because they are exported metrics (from jsonrpc or subgraph calls)
-	// and not instrumented metrics: see https://prometheus.io/docs/instrumenting/writing_clientlibs/#overall-structure
-	quorumNames := map[sdktypes.QuorumNum]string{
-		0: "quorum0",
-	}
-	economicMetricsCollector := economic.NewCollector(
-		sdkClients.ElChainReader, sdkClients.AvsRegistryChainReader,
-		AVS_NAME, logger, common.HexToAddress(config.OperatorAddress), quorumNames)
-	registry.MustRegister(economicMetricsCollector)
-
 	return &AvsManager{
-		ethClient:                         ethRpcClient,
 		avsReader:                         avsReader,
 		avsWriter:                         avsWriter,
 		avsSubscriber:                     avsSubscriber,
@@ -280,6 +250,7 @@ func (avsManager *AvsManager) RegisterOperatorWithEigenlayer() error {
 }
 
 func (avsManager *AvsManager) registerOperatorOnStartup(
+	client eth.EthClient,
 	operatorEcdsaPrivateKey *ecdsa.PrivateKey,
 	mockTokenStrategyAddr common.Address,
 	blsKeyPair *bls.KeyPair,
@@ -300,7 +271,7 @@ func (avsManager *AvsManager) registerOperatorOnStartup(
 	}
 	avsManager.logger.Infof("Deposited %s into strategy %s", amount, mockTokenStrategyAddr)
 
-	err = avsManager.RegisterOperatorWithAvs(operatorEcdsaPrivateKey, blsKeyPair)
+	err = avsManager.RegisterOperatorWithAvs(client, operatorEcdsaPrivateKey, blsKeyPair)
 	if err != nil {
 		avsManager.logger.Fatal("Error registering operator with avs", "err", err)
 	}
@@ -309,6 +280,7 @@ func (avsManager *AvsManager) registerOperatorOnStartup(
 
 // Registration specific functions
 func (avsManager *AvsManager) RegisterOperatorWithAvs(
+	client eth.EthClient,
 	operatorEcdsaKeyPair *ecdsa.PrivateKey,
 	blsKeyPair *bls.KeyPair,
 ) error {
@@ -316,13 +288,13 @@ func (avsManager *AvsManager) RegisterOperatorWithAvs(
 	quorumNumbers := []byte{0}
 	socket := "Not Needed"
 	operatorToAvsRegistrationSigSalt := [32]byte{123}
-	curBlockNum, err := avsManager.ethClient.BlockNumber(context.Background())
+	curBlockNum, err := client.BlockNumber(context.Background())
 	if err != nil {
 		avsManager.logger.Errorf("Unable to get current block number")
 		return err
 	}
 
-	curBlock, err := avsManager.ethClient.BlockByNumber(context.Background(), big.NewInt(int64(curBlockNum)))
+	curBlock, err := client.BlockByNumber(context.Background(), big.NewInt(int64(curBlockNum)))
 	if err != nil {
 		avsManager.logger.Errorf("Unable to get current block")
 		return err
