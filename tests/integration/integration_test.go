@@ -489,7 +489,7 @@ func startIndexer(t *testing.T, ctx context.Context, rollupAnvils []*AnvilInstan
 		rollupArgs = append(rollupArgs, "--da-contract-ids", getDaContractAccountId(rollupAnvil))
 	}
 	for _, rollupAnvil := range rollupAnvils {
-		rollupArgs = append(rollupArgs, rollupAnvil.ChainID.String())
+		rollupArgs = append(rollupArgs, "--rollup-ids", rollupAnvil.ChainID.String())
 	}
 
 	req := testcontainers.ContainerRequest{
