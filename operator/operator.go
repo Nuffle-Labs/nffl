@@ -9,7 +9,7 @@ import (
 	"math/big"
 	"os"
 
-	opsetupdatereg "github.com/NethermindEth/near-sffl/contracts/bindings/SFFLOperatorSetUpdateRegistry"
+	"github.com/Layr-Labs/eigensdk-go/chainio/clients"
 	"github.com/Layr-Labs/eigensdk-go/chainio/clients/eth"
 	"github.com/Layr-Labs/eigensdk-go/chainio/txmgr"
 	"github.com/Layr-Labs/eigensdk-go/crypto/bls"
@@ -26,7 +26,6 @@ import (
 	"github.com/ethereum/go-ethereum/common"
 	"github.com/prometheus/client_golang/prometheus"
 
-	regcoord "github.com/NethermindEth/near-sffl/contracts/bindings/SFFLRegistryCoordinator"
 	registryrollup "github.com/NethermindEth/near-sffl/contracts/bindings/SFFLRegistryRollup"
 	taskmanager "github.com/NethermindEth/near-sffl/contracts/bindings/SFFLTaskManager"
 	"github.com/NethermindEth/near-sffl/core"
@@ -55,12 +54,6 @@ type Operator struct {
 	blsKeypair   *bls.KeyPair
 	operatorId   bls.OperatorId
 	operatorAddr common.Address
-
-	// receive new tasks in this chan (typically from listening to onchain event)
-	checkpointTaskCreatedChan chan *taskmanager.ContractSFFLTaskManagerCheckpointTaskCreated
-	// receive operator set updates in this chan
-	// TODO: agree on operatorSetUpdateC vs operatorSetUpdateChan
-	operatorSetUpdateChan chan *opsetupdatereg.ContractSFFLOperatorSetUpdateRegistryOperatorSetUpdatedAtBlock
 
 	// ip address of aggregator
 	aggregatorServerIpPortAddr string

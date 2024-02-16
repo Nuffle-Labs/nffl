@@ -16,7 +16,7 @@ import (
 	"github.com/ethereum/go-ethereum/accounts/abi/bind"
 	"github.com/ethereum/go-ethereum/common"
 
-	regcoord "github.com/NethermindEth/near-sffl/contracts/bindings/SFFLRegistryCoordinator"
+	opsetupdatereg "github.com/NethermindEth/near-sffl/contracts/bindings/SFFLOperatorSetUpdateRegistry"
 	registryrollup "github.com/NethermindEth/near-sffl/contracts/bindings/SFFLRegistryRollup"
 	taskmanager "github.com/NethermindEth/near-sffl/contracts/bindings/SFFLTaskManager"
 	"github.com/NethermindEth/near-sffl/core/chainio"
@@ -34,7 +34,7 @@ type AvsManager struct {
 	// receive new tasks in this chan (typically from listening to onchain event)
 	checkpointTaskCreatedChan chan *taskmanager.ContractSFFLTaskManagerCheckpointTaskCreated
 	// receive operator set updates in this chan
-	operatorSetUpdateChan chan *regcoord.ContractSFFLRegistryCoordinatorOperatorSetUpdatedAtBlock
+	operatorSetUpdateChan chan *opsetupdatereg.ContractSFFLOperatorSetUpdateRegistryOperatorSetUpdatedAtBlock
 
 	// Prepare message for operator to sign
 	checkpointTaskResponseCreatedChan chan taskmanager.CheckpointTaskResponse
@@ -78,7 +78,7 @@ func NewAvsManager(config *types.NodeConfig, ethRpcClient eth.EthClient, ethWsCl
 		eigenlayerReader:                  sdkClients.ElChainReader,
 		eigenlayerWriter:                  sdkClients.ElChainWriter,
 		checkpointTaskCreatedChan:         make(chan *taskmanager.ContractSFFLTaskManagerCheckpointTaskCreated),
-		operatorSetUpdateChan:             make(chan *regcoord.ContractSFFLRegistryCoordinatorOperatorSetUpdatedAtBlock),
+		operatorSetUpdateChan:             make(chan *opsetupdatereg.ContractSFFLOperatorSetUpdateRegistryOperatorSetUpdatedAtBlock),
 		checkpointTaskResponseCreatedChan: make(chan taskmanager.CheckpointTaskResponse),
 		operatorSetUpdateMessageChan:      make(chan registryrollup.OperatorSetUpdateMessage),
 		logger:                            logger,
@@ -176,7 +176,7 @@ func (avsManager *AvsManager) ProcessCheckpointTaskCreatedLog(checkpointTaskCrea
 	return taskResponse
 }
 
-func (avsManager *AvsManager) handleOperatorSetUpdate(ctx context.Context, data *regcoord.ContractSFFLRegistryCoordinatorOperatorSetUpdatedAtBlock) error {
+func (avsManager *AvsManager) handleOperatorSetUpdate(ctx context.Context, data *opsetupdatereg.ContractSFFLOperatorSetUpdateRegistryOperatorSetUpdatedAtBlock) error {
 	operatorSetDelta, err := avsManager.avsReader.GetOperatorSetUpdateDelta(ctx, data.Id)
 	if err != nil {
 		avsManager.logger.Errorf("Couldn't get Operator set update delta: %v for block: %v", err, data.Id)
@@ -302,7 +302,7 @@ func (avsManager *AvsManager) RegisterOperatorWithAvs(
 
 	sigValidForSeconds := int64(1_000_000)
 	operatorToAvsRegistrationSigExpiry := big.NewInt(int64(curBlock.Time()) + sigValidForSeconds)
-	_, err = avsManager.avsWriter.RegisterOperatorWithAVSRegistryCoordinator(
+	_, err = avsManager.avsWriter.RegisterOperatorInQuorumWithAVSRegistryCoordinator(
 		context.Background(),
 		operatorEcdsaKeyPair, operatorToAvsRegistrationSigSalt, operatorToAvsRegistrationSigExpiry,
 		blsKeyPair, quorumNumbers, socket,
