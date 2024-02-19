@@ -70,6 +70,7 @@ type Aggregator struct {
 	serverIpPortAddr     string
 	restServerIpPortAddr string
 	avsWriter            chainio.AvsWriterer
+	avsReader            chainio.AvsReaderer
 	// aggregation related fields
 	taskBlsAggregationService              blsagg.BlsAggregationService
 	stateRootUpdateBlsAggregationService   MessageBlsAggregationService
@@ -132,6 +133,7 @@ func NewAggregator(ctx context.Context, c *config.Config) (*Aggregator, error) {
 		serverIpPortAddr:                       c.AggregatorServerIpPortAddr,
 		restServerIpPortAddr:                   c.AggregatorRestServerIpPortAddr,
 		avsWriter:                              avsWriter,
+		avsReader:                              avsReader,
 		taskBlsAggregationService:              taskBlsAggregationService,
 		stateRootUpdateBlsAggregationService:   stateRootUpdateBlsAggregationService,
 		operatorSetUpdateBlsAggregationService: operatorSetUpdateBlsAggregationService,
