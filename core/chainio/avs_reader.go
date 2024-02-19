@@ -115,7 +115,7 @@ func (r *AvsReader) GetOperatorSetUpdateDelta(ctx context.Context, id uint64) ([
 	var delta []opsetupdatereg.OperatorsOperator
 
 	for _, operatorUpdate := range operators {
-		if operatorUpdate.previousWeight != operatorUpdate.newWeight {
+		if operatorUpdate.previousWeight.Cmp(operatorUpdate.newWeight) != 0 {
 			delta = append(delta, opsetupdatereg.OperatorsOperator{Pubkey: operatorUpdate.pubkey, Weight: operatorUpdate.newWeight})
 		}
 	}
