@@ -43,6 +43,52 @@ import (
 )
 
 func TestIntegration(t *testing.T) {
+	setup := setupTestEnv(t)
+
+	time.Sleep(10 * time.Second)
+
+	taskHash, err := setup.avsReader.AvsServiceBindings.TaskManager.AllCheckpointTaskHashes(&bind.CallOpts{}, 1)
+	if err != nil {
+		t.Fatalf("Cannot get task hash: %s", err.Error())
+	}
+	if taskHash == [32]byte{} {
+		t.Fatalf("Task hash is empty")
+	}
+
+	taskResponseHash, err := setup.avsReader.AvsServiceBindings.TaskManager.AllCheckpointTaskResponses(&bind.CallOpts{}, 1)
+	log.Printf("taskResponseHash: %v", taskResponseHash)
+	if err != nil {
+		t.Fatalf("Cannot get task response hash: %s", err.Error())
+	}
+	if taskResponseHash == [32]byte{} {
+		t.Fatalf("Task response hash is empty")
+	}
+
+	stateRootUpdate, err := getStateRootUpdateAggregation(setup.aggregatorRestUrl, uint32(setup.rollupAnvils[0].ChainID.Uint64()), 7)
+	if err != nil {
+		t.Fatalf("Cannot get state root update: %s", err.Error())
+	}
+
+	_, err = setup.registryRollups[1].UpdateStateRoot(setup.registryRollupAuths[1], registryrollup.StateRootUpdateMessage(stateRootUpdate.Message), formatBlsAggregationRollup(t, &stateRootUpdate.Aggregation))
+	if err != nil {
+		t.Fatalf("Error updating state root: %s", err.Error())
+	}
+}
+
+type TestEnv struct {
+	mainnetAnvil        *AnvilInstance
+	rollupAnvils        []*AnvilInstance
+	rabbitMq            *rabbitmq.RabbitMQContainer
+	indexerContainer    testcontainers.Container
+	operator            *operator.Operator
+	aggregator          *aggregator.Aggregator
+	aggregatorRestUrl   string
+	avsReader           *chainio.AvsReader
+	registryRollups     []*registryrollup.ContractSFFLRegistryRollup
+	registryRollupAuths []*bind.TransactOpts
+}
+
+func setupTestEnv(t *testing.T) *TestEnv {
 	t.Log("This test takes ~100 seconds to run...")
 
 	containersCtx, cancelContainersCtx := context.WithCancel(context.Background())
@@ -53,7 +99,7 @@ func TestIntegration(t *testing.T) {
 		startAnvilTestContainer(t, containersCtx, "8547", "3", false),
 	}
 	rabbitMq := startRabbitMqContainer(t, containersCtx)
-	_ = startIndexer(t, containersCtx, rollupAnvils, rabbitMq)
+	indexerContainer := startIndexer(t, containersCtx, rollupAnvils, rabbitMq)
 
 	startRollupIndexing(t, containersCtx, rollupAnvils)
 
@@ -63,8 +109,15 @@ func TestIntegration(t *testing.T) {
 	nodeConfig := buildOperatorConfig(t, ctx, mainnetAnvil, rollupAnvils, rabbitMq)
 	config := buildConfig(t, sfflDeploymentRaw, mainnetAnvil)
 
-	_ = startOperator(t, ctx, nodeConfig)
-	_ = startAggregator(t, ctx, config)
+	operator := startOperator(t, ctx, nodeConfig)
+	aggregator := startAggregator(t, ctx, config)
+
+	avsReader, err := chainio.BuildAvsReaderFromConfig(config)
+	if err != nil {
+		t.Fatalf("Cannot create AVS Reader: %s", err.Error())
+	}
+
+	registryRollups, registryRollupAuths := deployRegistryRollups(t, ctx, avsReader, rollupAnvils)
 
 	t.Cleanup(func() {
 		cancel()
@@ -86,40 +139,17 @@ func TestIntegration(t *testing.T) {
 		cancelContainersCtx()
 	})
 
-	avsReader, err := chainio.BuildAvsReaderFromConfig(config)
-	if err != nil {
-		t.Fatalf("Cannot create AVS Reader: %s", err.Error())
-	}
-
-	registryRollups, registryRollupAuths := deployRegistryRollups(t, ctx, avsReader, rollupAnvils)
-
-	time.Sleep(10 * time.Second)
-
-	taskHash, err := avsReader.AvsServiceBindings.TaskManager.AllCheckpointTaskHashes(&bind.CallOpts{}, 1)
-	if err != nil {
-		t.Fatalf("Cannot get task hash: %s", err.Error())
-	}
-	if taskHash == [32]byte{} {
-		t.Fatalf("Task hash is empty")
-	}
-
-	taskResponseHash, err := avsReader.AvsServiceBindings.TaskManager.AllCheckpointTaskResponses(&bind.CallOpts{}, 1)
-	log.Printf("taskResponseHash: %v", taskResponseHash)
-	if err != nil {
-		t.Fatalf("Cannot get task response hash: %s", err.Error())
-	}
-	if taskResponseHash == [32]byte{} {
-		t.Fatalf("Task response hash is empty")
-	}
-
-	stateRootUpdate, err := getStateRootUpdateAggregation("http://"+config.AggregatorRestServerIpPortAddr, uint32(rollupAnvils[0].ChainID.Uint64()), 7)
-	if err != nil {
-		t.Fatalf("Cannot get state root update: %s", err.Error())
-	}
-
-	_, err = registryRollups[1].UpdateStateRoot(registryRollupAuths[1], registryrollup.StateRootUpdateMessage(stateRootUpdate.Message), formatBlsAggregationRollup(t, ctx, &stateRootUpdate.Aggregation))
-	if err != nil {
-		t.Fatalf("Error updating state root: %s", err.Error())
+	return &TestEnv{
+		mainnetAnvil:        mainnetAnvil,
+		rollupAnvils:        rollupAnvils,
+		rabbitMq:            rabbitMq,
+		indexerContainer:    indexerContainer,
+		operator:            operator,
+		aggregator:          aggregator,
+		aggregatorRestUrl:   "http://" + config.AggregatorRestServerIpPortAddr,
+		avsReader:           avsReader,
+		registryRollups:     registryRollups,
+		registryRollupAuths: registryRollupAuths,
 	}
 }
 
