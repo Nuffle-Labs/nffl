@@ -1,7 +1,6 @@
 package aggregator
 
 import (
-	"context"
 	"encoding/json"
 	"net/http"
 	"strconv"
@@ -13,7 +12,7 @@ import (
 	servicemanager "github.com/NethermindEth/near-sffl/contracts/bindings/SFFLServiceManager"
 )
 
-func (agg *Aggregator) startRestServer(ctx context.Context) error {
+func (agg *Aggregator) startRestServer() error {
 	router := mux.NewRouter()
 	router.HandleFunc("/aggregation/state-root-update", agg.handleGetStateRootUpdateAggregation).Methods("GET")
 	router.HandleFunc("/aggregation/operator-set-update", agg.handleGetOperatorSetUpdateAggregation).Methods("GET")

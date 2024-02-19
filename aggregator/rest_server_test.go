@@ -1,7 +1,6 @@
 package aggregator
 
 import (
-	"context"
 	"encoding/json"
 	"errors"
 	"fmt"
@@ -26,10 +25,7 @@ func TestGetStateRootUpdateAggregation(t *testing.T) {
 	aggregator, _, _, _, _, mockDb, err := createMockAggregator(mockCtrl, MOCK_OPERATOR_PUBKEY_DICT)
 	assert.Nil(t, err)
 
-	ctx, cancel := context.WithCancel(context.Background())
-	defer cancel()
-
-	go aggregator.startRestServer(ctx)
+	go aggregator.startRestServer()
 
 	msg := servicemanager.StateRootUpdateMessage{
 		RollupId:    1,
@@ -104,10 +100,7 @@ func TestGetOperatorSetUpdateAggregation(t *testing.T) {
 	aggregator, _, _, _, _, mockDb, err := createMockAggregator(mockCtrl, MOCK_OPERATOR_PUBKEY_DICT)
 	assert.Nil(t, err)
 
-	ctx, cancel := context.WithCancel(context.Background())
-	defer cancel()
-
-	go aggregator.startRestServer(ctx)
+	go aggregator.startRestServer()
 
 	msg := registryrollup.OperatorSetUpdateMessage{
 		Id:        1,

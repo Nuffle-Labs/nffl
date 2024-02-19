@@ -147,10 +147,10 @@ func (agg *Aggregator) Start(ctx context.Context) error {
 	agg.logger.Infof("Starting aggregator.")
 
 	agg.logger.Infof("Starting aggregator rpc server.")
-	go agg.startServer(ctx)
+	go agg.startServer()
 
 	agg.logger.Infof("Starting aggregator REST API.")
-	go agg.startRestServer(ctx)
+	go agg.startRestServer()
 
 	// TODO(soubhik): refactor task generation/sending into a separate function that we can run as goroutine
 	ticker := time.NewTicker(10 * time.Second)

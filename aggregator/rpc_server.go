@@ -24,7 +24,7 @@ var (
 	CallToGetCheckSignaturesIndicesFailed500 = errors.New("500. Failed to get check signatures indices")
 )
 
-func (agg *Aggregator) startServer(ctx context.Context) error {
+func (agg *Aggregator) startServer() error {
 
 	err := rpc.Register(agg)
 	if err != nil {
