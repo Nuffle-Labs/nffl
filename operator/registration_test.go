@@ -1,8 +1,6 @@
 package operator
 
 import (
-	regcoord "github.com/NethermindEth/near-sffl/contracts/bindings/SFFLRegistryCoordinator"
-	"github.com/NethermindEth/near-sffl/operator/mocks"
 	"testing"
 
 	"github.com/Layr-Labs/eigensdk-go/crypto/bls"
@@ -11,8 +9,10 @@ import (
 	"github.com/stretchr/testify/assert"
 
 	opsetupdatereg "github.com/NethermindEth/near-sffl/contracts/bindings/SFFLOperatorSetUpdateRegistry"
+	registryrollup "github.com/NethermindEth/near-sffl/contracts/bindings/SFFLRegistryRollup"
 	taskmanager "github.com/NethermindEth/near-sffl/contracts/bindings/SFFLTaskManager"
 	"github.com/NethermindEth/near-sffl/metrics"
+	"github.com/NethermindEth/near-sffl/operator/mocks"
 	"github.com/NethermindEth/near-sffl/tests"
 )
 
@@ -27,35 +27,41 @@ var MOCK_OPERATOR_ID = [32]byte{207, 73, 226, 221, 104, 100, 123, 41, 192, 3, 9,
 func IntegrationTestOperatorRegistration(t *testing.T) {
 	anvilCmd := tests.StartAnvilChainAndDeployContracts()
 	defer anvilCmd.Process.Kill()
-	operator, _, err := createMockOperator()
+	operator, _, _, err := createMockOperator()
 	assert.Nil(t, err)
 	err = operator.RegisterOperatorWithEigenlayer()
 	assert.Nil(t, err)
 }
 
-func createMockOperator() (*Operator, *mocks.MockConsumer, error) {
+func createMockOperator() (*Operator, *AvsManager, *mocks.MockConsumer, error) {
 	logger := sdklogging.NewNoopLogger()
 	reg := prometheus.NewRegistry()
 	noopMetrics := metrics.NewNoopMetrics()
 
 	blsPrivateKey, err := bls.NewPrivateKey(MOCK_OPERATOR_BLS_PRIVATE_KEY)
 	if err != nil {
-		return nil, nil, err
+		return nil, nil, nil, err
 	}
 	operatorKeypair := bls.NewKeyPair(blsPrivateKey)
 
 	mockAttestor := mocks.NewMockAttestor(operatorKeypair, MOCK_OPERATOR_ID)
-
-	operator := &Operator{
-		logger:                    logger,
-		blsKeypair:                operatorKeypair,
-		metricsReg:                reg,
-		metrics:                   noopMetrics,
-		checkpointTaskCreatedChan: make(chan *taskmanager.ContractSFFLTaskManagerCheckpointTaskCreated),
-		operatorSetUpdateChan:     make(chan *opsetupdatereg.ContractSFFLOperatorSetUpdateRegistryOperatorSetUpdatedAtBlock),
-		operatorId:                MOCK_OPERATOR_ID,
-		attestor:                  mockAttestor,
+	avsManager := &AvsManager{
+		logger:                            logger,
+		checkpointTaskCreatedChan:         make(chan *taskmanager.ContractSFFLTaskManagerCheckpointTaskCreated),
+		operatorSetUpdateChan:             make(chan *opsetupdatereg.ContractSFFLOperatorSetUpdateRegistryOperatorSetUpdatedAtBlock),
+		checkpointTaskResponseCreatedChan: make(chan taskmanager.CheckpointTaskResponse),
+		operatorSetUpdateMessageChan:      make(chan registryrollup.OperatorSetUpdateMessage),
 	}
 
-	return operator, mockAttestor.MockGetConsumer(), nil
+	operator := &Operator{
+		logger:     logger,
+		blsKeypair: operatorKeypair,
+		metricsReg: reg,
+		metrics:    noopMetrics,
+		operatorId: MOCK_OPERATOR_ID,
+		attestor:   mockAttestor,
+		avsManager: avsManager,
+	}
+
+	return operator, avsManager, mockAttestor.MockGetConsumer(), nil
 }

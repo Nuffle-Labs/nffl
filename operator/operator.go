@@ -50,7 +50,6 @@ type Operator struct {
 	metricsReg   *prometheus.Registry
 	metrics      metrics.Metrics
 	nodeApi      *nodeapi.NodeApi
-	avsManager   *AvsManager
 	blsKeypair   *bls.KeyPair
 	operatorId   bls.OperatorId
 	operatorAddr common.Address
@@ -63,6 +62,8 @@ type Operator struct {
 	sfflServiceManagerAddr common.Address
 	// NEAR DA indexer consumer
 	attestor attestor.Attestorer
+	// Avs Manager
+	avsManager *AvsManager
 }
 
 func createEthClients(config *types.NodeConfig, registry *prometheus.Registry, logger sdklogging.Logger) (eth.EthClient, eth.EthClient, error) {
@@ -221,7 +222,7 @@ func NewOperatorFromConfig(c types.NodeConfig) (*Operator, error) {
 			return nil, err
 		}
 
-		operator.avsManager.registerOperatorOnStartup(ethRpcClient, operatorEcdsaPrivateKey, common.HexToAddress(c.TokenStrategyAddr), blsKeyPair)
+		operator.registerOperatorOnStartup(operatorEcdsaPrivateKey, common.HexToAddress(c.TokenStrategyAddr))
 	}
 
 	// OperatorId is set in contract during registration so we get it after registering operator.
@@ -249,7 +250,7 @@ func NewOperatorFromConfig(c types.NodeConfig) (*Operator, error) {
 }
 
 func (o *Operator) Start(ctx context.Context) error {
-	if err := o.avsManager.Start(ctx); err != nil {
+	if err := o.avsManager.Start(ctx, o.operatorAddr); err != nil {
 		return err
 	}
 
@@ -362,11 +363,11 @@ func (o *Operator) RegisterOperatorWithAvs(
 }
 
 func (o *Operator) DepositIntoStrategy(strategyAddr common.Address, amount *big.Int) error {
-	return o.avsManager.DepositIntoStrategy(strategyAddr, amount)
+	return o.avsManager.DepositIntoStrategy(o.operatorAddr, strategyAddr, amount)
 }
 
 func (o *Operator) RegisterOperatorWithEigenlayer() error {
-	return o.avsManager.RegisterOperatorWithEigenlayer()
+	return o.avsManager.RegisterOperatorWithEigenlayer(o.operatorAddr)
 }
 
 type OperatorStatus struct {
@@ -404,4 +405,31 @@ func (o *Operator) PrintOperatorStatus() error {
 
 	fmt.Println(string(operatorStatusJson))
 	return nil
+}
+
+func (o *Operator) registerOperatorOnStartup(
+	operatorEcdsaPrivateKey *ecdsa.PrivateKey,
+	mockTokenStrategyAddr common.Address,
+) {
+	err := o.RegisterOperatorWithEigenlayer()
+	if err != nil {
+		// This error might only be that the operator was already registered with eigenlayer, so we don't want to fatal
+		o.logger.Error("Error registering operator with eigenlayer", "err", err)
+	} else {
+		o.logger.Infof("Registered operator with eigenlayer")
+	}
+
+	// TODO(samlaf): shouldn't hardcode number here
+	amount := big.NewInt(1000)
+	err = o.DepositIntoStrategy(mockTokenStrategyAddr, amount)
+	if err != nil {
+		o.logger.Fatal("Error depositing into strategy", "err", err)
+	}
+	o.logger.Infof("Deposited %s into strategy %s", amount, mockTokenStrategyAddr)
+
+	err = o.avsManager.RegisterOperatorWithAvs(o.ethClient, operatorEcdsaPrivateKey, o.blsKeypair)
+	if err != nil {
+		o.logger.Fatal("Error registering operator with avs", "err", err)
+	}
+	o.logger.Infof("Registered operator with avs")
 }

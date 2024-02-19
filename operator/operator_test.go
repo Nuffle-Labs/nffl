@@ -28,7 +28,7 @@ import (
 )
 
 func TestOperator(t *testing.T) {
-	operator, mockConsumer, err := createMockOperator()
+	operator, avsManager, mockConsumer, err := createMockOperator()
 	assert.Nil(t, err)
 	const taskIndex = 1
 
@@ -47,8 +47,8 @@ func TestOperator(t *testing.T) {
 			},
 			Raw: types.Log{},
 		}
-		got := operator.avsManager.ProcessCheckpointTaskCreatedLog(newTaskCreatedLog)
-		want := &taskmanager.CheckpointTaskResponse{
+		got := avsManager.ProcessCheckpointTaskCreatedLog(newTaskCreatedLog)
+		want := taskmanager.CheckpointTaskResponse{
 			ReferenceTaskIndex:     taskIndex,
 			StateRootUpdatesRoot:   [32]byte{0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0},
 			OperatorSetUpdatesRoot: [32]byte{0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0},
@@ -138,23 +138,23 @@ func TestOperator(t *testing.T) {
 		operator.aggregatorRpcClient = mockAggregatorRpcClient
 
 		mockSubscriber := chainiomocks.NewMockAvsSubscriberer(mockCtrl)
-		mockSubscriber.EXPECT().SubscribeToNewTasks(operator.checkpointTaskCreatedChan).Return(event.NewSubscription(func(quit <-chan struct{}) error {
-			// loop forever
-			<-quit
-			return nil
-		}), nil)
-		mockSubscriber.EXPECT().SubscribeToOperatorSetUpdates(operator.operatorSetUpdateChan).Return(event.NewSubscription(func(quit <-chan struct{}) error {
+		mockSubscriber.EXPECT().SubscribeToNewTasks(avsManager.checkpointTaskCreatedChan).Return(event.NewSubscription(func(quit <-chan struct{}) error {
 			// loop forever
 			<-quit
 			return nil
 		}))
-		operator.avsManager.avsSubscriber = mockSubscriber
+		mockSubscriber.EXPECT().SubscribeToOperatorSetUpdates(avsManager.operatorSetUpdateChan).Return(event.NewSubscription(func(quit <-chan struct{}) error {
+			// loop forever
+			<-quit
+			return nil
+		}))
+		avsManager.avsSubscriber = mockSubscriber
 
 		mockReader := chainiomocks.NewMockAvsReaderer(mockCtrl)
 		mockReader.EXPECT().IsOperatorRegistered(gomock.Any(), operator.operatorAddr).Return(true, nil)
 		mockReader.EXPECT().GetOperatorSetUpdateDelta(gomock.Any(), operatorSetUpdate.Id).Return(make([]opsetupdatereg.OperatorsOperator, 0), nil)
 
-		operator.avsManager.avsReader = mockReader
+		avsManager.avsReader = mockReader
 
 		ctx, cancel := context.WithCancel(context.Background())
 		defer cancel()
@@ -164,8 +164,8 @@ func TestOperator(t *testing.T) {
 			assert.Nil(t, err)
 		}()
 
-		operator.checkpointTaskCreatedChan <- newTaskCreatedEvent
-		operator.operatorSetUpdateChan <- operatorSetUpdate
+		avsManager.checkpointTaskCreatedChan <- newTaskCreatedEvent
+		avsManager.operatorSetUpdateChan <- operatorSetUpdate
 		mockConsumer.MockReceiveBlockData(consumer.BlockData{
 			RollupId: signedStateRootUpdateMessage.Message.RollupId,
 			Block:    *block,

@@ -23,20 +23,35 @@ import (
 	"github.com/NethermindEth/near-sffl/types"
 )
 
+type AvsManagerer interface {
+	Start(ctx context.Context, operatorAddr common.Address) error
+	DepositIntoStrategy(operatorAddr common.Address, strategyAddr common.Address, amount *big.Int) error
+	RegisterOperatorWithEigenlayer(operatorAddr common.Address) error
+	RegisterOperatorWithAvs(
+		client eth.EthClient,
+		operatorEcdsaKeyPair *ecdsa.PrivateKey,
+		blsKeyPair *bls.KeyPair,
+	) error
+	ProcessCheckpointTaskCreatedLog(checkpointTaskCreatedLog *taskmanager.ContractSFFLTaskManagerCheckpointTaskCreated) taskmanager.CheckpointTaskResponse
+
+	GetOperatorId(options *bind.CallOpts, address common.Address) ([32]byte, error)
+	GetCheckpointTaskResponseChan() <-chan taskmanager.CheckpointTaskResponse
+	GetOperatorSetUpdateChan() <-chan registryrollup.OperatorSetUpdateMessage
+}
+
 type AvsManager struct {
 	avsWriter        *chainio.AvsWriter
 	avsReader        chainio.AvsReaderer
 	avsSubscriber    chainio.AvsSubscriberer
 	eigenlayerReader elcontracts.ELReader
 	eigenlayerWriter elcontracts.ELWriter
-	operatorAddr     common.Address
 
 	// receive new tasks in this chan (typically from listening to onchain event)
 	checkpointTaskCreatedChan chan *taskmanager.ContractSFFLTaskManagerCheckpointTaskCreated
 	// receive operator set updates in this chan
 	operatorSetUpdateChan chan *opsetupdatereg.ContractSFFLOperatorSetUpdateRegistryOperatorSetUpdatedAtBlock
 
-	// Prepare message for operator to sign
+	// Sends message for operator to sign
 	checkpointTaskResponseCreatedChan chan taskmanager.CheckpointTaskResponse
 	operatorSetUpdateMessageChan      chan registryrollup.OperatorSetUpdateMessage
 
@@ -74,7 +89,6 @@ func NewAvsManager(config *types.NodeConfig, ethRpcClient eth.EthClient, ethWsCl
 		avsReader:                         avsReader,
 		avsWriter:                         avsWriter,
 		avsSubscriber:                     avsSubscriber,
-		operatorAddr:                      common.HexToAddress(config.OperatorAddress),
 		eigenlayerReader:                  sdkClients.ElChainReader,
 		eigenlayerWriter:                  sdkClients.ElChainWriter,
 		checkpointTaskCreatedChan:         make(chan *taskmanager.ContractSFFLTaskManagerCheckpointTaskCreated),
@@ -93,8 +107,8 @@ func (avsManager *AvsManager) GetOperatorSetUpdateChan() <-chan registryrollup.O
 	return avsManager.operatorSetUpdateMessageChan
 }
 
-func (avsManager *AvsManager) Start(ctx context.Context) error {
-	operatorIsRegistered, err := avsManager.IsOperatorRegistered(&bind.CallOpts{}, avsManager.operatorAddr)
+func (avsManager *AvsManager) Start(ctx context.Context, operatorAddr common.Address) error {
+	operatorIsRegistered, err := avsManager.IsOperatorRegistered(&bind.CallOpts{}, operatorAddr)
 	if err != nil {
 		avsManager.logger.Error("Error checking if operator is registered", "err", err)
 		return err
@@ -133,6 +147,7 @@ func (avsManager *AvsManager) Start(ctx context.Context) error {
 				continue
 
 			case checkpointTaskCreatedLog := <-avsManager.checkpointTaskCreatedChan:
+				// TODO
 				//avsManager.metrics.IncNumTasksReceived()
 				taskResponse := avsManager.ProcessCheckpointTaskCreatedLog(checkpointTaskCreatedLog)
 				avsManager.checkpointTaskResponseCreatedChan <- taskResponse
@@ -204,7 +219,7 @@ func (avsManager *AvsManager) handleOperatorSetUpdate(ctx context.Context, data 
 	return nil
 }
 
-func (avsManager *AvsManager) DepositIntoStrategy(strategyAddr common.Address, amount *big.Int) error {
+func (avsManager *AvsManager) DepositIntoStrategy(operatorAddr common.Address, strategyAddr common.Address, amount *big.Int) error {
 	_, tokenAddr, err := avsManager.eigenlayerReader.GetStrategyAndUnderlyingToken(&bind.CallOpts{}, strategyAddr)
 	if err != nil {
 		avsManager.logger.Error("Failed to fetch strategy contract", "err", err)
@@ -216,7 +231,7 @@ func (avsManager *AvsManager) DepositIntoStrategy(strategyAddr common.Address, a
 		return err
 	}
 	txOpts, err := avsManager.avsWriter.TxMgr.GetNoSendTxOpts()
-	tx, err := contractErc20Mock.Mint(txOpts, avsManager.operatorAddr, amount)
+	tx, err := contractErc20Mock.Mint(txOpts, operatorAddr, amount)
 	if err != nil {
 		avsManager.logger.Errorf("Error assembling Mint tx")
 		return err
@@ -235,50 +250,21 @@ func (avsManager *AvsManager) DepositIntoStrategy(strategyAddr common.Address, a
 	return nil
 }
 
-func (avsManager *AvsManager) RegisterOperatorWithEigenlayer() error {
-	// TODO: could pass as param
-	op := eigenSdkTypes.Operator{
-		Address:                 avsManager.operatorAddr.String(),
-		EarningsReceiverAddress: avsManager.operatorAddr.String(),
+func (avsManager *AvsManager) RegisterOperatorWithEigenlayer(operatorAddr common.Address) error {
+	operator := eigenSdkTypes.Operator{
+		Address:                 operatorAddr.String(),
+		EarningsReceiverAddress: operatorAddr.String(),
 	}
-	_, err := avsManager.eigenlayerWriter.RegisterAsOperator(context.Background(), op)
+	_, err := avsManager.eigenlayerWriter.RegisterAsOperator(context.Background(), operator)
 	if err != nil {
 		avsManager.logger.Errorf("Error registering operator with eigenlayer")
 		return err
 	}
+
 	return nil
 }
 
-func (avsManager *AvsManager) registerOperatorOnStartup(
-	client eth.EthClient,
-	operatorEcdsaPrivateKey *ecdsa.PrivateKey,
-	mockTokenStrategyAddr common.Address,
-	blsKeyPair *bls.KeyPair,
-) {
-	err := avsManager.RegisterOperatorWithEigenlayer()
-	if err != nil {
-		// This error might only be that the operator was already registered with eigenlayer, so we don't want to fatal
-		avsManager.logger.Error("Error registering operator with eigenlayer", "err", err)
-	} else {
-		avsManager.logger.Infof("Registered operator with eigenlayer")
-	}
-
-	// TODO(samlaf): shouldn't hardcode number here
-	amount := big.NewInt(1000)
-	err = avsManager.DepositIntoStrategy(mockTokenStrategyAddr, amount)
-	if err != nil {
-		avsManager.logger.Fatal("Error depositing into strategy", "err", err)
-	}
-	avsManager.logger.Infof("Deposited %s into strategy %s", amount, mockTokenStrategyAddr)
-
-	err = avsManager.RegisterOperatorWithAvs(client, operatorEcdsaPrivateKey, blsKeyPair)
-	if err != nil {
-		avsManager.logger.Fatal("Error registering operator with avs", "err", err)
-	}
-	avsManager.logger.Infof("Registered operator with avs")
-}
-
-// Registration specific functions
+// RegisterOperatorWithAvs Registration specific functions
 func (avsManager *AvsManager) RegisterOperatorWithAvs(
 	client eth.EthClient,
 	operatorEcdsaKeyPair *ecdsa.PrivateKey,
