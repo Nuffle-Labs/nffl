@@ -511,9 +511,6 @@ func startIndexer(t *testing.T, ctx context.Context, rollupAnvils []*AnvilInstan
 
 	time.Sleep(5 * time.Second)
 
-	copyFileFromContainer(ctx, indexerContainer, filepath.Join(containerNearCfgPath, "config.json"), filepath.Join(hostNearCfgPath, "config.json"), 0770)
-	copyFileFromContainer(ctx, indexerContainer, filepath.Join(containerNearCfgPath, "genesis.json"), filepath.Join(hostNearCfgPath, "genesis.json"), 0770)
-	copyFileFromContainer(ctx, indexerContainer, filepath.Join(containerNearCfgPath, "node_key.json"), filepath.Join(hostNearCfgPath, "node_key.json"), 0770)
 	copyFileFromContainer(ctx, indexerContainer, filepath.Join(containerNearCfgPath, "validator_key.json"), hostNearKeyPath, 0770)
 
 	for _, rollupAnvil := range rollupAnvils {
