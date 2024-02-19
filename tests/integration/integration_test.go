@@ -19,6 +19,8 @@ import (
 
 	"github.com/Layr-Labs/eigensdk-go/chainio/clients/eth"
 	"github.com/Layr-Labs/eigensdk-go/chainio/txmgr"
+	"github.com/Layr-Labs/eigensdk-go/crypto/bls"
+	sdkEcdsa "github.com/Layr-Labs/eigensdk-go/crypto/ecdsa"
 	sdklogging "github.com/Layr-Labs/eigensdk-go/logging"
 	"github.com/Layr-Labs/eigensdk-go/signerv2"
 	sdkutils "github.com/Layr-Labs/eigensdk-go/utils"
@@ -108,7 +110,7 @@ func setupTestEnv(t *testing.T) *TestEnv {
 	sfflDeploymentRaw := readSfflDeploymentRaw()
 
 	ctx, cancel := context.WithTimeout(context.Background(), 120*time.Second)
-	nodeConfig := buildOperatorConfig(t, ctx, mainnetAnvil, rollupAnvils, rabbitMq)
+	nodeConfig := genOperatorConfig(t, ctx, mainnetAnvil, rollupAnvils, rabbitMq)
 	config := buildConfig(t, sfflDeploymentRaw, mainnetAnvil)
 
 	operator := startOperator(t, ctx, nodeConfig)
@@ -212,7 +214,7 @@ func readSfflDeploymentRaw() config.SFFLDeploymentRaw {
 	return sfflDeploymentRaw
 }
 
-func buildOperatorConfig(t *testing.T, ctx context.Context, mainnetAnvil *AnvilInstance, rollupAnvils []*AnvilInstance, rabbitMq *rabbitmq.RabbitMQContainer) types.NodeConfig {
+func genOperatorConfig(t *testing.T, ctx context.Context, mainnetAnvil *AnvilInstance, rollupAnvils []*AnvilInstance, rabbitMq *rabbitmq.RabbitMQContainer) types.NodeConfig {
 	nodeConfig := types.NodeConfig{}
 	nodeConfigFilePath := "../../config-files/operator.anvil.yaml"
 	err := sdkutils.ReadYamlConfig(nodeConfigFilePath, &nodeConfig)
@@ -221,10 +223,44 @@ func buildOperatorConfig(t *testing.T, ctx context.Context, mainnetAnvil *AnvilI
 	}
 
 	log.Println("starting operator for integration tests")
+
 	os.Setenv("OPERATOR_BLS_KEY_PASSWORD", "")
 	os.Setenv("OPERATOR_ECDSA_KEY_PASSWORD", "")
-	nodeConfig.BlsPrivateKeyStorePath = "../keys/test.bls.key.json"
-	nodeConfig.EcdsaPrivateKeyStorePath = "../keys/test.ecdsa.key.json"
+
+	keysPath, err := os.MkdirTemp("", "sffl_test_operator")
+	if err != nil {
+		t.Fatalf("Failed to create keys dir: %s", err.Error())
+	}
+
+	nodeConfig.BlsPrivateKeyStorePath, err = filepath.Abs(filepath.Join(keysPath, "test.bls.key.json"))
+	if err != nil {
+		t.Fatalf("Failed to get BLS key dir: %s", err.Error())
+	}
+	keyPair, err := bls.GenRandomBlsKeys()
+	if err != nil {
+		t.Fatalf("Failed to generate operator BLS keys: %s", err.Error())
+	}
+	err = keyPair.SaveToFile(nodeConfig.BlsPrivateKeyStorePath, "")
+	if err != nil {
+		t.Fatalf("Failed to save operator BLS keys: %s", err.Error())
+	}
+
+	nodeConfig.EcdsaPrivateKeyStorePath, err = filepath.Abs(filepath.Join(keysPath, "test.ecdsa.key.json"))
+	if err != nil {
+		t.Fatalf("Failed to get ECDSA key dir: %s", err.Error())
+	}
+	ecdsaKey, err := crypto.GenerateKey()
+	if err != nil {
+		t.Fatalf("Failed to save generate operator ECDSA key: %s", err.Error())
+	}
+	sdkEcdsa.WriteKey(nodeConfig.EcdsaPrivateKeyStorePath, ecdsaKey, "")
+	if err != nil {
+		t.Fatalf("Failed to save operator ECDSA keys: %s", err.Error())
+	}
+
+	address := crypto.PubkeyToAddress(ecdsaKey.PublicKey)
+
+	nodeConfig.OperatorAddress = address.String()
 	nodeConfig.RegisterOperatorOnStartup = true
 	nodeConfig.EthRpcUrl = mainnetAnvil.HttpUrl
 	nodeConfig.EthWsUrl = mainnetAnvil.WsUrl
@@ -235,12 +271,12 @@ func buildOperatorConfig(t *testing.T, ctx context.Context, mainnetAnvil *AnvilI
 		nodeConfig.NearDaIndexerRollupIds = append(nodeConfig.NearDaIndexerRollupIds, uint32(rollupAnvil.ChainID.Uint64()))
 	}
 
-	amqpUrl, err := rabbitMq.AmqpURL(ctx)
+	nodeConfig.NearDaIndexerRmqIpPortAddress, err = rabbitMq.AmqpURL(ctx)
 	if err != nil {
 		t.Fatalf("Error getting AMQP URL: %s", err.Error())
 	}
 
-	nodeConfig.NearDaIndexerRmqIpPortAddress = amqpUrl
+	mainnetAnvil.setBalance(address, big.NewInt(1e18))
 
 	return nodeConfig
 }
@@ -691,4 +727,8 @@ func copyFileFromContainer(ctx context.Context, container testcontainers.Contain
 	}
 
 	return nil
+}
+
+func (ai *AnvilInstance) setBalance(address common.Address, balance *big.Int) error {
+	return ai.WsClient.Client.Client().Call(nil, "anvil_setBalance", address.Hex(), "0x"+balance.Text(16))
 }
