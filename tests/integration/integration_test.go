@@ -501,7 +501,7 @@ func startIndexer(t *testing.T, ctx context.Context, rollupAnvils []*AnvilInstan
 		WaitingFor: wait.ForLog("Starting Streamer..."),
 	}
 
-	indexerC, err := testcontainers.GenericContainer(ctx, testcontainers.GenericContainerRequest{
+	indexerContainer, err := testcontainers.GenericContainer(ctx, testcontainers.GenericContainerRequest{
 		ContainerRequest: req,
 		Started:          true,
 	})
@@ -514,10 +514,10 @@ func startIndexer(t *testing.T, ctx context.Context, rollupAnvils []*AnvilInstan
 
 	time.Sleep(5 * time.Second)
 
-	copyFileFromContainer(ctx, indexerC, containerPrefix+"config.json", hostPrefix+"config.json")
-	copyFileFromContainer(ctx, indexerC, containerPrefix+"genesis.json", hostPrefix+"genesis.json")
-	copyFileFromContainer(ctx, indexerC, containerPrefix+"node_key.json", hostPrefix+"node_key.json")
-	copyFileFromContainer(ctx, indexerC, containerPrefix+"validator_key.json", hostPrefix+"validator_key.json")
+	copyFileFromContainer(ctx, indexerContainer, containerPrefix+"config.json", hostPrefix+"config.json")
+	copyFileFromContainer(ctx, indexerContainer, containerPrefix+"genesis.json", hostPrefix+"genesis.json")
+	copyFileFromContainer(ctx, indexerContainer, containerPrefix+"node_key.json", hostPrefix+"node_key.json")
+	copyFileFromContainer(ctx, indexerContainer, containerPrefix+"validator_key.json", hostPrefix+"validator_key.json")
 
 	keyPath := getNearKeyPath()
 
@@ -543,7 +543,7 @@ func startIndexer(t *testing.T, ctx context.Context, rollupAnvils []*AnvilInstan
 		}
 	}
 
-	return indexerC
+	return indexerContainer
 }
 
 func getDaContractAccountId(anvil *AnvilInstance) string {
