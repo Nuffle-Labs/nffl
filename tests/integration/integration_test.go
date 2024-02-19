@@ -42,32 +42,6 @@ import (
 	"github.com/NethermindEth/near-sffl/types"
 )
 
-func copyFileFromContainer(ctx context.Context, container testcontainers.Container, sourcePath, destinationPath string, destinationPermissions fs.FileMode) error {
-	reader, err := container.CopyFileFromContainer(ctx, sourcePath)
-	if err != nil {
-		return err
-	}
-	defer reader.Close()
-
-	err = os.MkdirAll(filepath.Dir(destinationPath), destinationPermissions)
-	if err != nil {
-		return err
-	}
-
-	file, err := os.Create(destinationPath)
-	if err != nil {
-		return err
-	}
-	defer file.Close()
-
-	_, err = io.Copy(file, reader)
-	if err != nil {
-		return err
-	}
-
-	return nil
-}
-
 func TestIntegration(t *testing.T) {
 	t.Log("This test takes ~100 seconds to run...")
 
@@ -663,4 +637,30 @@ func formatBlsAggregationRollup(t *testing.T, ctx context.Context, agg *aggtypes
 		ApkG2:            apkG2,
 		Sigma:            sigma,
 	}
+}
+
+func copyFileFromContainer(ctx context.Context, container testcontainers.Container, sourcePath, destinationPath string, destinationPermissions fs.FileMode) error {
+	reader, err := container.CopyFileFromContainer(ctx, sourcePath)
+	if err != nil {
+		return err
+	}
+	defer reader.Close()
+
+	err = os.MkdirAll(filepath.Dir(destinationPath), destinationPermissions)
+	if err != nil {
+		return err
+	}
+
+	file, err := os.Create(destinationPath)
+	if err != nil {
+		return err
+	}
+	defer file.Close()
+
+	_, err = io.Copy(file, reader)
+	if err != nil {
+		return err
+	}
+
+	return nil
 }
