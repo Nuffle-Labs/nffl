@@ -270,6 +270,10 @@ func genOperatorConfig(t *testing.T, ctx context.Context, mainnetAnvil *AnvilIns
 		nodeConfig.RollupIdsToRpcUrls[uint32(rollupAnvil.ChainID.Uint64())] = rollupAnvil.WsUrl
 		nodeConfig.NearDaIndexerRollupIds = append(nodeConfig.NearDaIndexerRollupIds, uint32(rollupAnvil.ChainID.Uint64()))
 	}
+	nodeConfig.EnableNodeApi = false
+	nodeConfig.NodeApiIpPortAddress = "0.0.0.0:0"
+	nodeConfig.EnableMetrics = false
+	nodeConfig.EigenMetricsIpPortAddress = "0.0.0.0:0"
 
 	nodeConfig.NearDaIndexerRmqIpPortAddress, err = rabbitMq.AmqpURL(ctx)
 	if err != nil {
