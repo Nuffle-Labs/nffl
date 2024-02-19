@@ -7,6 +7,7 @@ import (
 	"encoding/json"
 	"fmt"
 	"io"
+	"io/fs"
 	"log"
 	"math/big"
 	"net/http"
@@ -41,14 +42,14 @@ import (
 	"github.com/NethermindEth/near-sffl/types"
 )
 
-func copyFileFromContainer(ctx context.Context, container testcontainers.Container, sourcePath, destinationPath string) error {
+func copyFileFromContainer(ctx context.Context, container testcontainers.Container, sourcePath, destinationPath string, destinationPermissions fs.FileMode) error {
 	reader, err := container.CopyFileFromContainer(ctx, sourcePath)
 	if err != nil {
 		return err
 	}
 	defer reader.Close()
 
-	err = os.MkdirAll(filepath.Dir(destinationPath), 0770)
+	err = os.MkdirAll(filepath.Dir(destinationPath), destinationPermissions)
 	if err != nil {
 		return err
 	}
@@ -474,11 +475,6 @@ func startIndexer(t *testing.T, ctx context.Context, rollupAnvils []*AnvilInstan
 		panic(err)
 	}
 
-	home, err := os.UserHomeDir()
-	if err != nil {
-		panic(err)
-	}
-
 	amqpUrl, err := rabbitMq.AmqpURL(ctx)
 	if err != nil {
 		t.Fatalf("Error getting RabbitMQ container URL: %s", err.Error())
@@ -509,24 +505,23 @@ func startIndexer(t *testing.T, ctx context.Context, rollupAnvils []*AnvilInstan
 		t.Fatalf("Error starting indexer container: %s", err.Error())
 	}
 
-	hostPrefix := home + "/.near/localnet/"
-	containerPrefix := "/root/.near/"
+	hostNearCfgPath := getNearConfigPath()
+	hostNearKeyPath := filepath.Join(hostNearCfgPath, "validator_key.json")
+	containerNearCfgPath := "/root/.near"
 
 	time.Sleep(5 * time.Second)
 
-	copyFileFromContainer(ctx, indexerContainer, containerPrefix+"config.json", hostPrefix+"config.json")
-	copyFileFromContainer(ctx, indexerContainer, containerPrefix+"genesis.json", hostPrefix+"genesis.json")
-	copyFileFromContainer(ctx, indexerContainer, containerPrefix+"node_key.json", hostPrefix+"node_key.json")
-	copyFileFromContainer(ctx, indexerContainer, containerPrefix+"validator_key.json", hostPrefix+"validator_key.json")
-
-	keyPath := getNearKeyPath()
+	copyFileFromContainer(ctx, indexerContainer, filepath.Join(containerNearCfgPath, "config.json"), filepath.Join(hostNearCfgPath, "config.json"), 0770)
+	copyFileFromContainer(ctx, indexerContainer, filepath.Join(containerNearCfgPath, "genesis.json"), filepath.Join(hostNearCfgPath, "genesis.json"), 0770)
+	copyFileFromContainer(ctx, indexerContainer, filepath.Join(containerNearCfgPath, "node_key.json"), filepath.Join(hostNearCfgPath, "node_key.json"), 0770)
+	copyFileFromContainer(ctx, indexerContainer, filepath.Join(containerNearCfgPath, "validator_key.json"), hostNearKeyPath, 0770)
 
 	for _, rollupAnvil := range rollupAnvils {
 		accountId := getDaContractAccountId(rollupAnvil)
 
 		err = execCommand(t, "near",
 			[]string{"create-account", accountId, "--masterAccount", "test.near"},
-			append(os.Environ(), "NEAR_ENV=localnet", "NEAR_HELPER_ACCOUNT=near", "NEAR_CLI_LOCALNET_KEY_PATH="+keyPath),
+			append(os.Environ(), "NEAR_ENV=localnet", "NEAR_HELPER_ACCOUNT=near", "NEAR_CLI_LOCALNET_KEY_PATH="+hostNearKeyPath),
 			true,
 		)
 		if err != nil {
@@ -535,7 +530,7 @@ func startIndexer(t *testing.T, ctx context.Context, rollupAnvils []*AnvilInstan
 
 		err = execCommand(t, "near",
 			[]string{"deploy", accountId, filepath.Join(integrationDir, "../near/near_da_blob_store.wasm"), "--initFunction", "new", "--initArgs", "{}", "--masterAccount", "test.near"},
-			append(os.Environ(), "NEAR_ENV=localnet", "NEAR_HELPER_ACCOUNT=near", "NEAR_CLI_LOCALNET_KEY_PATH="+keyPath),
+			append(os.Environ(), "NEAR_ENV=localnet", "NEAR_HELPER_ACCOUNT=near", "NEAR_CLI_LOCALNET_KEY_PATH="+hostNearKeyPath),
 			true,
 		)
 		if err != nil {
@@ -550,12 +545,8 @@ func getDaContractAccountId(anvil *AnvilInstance) string {
 	return fmt.Sprintf("da%s.test.near", anvil.ChainID.String())
 }
 
-func getNearKeyPath() string {
-	home, err := os.UserHomeDir()
-	if err != nil {
-		panic(err)
-	}
-	return home + "/.near/localnet/validator_key.json"
+func getNearConfigPath() string {
+	return "/tmp/sffl_test_localnet"
 }
 
 func submitBlock(t *testing.T, accountId string, block *ethtypes.Block) error {
@@ -568,7 +559,7 @@ func submitBlock(t *testing.T, accountId string, block *ethtypes.Block) error {
 
 	err = execCommand(t, "near",
 		[]string{"call", accountId, "submit", "--base64", base64.StdEncoding.EncodeToString(encodedBlock), "--accountId", accountId},
-		append(os.Environ(), "NEAR_ENV=localnet", "NEAR_HELPER_ACCOUNT=near", "NEAR_CLI_LOCALNET_KEY_PATH="+getNearKeyPath()),
+		append(os.Environ(), "NEAR_ENV=localnet", "NEAR_HELPER_ACCOUNT=near", "NEAR_CLI_LOCALNET_KEY_PATH="+filepath.Join(getNearConfigPath(), "validator_key.json")),
 		false,
 	)
 	if err != nil {
