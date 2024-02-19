@@ -612,7 +612,7 @@ func getOperatorSetUpdateAggregation(addr string, id uint64) (*aggregator.GetOpe
 	return &response, err
 }
 
-func formatBlsAggregationRollup(t *testing.T, ctx context.Context, agg *aggtypes.MessageBlsAggregationServiceResponse) registryrollup.OperatorsSignatureInfo {
+func formatBlsAggregationRollup(t *testing.T, agg *aggtypes.MessageBlsAggregationServiceResponse) registryrollup.OperatorsSignatureInfo {
 	var nonSignerPubkeys []registryrollup.BN254G1Point
 
 	for _, pubkey := range agg.NonSignersPubkeysG1 {
