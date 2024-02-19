@@ -42,6 +42,8 @@ import (
 	"github.com/NethermindEth/near-sffl/types"
 )
 
+const NEAR_CONFIG_PATH = "/tmp/sffl_test_localnet"
+
 func TestIntegration(t *testing.T) {
 	setup := setupTestEnv(t)
 
@@ -509,7 +511,7 @@ func startIndexer(t *testing.T, ctx context.Context, rollupAnvils []*AnvilInstan
 		t.Fatalf("Error starting indexer container: %s", err.Error())
 	}
 
-	hostNearCfgPath := getNearConfigPath()
+	hostNearCfgPath := NEAR_CONFIG_PATH
 	hostNearKeyPath := filepath.Join(hostNearCfgPath, "validator_key.json")
 	containerNearCfgPath := "/root/.near"
 
@@ -546,10 +548,6 @@ func getDaContractAccountId(anvil *AnvilInstance) string {
 	return fmt.Sprintf("da%s.test.near", anvil.ChainID.String())
 }
 
-func getNearConfigPath() string {
-	return "/tmp/sffl_test_localnet"
-}
-
 func submitBlock(t *testing.T, accountId string, block *ethtypes.Block) error {
 	t.Log("Submitting block to NEAR DA")
 
@@ -560,7 +558,7 @@ func submitBlock(t *testing.T, accountId string, block *ethtypes.Block) error {
 
 	err = execCommand(t, "near",
 		[]string{"call", accountId, "submit", "--base64", base64.StdEncoding.EncodeToString(encodedBlock), "--accountId", accountId},
-		append(os.Environ(), "NEAR_ENV=localnet", "NEAR_HELPER_ACCOUNT=near", "NEAR_CLI_LOCALNET_KEY_PATH="+filepath.Join(getNearConfigPath(), "validator_key.json")),
+		append(os.Environ(), "NEAR_ENV=localnet", "NEAR_HELPER_ACCOUNT=near", "NEAR_CLI_LOCALNET_KEY_PATH="+filepath.Join(NEAR_CONFIG_PATH, "validator_key.json")),
 		false,
 	)
 	if err != nil {
