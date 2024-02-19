@@ -51,6 +51,13 @@ func TestIntegration(t *testing.T) {
 
 	time.Sleep(10 * time.Second)
 
+	ctx, cancel := context.WithCancel(context.Background())
+	t.Cleanup(func() {
+		cancel()
+	})
+
+	newOperator := startOperator(t, ctx, genOperatorConfig(t, ctx, setup.mainnetAnvil, setup.rollupAnvils, setup.rabbitMq))
+
 	taskHash, err := setup.avsReader.AvsServiceBindings.TaskManager.AllCheckpointTaskHashes(&bind.CallOpts{}, 1)
 	if err != nil {
 		t.Fatalf("Cannot get task hash: %s", err.Error())
