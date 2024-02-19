@@ -105,7 +105,13 @@ func (agg *Aggregator) ProcessSignedOperatorSetUpdateMessage(signedOperatorSetUp
 		return TaskResponseDigestNotFoundError500
 	}
 
-	agg.operatorSetUpdateBlsAggregationService.InitializeMessageIfNotExists(messageDigest, coretypes.QUORUM_NUMBERS, []uint32{types.QUORUM_THRESHOLD_NUMERATOR}, types.MESSAGE_TTL, 0)
+	blockNumber, err := agg.avsReader.GetOperatorSetUpdateBlock(context.Background(), signedOperatorSetUpdateMessage.Message.Id)
+	if err != nil {
+		agg.logger.Error("Failed to get operator set update block", "err", err)
+		return OperatorSetUpdateBlockNotFoundError500
+	}
+
+	agg.operatorSetUpdateBlsAggregationService.InitializeMessageIfNotExists(messageDigest, coretypes.QUORUM_NUMBERS, []uint32{types.QUORUM_THRESHOLD_NUMERATOR}, types.MESSAGE_TTL, uint64(blockNumber)-1)
 
 	err = agg.operatorSetUpdateBlsAggregationService.ProcessNewSignature(
 		context.Background(), messageDigest,

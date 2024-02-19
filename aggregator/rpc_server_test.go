@@ -29,7 +29,7 @@ func TestProcessSignedCheckpointTaskResponse(t *testing.T) {
 	var FROM_NEAR_BLOCK = uint64(3)
 	var TO_NEAR_BLOCK = uint64(4)
 
-	aggregator, _, mockBlsAggServ, _, _, _, err := createMockAggregator(mockCtrl, MOCK_OPERATOR_PUBKEY_DICT)
+	aggregator, _, _, mockBlsAggServ, _, _, _, err := createMockAggregator(mockCtrl, MOCK_OPERATOR_PUBKEY_DICT)
 	assert.Nil(t, err)
 
 	signedCheckpointTaskResponse, err := createMockSignedCheckpointTaskResponse(MockTask{
@@ -55,7 +55,7 @@ func TestProcessSignedStateRootUpdateMessage(t *testing.T) {
 	mockCtrl := gomock.NewController(t)
 	defer mockCtrl.Finish()
 
-	aggregator, _, _, mockMessageBlsAggServ, _, _, err := createMockAggregator(mockCtrl, MOCK_OPERATOR_PUBKEY_DICT)
+	aggregator, _, _, _, mockMessageBlsAggServ, _, _, err := createMockAggregator(mockCtrl, MOCK_OPERATOR_PUBKEY_DICT)
 	assert.Nil(t, err)
 
 	message := servicemanager.StateRootUpdateMessage{
@@ -72,7 +72,7 @@ func TestProcessSignedStateRootUpdateMessage(t *testing.T) {
 
 	mockMessageBlsAggServ.EXPECT().ProcessNewSignature(context.Background(), messageDigest,
 		&signedMessage.BlsSignature, signedMessage.OperatorId)
-	mockMessageBlsAggServ.EXPECT().InitializeMessageIfNotExists(messageDigest, coretypes.QUORUM_NUMBERS, []uint32{types.QUORUM_THRESHOLD_NUMERATOR}, types.MESSAGE_TTL, 0)
+	mockMessageBlsAggServ.EXPECT().InitializeMessageIfNotExists(messageDigest, coretypes.QUORUM_NUMBERS, []uint32{types.QUORUM_THRESHOLD_NUMERATOR}, types.MESSAGE_TTL, uint64(0))
 	err = aggregator.ProcessSignedStateRootUpdateMessage(signedMessage, nil)
 	assert.Nil(t, err)
 }
@@ -81,7 +81,7 @@ func TestProcessOperatorSetUpdateMessage(t *testing.T) {
 	mockCtrl := gomock.NewController(t)
 	defer mockCtrl.Finish()
 
-	aggregator, _, _, _, mockMessageBlsAggServ, _, err := createMockAggregator(mockCtrl, MOCK_OPERATOR_PUBKEY_DICT)
+	aggregator, mockAvsReader, _, _, _, mockMessageBlsAggServ, _, err := createMockAggregator(mockCtrl, MOCK_OPERATOR_PUBKEY_DICT)
 	assert.Nil(t, err)
 
 	message := registryrollup.OperatorSetUpdateMessage{
@@ -97,9 +97,11 @@ func TestProcessOperatorSetUpdateMessage(t *testing.T) {
 	messageDigest, err := core.GetOperatorSetUpdateMessageDigest(&signedMessage.Message)
 	assert.Nil(t, err)
 
+	mockAvsReader.EXPECT().GetOperatorSetUpdateBlock(context.Background(), uint64(1)).Return(uint32(10), nil)
+
 	mockMessageBlsAggServ.EXPECT().ProcessNewSignature(context.Background(), messageDigest,
 		&signedMessage.BlsSignature, signedMessage.OperatorId)
-	mockMessageBlsAggServ.EXPECT().InitializeMessageIfNotExists(messageDigest, coretypes.QUORUM_NUMBERS, []uint32{types.QUORUM_THRESHOLD_NUMERATOR}, types.MESSAGE_TTL, 0)
+	mockMessageBlsAggServ.EXPECT().InitializeMessageIfNotExists(messageDigest, coretypes.QUORUM_NUMBERS, []uint32{types.QUORUM_THRESHOLD_NUMERATOR}, types.MESSAGE_TTL, uint64(9))
 	err = aggregator.ProcessSignedOperatorSetUpdateMessage(signedMessage, nil)
 	assert.Nil(t, err)
 }

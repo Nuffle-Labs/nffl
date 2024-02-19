@@ -55,7 +55,7 @@ func TestSendNewTask(t *testing.T) {
 	mockCtrl := gomock.NewController(t)
 	defer mockCtrl.Finish()
 
-	aggregator, mockAvsWriterer, mockTaskBlsAggService, _, _, _, err := createMockAggregator(mockCtrl, MOCK_OPERATOR_PUBKEY_DICT)
+	aggregator, _, mockAvsWriterer, mockTaskBlsAggService, _, _, _, err := createMockAggregator(mockCtrl, MOCK_OPERATOR_PUBKEY_DICT)
 	assert.Nil(t, err)
 
 	var TASK_INDEX = uint32(0)
@@ -82,7 +82,7 @@ func TestHandleStateRootUpdateAggregationReachedQuorum(t *testing.T) {
 	mockCtrl := gomock.NewController(t)
 	defer mockCtrl.Finish()
 
-	aggregator, _, _, _, _, mockMsgDb, err := createMockAggregator(mockCtrl, MOCK_OPERATOR_PUBKEY_DICT)
+	aggregator, _, _, _, _, _, mockMsgDb, err := createMockAggregator(mockCtrl, MOCK_OPERATOR_PUBKEY_DICT)
 	assert.Nil(t, err)
 
 	msg := servicemanager.StateRootUpdateMessage{}
@@ -109,7 +109,7 @@ func TestHandleOperatorSetUpdateAggregationReachedQuorum(t *testing.T) {
 	mockCtrl := gomock.NewController(t)
 	defer mockCtrl.Finish()
 
-	aggregator, _, _, _, _, mockMsgDb, err := createMockAggregator(mockCtrl, MOCK_OPERATOR_PUBKEY_DICT)
+	aggregator, _, _, _, _, _, mockMsgDb, err := createMockAggregator(mockCtrl, MOCK_OPERATOR_PUBKEY_DICT)
 	assert.Nil(t, err)
 
 	msg := registryrollup.OperatorSetUpdateMessage{}
@@ -134,9 +134,10 @@ func TestHandleOperatorSetUpdateAggregationReachedQuorum(t *testing.T) {
 
 func createMockAggregator(
 	mockCtrl *gomock.Controller, operatorPubkeyDict map[bls.OperatorId]types.OperatorInfo,
-) (*Aggregator, *chainiomocks.MockAvsWriterer, *blsaggservmock.MockBlsAggregationService, *mocks.MockMessageBlsAggregationService, *mocks.MockMessageBlsAggregationService, *mocks.MockMessageDatabaser, error) {
+) (*Aggregator, *chainiomocks.MockAvsReaderer, *chainiomocks.MockAvsWriterer, *blsaggservmock.MockBlsAggregationService, *mocks.MockMessageBlsAggregationService, *mocks.MockMessageBlsAggregationService, *mocks.MockMessageDatabaser, error) {
 	logger := sdklogging.NewNoopLogger()
 	mockAvsWriter := chainiomocks.NewMockAvsWriterer(mockCtrl)
+	mockAvsReader := chainiomocks.NewMockAvsReaderer(mockCtrl)
 	mockTaskBlsAggregationService := blsaggservmock.NewMockBlsAggregationService(mockCtrl)
 	mockStateRootUpdateBlsAggregationService := mocks.NewMockMessageBlsAggregationService(mockCtrl)
 	mockOperatorSetUpdateBlsAggregationService := mocks.NewMockMessageBlsAggregationService(mockCtrl)
@@ -145,6 +146,7 @@ func createMockAggregator(
 	aggregator := &Aggregator{
 		logger:                                 logger,
 		avsWriter:                              mockAvsWriter,
+		avsReader:                              mockAvsReader,
 		taskBlsAggregationService:              mockTaskBlsAggregationService,
 		stateRootUpdateBlsAggregationService:   mockStateRootUpdateBlsAggregationService,
 		operatorSetUpdateBlsAggregationService: mockOperatorSetUpdateBlsAggregationService,
@@ -154,7 +156,7 @@ func createMockAggregator(
 		stateRootUpdates:                       make(map[coretypes.MessageDigest]servicemanager.StateRootUpdateMessage),
 		operatorSetUpdates:                     make(map[coretypes.MessageDigest]registryrollup.OperatorSetUpdateMessage),
 	}
-	return aggregator, mockAvsWriter, mockTaskBlsAggregationService, mockStateRootUpdateBlsAggregationService, mockOperatorSetUpdateBlsAggregationService, mockMsgDb, nil
+	return aggregator, mockAvsReader, mockAvsWriter, mockTaskBlsAggregationService, mockStateRootUpdateBlsAggregationService, mockOperatorSetUpdateBlsAggregationService, mockMsgDb, nil
 }
 
 // just a mock ethclient to pass to bindings
