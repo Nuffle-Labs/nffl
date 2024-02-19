@@ -82,9 +82,8 @@ func NewAttestor(config *types.NodeConfig, blsKeypair *bls.KeyPair, operatorId b
 	registry := prometheus.NewRegistry()
 
 	consumer := consumer.NewConsumer(consumer.ConsumerConfig{
-		Addr:        config.NearDaIndexerRmqIpPortAddress,
-		ConsumerTag: config.NearDaIndexerConsumerTag,
-		RollupIds:   config.NearDaIndexerRollupIds,
+		Addr:      config.NearDaIndexerRmqIpPortAddress,
+		RollupIds: config.NearDaIndexerRollupIds,
 	}, logger)
 
 	attestor := Attestor{

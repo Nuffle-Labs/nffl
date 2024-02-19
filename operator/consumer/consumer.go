@@ -24,6 +24,10 @@ func getQueueName(rollupId uint32) string {
 	return "rollup" + strconv.FormatUint(uint64(rollupId), 10)
 }
 
+func getConsumerTag(rollupId uint32) string {
+	return "operator" + strconv.FormatUint(uint64(rollupId), 10)
+}
+
 type ConsumerConfig struct {
 	Addr        string
 	ConsumerTag string
@@ -43,7 +47,6 @@ type Consumerer interface {
 }
 
 type Consumer struct {
-	consumerTag     string
 	receivedBlocksC chan BlockData
 	queuesListener  QueuesListener
 
@@ -63,7 +66,6 @@ func NewConsumer(config ConsumerConfig, logger logging.Logger) Consumer {
 	ctx, cancel := context.WithCancel(context.Background())
 
 	consumer := Consumer{
-		consumerTag:       config.ConsumerTag,
 		rollupIds:         config.RollupIds,
 		receivedBlocksC:   make(chan BlockData),
 		contextCancelFunc: cancel,
@@ -186,9 +188,10 @@ func (consumer *Consumer) setupChannel(conn *rmq.Connection, ctx context.Context
 			return err
 		}
 
+		consumerTag := getConsumerTag(rollupId)
 		rollupDataC, err := channel.Consume(
 			queue.Name,
-			consumer.consumerTag,
+			consumerTag,
 			false,
 			false,
 			false,
