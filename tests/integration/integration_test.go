@@ -31,6 +31,7 @@ import (
 	ethtypes "github.com/ethereum/go-ethereum/core/types"
 	"github.com/ethereum/go-ethereum/crypto"
 	"github.com/ethereum/go-ethereum/rlp"
+	"github.com/stretchr/testify/assert"
 	"github.com/testcontainers/testcontainers-go"
 	"github.com/testcontainers/testcontainers-go/modules/rabbitmq"
 	"github.com/testcontainers/testcontainers-go/wait"
@@ -81,6 +82,35 @@ func TestIntegration(t *testing.T) {
 	}
 
 	_, err = setup.registryRollups[1].UpdateStateRoot(setup.registryRollupAuths[1], registryrollup.StateRootUpdateMessage(stateRootUpdate.Message), formatBlsAggregationRollup(t, &stateRootUpdate.Aggregation))
+	if err != nil {
+		t.Fatalf("Error updating state root: %s", err.Error())
+	}
+
+	operatorSetUpdateCount, err := setup.avsReader.AvsServiceBindings.OperatorSetUpdateRegistry.GetOperatorSetUpdateCount(&bind.CallOpts{})
+	if err != nil {
+		t.Fatalf("Error getting operator set update count: %s", err.Error())
+	}
+	if operatorSetUpdateCount != 2 {
+		t.Fatalf("Wrong operator set update count")
+	}
+
+	operatorSetUpdate, err := getOperatorSetUpdateAggregation(setup.aggregatorRestUrl, operatorSetUpdateCount-1)
+	if err != nil {
+		t.Fatalf("Error getting operator set update: %s", err.Error())
+	}
+
+	expectedUpdatedOperators := []registryrollup.OperatorsOperator{
+		{
+			Pubkey: registryrollup.BN254G1Point{
+				X: newOperator.BlsPubkeyG1().X.BigInt(big.NewInt(0)),
+				Y: newOperator.BlsPubkeyG1().Y.BigInt(big.NewInt(0)),
+			},
+			Weight: big.NewInt(1000),
+		},
+	}
+	assert.Equal(t, expectedUpdatedOperators, operatorSetUpdate.Message.Operators)
+
+	_, err = setup.registryRollups[1].UpdateOperatorSet(setup.registryRollupAuths[1], operatorSetUpdate.Message, formatBlsAggregationRollup(t, &operatorSetUpdate.Aggregation))
 	if err != nil {
 		t.Fatalf("Error updating state root: %s", err.Error())
 	}
