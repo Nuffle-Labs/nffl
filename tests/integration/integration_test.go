@@ -410,13 +410,13 @@ func deployRegistryRollup(t *testing.T, ctx context.Context, avsReader chainio.A
 
 	operatorSetUpdateId := uint64(0)
 
-	_operators, err := avsReader.GetOperatorSetUpdateDelta(ctx, operatorSetUpdateId)
+	operatorsDelta, err := avsReader.GetOperatorSetUpdateDelta(ctx, operatorSetUpdateId)
 	if err != nil {
 		t.Fatalf("Error getting operator set: %s", err.Error())
 	}
 
 	var operators []registryrollup.OperatorsOperator
-	for _, operator := range _operators {
+	for _, operator := range operatorsDelta {
 		operators = append(operators, registryrollup.OperatorsOperator{
 			Pubkey: registryrollup.BN254G1Point(operator.Pubkey),
 			Weight: operator.Weight,
