@@ -52,7 +52,7 @@ func notify(t *testing.T, notifier *Notifier, blocks []consumer.BlockData) {
 		err := notifier.Notify(blocks[i].RollupId, blocks[i])
 		assert.Nil(t, err)
 
-		// Timeout necessary to let runtime switch cotext
+		// Timeout necessary to let runtime switch context
 		time.Sleep(time.Microsecond * 50)
 	}
 }
