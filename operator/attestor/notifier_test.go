@@ -4,6 +4,7 @@ import (
 	"github.com/stretchr/testify/assert"
 	"math/big"
 	"math/rand"
+	"sync"
 	"testing"
 	"time"
 
@@ -29,11 +30,19 @@ func generateBlockData() consumer.BlockData {
 	}
 }
 
-func subscribe(notifier *Notifier, blocks []consumer.BlockData) {
+func subscribe(notifier *Notifier, blocks []consumer.BlockData, subscribedWg *sync.WaitGroup, unsubscribedWg *sync.WaitGroup) {
 	for i := 0; i < len(blocks); i++ {
+		subscribedWg.Add(1)
+		unsubscribedWg.Add(1)
+
 		go func(block consumer.BlockData, notifier *Notifier) {
 			blocksC, id := notifier.Subscribe(block.RollupId)
-			defer notifier.Unsubscribe(block.RollupId, id)
+			subscribedWg.Done()
+
+			defer func() {
+				notifier.Unsubscribe(block.RollupId, id)
+				unsubscribedWg.Done()
+			}()
 
 			for {
 				mqBlock := <-blocksC
@@ -64,11 +73,13 @@ func TestNotifier(t *testing.T) {
 		blocks[i] = generateBlockData()
 	}
 
-	subscribe(&notifier, blocks)
-	time.Sleep(time.Second)
+	var subscribedWg sync.WaitGroup
+	var unsubscribedWg sync.WaitGroup
+	subscribe(&notifier, blocks, &subscribedWg, &unsubscribedWg)
+	subscribedWg.Wait()
 
 	notify(t, &notifier, blocks)
-	time.Sleep(time.Second)
+	unsubscribedWg.Wait()
 
 	for _, val := range notifier.rollupIdsToSubscribers {
 		assert.Equal(t, 0, val.Len())
