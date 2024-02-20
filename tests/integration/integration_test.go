@@ -45,7 +45,7 @@ import (
 	"github.com/NethermindEth/near-sffl/types"
 )
 
-const NEAR_CONFIG_PATH = "/tmp/sffl_test_localnet"
+const TEST_DATA_DIR = "../../test_data"
 
 func TestIntegration(t *testing.T) {
 	setup := setupTestEnv(t)
@@ -130,6 +130,9 @@ type TestEnv struct {
 }
 
 func setupTestEnv(t *testing.T) *TestEnv {
+	wd, _ := os.Getwd()
+	t.Log(wd)
+
 	t.Log("This test takes ~100 seconds to run...")
 
 	containersCtx, cancelContainersCtx := context.WithCancel(context.Background())
@@ -264,9 +267,14 @@ func genOperatorConfig(t *testing.T, ctx context.Context, mainnetAnvil *AnvilIns
 	os.Setenv("OPERATOR_BLS_KEY_PASSWORD", "")
 	os.Setenv("OPERATOR_ECDSA_KEY_PASSWORD", "")
 
-	keysPath, err := os.MkdirTemp("", "sffl_test_operator")
+	err = os.MkdirAll(getOperatorKeysPathPrefix(t), 0770)
 	if err != nil {
-		t.Fatalf("Failed to create keys dir: %s", err.Error())
+		t.Fatalf("Failed to create operators keys dir: %s", err.Error())
+	}
+
+	keysPath, err := os.MkdirTemp(getOperatorKeysPathPrefix(t), "")
+	if err != nil {
+		t.Fatalf("Failed to create operator keys dir: %s", err.Error())
 	}
 
 	nodeConfig.BlsPrivateKeyStorePath, err = filepath.Abs(filepath.Join(keysPath, "test.bls.key.json"))
@@ -588,7 +596,7 @@ func startIndexer(t *testing.T, ctx context.Context, rollupAnvils []*AnvilInstan
 		t.Fatalf("Error starting indexer container: %s", err.Error())
 	}
 
-	hostNearCfgPath := NEAR_CONFIG_PATH
+	hostNearCfgPath := getNearCliConfigPath(t)
 	hostNearKeyPath := filepath.Join(hostNearCfgPath, "validator_key.json")
 	containerNearCfgPath := "/root/.near"
 
@@ -633,9 +641,11 @@ func submitBlock(t *testing.T, accountId string, block *ethtypes.Block) error {
 		return err
 	}
 
+	keyPath := filepath.Join(getNearCliConfigPath(t), "validator_key.json")
+
 	err = execCommand(t, "near",
 		[]string{"call", accountId, "submit", "--base64", base64.StdEncoding.EncodeToString(encodedBlock), "--accountId", accountId},
-		append(os.Environ(), "NEAR_ENV=localnet", "NEAR_HELPER_ACCOUNT=near", "NEAR_CLI_LOCALNET_KEY_PATH="+filepath.Join(NEAR_CONFIG_PATH, "validator_key.json")),
+		append(os.Environ(), "NEAR_ENV=localnet", "NEAR_HELPER_ACCOUNT=near", "NEAR_CLI_LOCALNET_KEY_PATH="+keyPath),
 		false,
 	)
 	if err != nil {
@@ -768,6 +778,22 @@ func copyFileFromContainer(ctx context.Context, container testcontainers.Contain
 	}
 
 	return nil
+}
+
+func getNearCliConfigPath(t *testing.T) string {
+	path, err := filepath.Abs(filepath.Join(TEST_DATA_DIR, "sffl_test_localnet"))
+	if err != nil {
+		t.Fatalf("Error getting near-cli config path: %s", err.Error())
+	}
+	return path
+}
+
+func getOperatorKeysPathPrefix(t *testing.T) string {
+	path, err := filepath.Abs(filepath.Join(TEST_DATA_DIR, "sffl_test_operators"))
+	if err != nil {
+		t.Fatalf("Error getting operator keys path prefix: %s", err.Error())
+	}
+	return path
 }
 
 func (ai *AnvilInstance) setBalance(address common.Address, balance *big.Int) error {
