@@ -1,7 +1,6 @@
 package integration_test
 
 import (
-	"bytes"
 	"context"
 	"encoding/base64"
 	"encoding/json"
@@ -461,11 +460,7 @@ func startAnvilTestContainer(t *testing.T, ctx context.Context, exposedPort, cha
 		t.Fatalf("Anvil chainId is not the expected: expected %s, got %s", expectedChainId.String(), fetchedChainId.String())
 	}
 
-	if isMainnet {
-		advanceChain(t, httpUrl)
-	}
-
-	return &AnvilInstance{
+	anvil := &AnvilInstance{
 		Container:  anvilC,
 		HttpClient: httpClient,
 		HttpUrl:    httpUrl,
@@ -473,6 +468,12 @@ func startAnvilTestContainer(t *testing.T, ctx context.Context, exposedPort, cha
 		WsUrl:      wsUrl,
 		ChainID:    fetchedChainId,
 	}
+
+	if isMainnet {
+		anvil.mine(big.NewInt(100), big.NewInt(1))
+	}
+
+	return anvil
 }
 
 func deployRegistryRollups(t *testing.T, ctx context.Context, avsReader chainio.AvsReaderer, anvils []*AnvilInstance) ([]*registryrollup.ContractSFFLRegistryRollup, []*bind.TransactOpts) {
@@ -669,24 +670,6 @@ func execCommand(t *testing.T, name string, arg, env []string, shouldLog bool) e
 	return err
 }
 
-func advanceChain(t *testing.T, rpcUrl string) {
-	privateKey := "0xac0974bec39a17e36ba4a6b4d238ff944bacb478cbed5efcae784d7bf4f2ff80"
-	cmd := exec.Command("bash", "-c",
-		fmt.Sprintf(
-			`forge script script/utils/Utils.sol --sig "advanceChainByNBlocks(uint256)" 100 --rpc-url %s --private-key %s --broadcast`,
-			rpcUrl, privateKey),
-	)
-	cmd.Dir = "../../contracts/evm"
-
-	var stderr bytes.Buffer
-	cmd.Stderr = &stderr
-	err := cmd.Run()
-
-	if err != nil {
-		t.Fatalf("Error advancing chain: %s", stderr.String())
-	}
-}
-
 func getStateRootUpdateAggregation(addr string, rollupID uint32, blockHeight uint64) (*aggregator.GetStateRootUpdateAggregationResponse, error) {
 	url := fmt.Sprintf("%s/aggregation/state-root-update?rollupId=%d&blockHeight=%d", addr, rollupID, blockHeight)
 
@@ -802,4 +785,8 @@ func getOperatorKeysPathPrefix(t *testing.T) string {
 
 func (ai *AnvilInstance) setBalance(address common.Address, balance *big.Int) error {
 	return ai.WsClient.Client.Client().Call(nil, "anvil_setBalance", address.Hex(), "0x"+balance.Text(16))
+}
+
+func (ai *AnvilInstance) mine(blockCount, timestampInterval *big.Int) error {
+	return ai.WsClient.Client.Client().Call(nil, "anvil_mine", "0x"+blockCount.Text(16), "0x"+timestampInterval.Text(16))
 }
