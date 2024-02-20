@@ -164,6 +164,10 @@ func setupTestEnv(t *testing.T) *TestEnv {
 	registryRollups, registryRollupAuths := deployRegistryRollups(t, ctx, avsReader, rollupAnvils)
 
 	t.Cleanup(func() {
+		if err := os.RemoveAll(TEST_DATA_DIR); err != nil {
+			t.Fatalf("Error cleaning test data dir: %s", err.Error())
+		}
+
 		cancel()
 
 		time.Sleep(5 * time.Second)
