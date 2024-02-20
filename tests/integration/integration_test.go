@@ -47,14 +47,14 @@ import (
 const TEST_DATA_DIR = "../../test_data"
 
 func TestIntegration(t *testing.T) {
-	setup := setupTestEnv(t)
-
-	time.Sleep(10 * time.Second)
-
-	ctx, cancel := context.WithCancel(context.Background())
+	ctx, cancel := context.WithTimeout(context.Background(), 180*time.Second)
 	t.Cleanup(func() {
 		cancel()
 	})
+
+	setup := setupTestEnv(t, ctx)
+
+	time.Sleep(10 * time.Second)
 
 	newOperator := startOperator(t, ctx, genOperatorConfig(t, ctx, setup.mainnetAnvil, setup.rollupAnvils, setup.rabbitMq))
 
@@ -113,6 +113,8 @@ func TestIntegration(t *testing.T) {
 	if err != nil {
 		t.Fatalf("Error updating state root: %s", err.Error())
 	}
+
+	<-ctx.Done()
 }
 
 type TestEnv struct {
@@ -128,7 +130,7 @@ type TestEnv struct {
 	registryRollupAuths []*bind.TransactOpts
 }
 
-func setupTestEnv(t *testing.T) *TestEnv {
+func setupTestEnv(t *testing.T, ctx context.Context) *TestEnv {
 	containersCtx, cancelContainersCtx := context.WithCancel(context.Background())
 
 	mainnetAnvil := startAnvilTestContainer(t, containersCtx, "8545", "1", true)
@@ -143,7 +145,6 @@ func setupTestEnv(t *testing.T) *TestEnv {
 
 	sfflDeploymentRaw := readSfflDeploymentRaw()
 
-	ctx, cancel := context.WithTimeout(context.Background(), 120*time.Second)
 	nodeConfig := genOperatorConfig(t, ctx, mainnetAnvil, rollupAnvils, rabbitMq)
 	config := buildConfig(t, sfflDeploymentRaw, mainnetAnvil)
 
@@ -161,8 +162,6 @@ func setupTestEnv(t *testing.T) *TestEnv {
 		if err := os.RemoveAll(TEST_DATA_DIR); err != nil {
 			t.Fatalf("Error cleaning test data dir: %s", err.Error())
 		}
-
-		cancel()
 
 		time.Sleep(5 * time.Second)
 
