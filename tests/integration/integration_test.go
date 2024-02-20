@@ -129,11 +129,6 @@ type TestEnv struct {
 }
 
 func setupTestEnv(t *testing.T) *TestEnv {
-	wd, _ := os.Getwd()
-	t.Log(wd)
-
-	t.Log("This test takes ~100 seconds to run...")
-
 	containersCtx, cancelContainersCtx := context.WithCancel(context.Background())
 
 	mainnetAnvil := startAnvilTestContainer(t, containersCtx, "8545", "1", true)
