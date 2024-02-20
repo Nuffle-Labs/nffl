@@ -363,6 +363,10 @@ func (o *Operator) Close() error {
 	return nil
 }
 
+func (o *Operator) BlsPubkeyG1() *bls.G1Point {
+	return o.blsKeypair.GetPubKeyG1()
+}
+
 // Takes a CheckpointTaskCreatedLog struct as input and returns a TaskResponseHeader struct.
 // The TaskResponseHeader struct is the struct that is signed and sent to the contract as a task response.
 func (o *Operator) ProcessCheckpointTaskCreatedLog(checkpointTaskCreatedLog *taskmanager.ContractSFFLTaskManagerCheckpointTaskCreated) *taskmanager.CheckpointTaskResponse {

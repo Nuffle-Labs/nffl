@@ -70,6 +70,7 @@ type Aggregator struct {
 	serverIpPortAddr     string
 	restServerIpPortAddr string
 	avsWriter            chainio.AvsWriterer
+	avsReader            chainio.AvsReaderer
 	// aggregation related fields
 	taskBlsAggregationService              blsagg.BlsAggregationService
 	stateRootUpdateBlsAggregationService   MessageBlsAggregationService
@@ -78,7 +79,7 @@ type Aggregator struct {
 	tasksLock                              sync.RWMutex
 	taskResponses                          map[coretypes.TaskIndex]map[sdktypes.TaskResponseDigest]taskmanager.CheckpointTaskResponse
 	taskResponsesLock                      sync.RWMutex
-	msgDb                                  *MessageDatabase
+	msgDb                                  MessageDatabaser
 	stateRootUpdates                       map[coretypes.MessageDigest]servicemanager.StateRootUpdateMessage
 	stateRootUpdatesLock                   sync.RWMutex
 	operatorSetUpdates                     map[coretypes.MessageDigest]registryrollup.OperatorSetUpdateMessage
@@ -86,7 +87,9 @@ type Aggregator struct {
 }
 
 // NewAggregator creates a new Aggregator with the provided config.
-func NewAggregator(c *config.Config) (*Aggregator, error) {
+// TODO: Remove this context once OperatorPubkeysServiceInMemory's API is
+// changed and we can gracefully exit otherwise
+func NewAggregator(ctx context.Context, c *config.Config) (*Aggregator, error) {
 	avsReader, err := chainio.BuildAvsReaderFromConfig(c)
 	if err != nil {
 		c.Logger.Error("Cannot create avsReader", "err", err)
@@ -119,7 +122,7 @@ func NewAggregator(c *config.Config) (*Aggregator, error) {
 		return nil, err
 	}
 
-	operatorPubkeysService := oppubkeysserv.NewOperatorPubkeysServiceInMemory(context.Background(), clients.AvsRegistryChainSubscriber, clients.AvsRegistryChainReader, c.Logger)
+	operatorPubkeysService := oppubkeysserv.NewOperatorPubkeysServiceInMemory(ctx, clients.AvsRegistryChainSubscriber, clients.AvsRegistryChainReader, c.Logger)
 	avsRegistryService := avsregistry.NewAvsRegistryServiceChainCaller(avsReader, operatorPubkeysService, c.Logger)
 	taskBlsAggregationService := blsagg.NewBlsAggregatorService(avsRegistryService, c.Logger)
 	stateRootUpdateBlsAggregationService := NewMessageBlsAggregatorService(avsRegistryService, clients.EthHttpClient, c.Logger)
@@ -130,6 +133,7 @@ func NewAggregator(c *config.Config) (*Aggregator, error) {
 		serverIpPortAddr:                       c.AggregatorServerIpPortAddr,
 		restServerIpPortAddr:                   c.AggregatorRestServerIpPortAddr,
 		avsWriter:                              avsWriter,
+		avsReader:                              avsReader,
 		taskBlsAggregationService:              taskBlsAggregationService,
 		stateRootUpdateBlsAggregationService:   stateRootUpdateBlsAggregationService,
 		operatorSetUpdateBlsAggregationService: operatorSetUpdateBlsAggregationService,
@@ -145,10 +149,10 @@ func (agg *Aggregator) Start(ctx context.Context) error {
 	agg.logger.Infof("Starting aggregator.")
 
 	agg.logger.Infof("Starting aggregator rpc server.")
-	go agg.startServer(ctx)
+	go agg.startServer()
 
 	agg.logger.Infof("Starting aggregator REST API.")
-	go agg.startRestServer(ctx)
+	go agg.startRestServer()
 
 	// TODO(soubhik): refactor task generation/sending into a separate function that we can run as goroutine
 	ticker := time.NewTicker(10 * time.Second)

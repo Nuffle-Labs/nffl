@@ -136,6 +136,21 @@ func (mr *MockAvsReadererMockRecorder) GetOperatorId(arg0, arg1 any) *gomock.Cal
 	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "GetOperatorId", reflect.TypeOf((*MockAvsReaderer)(nil).GetOperatorId), arg0, arg1)
 }
 
+// GetOperatorSetUpdateBlock mocks base method.
+func (m *MockAvsReaderer) GetOperatorSetUpdateBlock(arg0 context.Context, arg1 uint64) (uint32, error) {
+	m.ctrl.T.Helper()
+	ret := m.ctrl.Call(m, "GetOperatorSetUpdateBlock", arg0, arg1)
+	ret0, _ := ret[0].(uint32)
+	ret1, _ := ret[1].(error)
+	return ret0, ret1
+}
+
+// GetOperatorSetUpdateBlock indicates an expected call of GetOperatorSetUpdateBlock.
+func (mr *MockAvsReadererMockRecorder) GetOperatorSetUpdateBlock(arg0, arg1 any) *gomock.Call {
+	mr.mock.ctrl.T.Helper()
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "GetOperatorSetUpdateBlock", reflect.TypeOf((*MockAvsReaderer)(nil).GetOperatorSetUpdateBlock), arg0, arg1)
+}
+
 // GetOperatorSetUpdateDelta mocks base method.
 func (m *MockAvsReaderer) GetOperatorSetUpdateDelta(arg0 context.Context, arg1 uint64) ([]contractSFFLOperatorSetUpdateRegistry.OperatorsOperator, error) {
 	m.ctrl.T.Helper()

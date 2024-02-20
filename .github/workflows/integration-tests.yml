@@ -8,29 +8,20 @@ on:
   pull_request:
 
 
-
 jobs:  
   Test:
     name: Integration Test
     runs-on: ubuntu-latest
-    timeout-minutes: 5
-    services:
-      rabbitmq:
-        image: rabbitmq:latest
-        ports:
-          - 5672:5672
-        options: >-
-          --health-cmd "rabbitmq-diagnostics check_running"
-          --health-interval 10s
-          --health-timeout 5s
-          --health-retries 5
-          --health-start-period 10s
+    timeout-minutes: 70
 
     steps:
       - uses: actions/checkout@v3
       - uses: actions/setup-go@v4
         with:
           go-version: '1.21'
+
+      - name: Build indexer container
+        run: docker build -t near-sffl-indexer ./indexer
 
       - name: Install Node.js
         uses: actions/setup-node@v3
@@ -40,11 +31,15 @@ jobs:
       - name: Install npm dependencies
         run: npm ci
         working-directory: ./contracts/evm
+        
+      - name: Install near-cli
+        run: npm i -g near-cli@3.5.0
 
       - name: Install Foundry
         uses: foundry-rs/foundry-toolchain@v1
         with:
           version: nightly
+
       - name: Install forge dependencies
         run: forge install
         working-directory: ./contracts/evm

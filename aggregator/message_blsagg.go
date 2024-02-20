@@ -60,7 +60,7 @@ type signedMessageDigestValidationInfo struct {
 	aggregatedOperatorsDict       map[types.TaskResponseDigest]AggregatedOperators
 	quorumThresholdPercentagesMap map[uint8]uint32
 	quorumNumbers                 []types.QuorumNum
-	curBlockNum                   uint64
+	ethBlockNumber                uint64
 }
 
 type MessageBlsAggregationService interface {
@@ -69,6 +69,7 @@ type MessageBlsAggregationService interface {
 		quorumNumbers []types.QuorumNum,
 		quorumThresholdPercentages []types.QuorumThresholdPercentage,
 		timeToExpiry time.Duration,
+		ethBlockNumber uint64,
 	) error
 
 	ProcessNewSignature(
@@ -112,6 +113,7 @@ func (mbas *MessageBlsAggregatorService) InitializeMessageIfNotExists(
 	quorumNumbers []types.QuorumNum,
 	quorumThresholdPercentages []types.QuorumThresholdPercentage,
 	timeToExpiry time.Duration,
+	ethBlockNumber uint64,
 ) error {
 	if _, taskExists := mbas.signedMessageDigestsCs[messageDigest]; taskExists {
 		return nil
@@ -121,7 +123,7 @@ func (mbas *MessageBlsAggregatorService) InitializeMessageIfNotExists(
 	mbas.messageChansLock.Lock()
 	mbas.signedMessageDigestsCs[messageDigest] = signedMessageDigestsC
 	mbas.messageChansLock.Unlock()
-	go mbas.singleMessageAggregatorGoroutineFunc(messageDigest, quorumNumbers, quorumThresholdPercentages, timeToExpiry, signedMessageDigestsC)
+	go mbas.singleMessageAggregatorGoroutineFunc(messageDigest, quorumNumbers, quorumThresholdPercentages, timeToExpiry, signedMessageDigestsC, ethBlockNumber)
 	return nil
 }
 
@@ -158,10 +160,11 @@ func (mbas *MessageBlsAggregatorService) singleMessageAggregatorGoroutineFunc(
 	quorumThresholdPercentages []types.QuorumThresholdPercentage,
 	timeToExpiry time.Duration,
 	signedMessageDigestsC <-chan SignedMessageDigest,
+	ethBlockNumber uint64,
 ) {
 	defer mbas.closeMessageGoroutine(messageDigest)
 
-	validationInfo := mbas.fetchValidationInfo(quorumNumbers, quorumThresholdPercentages)
+	validationInfo := mbas.fetchValidationInfo(quorumNumbers, quorumThresholdPercentages, ethBlockNumber)
 	messageExpiredTimer := time.NewTimer(timeToExpiry)
 
 	for {
@@ -179,20 +182,23 @@ func (mbas *MessageBlsAggregatorService) singleMessageAggregatorGoroutineFunc(
 	}
 }
 
-func (mbas *MessageBlsAggregatorService) fetchValidationInfo(quorumNumbers []types.QuorumNum, quorumThresholdPercentages []types.QuorumThresholdPercentage) signedMessageDigestValidationInfo {
-	curBlockNum, err := mbas.ethClient.BlockNumber(context.Background())
+func (mbas *MessageBlsAggregatorService) fetchValidationInfo(quorumNumbers []types.QuorumNum, quorumThresholdPercentages []types.QuorumThresholdPercentage, ethBlockNumber uint64) signedMessageDigestValidationInfo {
+	if ethBlockNumber == 0 {
+		curEthBlockNumber, err := mbas.ethClient.BlockNumber(context.Background())
+		if err != nil {
+			mbas.logger.Fatal("Aggregator failed to get current block number", "err", err)
+		}
 
-	if err != nil {
-		mbas.logger.Fatal("Aggregator failed to get current block number", "err", err)
+		ethBlockNumber = curEthBlockNumber
 	}
 
-	operatorsAvsStateDict, err := mbas.avsRegistryService.GetOperatorsAvsStateAtBlock(context.Background(), quorumNumbers, uint32(curBlockNum))
+	operatorsAvsStateDict, err := mbas.avsRegistryService.GetOperatorsAvsStateAtBlock(context.Background(), quorumNumbers, uint32(ethBlockNumber))
 	if err != nil {
 		// TODO: how should we handle such an error?
 		mbas.logger.Fatal("Aggregator failed to get operators state from avs registry", "err", err)
 	}
 
-	quorumsAvsStakeDict, err := mbas.avsRegistryService.GetQuorumsAvsStateAtBlock(context.Background(), quorumNumbers, uint32(curBlockNum))
+	quorumsAvsStakeDict, err := mbas.avsRegistryService.GetQuorumsAvsStateAtBlock(context.Background(), quorumNumbers, uint32(ethBlockNumber))
 	if err != nil {
 		mbas.logger.Fatal("Aggregator failed to get quorums state from avs registry", "err", err)
 	}
@@ -220,7 +226,7 @@ func (mbas *MessageBlsAggregatorService) fetchValidationInfo(quorumNumbers []typ
 		aggregatedOperatorsDict:       make(map[types.TaskResponseDigest]AggregatedOperators),
 		quorumThresholdPercentagesMap: quorumThresholdPercentagesMap,
 		quorumNumbers:                 quorumNumbers,
-		curBlockNum:                   curBlockNum,
+		ethBlockNumber:                ethBlockNumber,
 	}
 }
 
@@ -267,7 +273,7 @@ func (mbas *MessageBlsAggregatorService) handleSignedMessageDigest(signedMessage
 		}
 	}
 
-	indices, err := mbas.avsRegistryService.GetCheckSignaturesIndices(&bind.CallOpts{}, uint32(validationInfo.curBlockNum), validationInfo.quorumNumbers, nonSignersOperatorIds)
+	indices, err := mbas.avsRegistryService.GetCheckSignaturesIndices(&bind.CallOpts{}, uint32(validationInfo.ethBlockNumber), validationInfo.quorumNumbers, nonSignersOperatorIds)
 	if err != nil {
 		mbas.logger.Error("Failed to get check signatures indices", "err", err)
 		mbas.aggregatedResponsesC <- aggtypes.MessageBlsAggregationServiceResponse{
@@ -278,7 +284,7 @@ func (mbas *MessageBlsAggregatorService) handleSignedMessageDigest(signedMessage
 
 	messageBlsAggregationServiceResponse := aggtypes.MessageBlsAggregationServiceResponse{
 		Err:                          nil,
-		EthBlockNumber:               validationInfo.curBlockNum,
+		EthBlockNumber:               validationInfo.ethBlockNumber,
 		MessageDigest:                signedMessageDigest.MessageDigest,
 		NonSignersPubkeysG1:          getG1PubkeysOfNonSigners(digestAggregatedOperators.signersOperatorIdsSet, validationInfo.operatorsAvsStateDict),
 		QuorumApksG1:                 validationInfo.quorumApksG1,

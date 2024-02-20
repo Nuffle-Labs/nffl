@@ -26,6 +26,7 @@ type AvsReaderer interface {
 	) (taskmanager.IBLSSignatureCheckerQuorumStakeTotals, error)
 	GetErc20Mock(ctx context.Context, tokenAddr gethcommon.Address) (*erc20mock.ContractERC20Mock, error)
 	GetOperatorSetUpdateDelta(ctx context.Context, id uint64) ([]opsetupdatereg.OperatorsOperator, error)
+	GetOperatorSetUpdateBlock(ctx context.Context, id uint64) (uint32, error)
 }
 
 type AvsReader struct {
@@ -114,10 +115,14 @@ func (r *AvsReader) GetOperatorSetUpdateDelta(ctx context.Context, id uint64) ([
 	var delta []opsetupdatereg.OperatorsOperator
 
 	for _, operatorUpdate := range operators {
-		if operatorUpdate.previousWeight != operatorUpdate.newWeight {
+		if operatorUpdate.previousWeight.Cmp(operatorUpdate.newWeight) != 0 {
 			delta = append(delta, opsetupdatereg.OperatorsOperator{Pubkey: operatorUpdate.pubkey, Weight: operatorUpdate.newWeight})
 		}
 	}
 
 	return delta, nil
+}
+
+func (r *AvsReader) GetOperatorSetUpdateBlock(ctx context.Context, id uint64) (uint32, error) {
+	return r.AvsServiceBindings.OperatorSetUpdateRegistry.OperatorSetUpdateIdToBlockNumber(&bind.CallOpts{}, big.NewInt(0).SetUint64(id))
 }

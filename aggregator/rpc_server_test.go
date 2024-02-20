@@ -6,13 +6,11 @@ import (
 	"math/big"
 	"testing"
 
-	"github.com/ethereum/go-ethereum/common"
 	"github.com/stretchr/testify/assert"
 	"go.uber.org/mock/gomock"
 	"golang.org/x/crypto/sha3"
 
 	"github.com/Layr-Labs/eigensdk-go/crypto/bls"
-	sdktypes "github.com/Layr-Labs/eigensdk-go/types"
 
 	"github.com/NethermindEth/near-sffl/aggregator/types"
 	registryrollup "github.com/NethermindEth/near-sffl/contracts/bindings/SFFLRegistryRollup"
@@ -31,22 +29,7 @@ func TestProcessSignedCheckpointTaskResponse(t *testing.T) {
 	var FROM_NEAR_BLOCK = uint64(3)
 	var TO_NEAR_BLOCK = uint64(4)
 
-	MOCK_OPERATOR_BLS_PRIVATE_KEY, err := bls.NewPrivateKey(MOCK_OPERATOR_BLS_PRIVATE_KEY_STRING)
-	assert.Nil(t, err)
-	MOCK_OPERATOR_KEYPAIR := bls.NewKeyPair(MOCK_OPERATOR_BLS_PRIVATE_KEY)
-	MOCK_OPERATOR_G1PUBKEY := MOCK_OPERATOR_KEYPAIR.GetPubKeyG1()
-	MOCK_OPERATOR_G2PUBKEY := MOCK_OPERATOR_KEYPAIR.GetPubKeyG2()
-
-	operatorPubkeyDict := map[bls.OperatorId]types.OperatorInfo{
-		MOCK_OPERATOR_ID: {
-			OperatorPubkeys: sdktypes.OperatorPubkeys{
-				G1Pubkey: MOCK_OPERATOR_G1PUBKEY,
-				G2Pubkey: MOCK_OPERATOR_G2PUBKEY,
-			},
-			OperatorAddr: common.Address{},
-		},
-	}
-	aggregator, _, mockBlsAggServ, _, _, err := createMockAggregator(mockCtrl, operatorPubkeyDict)
+	aggregator, _, _, mockBlsAggServ, _, _, _, err := createMockAggregator(mockCtrl, MOCK_OPERATOR_PUBKEY_DICT)
 	assert.Nil(t, err)
 
 	signedCheckpointTaskResponse, err := createMockSignedCheckpointTaskResponse(MockTask{
@@ -72,22 +55,7 @@ func TestProcessSignedStateRootUpdateMessage(t *testing.T) {
 	mockCtrl := gomock.NewController(t)
 	defer mockCtrl.Finish()
 
-	MOCK_OPERATOR_BLS_PRIVATE_KEY, err := bls.NewPrivateKey(MOCK_OPERATOR_BLS_PRIVATE_KEY_STRING)
-	assert.Nil(t, err)
-	MOCK_OPERATOR_KEYPAIR := bls.NewKeyPair(MOCK_OPERATOR_BLS_PRIVATE_KEY)
-	MOCK_OPERATOR_G1PUBKEY := MOCK_OPERATOR_KEYPAIR.GetPubKeyG1()
-	MOCK_OPERATOR_G2PUBKEY := MOCK_OPERATOR_KEYPAIR.GetPubKeyG2()
-
-	operatorPubkeyDict := map[bls.OperatorId]types.OperatorInfo{
-		MOCK_OPERATOR_ID: {
-			OperatorPubkeys: sdktypes.OperatorPubkeys{
-				G1Pubkey: MOCK_OPERATOR_G1PUBKEY,
-				G2Pubkey: MOCK_OPERATOR_G2PUBKEY,
-			},
-			OperatorAddr: common.Address{},
-		},
-	}
-	aggregator, _, _, mockMessageBlsAggServ, _, err := createMockAggregator(mockCtrl, operatorPubkeyDict)
+	aggregator, _, _, _, mockMessageBlsAggServ, _, _, err := createMockAggregator(mockCtrl, MOCK_OPERATOR_PUBKEY_DICT)
 	assert.Nil(t, err)
 
 	message := servicemanager.StateRootUpdateMessage{
@@ -104,7 +72,7 @@ func TestProcessSignedStateRootUpdateMessage(t *testing.T) {
 
 	mockMessageBlsAggServ.EXPECT().ProcessNewSignature(context.Background(), messageDigest,
 		&signedMessage.BlsSignature, signedMessage.OperatorId)
-	mockMessageBlsAggServ.EXPECT().InitializeMessageIfNotExists(messageDigest, coretypes.QUORUM_NUMBERS, []uint32{types.QUORUM_THRESHOLD_NUMERATOR}, types.MESSAGE_TTL)
+	mockMessageBlsAggServ.EXPECT().InitializeMessageIfNotExists(messageDigest, coretypes.QUORUM_NUMBERS, []uint32{types.QUORUM_THRESHOLD_NUMERATOR}, types.MESSAGE_TTL, uint64(0))
 	err = aggregator.ProcessSignedStateRootUpdateMessage(signedMessage, nil)
 	assert.Nil(t, err)
 }
@@ -113,22 +81,7 @@ func TestProcessOperatorSetUpdateMessage(t *testing.T) {
 	mockCtrl := gomock.NewController(t)
 	defer mockCtrl.Finish()
 
-	MOCK_OPERATOR_BLS_PRIVATE_KEY, err := bls.NewPrivateKey(MOCK_OPERATOR_BLS_PRIVATE_KEY_STRING)
-	assert.Nil(t, err)
-	MOCK_OPERATOR_KEYPAIR := bls.NewKeyPair(MOCK_OPERATOR_BLS_PRIVATE_KEY)
-	MOCK_OPERATOR_G1PUBKEY := MOCK_OPERATOR_KEYPAIR.GetPubKeyG1()
-	MOCK_OPERATOR_G2PUBKEY := MOCK_OPERATOR_KEYPAIR.GetPubKeyG2()
-
-	operatorPubkeyDict := map[bls.OperatorId]types.OperatorInfo{
-		MOCK_OPERATOR_ID: {
-			OperatorPubkeys: sdktypes.OperatorPubkeys{
-				G1Pubkey: MOCK_OPERATOR_G1PUBKEY,
-				G2Pubkey: MOCK_OPERATOR_G2PUBKEY,
-			},
-			OperatorAddr: common.Address{},
-		},
-	}
-	aggregator, _, _, _, mockMessageBlsAggServ, err := createMockAggregator(mockCtrl, operatorPubkeyDict)
+	aggregator, mockAvsReader, _, _, _, mockMessageBlsAggServ, _, err := createMockAggregator(mockCtrl, MOCK_OPERATOR_PUBKEY_DICT)
 	assert.Nil(t, err)
 
 	message := registryrollup.OperatorSetUpdateMessage{
@@ -144,9 +97,11 @@ func TestProcessOperatorSetUpdateMessage(t *testing.T) {
 	messageDigest, err := core.GetOperatorSetUpdateMessageDigest(&signedMessage.Message)
 	assert.Nil(t, err)
 
+	mockAvsReader.EXPECT().GetOperatorSetUpdateBlock(context.Background(), uint64(1)).Return(uint32(10), nil)
+
 	mockMessageBlsAggServ.EXPECT().ProcessNewSignature(context.Background(), messageDigest,
 		&signedMessage.BlsSignature, signedMessage.OperatorId)
-	mockMessageBlsAggServ.EXPECT().InitializeMessageIfNotExists(messageDigest, coretypes.QUORUM_NUMBERS, []uint32{types.QUORUM_THRESHOLD_NUMERATOR}, types.MESSAGE_TTL)
+	mockMessageBlsAggServ.EXPECT().InitializeMessageIfNotExists(messageDigest, coretypes.QUORUM_NUMBERS, []uint32{types.QUORUM_THRESHOLD_NUMERATOR}, types.MESSAGE_TTL, uint64(9))
 	err = aggregator.ProcessSignedOperatorSetUpdateMessage(signedMessage, nil)
 	assert.Nil(t, err)
 }
