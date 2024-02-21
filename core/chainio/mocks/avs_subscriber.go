@@ -57,11 +57,12 @@ func (mr *MockAvsSubscribererMockRecorder) ParseCheckpointTaskResponded(arg0 any
 }
 
 // SubscribeToNewTasks mocks base method.
-func (m *MockAvsSubscriberer) SubscribeToNewTasks(arg0 chan *contractSFFLTaskManager.ContractSFFLTaskManagerCheckpointTaskCreated) event.Subscription {
+func (m *MockAvsSubscriberer) SubscribeToNewTasks(arg0 chan *contractSFFLTaskManager.ContractSFFLTaskManagerCheckpointTaskCreated) (event.Subscription, error) {
 	m.ctrl.T.Helper()
 	ret := m.ctrl.Call(m, "SubscribeToNewTasks", arg0)
 	ret0, _ := ret[0].(event.Subscription)
-	return ret0
+	ret1, _ := ret[1].(error)
+	return ret0, ret1
 }
 
 // SubscribeToNewTasks indicates an expected call of SubscribeToNewTasks.
@@ -71,11 +72,12 @@ func (mr *MockAvsSubscribererMockRecorder) SubscribeToNewTasks(arg0 any) *gomock
 }
 
 // SubscribeToOperatorSetUpdates mocks base method.
-func (m *MockAvsSubscriberer) SubscribeToOperatorSetUpdates(arg0 chan *contractSFFLOperatorSetUpdateRegistry.ContractSFFLOperatorSetUpdateRegistryOperatorSetUpdatedAtBlock) event.Subscription {
+func (m *MockAvsSubscriberer) SubscribeToOperatorSetUpdates(arg0 chan *contractSFFLOperatorSetUpdateRegistry.ContractSFFLOperatorSetUpdateRegistryOperatorSetUpdatedAtBlock) (event.Subscription, error) {
 	m.ctrl.T.Helper()
 	ret := m.ctrl.Call(m, "SubscribeToOperatorSetUpdates", arg0)
 	ret0, _ := ret[0].(event.Subscription)
-	return ret0
+	ret1, _ := ret[1].(error)
+	return ret0, ret1
 }
 
 // SubscribeToOperatorSetUpdates indicates an expected call of SubscribeToOperatorSetUpdates.
@@ -85,11 +87,12 @@ func (mr *MockAvsSubscribererMockRecorder) SubscribeToOperatorSetUpdates(arg0 an
 }
 
 // SubscribeToTaskResponses mocks base method.
-func (m *MockAvsSubscriberer) SubscribeToTaskResponses(arg0 chan *contractSFFLTaskManager.ContractSFFLTaskManagerCheckpointTaskResponded) event.Subscription {
+func (m *MockAvsSubscriberer) SubscribeToTaskResponses(arg0 chan *contractSFFLTaskManager.ContractSFFLTaskManagerCheckpointTaskResponded) (event.Subscription, error) {
 	m.ctrl.T.Helper()
 	ret := m.ctrl.Call(m, "SubscribeToTaskResponses", arg0)
 	ret0, _ := ret[0].(event.Subscription)
-	return ret0
+	ret1, _ := ret[1].(error)
+	return ret0, ret1
 }
 
 // SubscribeToTaskResponses indicates an expected call of SubscribeToTaskResponses.
