@@ -127,19 +127,21 @@ func NewConfig(ctx *cli.Context) (*Config, error) {
 	txMgr := txmgr.NewSimpleTxManager(ethRpcClient, logger, signerV2, aggregatorAddr)
 
 	config := &Config{
-		EcdsaPrivateKey:             ecdsaPrivateKey,
-		Logger:                      logger,
-		EthWsRpcUrl:                 configRaw.EthWsUrl,
-		EthHttpRpcUrl:               configRaw.EthRpcUrl,
-		EthHttpClient:               ethRpcClient,
-		EthWsClient:                 ethWsClient,
-		OperatorStateRetrieverAddr:  common.HexToAddress(sfflDeploymentRaw.Addresses.OperatorStateRetrieverAddr),
-		SFFLRegistryCoordinatorAddr: common.HexToAddress(sfflDeploymentRaw.Addresses.RegistryCoordinatorAddr),
-		AggregatorServerIpPortAddr:  configRaw.AggregatorServerIpPortAddr,
-		RegisterOperatorOnStartup:   configRaw.RegisterOperatorOnStartup,
-		SignerFn:                    signerV2,
-		TxMgr:                       txMgr,
-		AggregatorAddress:           aggregatorAddr,
+		EcdsaPrivateKey:                ecdsaPrivateKey,
+		Logger:                         logger,
+		EthWsRpcUrl:                    configRaw.EthWsUrl,
+		EthHttpRpcUrl:                  configRaw.EthRpcUrl,
+		EthHttpClient:                  ethRpcClient,
+		EthWsClient:                    ethWsClient,
+		OperatorStateRetrieverAddr:     common.HexToAddress(sfflDeploymentRaw.Addresses.OperatorStateRetrieverAddr),
+		SFFLRegistryCoordinatorAddr:    common.HexToAddress(sfflDeploymentRaw.Addresses.RegistryCoordinatorAddr),
+		AggregatorServerIpPortAddr:     configRaw.AggregatorServerIpPortAddr,
+		RegisterOperatorOnStartup:      configRaw.RegisterOperatorOnStartup,
+		AggregatorRestServerIpPortAddr: configRaw.AggregatorRestServerIpPortAddr,
+		AggregatorDatabasePath:         configRaw.AggregatorDatabasePath,
+		SignerFn:                       signerV2,
+		TxMgr:                          txMgr,
+		AggregatorAddress:              aggregatorAddr,
 	}
 	config.validate()
 	return config, nil
