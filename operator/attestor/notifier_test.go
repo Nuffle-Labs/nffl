@@ -19,7 +19,7 @@ func generateBlockData() consumer.BlockData {
 	rand.Seed(time.Now().UnixNano())
 
 	randomRollupId := uint32(rand.Intn(NUM_OF_BLOCKS / 100))
-	randomBlockNumber := big.NewInt(int64(rand.Intn(100000))) // Random Block Number between 0 and 99999
+	randomBlockNumber := big.NewInt(int64(rand.Intn(100000)))
 	header := types.Header{
 		Number: randomBlockNumber,
 	}
