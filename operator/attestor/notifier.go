@@ -20,7 +20,7 @@ func NewNotifier() Notifier {
 	}
 }
 
-func (notifier *Notifier) Subscribe(rollupId uint32) (chan consumer.BlockData, *list.Element) {
+func (notifier *Notifier) Subscribe(rollupId uint32) (<-chan consumer.BlockData, *list.Element) {
 	notifier.notifierLock.Lock()
 	defer notifier.notifierLock.Unlock()
 
@@ -28,7 +28,7 @@ func (notifier *Notifier) Subscribe(rollupId uint32) (chan consumer.BlockData, *
 		notifier.rollupIdsToSubscribers[rollupId] = list.New()
 	}
 
-	notifierC := make(chan consumer.BlockData)
+	notifierC := make(chan consumer.BlockData, 10)
 	id := notifier.rollupIdsToSubscribers[rollupId].PushBack(notifierC)
 
 	return notifierC, id

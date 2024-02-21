@@ -155,7 +155,7 @@ func (attestor *Attestor) processMQBlocks(ctx context.Context) {
 			}
 
 			// Rebroadcast in case mq block arrives first
-			go func() {
+			go func(mqBlock consumer.BlockData) {
 				select {
 				case <-time.After(MQ_REBROADCAST_DELAY):
 					attestor.notifier.Notify(mqBlock.RollupId, mqBlock)
@@ -164,7 +164,7 @@ func (attestor *Attestor) processMQBlocks(ctx context.Context) {
 				case <-ctx.Done():
 					return
 				}
-			}()
+			}(mqBlock)
 		}
 	}
 }
