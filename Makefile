@@ -8,9 +8,6 @@ AGGREGATOR_ECDSA_PRIV_KEY=0x2a871d0798f97d79848a013d4936a73bf4cc922c825d33c1cf70
 CHALLENGER_ECDSA_PRIV_KEY=0x5de4111afa1a4b94908f83103eb1f1706367c2e68ca870fc3fb9a804cdab365a
 
 CHAINID=31337
-# Make sure to update this if the strategy address changes
-# check in contracts/script/output/${CHAINID}/sffl_avs_deployment_output.json
-STRATEGY_ADDRESS=0x7a2088a1bFc9d81c55368AE168C2C02570cB814F
 DEPLOYMENT_FILES_DIR=contracts/evm/script/output/${CHAINID}
 
 -----------------------------: ## 
@@ -32,11 +29,12 @@ bindings: ## generates contract bindings
 	cd contracts && ./generate-go-bindings.sh
 
 ___DOCKER___: ## 
-docker-build-and-publish-images: ## builds and publishes operator and aggregator docker images using Ko
-	KO_DOCKER_REPO=ghcr.io/layr-labs/sffl ko build aggregator/cmd/main.go --preserve-import-paths
-	KO_DOCKER_REPO=ghcr.io/layr-labs/sffl ko build operator/cmd/main.go --preserve-import-paths
-docker-start-everything: docker-build-and-publish-images ## starts aggregator and operator docker containers
-	docker compose pull && docker compose up
+docker-build-images: ## builds and publishes indexer, operator and aggregator docker images
+	docker build -t near-sffl-indexer -f ./indexer/Dockerfile .
+	ko build aggregator/cmd/main.go --preserve-import-paths -L
+	ko build operator/cmd/main.go --preserve-import-paths -L
+docker-start-everything: docker-build-images ## starts aggregator and operator docker containers
+	docker compose up
 
 __CLI__: ## 
 
