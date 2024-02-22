@@ -433,3 +433,7 @@ func (o *Operator) registerOperatorOnStartup(
 	}
 	o.logger.Infof("Registered operator with avs")
 }
+
+func (o *Operator) BlsPubkeyG1() *bls.G1Point {
+	return o.blsKeypair.GetPubKeyG1()
+}

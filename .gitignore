@@ -34,5 +34,5 @@ target
 # Aggregator DB
 aggregator.db
 
-# just for example
-id_rsa
+# Test artifacts
+test_data
