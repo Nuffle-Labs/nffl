@@ -51,7 +51,8 @@ services:
     command:
       - -c
       - |
-        cast rpc anvil_setBalance 0x860B6912C2d0337ef05bbC89b0C2CB6CbAEAB4A5 0x8ac7230489e80000
+        cast rpc anvil_setBalance 0xD5A0359da7B310917d7760385516B2426E86ab7f 0x8ac7230489e80000
+        cast rpc anvil_setBalance 0x9441540E8183d416f2Dc1901AB2034600f17B65a 0x8ac7230489e80000
     environment:
       - ETH_RPC_URL=http://mainnet-anvil:8545
     networks:
@@ -220,10 +221,9 @@ services:
       - |
         npm i -g near-cli@3.0.0
         near create-account da2.test.near --masterAccount test.near
-        near deploy da2.test.near /near-sffl/tests/near/near_da_blob_store.wasm --initFunction new --initArgs {} --masterAccount test.near
+        near deploy da2.test.near /near-sffl/tests/near/near_da_blob_store.wasm --initFunction new --initArgs {} --masterAccount test.near -f
         near create-account da3.test.near --masterAccount test.near
-        near deploy da3.test.near /near-sffl/tests/near/near_da_blob_store.wasm --initFunction new --initArgs {} --masterAccount test.near
-        sleep 10000
+        near deploy da3.test.near /near-sffl/tests/near/near_da_blob_store.wasm --initFunction new --initArgs {} --masterAccount test.near -f
     environment:
       - NEAR_ENV=localnet
       - NEAR_HELPER_ACCOUNT=near
@@ -270,29 +270,62 @@ services:
       aggregator:
         condition: service_started
     ports:
-      - "9090:9090" # prometheus metrics port (defined in operator-docker-compose.anvil.yaml file)
+      - "9090:9090" # prometheus metrics port (defined in operator0-docker-compose.anvil.yaml file)
     volumes:
       - ./:/near-sffl/
     working_dir: /near-sffl
     environment:
-      - OPERATOR_BLS_KEY_PASSWORD=
-      - OPERATOR_ECDSA_KEY_PASSWORD=
-    command: --config config-files/operator-docker-compose.anvil.yaml
+      - OPERATOR_BLS_KEY_PASSWORD=fDUMDLmBROwlzzPXyIcy
+      - OPERATOR_ECDSA_KEY_PASSWORD=EnJuncq01CiVk9UbuBYl
+    command: --config config-files/operator0-docker-compose.anvil.yaml
     networks:
       - near-sffl
 
-  # operator2:
-  #   image: ghcr.io/layr-labs/incredible-squaring/operator/cmd/main.go:latest
-  #   container_name: incredible-squaring-operator2
-  #   depends_on:
-  #     anvil:
-  #       condition: service_started
-  #   volumes:
-  #     - ./:/incredible-squaring/
-  #   working_dir: /incredible-squaring
-  #   command: --config config-files/operator-docker-compose.anvil.yaml --credible-squaring-deployment contracts/script/output/31337/credible_squaring_avs_deployment_output.json --ecdsa-private-key 0x59c6995e998f97a5a0044966f0945389dc9e86dae88c7a8412f4603b6b78690d --bls-private-key 2
-  #   networks:
-  #     - near-sffl
+  operator0-health:
+    image: debian:bookworm
+    depends_on:
+      operator0:
+        condition: service_started
+    command: sh -c "apt update && apt install -y netcat-traditional && sleep infinity"
+    healthcheck:
+      test: ["CMD", "nc", "-zv", "near-sffl-operator0", "9090"]
+      interval: 5s
+      timeout: 75s
+      retries: 15
+    networks:
+      - near-sffl
+
+  operator1:
+    image: ko.local/operator/cmd/main.go:latest
+    container_name: near-sffl-operator1
+    depends_on:
+      operator0-health:
+        condition: service_healthy
+    ports:
+      - "9091:9091" # prometheus metrics port (defined in operator1-docker-compose.anvil.yaml file)
+    volumes:
+      - ./:/near-sffl/
+    working_dir: /near-sffl
+    environment:
+      - OPERATOR_BLS_KEY_PASSWORD=2EVEUyHCrHZdfdo8lp29
+      - OPERATOR_ECDSA_KEY_PASSWORD=isru1gvtykIavuk1Fg1Q
+    command: --config config-files/operator1-docker-compose.anvil.yaml
+    networks:
+      - near-sffl
+
+  operator1-health:
+    image: debian:bookworm
+    depends_on:
+      operator1:
+        condition: service_started
+    command: sh -c "apt update && apt install -y netcat-traditional && sleep infinity"
+    healthcheck:
+      test: ["CMD", "nc", "-zv", "near-sffl-operator1", "9090"]
+      interval: 5s
+      timeout: 75s
+      retries: 15
+    networks:
+      - near-sffl
 
   # METRICS RELATED
   grafana:
