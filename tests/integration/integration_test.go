@@ -550,7 +550,6 @@ func startRollupIndexing(t *testing.T, ctx context.Context, rollupAnvils []*Anvi
 						panic(fmt.Errorf("Error getting rollup block: %s", err.Error()))
 					}
 					submitBlock(t, getDaContractAccountId(anvil), block)
-					return
 				case <-ctx.Done():
 					return
 				}
