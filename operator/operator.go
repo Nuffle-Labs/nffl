@@ -313,8 +313,17 @@ func (o *Operator) Start(ctx context.Context) error {
 	}
 
 	// TODO(samlaf): wrap this call with increase in avs-node-spec metric
-	newTasksSub := o.avsSubscriber.SubscribeToNewTasks(o.checkpointTaskCreatedChan)
-	operatorSetUpdateSub := o.avsSubscriber.SubscribeToOperatorSetUpdates(o.operatorSetUpdateChan)
+	newTasksSub, err := o.avsSubscriber.SubscribeToNewTasks(o.checkpointTaskCreatedChan)
+	if err != nil {
+		o.logger.Error("Error subscribing to new tasks", "err", err)
+		return err
+	}
+
+	operatorSetUpdateSub, err := o.avsSubscriber.SubscribeToOperatorSetUpdates(o.operatorSetUpdateChan)
+	if err != nil {
+		o.logger.Error("Error subscribing to operator set updates", "err", err)
+		return err
+	}
 
 	signedRootsC := o.attestor.GetSignedRootC()
 	for {
@@ -330,7 +339,13 @@ func (o *Operator) Start(ctx context.Context) error {
 			// TODO(samlaf): write unit tests to check if this fixed the issues we were seeing
 			newTasksSub.Unsubscribe()
 			// TODO(samlaf): wrap this call with increase in avs-node-spec metric
-			newTasksSub = o.avsSubscriber.SubscribeToNewTasks(o.checkpointTaskCreatedChan)
+			newTasksSub, err = o.avsSubscriber.SubscribeToNewTasks(o.checkpointTaskCreatedChan)
+
+			// TODO: retry flow
+			if err != nil {
+				o.logger.Error("Error re-subscribing to new tasks", "err", err)
+				return o.Close()
+			}
 		case checkpointTaskCreatedLog := <-o.checkpointTaskCreatedChan:
 			o.metrics.IncNumTasksReceived()
 			taskResponse := o.ProcessCheckpointTaskCreatedLog(checkpointTaskCreatedLog)
@@ -343,7 +358,13 @@ func (o *Operator) Start(ctx context.Context) error {
 		case err := <-operatorSetUpdateSub.Err():
 			o.logger.Error("Error in websocket subscription", "err", err)
 			operatorSetUpdateSub.Unsubscribe()
-			operatorSetUpdateSub = o.avsSubscriber.SubscribeToOperatorSetUpdates(o.operatorSetUpdateChan)
+			operatorSetUpdateSub, err = o.avsSubscriber.SubscribeToOperatorSetUpdates(o.operatorSetUpdateChan)
+
+			// TODO: retry flow
+			if err != nil {
+				o.logger.Error("Error re-subscribing to operator set updates", "err", err)
+				return o.Close()
+			}
 		case operatorSetUpdate := <-o.operatorSetUpdateChan:
 			go o.handleOperatorSetUpdate(ctx, operatorSetUpdate)
 

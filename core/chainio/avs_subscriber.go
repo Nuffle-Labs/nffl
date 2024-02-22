@@ -15,9 +15,9 @@ import (
 )
 
 type AvsSubscriberer interface {
-	SubscribeToNewTasks(checkpointTaskCreatedChan chan *taskmanager.ContractSFFLTaskManagerCheckpointTaskCreated) event.Subscription
-	SubscribeToTaskResponses(taskResponseLogs chan *taskmanager.ContractSFFLTaskManagerCheckpointTaskResponded) event.Subscription
-	SubscribeToOperatorSetUpdates(operatorSetUpdateChan chan *opsetupdatereg.ContractSFFLOperatorSetUpdateRegistryOperatorSetUpdatedAtBlock) event.Subscription
+	SubscribeToNewTasks(checkpointTaskCreatedChan chan *taskmanager.ContractSFFLTaskManagerCheckpointTaskCreated) (event.Subscription, error)
+	SubscribeToTaskResponses(taskResponseLogs chan *taskmanager.ContractSFFLTaskManagerCheckpointTaskResponded) (event.Subscription, error)
+	SubscribeToOperatorSetUpdates(operatorSetUpdateChan chan *opsetupdatereg.ContractSFFLOperatorSetUpdateRegistryOperatorSetUpdatedAtBlock) (event.Subscription, error)
 	ParseCheckpointTaskResponded(rawLog types.Log) (*taskmanager.ContractSFFLTaskManagerCheckpointTaskResponded, error)
 }
 
@@ -55,39 +55,42 @@ func NewAvsSubscriber(avsContractBindings *AvsManagersBindings, logger sdkloggin
 	}
 }
 
-func (s *AvsSubscriber) SubscribeToNewTasks(checkpointTaskCreatedChan chan *taskmanager.ContractSFFLTaskManagerCheckpointTaskCreated) event.Subscription {
+func (s *AvsSubscriber) SubscribeToNewTasks(checkpointTaskCreatedChan chan *taskmanager.ContractSFFLTaskManagerCheckpointTaskCreated) (event.Subscription, error) {
 	sub, err := s.AvsContractBindings.TaskManager.WatchCheckpointTaskCreated(
 		&bind.WatchOpts{}, checkpointTaskCreatedChan, nil,
 	)
 	if err != nil {
 		s.logger.Error("Failed to subscribe to new TaskManager tasks", "err", err)
+		return nil, err
 	}
 	s.logger.Infof("Subscribed to new TaskManager tasks")
-	return sub
+	return sub, nil
 }
 
-func (s *AvsSubscriber) SubscribeToTaskResponses(taskResponseChan chan *taskmanager.ContractSFFLTaskManagerCheckpointTaskResponded) event.Subscription {
+func (s *AvsSubscriber) SubscribeToTaskResponses(taskResponseChan chan *taskmanager.ContractSFFLTaskManagerCheckpointTaskResponded) (event.Subscription, error) {
 	sub, err := s.AvsContractBindings.TaskManager.WatchCheckpointTaskResponded(
 		&bind.WatchOpts{}, taskResponseChan,
 	)
 	if err != nil {
 		s.logger.Error("Failed to subscribe to CheckpointTaskResponded events", "err", err)
+		return nil, err
 	}
 	s.logger.Infof("Subscribed to CheckpointTaskResponded events")
-	return sub
+	return sub, nil
 }
 
 func (s *AvsSubscriber) ParseCheckpointTaskResponded(rawLog types.Log) (*taskmanager.ContractSFFLTaskManagerCheckpointTaskResponded, error) {
 	return s.AvsContractBindings.TaskManager.ContractSFFLTaskManagerFilterer.ParseCheckpointTaskResponded(rawLog)
 }
 
-func (s *AvsSubscriber) SubscribeToOperatorSetUpdates(operatorSetUpdateChan chan *opsetupdatereg.ContractSFFLOperatorSetUpdateRegistryOperatorSetUpdatedAtBlock) event.Subscription {
+func (s *AvsSubscriber) SubscribeToOperatorSetUpdates(operatorSetUpdateChan chan *opsetupdatereg.ContractSFFLOperatorSetUpdateRegistryOperatorSetUpdatedAtBlock) (event.Subscription, error) {
 	sub, err := s.AvsContractBindings.OperatorSetUpdateRegistry.WatchOperatorSetUpdatedAtBlock(
 		&bind.WatchOpts{}, operatorSetUpdateChan, nil, nil,
 	)
 	if err != nil {
 		s.logger.Error("Failed to subscribe to OperatorSetUpdatedAtBlock events", "err", err)
+		return nil, err
 	}
 	s.logger.Infof("Subscribed to OperatorSetUpdatedAtBlock events")
-	return sub
+	return sub, nil
 }
