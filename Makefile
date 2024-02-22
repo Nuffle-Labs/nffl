@@ -92,7 +92,7 @@ tests-unit: ## runs all unit tests
 	go tool cover -html=coverage.out -o coverage.html
 
 tests-contract: ## runs all forge tests
-	cd contracts && forge test
+	cd contracts/evm && forge test
 
 tests-integration: ## runs all integration tests
 	go test ./tests/integration/... -v -count=1
