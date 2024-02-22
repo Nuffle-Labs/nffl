@@ -7,7 +7,7 @@ networks:
 
 services:
   rmq:
-    image: rabbitmq:latest
+    image: rabbitmq:3-management-alpine
     container_name: rmq
     ports:
       - "5672:5672"
@@ -32,6 +32,27 @@ services:
     volumes:
       - ./tests/anvil/data/avs-and-eigenlayer-deployed-anvil-state.json:/root/.anvil/state.json
     command: --host 0.0.0.0 --port 8545 --chain-id 1 --block-time 1 --load-state /root/.anvil/state.json
+    healthcheck:
+      test: ["CMD", "nc", "-zv", "localhost", "8545"]
+      interval: 2s
+      timeout: 30s
+      retries: 15
+    networks:
+      - near-sffl
+
+  mainnet-anvil-setup:
+    image: ghcr.io/foundry-rs/foundry
+    container_name: mainnet-anvil-setup
+    depends_on:
+      mainnet-anvil:
+        condition: service_healthy
+    entrypoint: sh
+    command:
+      - -c
+      - |
+        cast rpc anvil_setBalance 0x860B6912C2d0337ef05bbC89b0C2CB6CbAEAB4A5 0x8ac7230489e80000
+    environment:
+      - ETH_RPC_URL=http://mainnet-anvil:8545
     networks:
       - near-sffl
   
@@ -42,6 +63,54 @@ services:
       - "8546:8546"
     entrypoint: anvil
     command: --host 0.0.0.0 --port 8546 --chain-id 2 --block-time 1 
+    healthcheck:
+      test: ["CMD", "nc", "-zv", "localhost", "8546"]
+      interval: 2s
+      timeout: 30s
+      retries: 15
+    networks:
+      - near-sffl
+
+  rollup0-anvil-setup:
+    image: ghcr.io/foundry-rs/foundry
+    container_name: rollup0-anvil-setup
+    depends_on:
+      rollup0-anvil:
+        condition: service_healthy
+    volumes:
+      - ./:/near-sffl/
+    working_dir: /near-sffl/contracts/evm
+    entrypoint: sh
+    command:
+      - -c
+      - |
+        forge create src/rollup/SFFLRegistryRollup.sol:SFFLRegistryRollup --constructor-args '[((643552363890320897587044283125191574906281609959531590546948318138132520777,7028377728703212953187883551402495866059211864756496641401904395458852281995),1000)]' 66 1 --private-key 0x2a871d0798f97d79848a013d4936a73bf4cc922c825d33c1cf7073dff6d409c6
+    environment:
+      - ETH_RPC_URL=http://rollup0-anvil:8546
+    networks:
+      - near-sffl
+
+  rollup0-relayer:
+    image: near-sffl-test-relayer:latest
+    container_name: rollup0-relayer
+    depends_on:
+      rollup0-anvil:
+        condition: service_healthy
+      indexer-setup:
+        condition: service_started
+    volumes:
+      - near_cli_data:/near-cli
+      - near_cli_keys:/root/.near-credentials
+    command:
+      - --rpc-url
+      - ws://rollup0-anvil:8546
+      - --da-account-id
+      - da2.test.near
+    environment:
+      - NEAR_ENV=localnet
+      - NEAR_HELPER_ACCOUNT=near
+      - NEAR_CLI_LOCALNET_KEY_PATH=/near-cli/validator_key.json
+      - NEAR_NODE_URL=http://near-sffl-indexer:3030
     networks:
       - near-sffl
 
@@ -52,6 +121,54 @@ services:
       - "8547:8547"
     entrypoint: anvil
     command: --host 0.0.0.0 --port 8547 --chain-id 3 --block-time 1 
+    healthcheck:
+      test: ["CMD", "nc", "-zv", "localhost", "8547"]
+      interval: 2s
+      timeout: 30s
+      retries: 15
+    networks:
+      - near-sffl
+
+  rollup1-anvil-setup:
+    image: ghcr.io/foundry-rs/foundry
+    container_name: rollup1-anvil-setup
+    depends_on:
+      rollup1-anvil:
+        condition: service_healthy
+    volumes:
+      - ./:/near-sffl/
+    working_dir: /near-sffl/contracts/evm
+    entrypoint: sh
+    command:
+      - -c
+      - |
+        forge create src/rollup/SFFLRegistryRollup.sol:SFFLRegistryRollup --constructor-args '[((643552363890320897587044283125191574906281609959531590546948318138132520777,7028377728703212953187883551402495866059211864756496641401904395458852281995),1000)]' 66 1 --private-key 0x2a871d0798f97d79848a013d4936a73bf4cc922c825d33c1cf7073dff6d409c6
+    environment:
+      - ETH_RPC_URL=http://rollup1-anvil:8547
+    networks:
+      - near-sffl
+
+  rollup1-relayer:
+    image: near-sffl-test-relayer:latest
+    container_name: rollup1-relayer
+    depends_on:
+      rollup1-anvil:
+        condition: service_healthy
+      indexer-setup:
+        condition: service_started
+    volumes:
+      - near_cli_data:/near-cli
+      - near_cli_keys:/root/.near-credentials
+    command:
+      - --rpc-url
+      - ws://rollup1-anvil:8547
+      - --da-account-id
+      - da2.test.near
+    environment:
+      - NEAR_ENV=localnet
+      - NEAR_HELPER_ACCOUNT=near
+      - NEAR_CLI_LOCALNET_KEY_PATH=/near-cli/validator_key.json
+      - NEAR_NODE_URL=http://near-sffl-indexer:3030
     networks:
       - near-sffl
 
@@ -61,12 +178,17 @@ services:
     depends_on:
       rmq:
         condition: service_healthy
-      mainnet-anvil:
-        condition: service_started
-      rollup0-anvil:
-        condition: service_started
-      rollup1-anvil:
-        condition: service_started
+      mainnet-anvil-setup:
+        condition: service_completed_successfully
+      rollup0-anvil-setup:
+        condition: service_completed_successfully
+      rollup1-anvil-setup:
+        condition: service_completed_successfully
+    ports:
+      - "3030:3030"
+    volumes:
+      - near_cli_data:/root/.near
+      - near_cli_keys:/root/.near-credentials
     command: 
       - --rmq-address
       - amqp://rmq:5672
@@ -81,16 +203,44 @@ services:
     networks:
       - near-sffl
 
+  indexer-setup:
+    image: node:16
+    container_name: near-sffl-indexer-setup
+    depends_on:
+      indexer:
+        condition: service_started
+    volumes:
+      - ./:/near-sffl/
+      - near_cli_data:/near-cli
+      - near_cli_keys:/root/.near-credentials
+    entrypoint: sh
+    command: 
+      - -c
+      - |
+        npm i -g near-cli@3.0.0
+        near create-account da2.test.near --masterAccount test.near
+        near deploy da2.test.near /near-sffl/tests/near/near_da_blob_store.wasm --initFunction new --initArgs {} --masterAccount test.near
+        near create-account da3.test.near --masterAccount test.near
+        near deploy da3.test.near /near-sffl/tests/near/near_da_blob_store.wasm --initFunction new --initArgs {} --masterAccount test.near
+        sleep 10000
+    environment:
+      - NEAR_ENV=localnet
+      - NEAR_HELPER_ACCOUNT=near
+      - NEAR_CLI_LOCALNET_KEY_PATH=/near-cli/validator_key.json
+      - NEAR_NODE_URL=http://near-sffl-indexer:3030
+    networks:
+      - near-sffl
+
   aggregator:
     image: ko.local/aggregator/cmd/main.go:latest
     container_name: near-sffl-aggregator
     depends_on:
-      mainnet-anvil:
-        condition: service_started
-      rollup0-anvil:
-        condition: service_started
-      rollup1-anvil:
-        condition: service_started
+      mainnet-anvil-setup:
+        condition: service_completed_successfully
+      rollup0-anvil-setup:
+        condition: service_completed_successfully
+      rollup1-anvil-setup:
+        condition: service_completed_successfully
     volumes:
       - ./:/near-sffl/
     working_dir: /near-sffl
@@ -110,12 +260,12 @@ services:
     depends_on:
       rmq:
         condition: service_healthy
-      mainnet-anvil:
-        condition: service_started
-      rollup0-anvil:
-        condition: service_started
-      rollup1-anvil:
-        condition: service_started
+      mainnet-anvil-setup:
+        condition: service_completed_successfully
+      rollup0-anvil-setup:
+        condition: service_completed_successfully
+      rollup1-anvil-setup:
+        condition: service_completed_successfully
       aggregator:
         condition: service_started
     ports:
@@ -188,5 +338,7 @@ services:
       - "host.docker.internal:host-gateway"
 
 volumes:
-  prometheus_data: {}
-  grafana_data: {}
+  prometheus_data:
+  grafana_data:
+  near_cli_data:
+  near_cli_keys:
