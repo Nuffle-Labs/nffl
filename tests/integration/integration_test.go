@@ -58,7 +58,7 @@ func TestIntegration(t *testing.T) {
 
 	newOperator := startOperator(t, ctx, genOperatorConfig(t, ctx, setup.mainnetAnvil, setup.rollupAnvils, setup.rabbitMq))
 
-	taskHash, err := setup.avsReader.AvsServiceBindings.TaskManager.AllCheckpointTaskHashes(&bind.CallOpts{}, 1)
+	taskHash, err := setup.avsReader.AvsServiceBindings.TaskManager.AllCheckpointTaskHashes(&bind.CallOpts{}, 0)
 	if err != nil {
 		t.Fatalf("Cannot get task hash: %s", err.Error())
 	}
@@ -66,7 +66,7 @@ func TestIntegration(t *testing.T) {
 		t.Fatalf("Task hash is empty")
 	}
 
-	taskResponseHash, err := setup.avsReader.AvsServiceBindings.TaskManager.AllCheckpointTaskResponses(&bind.CallOpts{}, 1)
+	taskResponseHash, err := setup.avsReader.AvsServiceBindings.TaskManager.AllCheckpointTaskResponses(&bind.CallOpts{}, 0)
 	log.Printf("taskResponseHash: %v", taskResponseHash)
 	if err != nil {
 		t.Fatalf("Cannot get task response hash: %s", err.Error())
