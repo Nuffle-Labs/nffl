@@ -141,7 +141,7 @@ func setupTestEnv(t *testing.T, ctx context.Context) *TestEnv {
 	rabbitMq := startRabbitMqContainer(t, containersCtx)
 	indexerContainer := startIndexer(t, containersCtx, rollupAnvils, rabbitMq)
 
-	startRollupIndexing(t, containersCtx, rollupAnvils)
+	startRollupIndexing(t, ctx, rollupAnvils)
 
 	sfflDeploymentRaw := readSfflDeploymentRaw()
 
