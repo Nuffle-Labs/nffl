@@ -2,37 +2,36 @@ package operator
 
 import (
 	"context"
+	"crypto/ecdsa"
+	"encoding/hex"
+	"encoding/json"
 	"fmt"
+	"math/big"
 	"os"
 
-	"github.com/ethereum/go-ethereum/accounts/abi/bind"
-	"github.com/ethereum/go-ethereum/common"
-	"github.com/prometheus/client_golang/prometheus"
-
-	opsetupdatereg "github.com/NethermindEth/near-sffl/contracts/bindings/SFFLOperatorSetUpdateRegistry"
-	registryrollup "github.com/NethermindEth/near-sffl/contracts/bindings/SFFLRegistryRollup"
-	taskmanager "github.com/NethermindEth/near-sffl/contracts/bindings/SFFLTaskManager"
-	"github.com/NethermindEth/near-sffl/core"
-	"github.com/NethermindEth/near-sffl/core/chainio"
-	coretypes "github.com/NethermindEth/near-sffl/core/types"
-	"github.com/NethermindEth/near-sffl/metrics"
-	"github.com/NethermindEth/near-sffl/operator/attestor"
-	"github.com/NethermindEth/near-sffl/types"
-
 	"github.com/Layr-Labs/eigensdk-go/chainio/clients"
-	sdkelcontracts "github.com/Layr-Labs/eigensdk-go/chainio/clients/elcontracts"
 	"github.com/Layr-Labs/eigensdk-go/chainio/clients/eth"
 	"github.com/Layr-Labs/eigensdk-go/chainio/txmgr"
 	"github.com/Layr-Labs/eigensdk-go/crypto/bls"
 	sdkecdsa "github.com/Layr-Labs/eigensdk-go/crypto/ecdsa"
 	"github.com/Layr-Labs/eigensdk-go/logging"
 	sdklogging "github.com/Layr-Labs/eigensdk-go/logging"
-	sdkmetrics "github.com/Layr-Labs/eigensdk-go/metrics"
 	"github.com/Layr-Labs/eigensdk-go/metrics/collectors/economic"
 	rpccalls "github.com/Layr-Labs/eigensdk-go/metrics/collectors/rpc_calls"
 	"github.com/Layr-Labs/eigensdk-go/nodeapi"
 	"github.com/Layr-Labs/eigensdk-go/signerv2"
 	sdktypes "github.com/Layr-Labs/eigensdk-go/types"
+	"github.com/ethereum/go-ethereum/accounts/abi/bind"
+	"github.com/ethereum/go-ethereum/common"
+	"github.com/prometheus/client_golang/prometheus"
+
+	registryrollup "github.com/NethermindEth/near-sffl/contracts/bindings/SFFLRegistryRollup"
+	taskmanager "github.com/NethermindEth/near-sffl/contracts/bindings/SFFLTaskManager"
+	"github.com/NethermindEth/near-sffl/core"
+	coretypes "github.com/NethermindEth/near-sffl/core/types"
+	"github.com/NethermindEth/near-sffl/metrics"
+	"github.com/NethermindEth/near-sffl/operator/attestor"
+	"github.com/NethermindEth/near-sffl/types"
 )
 
 const AVS_NAME = "super-fast-finality-layer"
@@ -47,23 +46,12 @@ type Operator struct {
 	// this way, auditing this operator code makes it obvious that operators don't need to
 	// write to the chain during the course of their normal operations
 	// writing to the chain should be done via the cli only
-	metricsReg       *prometheus.Registry
-	metrics          metrics.Metrics
-	nodeApi          *nodeapi.NodeApi
-	avsWriter        *chainio.AvsWriter
-	avsReader        chainio.AvsReaderer
-	avsSubscriber    chainio.AvsSubscriberer
-	eigenlayerReader sdkelcontracts.ELReader
-	eigenlayerWriter sdkelcontracts.ELWriter
-	blsKeypair       *bls.KeyPair
-	operatorId       bls.OperatorId
-	operatorAddr     common.Address
-
-	// receive new tasks in this chan (typically from listening to onchain event)
-	checkpointTaskCreatedChan chan *taskmanager.ContractSFFLTaskManagerCheckpointTaskCreated
-	// receive operator set updates in this chan
-	// TODO: agree on operatorSetUpdateC vs operatorSetUpdateChan
-	operatorSetUpdateChan chan *opsetupdatereg.ContractSFFLOperatorSetUpdateRegistryOperatorSetUpdatedAtBlock
+	metricsReg   *prometheus.Registry
+	metrics      metrics.Metrics
+	nodeApi      *nodeapi.NodeApi
+	blsKeypair   *bls.KeyPair
+	operatorId   bls.OperatorId
+	operatorAddr common.Address
 
 	// ip address of aggregator
 	aggregatorServerIpPortAddr string
@@ -73,9 +61,11 @@ type Operator struct {
 	sfflServiceManagerAddr common.Address
 	// NEAR DA indexer consumer
 	attestor attestor.Attestorer
+	// Avs Manager
+	avsManager *AvsManager
 }
 
-func createEthClients(config types.NodeConfig, registry *prometheus.Registry, logger sdklogging.Logger) (eth.EthClient, eth.EthClient, error) {
+func createEthClients(config *types.NodeConfig, registry *prometheus.Registry, logger sdklogging.Logger) (eth.EthClient, eth.EthClient, error) {
 	if config.EnableMetrics {
 		rpcCallsCollector := rpccalls.NewCollector(AVS_NAME, registry)
 		ethRpcClient, err := eth.NewInstrumentedClient(config.EthRpcUrl, rpcCallsCollector)
@@ -126,18 +116,8 @@ func NewOperatorFromConfig(c types.NodeConfig) (*Operator, error) {
 		return nil, err
 	}
 
-	reg := prometheus.NewRegistry()
-	eigenMetrics := sdkmetrics.NewEigenMetrics(AVS_NAME, c.EigenMetricsIpPortAddress, reg, logger)
-	avsAndEigenMetrics := metrics.NewAvsAndEigenMetrics(AVS_NAME, eigenMetrics, reg)
-
 	// Setup Node Api
 	nodeApi := nodeapi.NewNodeApi(AVS_NAME, SEM_VER, c.NodeApiIpPortAddress, logger)
-
-	ethRpcClient, ethWsClient, err := createEthClients(c, reg, logger)
-	if err != nil {
-		return nil, err
-	}
-
 	blsKeyPassword, ok := os.LookupEnv("OPERATOR_BLS_KEY_PASSWORD")
 	if !ok {
 		logger.Warnf("OPERATOR_BLS_KEY_PASSWORD env var not set. using empty string")
@@ -148,6 +128,18 @@ func NewOperatorFromConfig(c types.NodeConfig) (*Operator, error) {
 		logger.Errorf("Cannot parse bls private key", "err", err)
 		return nil, err
 	}
+
+	ecdsaKeyPassword, ok := os.LookupEnv("OPERATOR_ECDSA_KEY_PASSWORD")
+	if !ok {
+		logger.Warnf("OPERATOR_ECDSA_KEY_PASSWORD env var not set. using empty string")
+	}
+
+	reg := prometheus.NewRegistry()
+	ethRpcClient, ethWsClient, err := createEthClients(&c, reg, logger)
+	if err != nil {
+		return nil, err
+	}
+
 	// TODO(samlaf): should we add the chainId to the config instead?
 	// this way we can prevent creating a signer that signs on mainnet by mistake
 	// if the config says chainId=5, then we can only create a goerli signer
@@ -155,11 +147,6 @@ func NewOperatorFromConfig(c types.NodeConfig) (*Operator, error) {
 	if err != nil {
 		logger.Error("Cannot get chainId", "err", err)
 		return nil, err
-	}
-
-	ecdsaKeyPassword, ok := os.LookupEnv("OPERATOR_ECDSA_KEY_PASSWORD")
-	if !ok {
-		logger.Warnf("OPERATOR_ECDSA_KEY_PASSWORD env var not set. using empty string")
 	}
 
 	signerV2, _, err := signerv2.SignerFromConfig(signerv2.Config{
@@ -170,6 +157,7 @@ func NewOperatorFromConfig(c types.NodeConfig) (*Operator, error) {
 		panic(err)
 	}
 
+	txMgr := txmgr.NewSimpleTxManager(ethRpcClient, logger, signerV2, common.HexToAddress(c.OperatorAddress))
 	chainioConfig := clients.BuildAllConfig{
 		EthHttpUrl:                 c.EthRpcUrl,
 		EthWsUrl:                   c.EthWsUrl,
@@ -183,30 +171,16 @@ func NewOperatorFromConfig(c types.NodeConfig) (*Operator, error) {
 		panic(err)
 	}
 
-	txMgr := txmgr.NewSimpleTxManager(ethRpcClient, logger, signerV2, common.HexToAddress(c.OperatorAddress))
-	avsWriter, err := chainio.BuildAvsWriter(
-		txMgr, common.HexToAddress(c.AVSRegistryCoordinatorAddress),
-		common.HexToAddress(c.OperatorStateRetrieverAddress), ethRpcClient, logger,
-	)
+	avsAndEigenMetrics := metrics.NewAvsAndEigenMetrics(AVS_NAME, sdkClients.Metrics, reg)
+	aggregatorRpcClient, err := NewAggregatorRpcClient(c.AggregatorServerIpPortAddress, logger, avsAndEigenMetrics)
 	if err != nil {
-		logger.Error("Cannot create AvsWriter", "err", err)
+		logger.Error("Cannot create AggregatorRpcClient. Is aggregator running?", "err", err)
 		return nil, err
 	}
 
-	avsReader, err := chainio.BuildAvsReader(
-		common.HexToAddress(c.AVSRegistryCoordinatorAddress),
-		common.HexToAddress(c.OperatorStateRetrieverAddress),
-		ethRpcClient, logger)
+	avsManager, err := NewAvsManager(&c, ethRpcClient, ethWsClient, sdkClients, txMgr, logger)
 	if err != nil {
-		logger.Error("Cannot create AvsReader", "err", err)
-		return nil, err
-	}
-
-	avsSubscriber, err := chainio.BuildAvsSubscriber(common.HexToAddress(c.AVSRegistryCoordinatorAddress),
-		common.HexToAddress(c.OperatorStateRetrieverAddress), ethWsClient, logger,
-	)
-	if err != nil {
-		logger.Error("Cannot create AvsSubscriber", "err", err)
+		logger.Error("Cannot create AvsManager", "err", err)
 		return nil, err
 	}
 
@@ -220,30 +194,18 @@ func NewOperatorFromConfig(c types.NodeConfig) (*Operator, error) {
 		AVS_NAME, logger, common.HexToAddress(c.OperatorAddress), quorumNames)
 	reg.MustRegister(economicMetricsCollector)
 
-	aggregatorRpcClient, err := NewAggregatorRpcClient(c.AggregatorServerIpPortAddress, logger, avsAndEigenMetrics)
-	if err != nil {
-		logger.Error("Cannot create AggregatorRpcClient. Is aggregator running?", "err", err)
-		return nil, err
-	}
-
 	operator := &Operator{
 		config:                     c,
 		logger:                     logger,
+		ethClient:                  ethRpcClient,
 		metricsReg:                 reg,
 		metrics:                    avsAndEigenMetrics,
 		nodeApi:                    nodeApi,
-		ethClient:                  ethRpcClient,
-		avsWriter:                  avsWriter,
-		avsReader:                  avsReader,
-		avsSubscriber:              avsSubscriber,
-		eigenlayerReader:           sdkClients.ElChainReader,
-		eigenlayerWriter:           sdkClients.ElChainWriter,
+		avsManager:                 avsManager,
 		blsKeypair:                 blsKeyPair,
 		operatorAddr:               common.HexToAddress(c.OperatorAddress),
 		aggregatorServerIpPortAddr: c.AggregatorServerIpPortAddress,
 		aggregatorRpcClient:        aggregatorRpcClient,
-		checkpointTaskCreatedChan:  make(chan *taskmanager.ContractSFFLTaskManagerCheckpointTaskCreated),
-		operatorSetUpdateChan:      make(chan *opsetupdatereg.ContractSFFLOperatorSetUpdateRegistryOperatorSetUpdatedAtBlock),
 		sfflServiceManagerAddr:     common.HexToAddress(c.AVSRegistryCoordinatorAddress),
 		operatorId:                 [32]byte{0}, // this is set below
 	}
@@ -256,15 +218,17 @@ func NewOperatorFromConfig(c types.NodeConfig) (*Operator, error) {
 		if err != nil {
 			return nil, err
 		}
+
 		operator.registerOperatorOnStartup(operatorEcdsaPrivateKey, common.HexToAddress(c.TokenStrategyAddr))
 	}
 
 	// OperatorId is set in contract during registration so we get it after registering operator.
-	operatorId, err := sdkClients.AvsRegistryChainReader.GetOperatorId(&bind.CallOpts{}, operator.operatorAddr)
+	operatorId, err := avsManager.GetOperatorId(&bind.CallOpts{}, operator.operatorAddr)
 	if err != nil {
 		logger.Error("Cannot get operator id", "err", err)
 		return nil, err
 	}
+
 	operator.operatorId = operatorId
 	logger.Info("Operator info",
 		"operatorId", operatorId,
@@ -283,15 +247,8 @@ func NewOperatorFromConfig(c types.NodeConfig) (*Operator, error) {
 }
 
 func (o *Operator) Start(ctx context.Context) error {
-	operatorIsRegistered, err := o.avsReader.IsOperatorRegistered(&bind.CallOpts{}, o.operatorAddr)
-	if err != nil {
-		o.logger.Error("Error checking if operator is registered", "err", err)
+	if err := o.avsManager.Start(ctx, o.operatorAddr); err != nil {
 		return err
-	}
-	if !operatorIsRegistered {
-		// We bubble the error all the way up instead of using logger.Fatal because logger.Fatal prints a huge stack trace
-		// that hides the actual error message. This error msg is more explicit and doesn't require showing a stack trace to the user.
-		return fmt.Errorf("operator is not registered. Registering operator using the operator-cli before starting operator")
 	}
 
 	// TODO: hmm maybe remove start from attestor?
@@ -312,65 +269,55 @@ func (o *Operator) Start(ctx context.Context) error {
 		metricsErrChan = make(chan error, 1)
 	}
 
-	// TODO(samlaf): wrap this call with increase in avs-node-spec metric
-	newTasksSub, err := o.avsSubscriber.SubscribeToNewTasks(o.checkpointTaskCreatedChan)
-	if err != nil {
-		o.logger.Error("Error subscribing to new tasks", "err", err)
-		return err
-	}
-
-	operatorSetUpdateSub, err := o.avsSubscriber.SubscribeToOperatorSetUpdates(o.operatorSetUpdateChan)
-	if err != nil {
-		o.logger.Error("Error subscribing to operator set updates", "err", err)
-		return err
-	}
-
+	// TODO: decide who have a right to sign
 	signedRootsC := o.attestor.GetSignedRootC()
+	checkpointTaskResponseChan := o.avsManager.GetCheckpointTaskResponseChan()
+	operatorSetUpdateChan := o.avsManager.GetOperatorSetUpdateChan()
+
 	for {
 		select {
 		case <-ctx.Done():
 			return o.Close()
+
 		case err := <-metricsErrChan:
 			// TODO(samlaf); we should also register the service as unhealthy in the node api
 			// https://eigen.nethermind.io/docs/spec/api/
 			o.logger.Fatal("Error in metrics server", "err", err)
-		case err := <-newTasksSub.Err():
-			o.logger.Error("Error in websocket subscription", "err", err)
-			// TODO(samlaf): write unit tests to check if this fixed the issues we were seeing
-			newTasksSub.Unsubscribe()
-			// TODO(samlaf): wrap this call with increase in avs-node-spec metric
-			newTasksSub, err = o.avsSubscriber.SubscribeToNewTasks(o.checkpointTaskCreatedChan)
+			continue
 
-			// TODO: retry flow
-			if err != nil {
-				o.logger.Error("Error re-subscribing to new tasks", "err", err)
+		case signedStateRootUpdateMessage := <-signedRootsC:
+			go o.aggregatorRpcClient.SendSignedStateRootUpdateToAggregator(&signedStateRootUpdateMessage)
+			continue
+
+		case checkpointTaskResponse, ok := <-checkpointTaskResponseChan:
+			if !ok {
+				o.logger.Info("Closing Operator")
 				return o.Close()
 			}
-		case checkpointTaskCreatedLog := <-o.checkpointTaskCreatedChan:
+
 			o.metrics.IncNumTasksReceived()
-			taskResponse := o.ProcessCheckpointTaskCreatedLog(checkpointTaskCreatedLog)
-			signedCheckpointTaskResponse, err := o.SignTaskResponse(taskResponse)
+			signedCheckpointTaskResponse, err := o.SignTaskResponse(&checkpointTaskResponse)
 			if err != nil {
+				o.logger.Error("Failed to sign checkpoint task response", "checkpointTaskResponse", checkpointTaskResponse)
 				continue
 			}
 
 			go o.aggregatorRpcClient.SendSignedCheckpointTaskResponseToAggregator(signedCheckpointTaskResponse)
-		case err := <-operatorSetUpdateSub.Err():
-			o.logger.Error("Error in websocket subscription", "err", err)
-			operatorSetUpdateSub.Unsubscribe()
-			operatorSetUpdateSub, err = o.avsSubscriber.SubscribeToOperatorSetUpdates(o.operatorSetUpdateChan)
+			continue
 
-			// TODO: retry flow
-			if err != nil {
-				o.logger.Error("Error re-subscribing to operator set updates", "err", err)
+		case operatorSetUpdate, ok := <-operatorSetUpdateChan:
+			if !ok {
+				o.logger.Info("Closing Operator")
 				return o.Close()
 			}
-		case operatorSetUpdate := <-o.operatorSetUpdateChan:
-			go o.handleOperatorSetUpdate(ctx, operatorSetUpdate)
 
-		case signedStateRootUpdateMessage := <-signedRootsC:
-			go o.aggregatorRpcClient.SendSignedStateRootUpdateToAggregator(&signedStateRootUpdateMessage)
+			signedOperatorSetUpdate, err := SignOperatorSetUpdate(operatorSetUpdate, o.blsKeypair, o.operatorId)
+			if err != nil {
+				o.logger.Error("Failed to sign operator set update", "signedOperatorSetUpdate", signedOperatorSetUpdate)
+				continue
+			}
 
+			go o.aggregatorRpcClient.SendSignedOperatorSetUpdateToAggregator(signedOperatorSetUpdate)
 			continue
 		}
 	}
@@ -384,82 +331,22 @@ func (o *Operator) Close() error {
 	return nil
 }
 
-func (o *Operator) BlsPubkeyG1() *bls.G1Point {
-	return o.blsKeypair.GetPubKeyG1()
-}
-
-// Takes a CheckpointTaskCreatedLog struct as input and returns a TaskResponseHeader struct.
-// The TaskResponseHeader struct is the struct that is signed and sent to the contract as a task response.
-func (o *Operator) ProcessCheckpointTaskCreatedLog(checkpointTaskCreatedLog *taskmanager.ContractSFFLTaskManagerCheckpointTaskCreated) *taskmanager.CheckpointTaskResponse {
-	o.logger.Debug("Received new task", "task", checkpointTaskCreatedLog)
-	o.logger.Info("Received new task",
-		"fromTimestamp", checkpointTaskCreatedLog.Task.FromTimestamp,
-		"toTimestamp", checkpointTaskCreatedLog.Task.ToTimestamp,
-		"taskIndex", checkpointTaskCreatedLog.TaskIndex,
-		"taskCreatedBlock", checkpointTaskCreatedLog.Task.TaskCreatedBlock,
-		"quorumNumbers", checkpointTaskCreatedLog.Task.QuorumNumbers,
-		"quorumThreshold", checkpointTaskCreatedLog.Task.QuorumThreshold,
-	)
-
-	// TODO: build SMT based on stored message agreements and update the test
-
-	taskResponse := &taskmanager.CheckpointTaskResponse{
-		ReferenceTaskIndex:     checkpointTaskCreatedLog.TaskIndex,
-		StateRootUpdatesRoot:   [32]byte{0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0},
-		OperatorSetUpdatesRoot: [32]byte{0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0},
-	}
-	return taskResponse
-}
-
 func (o *Operator) SignTaskResponse(taskResponse *taskmanager.CheckpointTaskResponse) (*coretypes.SignedCheckpointTaskResponse, error) {
 	taskResponseHash, err := core.GetCheckpointTaskResponseDigest(taskResponse)
 	if err != nil {
 		o.logger.Error("Error getting task response header hash. skipping task (this is not expected and should be investigated)", "err", err)
 		return nil, err
 	}
+
 	blsSignature := o.blsKeypair.SignMessage(taskResponseHash)
 	signedCheckpointTaskResponse := &coretypes.SignedCheckpointTaskResponse{
 		TaskResponse: *taskResponse,
 		BlsSignature: *blsSignature,
 		OperatorId:   o.operatorId,
 	}
+
 	o.logger.Debug("Signed task response", "signedCheckpointTaskResponse", signedCheckpointTaskResponse)
 	return signedCheckpointTaskResponse, nil
-}
-
-func (o *Operator) handleOperatorSetUpdate(ctx context.Context, data *opsetupdatereg.ContractSFFLOperatorSetUpdateRegistryOperatorSetUpdatedAtBlock) error {
-	operatorSetDelta, err := o.avsReader.GetOperatorSetUpdateDelta(ctx, data.Id)
-	if err != nil {
-		o.logger.Errorf("Couldn't get Operator set update delta: %v for block: %v", err, data.Id)
-		return err
-	}
-
-	operators := make([]registryrollup.OperatorsOperator, len(operatorSetDelta))
-	for i := 0; i < len(operatorSetDelta); i++ {
-		operators[i] = registryrollup.OperatorsOperator{
-			Pubkey: registryrollup.BN254G1Point{
-				X: operatorSetDelta[i].Pubkey.X,
-				Y: operatorSetDelta[i].Pubkey.Y,
-			},
-			Weight: operatorSetDelta[i].Weight,
-		}
-	}
-
-	message := registryrollup.OperatorSetUpdateMessage{
-		Id:        data.Id,
-		Timestamp: data.Timestamp,
-		Operators: operators,
-	}
-
-	signedMessage, err := SignOperatorSetUpdate(message, o.blsKeypair, o.operatorId)
-	if err != nil {
-		o.logger.Error("Couldn't sign operator set update message", "err", err)
-		return err
-	}
-	o.logger.Debug("Signed operator set update response", "signedMessage", signedMessage)
-
-	o.aggregatorRpcClient.SendSignedOperatorSetUpdateToAggregator(signedMessage)
-	return nil
 }
 
 func SignOperatorSetUpdate(message registryrollup.OperatorSetUpdateMessage, blsKeyPair *bls.KeyPair, operatorId bls.OperatorId) (*coretypes.SignedOperatorSetUpdateMessage, error) {
@@ -475,4 +362,86 @@ func SignOperatorSetUpdate(message registryrollup.OperatorSetUpdateMessage, blsK
 	}
 
 	return &signedOperatorSetUpdate, nil
+}
+
+func (o *Operator) RegisterOperatorWithAvs(
+	operatorEcdsaKeyPair *ecdsa.PrivateKey,
+) error {
+	return o.avsManager.RegisterOperatorWithAvs(o.ethClient, operatorEcdsaKeyPair, o.blsKeypair)
+}
+
+func (o *Operator) DepositIntoStrategy(strategyAddr common.Address, amount *big.Int) error {
+	return o.avsManager.DepositIntoStrategy(o.operatorAddr, strategyAddr, amount)
+}
+
+func (o *Operator) RegisterOperatorWithEigenlayer() error {
+	return o.avsManager.RegisterOperatorWithEigenlayer(o.operatorAddr)
+}
+
+type OperatorStatus struct {
+	EcdsaAddress string
+	// pubkey compendium related
+	PubkeysRegistered bool
+	G1Pubkey          string
+	G2Pubkey          string
+	// avs related
+	RegisteredWithAvs bool
+	OperatorId        string
+}
+
+func (o *Operator) PrintOperatorStatus() error {
+	fmt.Println("Printing operator status")
+	operatorId, err := o.avsManager.GetOperatorId(&bind.CallOpts{}, o.operatorAddr)
+	if err != nil {
+		return err
+	}
+
+	pubkeysRegistered := operatorId != [32]byte{}
+	registeredWithAvs := o.operatorId != [32]byte{}
+	operatorStatus := OperatorStatus{
+		EcdsaAddress:      o.operatorAddr.String(),
+		PubkeysRegistered: pubkeysRegistered,
+		G1Pubkey:          o.blsKeypair.GetPubKeyG1().String(),
+		G2Pubkey:          o.blsKeypair.GetPubKeyG2().String(),
+		RegisteredWithAvs: registeredWithAvs,
+		OperatorId:        hex.EncodeToString(o.operatorId[:]),
+	}
+	operatorStatusJson, err := json.MarshalIndent(operatorStatus, "", " ")
+	if err != nil {
+		return err
+	}
+
+	fmt.Println(string(operatorStatusJson))
+	return nil
+}
+
+func (o *Operator) registerOperatorOnStartup(
+	operatorEcdsaPrivateKey *ecdsa.PrivateKey,
+	mockTokenStrategyAddr common.Address,
+) {
+	err := o.RegisterOperatorWithEigenlayer()
+	if err != nil {
+		// This error might only be that the operator was already registered with eigenlayer, so we don't want to fatal
+		o.logger.Error("Error registering operator with eigenlayer", "err", err)
+	} else {
+		o.logger.Infof("Registered operator with eigenlayer")
+	}
+
+	// TODO(samlaf): shouldn't hardcode number here
+	amount := big.NewInt(1000)
+	err = o.DepositIntoStrategy(mockTokenStrategyAddr, amount)
+	if err != nil {
+		o.logger.Fatal("Error depositing into strategy", "err", err)
+	}
+	o.logger.Infof("Deposited %s into strategy %s", amount, mockTokenStrategyAddr)
+
+	err = o.avsManager.RegisterOperatorWithAvs(o.ethClient, operatorEcdsaPrivateKey, o.blsKeypair)
+	if err != nil {
+		o.logger.Fatal("Error registering operator with avs", "err", err)
+	}
+	o.logger.Infof("Registered operator with avs")
+}
+
+func (o *Operator) BlsPubkeyG1() *bls.G1Point {
+	return o.blsKeypair.GetPubKeyG1()
 }
