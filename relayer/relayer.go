@@ -5,6 +5,7 @@ import (
 	"encoding/base64"
 	"os"
 	"os/exec"
+	"time"
 
 	"github.com/Layr-Labs/eigensdk-go/chainio/clients/eth"
 	sdklogging "github.com/Layr-Labs/eigensdk-go/logging"
@@ -63,10 +64,21 @@ func (r *Relayer) Start(ctx context.Context) error {
 		case header := <-headers:
 			r.logger.Infof("Got rollup block: #%s", header.Number.String())
 
-			block, err := r.rpcClient.BlockByNumber(ctx, header.Number)
-			if err != nil {
-				r.logger.Errorf("error getting rollup block: %s", err.Error())
-				return err
+			var block *ethtypes.Block
+
+			for i := 0; i < 5; i++ {
+				block, err = r.rpcClient.BlockByNumber(ctx, header.Number)
+
+				if err != nil {
+					r.logger.Errorf("Error fetching rollup block: %s", err.Error())
+					time.Sleep(1 * time.Second)
+				} else {
+					break
+				}
+			}
+
+			if block == nil {
+				panic("Could not fetch rollup block")
 			}
 
 			encodedBlock, err := rlp.EncodeToBytes(block)
