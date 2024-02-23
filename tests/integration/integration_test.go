@@ -416,7 +416,7 @@ func startAnvilTestContainer(t *testing.T, ctx context.Context, exposedPort, cha
 
 	anvilEndpoint, err := anvilC.PortEndpoint(ctx, nat.Port(exposedPort), "")
 	if err != nil {
-		t.Fatalf("Error getting anvil rpcUrl: %s", err.Error())
+		t.Fatalf("Error getting anvil endpoint: %s", err.Error())
 	}
 
 	httpUrl := "http://" + anvilEndpoint
@@ -590,9 +590,11 @@ func startIndexer(t *testing.T, ctx context.Context, rollupAnvils []*AnvilInstan
 		t.Fatalf("Error starting indexer container: %s", err.Error())
 	}
 
+	// Make sure that streamer started
+	time.Sleep(time.Second)
 	rpcUrl, err := indexerContainer.PortEndpoint(ctx, nat.Port("3030"), "http")
 	if err != nil {
-		t.Fatalf("Error starting indexer container: %s", err.Error())
+		t.Fatalf("Error getting endpoint: %s", err.Error())
 	}
 
 	hostNearCfgPath := getNearCliConfigPath(t)
