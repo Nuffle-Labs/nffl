@@ -142,12 +142,12 @@ func TestOperator(t *testing.T) {
 			// loop forever
 			<-quit
 			return nil
-		}))
+		}), nil)
 		mockSubscriber.EXPECT().SubscribeToOperatorSetUpdates(avsManager.operatorSetUpdateChan).Return(event.NewSubscription(func(quit <-chan struct{}) error {
 			// loop forever
 			<-quit
 			return nil
-		}))
+		}), nil)
 		avsManager.avsSubscriber = mockSubscriber
 
 		mockReader := chainiomocks.NewMockAvsReaderer(mockCtrl)
