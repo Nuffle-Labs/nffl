@@ -75,7 +75,7 @@ func TestIntegration(t *testing.T) {
 		t.Fatalf("Task response hash is empty")
 	}
 
-	stateRootUpdate, err := getStateRootUpdateAggregation(setup.aggregatorRestUrl, uint32(setup.rollupAnvils[0].ChainID.Uint64()), 7)
+	stateRootUpdate, err := getStateRootUpdateAggregation(setup.aggregatorRestUrl, uint32(setup.rollupAnvils[0].ChainID.Uint64()), 9)
 	if err != nil {
 		t.Fatalf("Cannot get state root update: %s", err.Error())
 	}
