@@ -542,7 +542,8 @@ func startRollupIndexing(t *testing.T, ctx context.Context, rollupAnvils []*Anvi
 			for {
 				select {
 				case err := <-sub.Err():
-					panic(fmt.Errorf("Error on rollup block subscription: %s", err.Error()))
+					t.Errorf("Error on rollup block subscription: %s", err.Error())
+					return
 				case header := <-headers:
 					t.Logf("Got rollup block header: #%s", header.Number.String())
 
@@ -560,7 +561,8 @@ func startRollupIndexing(t *testing.T, ctx context.Context, rollupAnvils []*Anvi
 					}
 
 					if block == nil {
-						panic("Could not fetch rollup block")
+						t.Error("Could not fetch rollup block")
+						return
 					}
 
 					submitBlock(t, getDaContractAccountId(anvil), block)
