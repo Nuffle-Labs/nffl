@@ -13,7 +13,6 @@ import (
 	"os"
 	"os/exec"
 	"path/filepath"
-	"strings"
 	"testing"
 	"time"
 
@@ -24,6 +23,7 @@ import (
 	sdklogging "github.com/Layr-Labs/eigensdk-go/logging"
 	"github.com/Layr-Labs/eigensdk-go/signerv2"
 	sdkutils "github.com/Layr-Labs/eigensdk-go/utils"
+	"github.com/docker/docker/api/types/container"
 	"github.com/docker/go-connections/nat"
 	"github.com/ethereum/go-ethereum/accounts/abi/bind"
 	"github.com/ethereum/go-ethereum/common"
@@ -121,7 +121,7 @@ type TestEnv struct {
 	mainnetAnvil        *AnvilInstance
 	rollupAnvils        []*AnvilInstance
 	rabbitMq            *rabbitmq.RabbitMQContainer
-	indexerEnv          indexerEnv
+	indexerContainer    testcontainers.Container
 	operator            *operator.Operator
 	aggregator          *aggregator.Aggregator
 	aggregatorRestUrl   string
@@ -139,9 +139,9 @@ func setupTestEnv(t *testing.T, ctx context.Context) *TestEnv {
 		startAnvilTestContainer(t, containersCtx, "8547", "3", false),
 	}
 	rabbitMq := startRabbitMqContainer(t, containersCtx)
-	indexerEnv := startIndexer(t, containersCtx, rollupAnvils, rabbitMq)
+	indexerContainer := startIndexer(t, containersCtx, rollupAnvils, rabbitMq)
 
-	startRollupIndexing(t, containersCtx, rollupAnvils, indexerEnv.rpcUrl)
+	startRollupIndexing(t, containersCtx, rollupAnvils)
 
 	sfflDeploymentRaw := readSfflDeploymentRaw()
 
@@ -184,7 +184,7 @@ func setupTestEnv(t *testing.T, ctx context.Context) *TestEnv {
 		mainnetAnvil:        mainnetAnvil,
 		rollupAnvils:        rollupAnvils,
 		rabbitMq:            rabbitMq,
-		indexerEnv:          indexerEnv,
+		indexerContainer:    indexerContainer,
 		operator:            operator,
 		aggregator:          aggregator,
 		aggregatorRestUrl:   "http://" + config.AggregatorRestServerIpPortAddr,
@@ -228,6 +228,13 @@ func startRabbitMqContainer(t *testing.T, ctx context.Context) *rabbitmq.RabbitM
 	rabbitMqC, err := rabbitmq.RunContainer(
 		ctx,
 		testcontainers.WithImage("rabbitmq:latest"),
+		func() testcontainers.CustomizeRequestOption {
+			return func(req *testcontainers.GenericContainerRequest) {
+				req.HostConfigModifier = func(hc *container.HostConfig) {
+					hc.NetworkMode = "host"
+				}
+			}
+		}(),
 	)
 	if err != nil {
 		t.Fatalf("Error starting RMQ container: %s", err.Error())
@@ -388,8 +395,11 @@ func startAnvilTestContainer(t *testing.T, ctx context.Context, exposedPort, cha
 	req := testcontainers.ContainerRequest{
 		Image:        "ghcr.io/foundry-rs/foundry:latest",
 		Entrypoint:   []string{"anvil"},
-		ExposedPorts: []string{exposedPort},
+		ExposedPorts: []string{exposedPort + "/tcp"},
 		WaitingFor:   wait.ForLog("Listening on"),
+		HostConfigModifier: func(hc *container.HostConfig) {
+			hc.NetworkMode = "host"
+		},
 	}
 
 	if isMainnet {
@@ -517,7 +527,7 @@ func deployRegistryRollup(t *testing.T, ctx context.Context, avsReader chainio.A
 	return registryRollup, auth
 }
 
-func startRollupIndexing(t *testing.T, ctx context.Context, rollupAnvils []*AnvilInstance, nearRpcUrl string) {
+func startRollupIndexing(t *testing.T, ctx context.Context, rollupAnvils []*AnvilInstance) {
 	headers := make(chan *ethtypes.Header)
 
 	for _, rollupAnvil := range rollupAnvils {
@@ -528,7 +538,7 @@ func startRollupIndexing(t *testing.T, ctx context.Context, rollupAnvils []*Anvi
 			t.Fatalf("Error subscribing to new rollup block headers: %s", err.Error())
 		}
 
-		go func(anvil *AnvilInstance) {
+		go func() {
 			for {
 				select {
 				case err := <-sub.Err():
@@ -539,22 +549,17 @@ func startRollupIndexing(t *testing.T, ctx context.Context, rollupAnvils []*Anvi
 					if err != nil {
 						panic(fmt.Errorf("Error getting rollup block: %s", err.Error()))
 					}
-					submitBlock(t, getDaContractAccountId(anvil), block, nearRpcUrl)
+					submitBlock(t, getDaContractAccountId(anvil), block)
 					return
 				case <-ctx.Done():
 					return
 				}
 			}
-		}(anvil)
+		}()
 	}
 }
 
-type indexerEnv struct {
-	container testcontainers.Container
-	rpcUrl    string
-}
-
-func startIndexer(t *testing.T, ctx context.Context, rollupAnvils []*AnvilInstance, rabbitMq *rabbitmq.RabbitMQContainer) indexerEnv {
+func startIndexer(t *testing.T, ctx context.Context, rollupAnvils []*AnvilInstance, rabbitMq *rabbitmq.RabbitMQContainer) testcontainers.Container {
 	integrationDir, err := os.Getwd()
 	if err != nil {
 		panic(err)
@@ -563,8 +568,6 @@ func startIndexer(t *testing.T, ctx context.Context, rollupAnvils []*AnvilInstan
 	amqpUrl, err := rabbitMq.AmqpURL(ctx)
 	if err != nil {
 		t.Fatalf("Error getting RabbitMQ container URL: %s", err.Error())
-	} else {
-		amqpUrl = strings.Replace(amqpUrl, "localhost", "host.docker.internal", 1)
 	}
 
 	var rollupArgs []string
@@ -576,10 +579,12 @@ func startIndexer(t *testing.T, ctx context.Context, rollupAnvils []*AnvilInstan
 	}
 
 	req := testcontainers.ContainerRequest{
-		Image:        "near-sffl-indexer",
-		ExposedPorts: []string{"3030/tcp"},
-		Cmd:          append([]string{"--rmq-address", amqpUrl}, rollupArgs...),
-		WaitingFor:   wait.ForLog("Starting Streamer..."),
+		Image: "near-sffl-indexer",
+		HostConfigModifier: func(hc *container.HostConfig) {
+			hc.NetworkMode = "host"
+		},
+		Cmd:        append([]string{"--rmq-address", amqpUrl}, rollupArgs...),
+		WaitingFor: wait.ForLog("Starting Streamer..."),
 	}
 
 	indexerContainer, err := testcontainers.GenericContainer(ctx, testcontainers.GenericContainerRequest{
@@ -588,13 +593,6 @@ func startIndexer(t *testing.T, ctx context.Context, rollupAnvils []*AnvilInstan
 	})
 	if err != nil {
 		t.Fatalf("Error starting indexer container: %s", err.Error())
-	}
-
-	// Make sure that streamer started
-	time.Sleep(time.Second)
-	rpcUrl, err := indexerContainer.PortEndpoint(ctx, nat.Port("3030"), "http")
-	if err != nil {
-		t.Fatalf("Error getting endpoint: %s", err.Error())
 	}
 
 	hostNearCfgPath := getNearCliConfigPath(t)
@@ -609,7 +607,7 @@ func startIndexer(t *testing.T, ctx context.Context, rollupAnvils []*AnvilInstan
 		accountId := getDaContractAccountId(rollupAnvil)
 
 		err = execCommand(t, "near",
-			[]string{"create-account", accountId, "--masterAccount", "test.near", "--nodeUrl", rpcUrl},
+			[]string{"create-account", accountId, "--masterAccount", "test.near"},
 			append(os.Environ(), "NEAR_ENV=localnet", "NEAR_HELPER_ACCOUNT=near", "NEAR_CLI_LOCALNET_KEY_PATH="+hostNearKeyPath),
 			true,
 		)
@@ -618,7 +616,7 @@ func startIndexer(t *testing.T, ctx context.Context, rollupAnvils []*AnvilInstan
 		}
 
 		err = execCommand(t, "near",
-			[]string{"deploy", accountId, filepath.Join(integrationDir, "../near/near_da_blob_store.wasm"), "--initFunction", "new", "--initArgs", "{}", "--masterAccount", "test.near", "--nodeUrl", rpcUrl},
+			[]string{"deploy", accountId, filepath.Join(integrationDir, "../near/near_da_blob_store.wasm"), "--initFunction", "new", "--initArgs", "{}", "--masterAccount", "test.near"},
 			append(os.Environ(), "NEAR_ENV=localnet", "NEAR_HELPER_ACCOUNT=near", "NEAR_CLI_LOCALNET_KEY_PATH="+hostNearKeyPath),
 			true,
 		)
@@ -627,17 +625,14 @@ func startIndexer(t *testing.T, ctx context.Context, rollupAnvils []*AnvilInstan
 		}
 	}
 
-	return indexerEnv{
-		container: indexerContainer,
-		rpcUrl:    rpcUrl,
-	}
+	return indexerContainer
 }
 
 func getDaContractAccountId(anvil *AnvilInstance) string {
 	return fmt.Sprintf("da%s.test.near", anvil.ChainID.String())
 }
 
-func submitBlock(t *testing.T, accountId string, block *ethtypes.Block, nearRpcUrl string) error {
+func submitBlock(t *testing.T, accountId string, block *ethtypes.Block) error {
 	t.Log("Submitting block to NEAR DA")
 
 	encodedBlock, err := rlp.EncodeToBytes(block)
@@ -648,7 +643,7 @@ func submitBlock(t *testing.T, accountId string, block *ethtypes.Block, nearRpcU
 	keyPath := filepath.Join(getNearCliConfigPath(t), "validator_key.json")
 
 	err = execCommand(t, "near",
-		[]string{"call", accountId, "submit", "--base64", base64.StdEncoding.EncodeToString(encodedBlock), "--accountId", accountId, "--nodeUrl", nearRpcUrl},
+		[]string{"call", accountId, "submit", "--base64", base64.StdEncoding.EncodeToString(encodedBlock), "--accountId", accountId},
 		append(os.Environ(), "NEAR_ENV=localnet", "NEAR_HELPER_ACCOUNT=near", "NEAR_CLI_LOCALNET_KEY_PATH="+keyPath),
 		false,
 	)

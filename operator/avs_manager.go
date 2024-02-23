@@ -145,6 +145,7 @@ func (avsManager *AvsManager) Start(ctx context.Context, operatorAddr common.Add
 				// TODO(samlaf): wrap this call with increase in avs-node-spec metric
 				newTasksSub, err = avsManager.avsSubscriber.SubscribeToNewTasks(avsManager.checkpointTaskCreatedChan)
 				if err != nil {
+					avsManager.logger.Error("Error re-subscribing to new tasks", "err", err)
 					close(avsManager.checkpointTaskResponseCreatedChan)
 					return
 				}
@@ -162,6 +163,7 @@ func (avsManager *AvsManager) Start(ctx context.Context, operatorAddr common.Add
 				operatorSetUpdateSub.Unsubscribe()
 				operatorSetUpdateSub, err = avsManager.avsSubscriber.SubscribeToOperatorSetUpdates(avsManager.operatorSetUpdateChan)
 				if err != nil {
+					avsManager.logger.Error("Error re-subscribing to operator set updates", "err", err)
 					close(avsManager.checkpointTaskResponseCreatedChan)
 					return
 				}
