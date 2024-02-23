@@ -528,7 +528,7 @@ func startRollupIndexing(t *testing.T, ctx context.Context, rollupAnvils []*Anvi
 			t.Fatalf("Error subscribing to new rollup block headers: %s", err.Error())
 		}
 
-		go func() {
+		go func(anvil *AnvilInstance) {
 			for {
 				select {
 				case err := <-sub.Err():
@@ -545,7 +545,7 @@ func startRollupIndexing(t *testing.T, ctx context.Context, rollupAnvils []*Anvi
 					return
 				}
 			}
-		}()
+		}(anvil)
 	}
 }
 

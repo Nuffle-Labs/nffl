@@ -292,7 +292,11 @@ func (o *Operator) Start(ctx context.Context) error {
 			go o.aggregatorRpcClient.SendSignedStateRootUpdateToAggregator(&signedStateRootUpdateMessage)
 			continue
 
-		case checkpointTaskResponse := <-checkpointTaskResponseChan:
+		case checkpointTaskResponse, ok := <-checkpointTaskResponseChan:
+			if !ok {
+				return o.Close()
+			}
+
 			signedCheckpointTaskResponse, err := o.SignTaskResponse(&checkpointTaskResponse)
 			if err != nil {
 				o.logger.Error("Failed to sign checkpoint task response", "checkpointTaskResponse", checkpointTaskResponse)
@@ -302,7 +306,11 @@ func (o *Operator) Start(ctx context.Context) error {
 			go o.aggregatorRpcClient.SendSignedCheckpointTaskResponseToAggregator(signedCheckpointTaskResponse)
 			continue
 
-		case operatorSetUpdate := <-operatorSetUpdateChan:
+		case operatorSetUpdate, ok := <-operatorSetUpdateChan:
+			if !ok {
+				return o.Close()
+			}
+
 			signedOperatorSetUpdate, err := SignOperatorSetUpdate(operatorSetUpdate, o.blsKeypair, o.operatorId)
 			if err != nil {
 				o.logger.Error("Failed to sign operator set update", "signedOperatorSetUpdate", signedOperatorSetUpdate)

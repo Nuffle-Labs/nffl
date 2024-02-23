@@ -120,19 +120,19 @@ func (avsManager *AvsManager) Start(ctx context.Context, operatorAddr common.Add
 		return fmt.Errorf("operator is not registered. Registering operator using the operator-cli before starting operator")
 	}
 
+	newTasksSub, err := avsManager.avsSubscriber.SubscribeToNewTasks(avsManager.checkpointTaskCreatedChan)
+	if err != nil {
+		avsManager.logger.Error("Error subscribing to new tasks", "err", err)
+		return err
+	}
+
+	operatorSetUpdateSub, err := avsManager.avsSubscriber.SubscribeToOperatorSetUpdates(avsManager.operatorSetUpdateChan)
+	if err != nil {
+		avsManager.logger.Error("Error subscribing to operator set updates", "err", err)
+		return err
+	}
+
 	go func(ctx context.Context) {
-		newTasksSub, err := avsManager.avsSubscriber.SubscribeToNewTasks(avsManager.checkpointTaskCreatedChan)
-		if err != nil {
-			avsManager.logger.Error("Error subscribing to new tasks", "err", err)
-			return err
-		}
-
-		operatorSetUpdateSub, err := avsManager.avsSubscriber.SubscribeToOperatorSetUpdates(avsManager.operatorSetUpdateChan)
-		if err != nil {
-			avsManager.logger.Error("Error subscribing to operator set updates", "err", err)
-			return err
-		}
-
 		for {
 			select {
 			case <-ctx.Done():
@@ -143,7 +143,12 @@ func (avsManager *AvsManager) Start(ctx context.Context, operatorAddr common.Add
 				// TODO(samlaf): write unit tests to check if this fixed the issues we were seeing
 				newTasksSub.Unsubscribe()
 				// TODO(samlaf): wrap this call with increase in avs-node-spec metric
-				newTasksSub = avsManager.avsSubscriber.SubscribeToNewTasks(avsManager.checkpointTaskCreatedChan)
+				newTasksSub, err = avsManager.avsSubscriber.SubscribeToNewTasks(avsManager.checkpointTaskCreatedChan)
+				if err != nil {
+					close(avsManager.checkpointTaskResponseCreatedChan)
+					return
+				}
+
 				continue
 
 			case checkpointTaskCreatedLog := <-avsManager.checkpointTaskCreatedChan:
@@ -155,7 +160,12 @@ func (avsManager *AvsManager) Start(ctx context.Context, operatorAddr common.Add
 			case err := <-operatorSetUpdateSub.Err():
 				avsManager.logger.Error("Error in websocket subscription", "err", err)
 				operatorSetUpdateSub.Unsubscribe()
-				operatorSetUpdateSub = avsManager.avsSubscriber.SubscribeToOperatorSetUpdates(avsManager.operatorSetUpdateChan)
+				operatorSetUpdateSub, err = avsManager.avsSubscriber.SubscribeToOperatorSetUpdates(avsManager.operatorSetUpdateChan)
+				if err != nil {
+					close(avsManager.checkpointTaskResponseCreatedChan)
+					return
+				}
+
 				continue
 
 			case operatorSetUpdate := <-avsManager.operatorSetUpdateChan:
