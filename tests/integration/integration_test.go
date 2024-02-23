@@ -117,7 +117,7 @@ func TestIntegration(t *testing.T) {
 	<-ctx.Done()
 }
 
-type TestEnv struct {
+type testEnv struct {
 	mainnetAnvil        *AnvilInstance
 	rollupAnvils        []*AnvilInstance
 	rabbitMq            *rabbitmq.RabbitMQContainer
@@ -130,7 +130,7 @@ type TestEnv struct {
 	registryRollupAuths []*bind.TransactOpts
 }
 
-func setupTestEnv(t *testing.T, ctx context.Context) *TestEnv {
+func setupTestEnv(t *testing.T, ctx context.Context) *testEnv {
 	containersCtx, cancelContainersCtx := context.WithCancel(context.Background())
 
 	mainnetAnvil := startAnvilTestContainer(t, containersCtx, "8545", "1", true)
@@ -180,7 +180,7 @@ func setupTestEnv(t *testing.T, ctx context.Context) *TestEnv {
 		cancelContainersCtx()
 	})
 
-	return &TestEnv{
+	return &testEnv{
 		mainnetAnvil:        mainnetAnvil,
 		rollupAnvils:        rollupAnvils,
 		rabbitMq:            rabbitMq,

@@ -16,7 +16,6 @@ import (
 	sdkecdsa "github.com/Layr-Labs/eigensdk-go/crypto/ecdsa"
 	"github.com/Layr-Labs/eigensdk-go/logging"
 	sdklogging "github.com/Layr-Labs/eigensdk-go/logging"
-	sdkmetrics "github.com/Layr-Labs/eigensdk-go/metrics"
 	"github.com/Layr-Labs/eigensdk-go/metrics/collectors/economic"
 	rpccalls "github.com/Layr-Labs/eigensdk-go/metrics/collectors/rpc_calls"
 	"github.com/Layr-Labs/eigensdk-go/nodeapi"
@@ -172,9 +171,7 @@ func NewOperatorFromConfig(c types.NodeConfig) (*Operator, error) {
 		panic(err)
 	}
 
-	eigenMetrics := sdkmetrics.NewEigenMetrics(AVS_NAME, c.EigenMetricsIpPortAddress, reg, logger)
-	avsAndEigenMetrics := metrics.NewAvsAndEigenMetrics(AVS_NAME, eigenMetrics, reg)
-
+	avsAndEigenMetrics := metrics.NewAvsAndEigenMetrics(AVS_NAME, sdkClients.Metrics, reg)
 	aggregatorRpcClient, err := NewAggregatorRpcClient(c.AggregatorServerIpPortAddress, logger, avsAndEigenMetrics)
 	if err != nil {
 		logger.Error("Cannot create AggregatorRpcClient. Is aggregator running?", "err", err)
@@ -183,7 +180,7 @@ func NewOperatorFromConfig(c types.NodeConfig) (*Operator, error) {
 
 	avsManager, err := NewAvsManager(&c, ethRpcClient, ethWsClient, sdkClients, txMgr, logger)
 	if err != nil {
-		logger.Error("Cannot create ")
+		logger.Error("Cannot create AvsManager", "err", err)
 		return nil, err
 	}
 
@@ -294,9 +291,11 @@ func (o *Operator) Start(ctx context.Context) error {
 
 		case checkpointTaskResponse, ok := <-checkpointTaskResponseChan:
 			if !ok {
+				o.logger.Info("Closing Operator")
 				return o.Close()
 			}
 
+			o.metrics.IncNumTasksReceived()
 			signedCheckpointTaskResponse, err := o.SignTaskResponse(&checkpointTaskResponse)
 			if err != nil {
 				o.logger.Error("Failed to sign checkpoint task response", "checkpointTaskResponse", checkpointTaskResponse)
@@ -308,6 +307,7 @@ func (o *Operator) Start(ctx context.Context) error {
 
 		case operatorSetUpdate, ok := <-operatorSetUpdateChan:
 			if !ok {
+				o.logger.Info("Closing Operator")
 				return o.Close()
 			}
 

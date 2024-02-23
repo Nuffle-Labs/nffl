@@ -132,7 +132,7 @@ func (avsManager *AvsManager) Start(ctx context.Context, operatorAddr common.Add
 		return err
 	}
 
-	go func(ctx context.Context) {
+	go func() {
 		for {
 			select {
 			case <-ctx.Done():
@@ -153,8 +153,6 @@ func (avsManager *AvsManager) Start(ctx context.Context, operatorAddr common.Add
 				continue
 
 			case checkpointTaskCreatedLog := <-avsManager.checkpointTaskCreatedChan:
-				// TODO
-				//avsManager.metrics.IncNumTasksReceived()
 				taskResponse := avsManager.ProcessCheckpointTaskCreatedLog(checkpointTaskCreatedLog)
 				avsManager.checkpointTaskResponseCreatedChan <- taskResponse
 
@@ -175,7 +173,7 @@ func (avsManager *AvsManager) Start(ctx context.Context, operatorAddr common.Add
 				continue
 			}
 		}
-	}(ctx)
+	}()
 
 	return nil
 }
