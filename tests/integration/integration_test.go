@@ -544,11 +544,25 @@ func startRollupIndexing(t *testing.T, ctx context.Context, rollupAnvils []*Anvi
 				case err := <-sub.Err():
 					panic(fmt.Errorf("Error on rollup block subscription: %s", err.Error()))
 				case header := <-headers:
-					t.Logf("Got rollup block: #%s", header.Number.String())
-					block, err := anvil.WsClient.BlockByNumber(ctx, header.Number)
-					if err != nil {
-						panic(fmt.Errorf("Error getting rollup block: %s", err.Error()))
+					t.Logf("Got rollup block header: #%s", header.Number.String())
+
+					var block *ethtypes.Block
+
+					for i := 0; i < 5; i++ {
+						block, err = anvil.HttpClient.BlockByNumber(ctx, header.Number)
+
+						if err != nil {
+							t.Errorf("Error fetching rollup block: %s", err.Error())
+							time.Sleep(1 * time.Second)
+						} else {
+							break
+						}
 					}
+
+					if block == nil {
+						panic("Could not fetch rollup block")
+					}
+
 					submitBlock(t, getDaContractAccountId(anvil), block)
 				case <-ctx.Done():
 					return
