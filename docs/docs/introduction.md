@@ -1,3 +1,8 @@
+---
+sidebar_position: 1
+slug: /
+---
+
 # Super Fast Finality Layer - SFFL
 
 ## Introduction
@@ -104,7 +109,7 @@ docker compose down
 
 ## More Details
 
-For more details, refer to [Protocol Design](./docs/design/overview.md).
+For more details, refer to [Protocol Design](./design/overview.md).
 
 The AVS implementation was based on the
 [Incredible Squaring AVS](https://github.com/Layr-Labs/incredible-squaring-avs)
