@@ -4,7 +4,7 @@ sidebar_position: 1
 
 # Overview
 
-The NEAR SFFL (Super Fast Finality Layer) aims to provide a fast settlement
+The NEAR Super Fast Finality Layer (SFFL) aims to provide a fast settlement
 layer that allows participating networks to quickly access information from
 other networks in a safe way.
 

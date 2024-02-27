@@ -7,7 +7,7 @@ quite notably in the case of rollups, the strong finality of transactions
 can't always be easily, and also importantly, quickly achieved. This leads to
 major issues in not only security, but also UX.
 
-In order to solve this problem, the NEAR SFFL (Super Fast Finality Layer) was
+In order to solve this problem, the NEAR Super Fast Finality Layer (SFFL) was
 designed. Through it, various chains can, while supplying block data to
 [NEAR DA](https://github.com/near/rollup-data-availability), rely on the
 economic security of an EigenLayer AVS to provide a faster block finality to
