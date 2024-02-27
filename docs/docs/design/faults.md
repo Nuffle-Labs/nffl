@@ -9,9 +9,10 @@ implemented yet.
 
 ## Safety Faults
 
-Whenever one or more operators do something that impact the AVS safety, this is
-treated as a Safety Fault. Safety Faults come in two subtypes: _Equivocation_
-and _Invalid Message_.
+Safety faults affect the integrity of the network, leading to incorrect states
+or outcomes that are not consistent with the system's rules. An AVS operator
+can violate the network rules by two means - _Double Signing_ and
+_Invalid Message_.
 
 * Equivocation: the operator signed more than one message for the same case -
 e.g. in terms of state root updates, more than one state root for the same
