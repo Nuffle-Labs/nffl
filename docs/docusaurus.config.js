@@ -35,9 +35,7 @@ const config = {
           sidebarPath: './sidebars.js',
           routeBasePath: '/',
         },
-        blog: {
-          showReadingTime: true,
-        },
+        blog: false,
         theme: {
           customCss: './src/css/custom.css',
         },
@@ -62,7 +60,6 @@ const config = {
             position: 'left',
             label: 'Docs',
           },
-          {to: '/blog', label: 'Blog', position: 'left'},
           {
             href: 'https://github.com/NethermindEth/near-sffl',
             label: 'GitHub',
@@ -118,10 +115,6 @@ const config = {
           {
             title: 'More',
             items: [
-              {
-                label: 'Blog',
-                to: '/blog',
-              },
               {
                 label: 'GitHub',
                 href: 'https://github.com/NethermindEth/near-sffl',
