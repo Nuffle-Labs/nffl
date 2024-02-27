@@ -102,6 +102,12 @@ steps.
 
 #### Steps
 
+First, build the containers:
+
+```bash
+make docker-build-images
+```
+
 Then, run:
 
 ```bash
