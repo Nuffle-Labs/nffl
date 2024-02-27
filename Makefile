@@ -46,6 +46,8 @@ docker-start-everything: docker-build-images ## starts aggregator and operator d
 
 __CLI__: ## 
 
+cli-setup-operator: export OPERATOR_BLS_KEY_PASSWORD=fDUMDLmBROwlzzPXyIcy
+cli-setup-operator: export OPERATOR_ECDSA_KEY_PASSWORD=EnJuncq01CiVk9UbuBYl
 cli-setup-operator: send-fund cli-register-operator-with-eigenlayer cli-deposit-into-mocktoken-strategy cli-register-operator-with-avs ## registers operator with eigenlayer and avs
 
 cli-register-operator-with-eigenlayer: ## registers operator with delegationManager
@@ -76,6 +78,8 @@ start-aggregator: ##
 		--ecdsa-private-key ${AGGREGATOR_ECDSA_PRIV_KEY} \
 		2>&1 | zap-pretty
 
+start-operator: export OPERATOR_BLS_KEY_PASSWORD=fDUMDLmBROwlzzPXyIcy
+start-operator: export OPERATOR_ECDSA_KEY_PASSWORD=EnJuncq01CiVk9UbuBYl
 start-operator: ## 
 	go run operator/cmd/main.go --config config-files/operator.anvil.yaml \
 		2>&1 | zap-pretty
