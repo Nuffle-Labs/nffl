@@ -6,8 +6,7 @@ sidebar_position: 3
 
 :::note
 
-Please refer to [Overview](./overview.md) for a lighter overview on the
-subject.
+Please refer to [Overview](./overview.md) for an introduction.
 
 :::
 
