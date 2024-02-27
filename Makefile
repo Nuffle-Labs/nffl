@@ -28,6 +28,10 @@ start-anvil-chain-with-el-and-avs-deployed: ## starts anvil from a saved state f
 start-rollup-anvil-chain-with-avs-deployed: ## starts an anvil instance with the rollup avs contracts
 	./tests/anvil/start-rollup-anvil-chain-with-avs-deployed.sh
 
+setup-near-da:
+	NEAR_ENV=localnet NEAR_HELPER_ACCOUNT=near NEAR_CLI_LOCALNET_KEY_PATH=~/.near/localnet/validator_key.json near create-account da.test.near --masterAccount test.near
+	NEAR_ENV=localnet NEAR_HELPER_ACCOUNT=near NEAR_CLI_LOCALNET_KEY_PATH=~/.near/localnet/validator_key.json near deploy da.test.near ,/tests/near/near_da_blob_store.wasm --initFunction "new" --initArgs "{}" --masterAccount test.near
+
 bindings: ## generates contract bindings
 	cd contracts && ./generate-go-bindings.sh
 
