@@ -12,14 +12,9 @@ cd "$parent_path"
 anvil --load-state data/avs-and-eigenlayer-deployed-anvil-state.json &
 ANVIL_PID=$!
 
-cd ../../contracts/evm
-# we need to restart the anvil chain at the correct block, otherwise the indexRegistry has a quorumUpdate at the block number
-# at which it was deployed (aka quorum was created/updated), but when we start anvil by loading state file it starts at block number 0
-# so calling getOperatorListAtBlockNumber reverts because it thinks there are no quorums registered at block 0
-# advancing chain manually like this is a current hack until https://github.com/foundry-rs/foundry/issues/6679 is merged
-# also not that it doesn't really advance by the correct number of blocks.. not sure why, so we just forward by a bunch of blocks that should be enough
-forge script script/utils/Utils.sol --sig "advanceChainByNBlocks(uint256)" 100 --rpc-url $RPC_URL  --private-key $PRIVATE_KEY --broadcast
-echo "current block-number:" $(cast block-number)
+sleep 1
+cast rpc anvil_mine 0x64 0x1 --rpc-url $RPC_URL
+echo "current block number:" $(cast block-number)
 
 # Bring Anvil back to the foreground
 wait $ANVIL_PID
