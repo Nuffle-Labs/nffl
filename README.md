@@ -2,10 +2,11 @@
 
 ## Introduction
 
-Protocols in one chain may need to access data from other chains. However,
-quite notably in the case of rollups, the strong finality of transactions
-can't always be easily, and also importantly, quickly achieved. This leads to
-major issues in not only security, but also UX.
+Rollups on the Ethereum network are gaining traction, indicating a new phase
+in the development of decentralized applications (dApps) and smart contracts.
+However, as the ecosystem continues to evolve towards a rollup-centric roadmap,
+it confronts new challenges such as state and liquidity fragmentation and
+extended finality time.
 
 In order to solve this problem, the NEAR Super Fast Finality Layer (SFFL) was
 designed. Through it, various chains can, while supplying block data to
