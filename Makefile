@@ -80,6 +80,10 @@ start-operator: ##
 	go run operator/cmd/main.go --config config-files/operator.anvil.yaml \
 		2>&1 | zap-pretty
 
+start-indexer: ## 
+	cargo run -p indexer --release -- --home-dir ~/.near/localnet init --chain-id localnet
+	cargo run -p indexer --release -- --home-dir ~/.near/localnet run --da-contract-ids da.test.near --rollup-ids 2 --rmq-address "amqp://127.0.0.1:5672"
+
 run-plugin: ## 
 	go run plugin/cmd/main.go --config config-files/operator.anvil.yaml
 -----------------------------: ## 
