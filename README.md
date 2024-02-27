@@ -18,7 +18,7 @@ This universal, secure and fast finality leads to major advancements in
 interoperability protocols, enabling or improving designs such as general
 bridging and chain abstraction.
 
-For more details, refer to [Protocol Design](./design/overview.md).
+For more details, refer to the [Documentation](./docs).
 
 ## Getting Started
 
