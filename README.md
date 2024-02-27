@@ -52,38 +52,49 @@ You'll also need to install [RabbitMQ](https://www.rabbitmq.com/docs/download).
 
 #### Steps
 
-First, start what should be the mainnet (i.e. AVS) network, with both EL and
-the AVS contracts already deployed:
+First, initialize RabbitMQ. It will be necessary for the operator execution.
+This can be a bit different depending on how it was installed.
+
+Then, start what should be the mainnet (i.e. AVS) network, with both EL and
+the AVS contracts already deployed, and also the 'rollup' network:
 
 ```bash
 make start-anvil-chain-with-el-and-avs-deployed
 ```
 
-You should also start a rollup network:
-
 ```bash
-make start-rollup-with-avs-deployed
+make start-rollup-anvil-chain-with-avs-deployed
 ```
 
-Then, start the aggregator and the operator:
+Then, start the aggregator:
 
 ```bash
 make start-aggregator
 ```
 
+Then, start the indexer, which already executes a NEAR localnet, and set up
+a NEAR DA contract:
+
 ```bash
-make cli-setup-operator
+make start-indexer
+```
+
+```bash
+make setup-near-da
+```
+
+Lastly, start the operator and the relayer:
+
+```bash
 make start-operator
 ```
 
-To relay block data to your localnet NEAR DA, then start the test relayer:
-
 ```bash
-make start-relayer
+make start-test-relayer
 ```
 
 And that's it! You should be able to see each of the actors messaging each
-other as expected. You can edit the test parameters in the 
+other as expected. You can edit some of the test parameters in the 
 [`config-files`](./config-files).
 
 ### Running through Docker Compose
