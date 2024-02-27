@@ -46,4 +46,5 @@ near_da_indexer_rmq_ip_port_address: amqp://localhost:5672
 near_da_indexer_rollup_ids: [0]
 
 rollup_ids_to_rpc_urls:
-  0: localhost:8547
+  1: ws://localhost:8545
+  2: ws://localhost:8546
