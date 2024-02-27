@@ -10,10 +10,10 @@ implemented yet.
 ## Safety Faults
 
 Whenever one or more operators do something that impact the AVS safety, this is
-treated as a Safety Fault. Safety Faults come in two subtypes: _Double Signing_
+treated as a Safety Fault. Safety Faults come in two subtypes: _Equivocation_
 and _Invalid Message_.
 
-* Double Signing: the operator signed more than one message for the same case -
+* Equivocation: the operator signed more than one message for the same case -
 e.g. in terms of state root updates, more than one state root for the same
 network and block or more than one timestamp for the same block.
 * Invalid Message: a message that is provably wrong - for operator set updates,
