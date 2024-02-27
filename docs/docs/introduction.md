@@ -28,7 +28,12 @@ For more details, refer to [Protocol Design](./design/overview.md).
 
 ## Getting Started
 
-### Dependencies
+### Running step-by-step
+
+Through the project's `make` scripts, you can set up each actor of the
+environment individually.
+
+#### Dependencies
 
 In order to set up the AVS environments, you'll first need to install
 [golang](https://go.dev/dl/),
@@ -43,14 +48,14 @@ Then, install [foundry](https://book.getfoundry.sh/getting-started/installation)
 ```bash
 curl -L https://foundry.paradigm.xyz | bash
 foundryup
+
 go install github.com/maoueh/zap-pretty@latest
 npm install -g near-cli@3.5.0
 ```
 
-### Running step-by-step
+You'll also need to install [RabbitMQ](https://www.rabbitmq.com/docs/download).
 
-Through the project's `make` scripts, you can set up each actor of the
-environment individually.
+#### Steps
 
 First, start what should be the mainnet (i.e. AVS) network, with both EL and
 the AVS contracts already deployed:
@@ -89,8 +94,20 @@ other as expected. You can edit the test parameters in the
 ### Running through Docker Compose
 
 You can also more easily run a similar testing environment through Docker
-Compose, in which each service is executed in a separate container. In order
-to do that, first set up `docker` on your machine. Then, run:
+Compose, in which each service is executed in a separate container.
+
+#### Dependencies
+
+In order to build and run the containers, you'll need to install
+[Docker](https://www.docker.com/get-started/), as well as
+[ko](https://ko.build/install/).
+
+You should also have `make` for the build script, or examine and run the same
+steps.
+
+#### Steps
+
+Then, run:
 
 ```bash
 docker compose up
