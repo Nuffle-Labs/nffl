@@ -105,7 +105,7 @@ docker compose down
 
 ## More Details
 
-For more details, refer to [Protocol Design](./docs/design/overview.md).
+For more details, refer to the [Documentation](./docs).
 
 The AVS implementation was based on the
 [Incredible Squaring AVS](https://github.com/Layr-Labs/incredible-squaring-avs)
