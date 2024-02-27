@@ -25,6 +25,9 @@ deploy-all-to-anvil-and-save-state: deploy-eigenlayer-contracts-to-anvil-and-sav
 start-anvil-chain-with-el-and-avs-deployed: ## starts anvil from a saved state file (with el and avs contracts deployed)
 	./tests/anvil/start-anvil-chain-with-el-and-avs-deployed.sh
 
+start-rollup-anvil-chain-with-avs-deployed: ## starts an anvil instance with the rollup avs contracts
+	./tests/anvil/start-rollup-anvil-chain-with-avs-deployed.sh
+
 bindings: ## generates contract bindings
 	cd contracts && ./generate-go-bindings.sh
 
