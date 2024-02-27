@@ -56,9 +56,8 @@ cli-deregister-operator-with-avs: ##
 cli-print-operator-status: ## 
 	go run cli/main.go --config config-files/operator.anvil.yaml print-operator-status
 
-send-fund: ## sends fund to the operators saved in tests/keys/ecdsa/*
-	cast send 0xD5A0359da7B310917d7760385516B2426E86ab7f --value 10ether --private-key 0x2a871d0798f97d79848a013d4936a73bf4cc922c825d33c1cf7073dff6d409c6
-	cast send 0x9441540E8183d416f2Dc1901AB2034600f17B65a --value 10ether --private-key 0x2a871d0798f97d79848a013d4936a73bf4cc922c825d33c1cf7073dff6d409c6
+send-fund: ## sends fund to the first operator saved in tests/keys/ecdsa/*
+	cast send 0xD5A0359da7B310917d7760385516B2426E86ab7f --value 10ether --private-key 0x2a871d0798f97d79848a013d4936a73bf4cc922c825d33c1cf7073dff6d409c6 --rpc-url http://127.0.0.1:8545
 
 -----------------------------: ## 
 # We pipe all zapper logs through https://github.com/maoueh/zap-pretty so make sure to install it
