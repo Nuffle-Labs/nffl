@@ -24,10 +24,13 @@ verifications.
 
 ## Liveness Faults
 
-Whenever a fault impacts the network liveness, it's called a Liveness Fault.
-The liveness is directly, and basically only impacted by the messaging flow.
-This means if messages are continuously not signed by an operator, this should
-be handled.
+Liveness faults affect the availability and efficiency of the network, leading
+to delays or inability to perform transactions but not necessarily resulting
+in incorrect states.
+
+This is closely tied to the messaging flow. If an operator consistently
+abstains from participating in message signings, this can impact the network
+availability and attestation verification costs.
 
 # Slashing
 
