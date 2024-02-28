@@ -295,6 +295,7 @@ func (agg *Aggregator) handleStateRootUpdateReachedQuorum(blsAggServiceResp type
 		agg.logger.Error("Aggregator could not store message aggregation")
 		return
 	}
+
 }
 
 func (agg *Aggregator) handleOperatorSetUpdateReachedQuorum(blsAggServiceResp types.MessageBlsAggregationServiceResponse) {
