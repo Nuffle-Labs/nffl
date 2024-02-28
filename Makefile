@@ -4,8 +4,14 @@
 help:
 	@grep -E '^[a-zA-Z0-9_-]+:.*?## .*$$' $(MAKEFILE_LIST) | awk 'BEGIN {FS = ":.*?## "}; {printf "\033[36m%-30s\033[0m %s\n", $$1, $$2}'
 
+OPERATOR_BLS_KEY_PASS=fDUMDLmBROwlzzPXyIcy
+OPERATOR_ECDSA_KEY_PASS=EnJuncq01CiVk9UbuBYl
 AGGREGATOR_ECDSA_PRIV_KEY=0x2a871d0798f97d79848a013d4936a73bf4cc922c825d33c1cf7073dff6d409c6
 CHALLENGER_ECDSA_PRIV_KEY=0x5de4111afa1a4b94908f83103eb1f1706367c2e68ca870fc3fb9a804cdab365a
+
+INDEXER_NEAR_ENV=localnet
+INDEXER_NEAR_HELPER_ACCOUNT=near
+INDEXER_NEAR_CLI_LOCALNET_KEY_PATH=~/.near/localnet/validator_key.json
 
 CHAINID=31337
 DEPLOYMENT_FILES_DIR=contracts/evm/script/output/${CHAINID}
@@ -28,9 +34,12 @@ start-anvil-chain-with-el-and-avs-deployed: ## starts anvil from a saved state f
 start-rollup-anvil-chain-with-avs-deployed: ## starts an anvil instance with the rollup avs contracts
 	./tests/anvil/start-rollup-anvil-chain-with-avs-deployed.sh
 
+setup-near-da: export NEAR_ENV=$(INDEXER_NEAR_ENV)
+setup-near-da: export NEAR_HELPER_ACCOUNT=$(INDEXER_NEAR_HELPER_ACCOUNT)
+setup-near-da: export NEAR_CLI_LOCALNET_KEY_PATH=$(INDEXER_NEAR_CLI_LOCALNET_KEY_PATH)
 setup-near-da:
-	NEAR_ENV=localnet NEAR_HELPER_ACCOUNT=near NEAR_CLI_LOCALNET_KEY_PATH=~/.near/localnet/validator_key.json near create-account da.test.near --masterAccount test.near
-	NEAR_ENV=localnet NEAR_HELPER_ACCOUNT=near NEAR_CLI_LOCALNET_KEY_PATH=~/.near/localnet/validator_key.json near deploy da.test.near ./tests/near/near_da_blob_store.wasm --initFunction "new" --initArgs "{}" --masterAccount test.near
+	near create-account da.test.near --masterAccount test.near
+	near deploy da.test.near ./tests/near/near_da_blob_store.wasm --initFunction "new" --initArgs "{}" --masterAccount test.near
 
 bindings: ## generates contract bindings
 	cd contracts && ./generate-go-bindings.sh
@@ -47,8 +56,8 @@ docker-start-everything: ## starts aggregator and operator docker containers
 
 __CLI__: ## 
 
-cli-setup-operator: export OPERATOR_BLS_KEY_PASSWORD=fDUMDLmBROwlzzPXyIcy
-cli-setup-operator: export OPERATOR_ECDSA_KEY_PASSWORD=EnJuncq01CiVk9UbuBYl
+cli-setup-operator: export OPERATOR_BLS_KEY_PASSWORD=$(OPERATOR_BLS_KEY_PASS)
+cli-setup-operator: export OPERATOR_ECDSA_KEY_PASSWORD=$(OPERATOR_ECDSA_KEY_PASS)
 cli-setup-operator: send-fund cli-register-operator-with-eigenlayer cli-deposit-into-mocktoken-strategy cli-register-operator-with-avs ## registers operator with eigenlayer and avs
 
 cli-register-operator-with-eigenlayer: ## registers operator with delegationManager
