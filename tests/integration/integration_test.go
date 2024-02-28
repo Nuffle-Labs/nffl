@@ -553,7 +553,7 @@ func startRollupIndexing(t *testing.T, ctx context.Context, rollupAnvils []*Anvi
 						block, err = anvil.HttpClient.BlockByNumber(ctx, header.Number)
 
 						if err != nil {
-							t.Errorf("Error fetching rollup block: %s", err.Error())
+							t.Logf("Did not find rollup block: %s", err.Error())
 							time.Sleep(1 * time.Second)
 						} else {
 							break
