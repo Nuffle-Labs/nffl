@@ -68,7 +68,6 @@ func relayerMain(ctx *cli.Context) error {
 	if err != nil {
 		return err
 	}
-	log.Println("started relayer")
 
 	return nil
 }
