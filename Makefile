@@ -41,7 +41,8 @@ docker-build-images: ## builds and publishes indexer, operator and aggregator do
 	docker build -t near-sffl-test-relayer -f ./relayer/Dockerfile .
 	ko build aggregator/cmd/main.go --preserve-import-paths -L
 	ko build operator/cmd/main.go --preserve-import-paths -L
-docker-start-everything: docker-build-images ## starts aggregator and operator docker containers
+docker-start-everything: ## starts aggregator and operator docker containers
+	docker-build-images
 	docker compose up
 
 __CLI__: ## 
