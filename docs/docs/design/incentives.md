@@ -31,6 +31,10 @@ period, anyone can submit a ZK proof proving the message count and the
 participation rate of each Operator, collecting a reward in the process (i.e.
 triggering the payment system should also be incentivised).
 
+However, the payments architecture in the EigenLayer core contracts, which
+should directly affect how SFFL's mechanism is implemented, is still
+[a pending discussion](https://github.com/Layr-Labs/eigenlayer-contracts/issues/277).
+
 ## Relaying Block Data to NEAR DA
 
 Each participating network should have a Relayer, an actor that constantly
