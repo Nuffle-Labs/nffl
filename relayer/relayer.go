@@ -67,6 +67,12 @@ func (r *Relayer) Start(ctx context.Context) error {
 			var block *ethtypes.Block
 
 			for i := 0; i < 5; i++ {
+				select {
+				case <-ctx.Done():
+					return nil
+				default:
+				}
+
 				block, err = r.rpcClient.BlockByNumber(ctx, header.Number)
 
 				if err != nil {

@@ -550,6 +550,12 @@ func startRollupIndexing(t *testing.T, ctx context.Context, rollupAnvils []*Anvi
 					var block *ethtypes.Block
 
 					for i := 0; i < 5; i++ {
+						select {
+						case <-ctx.Done():
+							return
+						default:
+						}
+
 						block, err = anvil.HttpClient.BlockByNumber(ctx, header.Number)
 
 						if err != nil {
