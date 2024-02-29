@@ -17,7 +17,7 @@ type NodeConfig struct {
 	EnableMetrics                 bool              `yaml:"enable_metrics"`
 	NodeApiIpPortAddress          string            `yaml:"node_api_ip_port_address"`
 	EnableNodeApi                 bool              `yaml:"enable_node_api"`
-	NearDaIndexerRmqIpPortAddress string            `yaml:"near_da_indexer_ip_port_address"`
+	NearDaIndexerRmqIpPortAddress string            `yaml:"near_da_indexer_rmq_ip_port_address"`
 	NearDaIndexerRollupIds        []uint32          `yaml:"near_da_indexer_rollup_ids"`
 	RollupIdsToRpcUrls            map[uint32]string `yaml:"rollup_ids_to_rpc_urls"`
 }

@@ -21,7 +21,7 @@ jobs:
           go-version: '1.21'
 
       - name: Build indexer container
-        run: docker build -t near-sffl-indexer ./indexer
+        run: docker build -t near-sffl-indexer -f ./indexer/Dockerfile .
 
       - name: Install Node.js
         uses: actions/setup-node@v3

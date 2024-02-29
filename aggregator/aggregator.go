@@ -155,17 +155,15 @@ func (agg *Aggregator) Start(ctx context.Context) error {
 	go agg.startRestServer()
 
 	// TODO(soubhik): refactor task generation/sending into a separate function that we can run as goroutine
-	ticker := time.NewTicker(10 * time.Second)
-	agg.logger.Infof("Aggregator set to send new task every 10 seconds...")
+	ticker := time.NewTicker(40 * time.Second)
+	agg.logger.Infof("Aggregator set to send new task every 40 seconds...")
 	defer ticker.Stop()
 
 	// ticker doesn't tick immediately, so we send the first task here
 	// see https://github.com/golang/go/issues/17601
 
-	// TODO: make this based on the NEAR block
-	block := uint64(0)
-	_ = agg.sendNewCheckpointTask(block, block)
-	block++
+	// TODO: make this based on the actual timestamps
+	timestamp := uint64(0)
 
 	for {
 		select {
@@ -181,8 +179,8 @@ func (agg *Aggregator) Start(ctx context.Context) error {
 			agg.logger.Info("Received response from operatorSetUpdateBlsAggregationService", "blsAggServiceResp", blsAggServiceResp)
 			agg.handleOperatorSetUpdateReachedQuorum(blsAggServiceResp)
 		case <-ticker.C:
-			err := agg.sendNewCheckpointTask(block, block)
-			block++
+			err := agg.sendNewCheckpointTask(timestamp, timestamp)
+			timestamp++
 			if err != nil {
 				// we log the errors inside sendNewCheckpointTask() so here we just continue to the next task
 				continue

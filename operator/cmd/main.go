@@ -58,7 +58,6 @@ func operatorMain(ctx *cli.Context) error {
 	if err != nil {
 		return err
 	}
-	log.Println("started operator")
 
 	return nil
 
