@@ -4,6 +4,7 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
+	sdklogging "github.com/Layr-Labs/eigensdk-go/logging"
 	"log"
 	"os"
 
@@ -37,19 +38,29 @@ func main() {
 
 func aggregatorMain(ctx *cli.Context) error {
 	log.Println("Initializing Aggregator")
-	config, err := config.NewConfig(ctx)
+
+	rawConfig := config.NewRawConfig(ctx)
+	logger, err := sdklogging.NewZapLogger(rawConfig.Environment)
 	if err != nil {
 		return err
 	}
-	configJson, err := json.MarshalIndent(config, "", "  ")
+
+	config, err := config.NewConfig(rawConfig, ctx)
 	if err != nil {
-		config.Logger.Fatalf(err.Error())
+		logger.Error("Error creating config", "err", err)
+		return err
 	}
-	fmt.Println("Config:", string(configJson))
+
+	{
+		configJson, err := json.MarshalIndent(config, "", "  ")
+		if err != nil {
+			logger.Fatalf(err.Error())
+		}
+		fmt.Println("Config:", string(configJson))
+	}
 
 	bgCtx := context.Background()
-
-	agg, err := aggregator.NewAggregator(bgCtx, config)
+	agg, err := aggregator.NewAggregator(config, logger, bgCtx)
 	if err != nil {
 		return err
 	}

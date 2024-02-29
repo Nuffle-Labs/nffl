@@ -18,11 +18,9 @@ import (
 	"time"
 
 	"github.com/Layr-Labs/eigensdk-go/chainio/clients/eth"
-	"github.com/Layr-Labs/eigensdk-go/chainio/txmgr"
 	"github.com/Layr-Labs/eigensdk-go/crypto/bls"
 	sdkEcdsa "github.com/Layr-Labs/eigensdk-go/crypto/ecdsa"
 	sdklogging "github.com/Layr-Labs/eigensdk-go/logging"
-	"github.com/Layr-Labs/eigensdk-go/signerv2"
 	sdkutils "github.com/Layr-Labs/eigensdk-go/utils"
 	"github.com/docker/go-connections/nat"
 	"github.com/ethereum/go-ethereum/accounts/abi/bind"
@@ -164,13 +162,19 @@ func setupTestEnv(t *testing.T, ctx context.Context) *testEnv {
 
 	sfflDeploymentRaw := readSfflDeploymentRaw()
 
+	configRaw := buildConfigRaw(mainnetAnvil)
+	logger, err := sdklogging.NewZapLogger(configRaw.Environment)
+	if err != nil {
+		t.Fatalf("Failed to create logger: %s", err.Error())
+	}
+
+	config := buildConfig(t, sfflDeploymentRaw, configRaw, logger)
+	aggregator := startAggregator(t, ctx, config, logger)
+
 	nodeConfig := genOperatorConfig(t, ctx, mainnetAnvil, rollupAnvils, rabbitMq)
-	config := buildConfig(t, sfflDeploymentRaw, mainnetAnvil)
-
 	operator := startOperator(t, ctx, nodeConfig)
-	aggregator := startAggregator(t, ctx, config)
 
-	avsReader, err := chainio.BuildAvsReaderFromConfig(config)
+	avsReader, err := chainio.BuildAvsReader(config.SFFLRegistryCoordinatorAddr, config.OperatorStateRetrieverAddr, mainnetAnvil.HttpClient, logger)
 	if err != nil {
 		t.Fatalf("Cannot create AVS Reader: %s", err.Error())
 	}
@@ -233,10 +237,10 @@ func startOperator(t *testing.T, ctx context.Context, nodeConfig types.NodeConfi
 	return operator
 }
 
-func startAggregator(t *testing.T, ctx context.Context, config *config.Config) *aggregator.Aggregator {
+func startAggregator(t *testing.T, ctx context.Context, config *config.Config, logger sdklogging.Logger) *aggregator.Aggregator {
 	t.Log("starting aggregator for integration tests")
 
-	agg, err := aggregator.NewAggregator(ctx, config)
+	agg, err := aggregator.NewAggregator(config, logger, ctx)
 	if err != nil {
 		t.Fatalf("Failed to create aggregator: %s", err.Error())
 	}
@@ -351,19 +355,18 @@ func genOperatorConfig(t *testing.T, ctx context.Context, mainnetAnvil *AnvilIns
 	return nodeConfig
 }
 
-func buildConfig(t *testing.T, sfflDeploymentRaw config.SFFLDeploymentRaw, mainnetAnvil *AnvilInstance) *config.Config {
-	var aggConfigRaw config.ConfigRaw
+func buildConfigRaw(mainnetAnvil *AnvilInstance) config.ConfigRaw {
+	var configRaw config.ConfigRaw
 	aggConfigFilePath := "../../config-files/aggregator.yaml"
-	sdkutils.ReadYamlConfig(aggConfigFilePath, &aggConfigRaw)
-	aggConfigRaw.EthRpcUrl = mainnetAnvil.HttpUrl
-	aggConfigRaw.EthWsUrl = mainnetAnvil.WsUrl
-	aggConfigRaw.AggregatorDatabasePath = ""
+	sdkutils.ReadYamlConfig(aggConfigFilePath, &configRaw)
+	configRaw.EthRpcUrl = mainnetAnvil.HttpUrl
+	configRaw.EthWsUrl = mainnetAnvil.WsUrl
+	configRaw.AggregatorDatabasePath = ""
 
-	logger, err := sdklogging.NewZapLogger(aggConfigRaw.Environment)
-	if err != nil {
-		t.Fatalf("Failed to create logger: %s", err.Error())
-	}
+	return configRaw
+}
 
+func buildConfig(t *testing.T, sfflDeploymentRaw config.SFFLDeploymentRaw, aggConfigRaw config.ConfigRaw, logeer sdklogging.Logger) *config.Config {
 	aggregatorEcdsaPrivateKeyString := "0x2a871d0798f97d79848a013d4936a73bf4cc922c825d33c1cf7073dff6d409c6"
 	if aggregatorEcdsaPrivateKeyString[:2] == "0x" {
 		aggregatorEcdsaPrivateKeyString = aggregatorEcdsaPrivateKeyString[2:]
@@ -377,26 +380,16 @@ func buildConfig(t *testing.T, sfflDeploymentRaw config.SFFLDeploymentRaw, mainn
 		t.Fatalf("Cannot get operator address: %s", err.Error())
 	}
 
-	privateKeySigner, _, err := signerv2.SignerFromConfig(signerv2.Config{PrivateKey: aggregatorEcdsaPrivateKey}, mainnetAnvil.ChainID)
-	if err != nil {
-		t.Fatalf("Cannot create signer: %s", err.Error())
-	}
-	txMgr := txmgr.NewSimpleTxManager(mainnetAnvil.HttpClient, logger, privateKeySigner, aggregatorAddr)
-
 	return &config.Config{
 		EcdsaPrivateKey:                aggregatorEcdsaPrivateKey,
-		Logger:                         logger,
 		EthHttpRpcUrl:                  aggConfigRaw.EthRpcUrl,
-		EthHttpClient:                  mainnetAnvil.HttpClient,
 		EthWsRpcUrl:                    aggConfigRaw.EthWsUrl,
-		EthWsClient:                    mainnetAnvil.WsClient,
 		OperatorStateRetrieverAddr:     common.HexToAddress(sfflDeploymentRaw.Addresses.OperatorStateRetrieverAddr),
 		SFFLRegistryCoordinatorAddr:    common.HexToAddress(sfflDeploymentRaw.Addresses.RegistryCoordinatorAddr),
 		AggregatorServerIpPortAddr:     aggConfigRaw.AggregatorServerIpPortAddr,
 		AggregatorRestServerIpPortAddr: aggConfigRaw.AggregatorRestServerIpPortAddr,
 		AggregatorDatabasePath:         aggConfigRaw.AggregatorDatabasePath,
 		RegisterOperatorOnStartup:      aggConfigRaw.RegisterOperatorOnStartup,
-		TxMgr:                          txMgr,
 		AggregatorAddress:              aggregatorAddr,
 	}
 }
