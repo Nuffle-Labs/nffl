@@ -7,7 +7,7 @@ sidebar_position: 2
 Here are the milestones for future phases. Those are rough estimates of the
 work ahead and can be changed depending on the progress.
 
-We have already reached milestone `#3`!
+We have already reached [Milestone 3](#3-node-development)!
 
 ## #1: Initial Design
 
