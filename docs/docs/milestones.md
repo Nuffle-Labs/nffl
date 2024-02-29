@@ -56,12 +56,14 @@ We have already reached [Milestone 3](#3-node-development)!
 ## #4: Slashing
 * Set up checkpoint tasks.
     * Determine time ranges.
-    * Operator message storage and merkleization.
-    * Aggregator message storage and merkleization.
+    * Improve Aggregator API for fetching messages in a time range.
+    * Design and implement Operator message storage and merkleization.
+    * Design and implement Aggregator message storage and merkleization.
     * Checkpoint SMT proof verification.
 * Investigate challenge mechanisms for each network.
     * Re-evaluate design if necessary.
 * Implement state root update challenge for 2 networks.
+* Implement challenger client.
 * Determine slashing process for each fault.
 * Explore other possible pitfalls.
 
