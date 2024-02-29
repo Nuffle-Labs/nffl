@@ -39,7 +39,13 @@ contract RollupSFFLDeployer is Script, Utils {
             string memory deployed_addresses = "addresses";
             string memory deployed_addresses_output = vm.serializeAddress(deployed_addresses, "sfflRegistryRollup", address(sfflRegistryRollup));
 
-            string memory finalJson = vm.serializeString(parent_object, deployed_addresses, deployed_addresses_output);
+            uint256 chainId = block.chainid;
+            string memory chain_info = "chainInfo";
+            vm.serializeUint(chain_info, "deploymentBlock", block.number);
+            string memory chain_info_output = vm.serializeUint(chain_info, "chainId", chainId);
+
+            vm.serializeString(parent_object, deployed_addresses, deployed_addresses_output);
+            string memory finalJson = vm.serializeString(parent_object, chain_info, chain_info_output);
             writeOutput(finalJson, "rollup_sffl_deployment_output");
         }
 

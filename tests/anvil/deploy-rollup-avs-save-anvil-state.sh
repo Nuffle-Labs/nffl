@@ -27,8 +27,10 @@ fi
 parent_path=$( cd "$(dirname "${BASH_SOURCE[0]}")" ; pwd -P )
 cd "$parent_path"
 
+mkdir -p data/$CHAIN_ID
+mkdir -p ../../contracts/evm/script/output/$CHAIN_ID
+
 # start an anvil instance in the background that has eigenlayer contracts deployed
-mkdir -p data/${CHAIN_ID}
 anvil --dump-state data/${CHAIN_ID}/rollup-avs-and-deployed-anvil-state.json --chain-id $CHAIN_ID &
 ANVIL_PID=$!
 

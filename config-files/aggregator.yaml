@@ -6,3 +6,5 @@ eth_ws_url: ws://localhost:8545
 aggregator_server_ip_port_address: localhost:8090
 aggregator_rest_server_ip_port_address: localhost:5000
 aggregator_database_path: ./aggregator.db
+rollup_ids_to_rpc_urls:
+  0: localhost:8547
