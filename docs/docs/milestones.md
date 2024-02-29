@@ -64,6 +64,10 @@ We have already reached [Milestone 3](#3-node-development)!
     * Re-evaluate design if necessary.
 * Implement state root update challenge for 2 networks.
 * Implement challenger client.
+    * Implement off-chain messaging indexing.
+    * Implement on-chain messaging indexing.
+    * Include SMT and proof generation.
+    * Implement challenge sumbmission.
 * Determine slashing process for each fault.
 * Explore other possible pitfalls.
 
