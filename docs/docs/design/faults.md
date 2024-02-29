@@ -4,6 +4,12 @@ sidebar_position: 5
 
 # Faults
 
+:::note
+
+Please refer to [Overview](./overview.md) for an introduction.
+
+:::
+
 There are two main AVS faults: _Safety Faults_ and _Liveness Faults_. None are
 implemented yet.
 

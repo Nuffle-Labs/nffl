@@ -4,6 +4,12 @@ sidebar_position: 6
 
 # Incentives
 
+:::note
+
+Please refer to [Overview](./overview.md) for an introduction.
+
+:::
+
 Multiple behaviours in the AVS require some kind of incentive in order to be
 viable. At the moment, approaches for implementing these incentives are only
 being discussed.
