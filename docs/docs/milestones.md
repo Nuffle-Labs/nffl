@@ -68,7 +68,9 @@ We have already reached [Milestone 3](#3-node-development)!
     * Implement on-chain messaging indexing.
     * Include SMT and proof generation.
     * Implement challenge sumbmission.
-* Determine slashing process for each fault.
+* Implement slashing (only applies if slashing is implemented in EL core).
+    * Determine slashing parameters.
+    * Determine slashing process for each fault.
 * Explore other possible pitfalls.
 
 ## #5: Operator Set Handling
