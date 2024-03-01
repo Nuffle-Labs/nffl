@@ -74,6 +74,8 @@ type Aggregator struct {
 	restServerIpPortAddr string
 	avsWriter            chainio.AvsWriterer
 	avsReader            chainio.AvsReaderer
+	rollupBroadcaster    *RollupBroadcaster
+
 	// aggregation related fields
 	taskBlsAggregationService              blsagg.BlsAggregationService
 	stateRootUpdateBlsAggregationService   MessageBlsAggregationService
@@ -111,7 +113,8 @@ func NewAggregator(ctx context.Context, config *config.Config, logger logging.Lo
 		return nil, err
 	}
 
-	signerV2, _, err := signerv2.SignerFromConfig(signerv2.Config{PrivateKey: config.EcdsaPrivateKey}, chainId)
+	signerConfig := signerv2.Config{PrivateKey: config.EcdsaPrivateKey}
+	signerV2, _, err := signerv2.SignerFromConfig(signerConfig, chainId)
 	if err != nil {
 		panic(err)
 	}
@@ -143,6 +146,12 @@ func NewAggregator(ctx context.Context, config *config.Config, logger logging.Lo
 		return nil, err
 	}
 
+	rollupBroadcaster, err := NewRollupBroadcaster(config.RollupsInfo, signerConfig, config.AggregatorAddress, logger, ctx)
+	if err != nil {
+		logger.Error("Cannot create rollup broadcaster", "err", err)
+		return nil, err
+	}
+
 	operatorPubkeysService := oppubkeysserv.NewOperatorPubkeysServiceInMemory(ctx, clients.AvsRegistryChainSubscriber, clients.AvsRegistryChainReader, logger)
 	avsRegistryService := avsregistry.NewAvsRegistryServiceChainCaller(avsReader, operatorPubkeysService, logger)
 	taskBlsAggregationService := blsagg.NewBlsAggregatorService(avsRegistryService, logger)
@@ -155,6 +164,7 @@ func NewAggregator(ctx context.Context, config *config.Config, logger logging.Lo
 		restServerIpPortAddr:                   config.AggregatorRestServerIpPortAddr,
 		avsWriter:                              avsWriter,
 		avsReader:                              avsReader,
+		rollupBroadcaster:                      rollupBroadcaster,
 		taskBlsAggregationService:              taskBlsAggregationService,
 		stateRootUpdateBlsAggregationService:   stateRootUpdateBlsAggregationService,
 		operatorSetUpdateBlsAggregationService: operatorSetUpdateBlsAggregationService,
@@ -186,6 +196,7 @@ func (agg *Aggregator) Start(ctx context.Context) error {
 	// TODO: make this based on the actual timestamps
 	timestamp := uint64(0)
 
+	broadcasterErrorChan := agg.rollupBroadcaster.GetErrorChan()
 	for {
 		select {
 		case <-ctx.Done():
@@ -198,7 +209,7 @@ func (agg *Aggregator) Start(ctx context.Context) error {
 			agg.handleStateRootUpdateReachedQuorum(blsAggServiceResp)
 		case blsAggServiceResp := <-agg.operatorSetUpdateBlsAggregationService.GetResponseChannel():
 			agg.logger.Info("Received response from operatorSetUpdateBlsAggregationService", "blsAggServiceResp", blsAggServiceResp)
-			agg.handleOperatorSetUpdateReachedQuorum(blsAggServiceResp)
+			agg.handleOperatorSetUpdateReachedQuorum(ctx, blsAggServiceResp)
 		case <-ticker.C:
 			err := agg.sendNewCheckpointTask(timestamp, timestamp)
 			timestamp++
@@ -206,6 +217,10 @@ func (agg *Aggregator) Start(ctx context.Context) error {
 				// we log the errors inside sendNewCheckpointTask() so here we just continue to the next task
 				continue
 			}
+
+		case err := <-broadcasterErrorChan:
+			// TODO: proper error handling in all class
+			agg.logger.Error("Received error from broadcaster", "err", err)
 		}
 	}
 }
@@ -319,7 +334,7 @@ func (agg *Aggregator) handleStateRootUpdateReachedQuorum(blsAggServiceResp type
 
 }
 
-func (agg *Aggregator) handleOperatorSetUpdateReachedQuorum(blsAggServiceResp types.MessageBlsAggregationServiceResponse) {
+func (agg *Aggregator) handleOperatorSetUpdateReachedQuorum(ctx context.Context, blsAggServiceResp types.MessageBlsAggregationServiceResponse) {
 	agg.operatorSetUpdatesLock.RLock()
 	msg, ok := agg.operatorSetUpdates[blsAggServiceResp.MessageDigest]
 	agg.operatorSetUpdatesLock.RUnlock()
@@ -339,6 +354,9 @@ func (agg *Aggregator) handleOperatorSetUpdateReachedQuorum(blsAggServiceResp ty
 		agg.logger.Error("Aggregator BLS service returned error", "err", blsAggServiceResp.Err)
 		return
 	}
+
+	signatureInfo := core.FormatBlsAggregationRollup(&blsAggServiceResp)
+	agg.rollupBroadcaster.BroadcastOperatorSetUpdate(ctx, msg, signatureInfo)
 
 	err := agg.msgDb.StoreOperatorSetUpdate(msg)
 	if err != nil {

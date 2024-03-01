@@ -115,7 +115,7 @@ func ReadAndCompileRollupsInfo(ctx *cli.Context, configRaw *ConfigRaw) map[uint3
 		}
 
 		rollupsInfo[info.ChainInfo.ChainId] = RollupInfo{
-			RpcUrl:                 url,
+			RpcUrl:                 "http://" + url,
 			SFFLRegistryRollupAddr: common.HexToAddress(info.Addresses.SFFLRegistryRollupAddr),
 		}
 	}

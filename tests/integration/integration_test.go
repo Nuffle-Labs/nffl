@@ -5,6 +5,7 @@ import (
 	"encoding/base64"
 	"encoding/json"
 	"fmt"
+	"github.com/NethermindEth/near-sffl/core"
 	"io"
 	"io/fs"
 	"log"
@@ -34,7 +35,6 @@ import (
 	"github.com/testcontainers/testcontainers-go/wait"
 
 	"github.com/NethermindEth/near-sffl/aggregator"
-	aggtypes "github.com/NethermindEth/near-sffl/aggregator/types"
 	registryrollup "github.com/NethermindEth/near-sffl/contracts/bindings/SFFLRegistryRollup"
 	"github.com/NethermindEth/near-sffl/core/chainio"
 	"github.com/NethermindEth/near-sffl/core/config"
@@ -79,7 +79,7 @@ func TestIntegration(t *testing.T) {
 		t.Fatalf("Cannot get state root update: %s", err.Error())
 	}
 
-	_, err = setup.registryRollups[1].UpdateStateRoot(setup.registryRollupAuths[1], registryrollup.StateRootUpdateMessage(stateRootUpdate.Message), formatBlsAggregationRollup(t, &stateRootUpdate.Aggregation))
+	_, err = setup.registryRollups[1].UpdateStateRoot(setup.registryRollupAuths[1], registryrollup.StateRootUpdateMessage(stateRootUpdate.Message), core.FormatBlsAggregationRollup(&stateRootUpdate.Aggregation))
 	if err != nil {
 		t.Fatalf("Error updating state root: %s", err.Error())
 	}
@@ -108,7 +108,7 @@ func TestIntegration(t *testing.T) {
 	}
 	assert.Equal(t, expectedUpdatedOperators, operatorSetUpdate.Message.Operators)
 
-	_, err = setup.registryRollups[1].UpdateOperatorSet(setup.registryRollupAuths[1], operatorSetUpdate.Message, formatBlsAggregationRollup(t, &operatorSetUpdate.Aggregation))
+	_, err = setup.registryRollups[1].UpdateOperatorSet(setup.registryRollupAuths[1], operatorSetUpdate.Message, core.FormatBlsAggregationRollup(&operatorSetUpdate.Aggregation))
 	if err != nil {
 		t.Fatalf("Error updating state root: %s", err.Error())
 	}
@@ -763,33 +763,6 @@ func getOperatorSetUpdateAggregation(addr string, id uint64) (*aggregator.GetOpe
 	}
 
 	return &response, err
-}
-
-func formatBlsAggregationRollup(t *testing.T, agg *aggtypes.MessageBlsAggregationServiceResponse) registryrollup.OperatorsSignatureInfo {
-	var nonSignerPubkeys []registryrollup.BN254G1Point
-
-	for _, pubkey := range agg.NonSignersPubkeysG1 {
-		nonSignerPubkeys = append(nonSignerPubkeys, registryrollup.BN254G1Point{
-			X: pubkey.X.BigInt(big.NewInt(0)),
-			Y: pubkey.Y.BigInt(big.NewInt(0)),
-		})
-	}
-
-	apkG2 := registryrollup.BN254G2Point{
-		X: [2]*big.Int{agg.SignersApkG2.X.A1.BigInt(big.NewInt(0)), agg.SignersApkG2.X.A0.BigInt(big.NewInt(0))},
-		Y: [2]*big.Int{agg.SignersApkG2.Y.A1.BigInt(big.NewInt(0)), agg.SignersApkG2.Y.A0.BigInt(big.NewInt(0))},
-	}
-
-	sigma := registryrollup.BN254G1Point{
-		X: agg.SignersAggSigG1.X.BigInt(big.NewInt(0)),
-		Y: agg.SignersAggSigG1.Y.BigInt(big.NewInt(0)),
-	}
-
-	return registryrollup.OperatorsSignatureInfo{
-		NonSignerPubkeys: nonSignerPubkeys,
-		ApkG2:            apkG2,
-		Sigma:            sigma,
-	}
 }
 
 func copyFileFromContainer(ctx context.Context, container testcontainers.Container, sourcePath, destinationPath string, destinationPermissions fs.FileMode) error {
