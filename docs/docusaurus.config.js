@@ -77,6 +77,14 @@ const config = {
                 label: 'Introduction',
                 to: '/',
               },
+              {
+                label: 'Protocol Design',
+                to: '/category/protocol-design',
+              },
+              {
+                label: 'Milestones',
+                to: '/milestones',
+              },
             ],
           },
           {
