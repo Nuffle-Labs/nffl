@@ -1,0 +1,8 @@
+{
+  "label": "Protocol Design",
+  "position": 2,
+  "link": {
+    "type": "generated-index",
+    "description": "This topic goes through various protocol design-related points, from a quick overview to more complex specifications."
+  }
+}

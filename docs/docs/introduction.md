@@ -1,3 +1,8 @@
+---
+sidebar_position: 1
+slug: /
+---
+
 # Super Fast Finality Layer - SFFL
 
 ## Introduction
@@ -19,7 +24,7 @@ This universal, secure and fast finality leads to major advancements in
 interoperability protocols, enabling or improving designs such as general
 bridging and chain abstraction.
 
-For more details, refer to the [Documentation](./docs).
+For more details, refer to [Protocol Design](./design/overview.md).
 
 ## Getting Started
 
@@ -139,7 +144,7 @@ docker compose down
 
 ## More Details
 
-For more details, refer to the [Documentation](./docs).
+For more details, refer to [Protocol Design](./design/overview.md).
 
 The AVS implementation was based on the
 [Incredible Squaring AVS](https://github.com/Layr-Labs/incredible-squaring-avs)
