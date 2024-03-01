@@ -15,12 +15,13 @@ jobs:
           fetch-depth: 0
       - uses: actions/setup-node@v4
         with:
-          node-version: 18
-          cache: yarn
+            node-version: 18
+            cache: npm
+            cache-dependency-path: docs
 
       - name: Install dependencies
-        run: yarn install --frozen-lockfile
+        run: npm ci 
         working-directory: docs
       - name: Test build website
-        run: yarn build
+        run: npm run build
         working-directory: docs
