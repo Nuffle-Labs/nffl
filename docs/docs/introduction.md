@@ -100,7 +100,7 @@ make start-test-relayer
 
 And that's it! You should be able to see each of the actors messaging each
 other as expected. You can edit some of the test parameters in the 
-[`config-files`](./config-files).
+`/config-files`.
 
 ### Running through Docker Compose
 
@@ -133,8 +133,7 @@ docker compose up
 This will execute all services in the correct order and let you examine the
 individual logs. You'll also be able to access each container's services from
 the host through their image name, if necessary. The config files used for this
-test are also at [`config-files`](./config-files), denominated with
-`docker-compose`.
+test are also at `/config-files`, denominated with `docker-compose`.
 
 To terminate all services, simply run:
 
