@@ -91,8 +91,7 @@ func NewConfigRaw(ctx *cli.Context) (*ConfigRaw, error) {
 	return &configRaw, nil
 }
 
-func ReadRollupSFFLDeploymentsRaw(ctx *cli.Context) []RollupSFFLDeploymentRaw {
-	rollupSFFLDeploymentFilesPath := ctx.GlobalStringSlice(RollupSFFLDeploymentFilesFlag.Name)
+func ReadRollupSFFLDeploymentsRaw(rollupSFFLDeploymentFilesPath []string) []RollupSFFLDeploymentRaw {
 	rollupDeploymentsInfo := make([]RollupSFFLDeploymentRaw, len(rollupSFFLDeploymentFilesPath))
 	for i, filePath := range rollupSFFLDeploymentFilesPath {
 		var rollupSFFLDeploymentRaw RollupSFFLDeploymentRaw
@@ -129,8 +128,9 @@ func CompileRollupsInfo(rollupDeploymentsInfo []RollupSFFLDeploymentRaw, configR
 // NewConfig parses config file to read from from flags or environment variables
 // Note: This config is shared by challenger and aggregator and so we put in the core.
 // Operator has a different config and is meant to be used by the operator CLI.
-func NewConfig(ctx *cli.Context, configRaw ConfigRaw, logger sdklogging.Logger) (*Config, error) {
-	rollupDeploymentsInfo := ReadRollupSFFLDeploymentsRaw(ctx)
+func NewConfig(configRaw ConfigRaw, ctx *cli.Context) (*Config, error) {
+	rollupSFFLDeploymentFilesPath := ctx.GlobalStringSlice(RollupSFFLDeploymentFilesFlag.Name)
+	rollupDeploymentsInfo := ReadRollupSFFLDeploymentsRaw(rollupSFFLDeploymentFilesPath)
 	rollupsInfo := CompileRollupsInfo(rollupDeploymentsInfo, &configRaw)
 
 	var sfflDeploymentRaw SFFLDeploymentRaw
