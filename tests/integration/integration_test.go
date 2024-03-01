@@ -432,7 +432,15 @@ func startAnvilTestContainer(t *testing.T, ctx context.Context, name, exposedPor
 		}
 		req.Cmd = []string{"--host", "0.0.0.0", "--load-state", "/root/.anvil/state.json", "--port", exposedPort, "--chain-id", chainId}
 	} else {
-		req.Cmd = []string{"--host", "0.0.0.0", "--port", exposedPort, "--block-time", "10", "--chain-id", chainId}
+		req.Mounts = testcontainers.ContainerMounts{
+			testcontainers.ContainerMount{
+				Source: testcontainers.GenericBindMountSource{
+					HostPath: filepath.Join(integrationDir, fmt.Sprintf("../anvil/data/%s/rollup-avs-and-deployed-anvil-state.json", chainId)),
+				},
+				Target: "/root/.anvil/state.json",
+			},
+		}
+		req.Cmd = []string{"--host", "0.0.0.0", "--load-state", "/root/.anvil/state.json", "--port", exposedPort, "--block-time", "10", "--chain-id", chainId}
 	}
 
 	anvilC, err := testcontainers.GenericContainer(ctx, testcontainers.GenericContainerRequest{
