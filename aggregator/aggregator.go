@@ -2,18 +2,18 @@ package aggregator
 
 import (
 	"context"
-	"github.com/Layr-Labs/eigensdk-go/chainio/clients/eth"
-	"github.com/Layr-Labs/eigensdk-go/chainio/txmgr"
-	"github.com/Layr-Labs/eigensdk-go/signerv2"
 	"sync"
 	"time"
 
 	"github.com/Layr-Labs/eigensdk-go/chainio/clients"
 	sdkclients "github.com/Layr-Labs/eigensdk-go/chainio/clients"
+	"github.com/Layr-Labs/eigensdk-go/chainio/clients/eth"
+	"github.com/Layr-Labs/eigensdk-go/chainio/txmgr"
 	"github.com/Layr-Labs/eigensdk-go/logging"
 	"github.com/Layr-Labs/eigensdk-go/services/avsregistry"
 	blsagg "github.com/Layr-Labs/eigensdk-go/services/bls_aggregation"
 	oppubkeysserv "github.com/Layr-Labs/eigensdk-go/services/operatorpubkeys"
+	"github.com/Layr-Labs/eigensdk-go/signerv2"
 	sdktypes "github.com/Layr-Labs/eigensdk-go/types"
 
 	"github.com/NethermindEth/near-sffl/aggregator/types"
@@ -92,7 +92,7 @@ type Aggregator struct {
 // NewAggregator creates a new Aggregator with the provided config.
 // TODO: Remove this context once OperatorPubkeysServiceInMemory's API is
 // changed and we can gracefully exit otherwise
-func NewAggregator(config *config.Config, logger logging.Logger, ctx context.Context) (*Aggregator, error) {
+func NewAggregator(ctx context.Context, config *config.Config, logger logging.Logger) (*Aggregator, error) {
 	ethHttpClient, err := eth.NewClient(config.EthHttpRpcUrl)
 	if err != nil {
 		logger.Errorf("Cannot create http ethclient", "err", err)

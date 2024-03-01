@@ -142,14 +142,3 @@ func (avsWriter *AvsWriter) RaiseChallenge(
 	}
 	return receipt, nil
 }
-
-//func (avsWriter *AvsWriter) SendOperatorSetUpdate() (*types.Receipt, error) {
-//	txOpts, err := avsWriter.TxMgr.GetNoSendTxOpts()
-//	if err != nil {
-//		avsWriter.logger.Errorf("Error getting tx opts")
-//		return nil, err
-//	}
-//
-//	tx, err := avsWriter.AvsContractBindings.RegistryCoordinator.UpdateOperators()
-//	return nil, nil
-//}

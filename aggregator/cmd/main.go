@@ -4,10 +4,10 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
-	sdklogging "github.com/Layr-Labs/eigensdk-go/logging"
 	"log"
 	"os"
 
+	sdklogging "github.com/Layr-Labs/eigensdk-go/logging"
 	"github.com/urfave/cli"
 
 	"github.com/NethermindEth/near-sffl/aggregator"
@@ -47,7 +47,7 @@ func aggregatorMain(ctx *cli.Context) error {
 
 	config, err := config.NewConfig(rawConfig, ctx)
 	if err != nil {
-		logger.Error("Error creating config", "err", err)
+		logger.Fatal("Error creating config", "err", err)
 		return err
 	}
 
@@ -60,7 +60,7 @@ func aggregatorMain(ctx *cli.Context) error {
 	}
 
 	bgCtx := context.Background()
-	agg, err := aggregator.NewAggregator(config, logger, bgCtx)
+	agg, err := aggregator.NewAggregator(bgCtx, config, logger)
 	if err != nil {
 		return err
 	}

@@ -88,7 +88,7 @@ func NewConfig(configRaw ConfigRaw, ctx *cli.Context) (*Config, error) {
 
 	aggregatorAddr, err := sdkutils.EcdsaPrivateKeyToAddress(ecdsaPrivateKey)
 	if err != nil {
-		return nil, fmt.Errorf("cannot parse ecdsa private key: %w", err)
+		return nil, fmt.Errorf("Cannot get operator address: %w", err)
 	}
 
 	config := &Config{

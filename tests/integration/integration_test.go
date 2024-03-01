@@ -240,7 +240,7 @@ func startOperator(t *testing.T, ctx context.Context, nodeConfig types.NodeConfi
 func startAggregator(t *testing.T, ctx context.Context, config *config.Config, logger sdklogging.Logger) *aggregator.Aggregator {
 	t.Log("starting aggregator for integration tests")
 
-	agg, err := aggregator.NewAggregator(config, logger, ctx)
+	agg, err := aggregator.NewAggregator(ctx, config, logger)
 	if err != nil {
 		t.Fatalf("Failed to create aggregator: %s", err.Error())
 	}
