@@ -21,7 +21,8 @@ DEPLOYMENT_FILES_DIR=contracts/evm/script/output/${CHAINID}
 ___CONTRACTS___: ## 
 
 deploy-rollup-contracts-to-anvil-and-save-state: ## Deploy rollup SFFL
-	./tests/anvil/deploy-rollup-avs-save-anvil-state.sh --chain-id 0
+	./tests/anvil/deploy-rollup-avs-save-anvil-state.sh --chain-id 2
+	./tests/anvil/deploy-rollup-avs-save-anvil-state.sh --chain-id 3
 
 deploy-eigenlayer-contracts-to-anvil-and-save-state: ## Deploy eigenlayer
 	./tests/anvil/deploy-eigenlayer-save-anvil-state.sh

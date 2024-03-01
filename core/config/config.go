@@ -91,8 +91,7 @@ func NewConfigRaw(ctx *cli.Context) (*ConfigRaw, error) {
 	return &configRaw, nil
 }
 
-func ReadAndCompileRollupsInfo(ctx *cli.Context, configRaw *ConfigRaw) map[uint32]RollupInfo {
-	// Read data from deployment files
+func ReadRollupSFFLDeploymentsRaw(ctx *cli.Context) []RollupSFFLDeploymentRaw {
 	rollupSFFLDeploymentFilesPath := ctx.GlobalStringSlice(RollupSFFLDeploymentFilesFlag.Name)
 	rollupDeploymentsInfo := make([]RollupSFFLDeploymentRaw, len(rollupSFFLDeploymentFilesPath))
 	for i, filePath := range rollupSFFLDeploymentFilesPath {
@@ -105,6 +104,10 @@ func ReadAndCompileRollupsInfo(ctx *cli.Context, configRaw *ConfigRaw) map[uint3
 		rollupDeploymentsInfo[i] = rollupSFFLDeploymentRaw
 	}
 
+	return rollupDeploymentsInfo
+}
+
+func CompileRollupsInfo(rollupDeploymentsInfo []RollupSFFLDeploymentRaw, configRaw *ConfigRaw) map[uint32]RollupInfo {
 	// Map with ConfigRaw
 	rollupsInfo := make(map[uint32]RollupInfo)
 	for _, info := range rollupDeploymentsInfo {
@@ -127,6 +130,9 @@ func ReadAndCompileRollupsInfo(ctx *cli.Context, configRaw *ConfigRaw) map[uint3
 // Note: This config is shared by challenger and aggregator and so we put in the core.
 // Operator has a different config and is meant to be used by the operator CLI.
 func NewConfig(ctx *cli.Context, configRaw ConfigRaw, logger sdklogging.Logger) (*Config, error) {
+	rollupDeploymentsInfo := ReadRollupSFFLDeploymentsRaw(ctx)
+	rollupsInfo := CompileRollupsInfo(rollupDeploymentsInfo, &configRaw)
+
 	var sfflDeploymentRaw SFFLDeploymentRaw
 	sfflDeploymentFilePath := ctx.GlobalString(SFFLDeploymentFileFlag.Name)
 	if _, err := os.Stat(sfflDeploymentFilePath); errors.Is(err, os.ErrNotExist) {

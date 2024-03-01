@@ -163,8 +163,9 @@ func setupTestEnv(t *testing.T, ctx context.Context) *testEnv {
 	startRollupIndexing(t, ctx, rollupAnvils, indexerContainer)
 
 	sfflDeploymentRaw := readSfflDeploymentRaw()
+	rollupSfflDeploymentsRaw := readRollupSfflDeploymentRaw()
 
-	configRaw := buildConfigRaw(mainnetAnvil)
+	configRaw := buildConfigRaw(mainnetAnvil, rollupAnvils)
 	logger, err := sdklogging.NewZapLogger(configRaw.Environment)
 	if err != nil {
 		t.Fatalf("Failed to create logger: %s", err.Error())
@@ -282,6 +283,16 @@ func readSfflDeploymentRaw() config.SFFLDeploymentRaw {
 	return sfflDeploymentRaw
 }
 
+func readRollupSfflDeploymentRaw() []config.RollupSFFLDeploymentRaw {
+	paths := []string{
+		"../../contracts/evm/script/output/2/sffl_avs_deployment_output.json",
+		"../../contracts/evm/script/output/3/sffl_avs_deployment_output.json",
+	}
+	rollupDeploymentsInfo := config.ReadRollupSFFLDeploymentsRaw(paths)
+
+	return rollupDeploymentsInfo
+}
+
 func genOperatorConfig(t *testing.T, ctx context.Context, mainnetAnvil *AnvilInstance, rollupAnvils []*AnvilInstance, rabbitMq *rabbitmq.RabbitMQContainer) types.NodeConfig {
 	nodeConfig := types.NodeConfig{}
 	nodeConfigFilePath := "../../config-files/operator.anvil.yaml"
@@ -358,7 +369,7 @@ func genOperatorConfig(t *testing.T, ctx context.Context, mainnetAnvil *AnvilIns
 	return nodeConfig
 }
 
-func buildConfigRaw(mainnetAnvil *AnvilInstance) config.ConfigRaw {
+func buildConfigRaw(mainnetAnvil *AnvilInstance, rollupAnvils []*AnvilInstance) config.ConfigRaw {
 	var configRaw config.ConfigRaw
 	aggConfigFilePath := "../../config-files/aggregator.yaml"
 	sdkutils.ReadYamlConfig(aggConfigFilePath, &configRaw)
@@ -366,10 +377,16 @@ func buildConfigRaw(mainnetAnvil *AnvilInstance) config.ConfigRaw {
 	configRaw.EthWsUrl = mainnetAnvil.WsUrl
 	configRaw.AggregatorDatabasePath = ""
 
+	configRaw.RollupIdsToRpcUrls = map[uint32]string{}
+	for _, el := range rollupAnvils {
+		cleanedUrl := strings.TrimPrefix(el.HttpUrl, "http://")
+		configRaw.RollupIdsToRpcUrls[uint32(el.ChainID.Uint64())] = cleanedUrl
+	}
+
 	return configRaw
 }
 
-func buildConfig(t *testing.T, sfflDeploymentRaw config.SFFLDeploymentRaw, aggConfigRaw config.ConfigRaw, logeer sdklogging.Logger) *config.Config {
+func buildConfig(t *testing.T, sfflDeploymentRaw config.SFFLDeploymentRaw, rollupSfflDeploymentsRaw []config.RollupSFFLDeploymentRaw, aggConfigRaw config.ConfigRaw) *config.Config {
 	aggregatorEcdsaPrivateKeyString := "0x2a871d0798f97d79848a013d4936a73bf4cc922c825d33c1cf7073dff6d409c6"
 	if aggregatorEcdsaPrivateKeyString[:2] == "0x" {
 		aggregatorEcdsaPrivateKeyString = aggregatorEcdsaPrivateKeyString[2:]
@@ -383,6 +400,7 @@ func buildConfig(t *testing.T, sfflDeploymentRaw config.SFFLDeploymentRaw, aggCo
 		t.Fatalf("Cannot get operator address: %s", err.Error())
 	}
 
+	rollupsInfo := config.CompileRollupsInfo(rollupSfflDeploymentsRaw, &aggConfigRaw)
 	return &config.Config{
 		EcdsaPrivateKey:                aggregatorEcdsaPrivateKey,
 		EthHttpRpcUrl:                  aggConfigRaw.EthRpcUrl,
@@ -394,6 +412,7 @@ func buildConfig(t *testing.T, sfflDeploymentRaw config.SFFLDeploymentRaw, aggCo
 		AggregatorDatabasePath:         aggConfigRaw.AggregatorDatabasePath,
 		RegisterOperatorOnStartup:      aggConfigRaw.RegisterOperatorOnStartup,
 		AggregatorAddress:              aggregatorAddr,
+		RollupsInfo:                    rollupsInfo,
 	}
 }
 
