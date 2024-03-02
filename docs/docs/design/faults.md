@@ -20,13 +20,12 @@ or outcomes that are not consistent with the system's rules. An AVS operator
 can violate the network rules by two means - _Double Signing_ and
 _Invalid Message_.
 
-* Equivocation: the operator signed more than one message for the same case -
-e.g. in terms of state root updates, more than one state root for the same
-network and block or more than one timestamp for the same block.
-* Invalid Message: a message that is provably wrong - for operator set updates,
-if the update ID does not match the delta based on the contracts, it's simply
-wrong. The same applies to state root updates, but through state root
-verifications.
+* Equivocation: When a node signs more than one message for the same case - e.g. in terms of state
+  root updates, more than one state root for the same network and block or more than one timestamp
+  for the same block.
+* Invalid Message: When a node signs a message that is provably wrong - for operator set updates, if
+  the update ID does not match the delta based on the contracts, it's simply wrong. The same applies
+  to state root updates, but through state root verifications.
 
 ## Liveness Faults
 
@@ -40,4 +39,5 @@ availability and attestation verification costs.
 
 # Slashing
 
-Slashing parameters and specifics are still to be determined.
+The slashing design for EigenLayer is yet to be implemented. We are in touch with the AVS team at
+EigenLayer to devise a solution.
