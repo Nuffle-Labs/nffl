@@ -36,9 +36,9 @@ We have already reached [Milestone 3](#3-node-development)!
 
 ## #3: Node Development
 
-* Implement operator node.
-    * Rollup full node communication.
+* Implement AVS node.
     * Indexer MQ consuming.
+    * Rollup full node communication.
     * State root update message tracking and signing.
     * Operator set update message tracking and signing.
     * Checkpoint task initial handling (no-op).
@@ -82,8 +82,6 @@ We have already reached [Milestone 3](#3-node-development)!
 
 ## #6: Network Management
 * Design and implement dynamic network set changes.
-* Investigate adding non-EVM non-rollup networks and re-evaluate design.
-    * If viable, implement design changes and add a non-EVM non-rollup network.
 * Investigate heterogenous network support.
     * If viable, implement heterogenous network support.
 
