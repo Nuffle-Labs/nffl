@@ -10,10 +10,12 @@ Please refer to [Overview](./overview.md) for an introduction.
 
 :::
 
+## Classification
+
 There are two main AVS faults: _Safety Faults_ and _Liveness Faults_. None are
 implemented yet.
 
-## Safety Faults
+### Safety Faults
 
 Safety faults affect the integrity of the network, leading to incorrect states
 or outcomes that are not consistent with the system's rules. An AVS operator
@@ -29,7 +31,7 @@ _Invalid Attestation_.
   root updates, but through state root verifications, and also to checkpoint
   tasks.
 
-## Liveness Faults
+### Liveness Faults
 
 Liveness faults affect the availability and efficiency of the network, leading
 to delays or inability to perform transactions but not necessarily resulting
