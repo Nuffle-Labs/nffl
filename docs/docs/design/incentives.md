@@ -10,46 +10,40 @@ Please refer to [Overview](./overview.md) for an introduction.
 
 :::
 
-Multiple behaviours in the AVS require some kind of incentive in order to be
-viable. At the moment, approaches for implementing these incentives are only
-being discussed.
+The incentive structure of the protocol is in the design phase, we will now discuss the factors that
+will inform the reward scheme and slashing design.
 
 ## Operating the Network
 
-The AVS Operators are not only expending resources to fulfill their role in the
-network, such as running a node and validating blocks for various networks -
-they also provide economic security to the network, risking their balance
-getting slashed so the provided finalities are stronger.
+To design the optimal incentive structure for SFFL AVS, we must understand the costs of the
+SFFL nodes to run the protocol.
 
-As such, it's vital for the AVS to reward the Operators accordingly, since the
-more economic security can be mustered effectively the better the core SFFL
-functionality gets.
+The SFFL nodes stake Ethereum by getting delegations from staked Ethereum holders. In addition to
+the stake run off-chain software, namely 1) rollup full nodes 2) SFFL nodes and 3) Aggregator node.
+As such, it's vital for the protocol to reward the Operators accordingly.
 
-The mechanism for rewarding Operators must be based on the responded
-[Checkpoint Tasks](./messaging_and_checkpoints.md). After the Task challenge
-period, anyone can submit a ZK proof proving the message count and the
+The calculation for the rewards for an Operator must be based on the signed
+[Checkpoint Tasks](./messaging_and_checkpoints.md). Once the challenge
+period passes for the _Task_, anyone can submit a ZK proof proving the message count and the
 participation rate of each Operator, collecting a reward in the process (i.e.
 triggering the payment system should also be incentivised).
 
-However, the payments architecture in the EigenLayer core contracts, which
-should directly affect how SFFL's mechanism is implemented, is still
-[a pending discussion](https://github.com/Layr-Labs/eigenlayer-contracts/issues/277).
-
 ## Relaying Block Data to NEAR DA
 
-Each participating network should have a Relayer, an actor that constantly
-feeds the network blocks to NEAR DA as they're produced. As discussed on the
-[Overview](./overview.md#near-data-posting), it's not necessary that this is
-only one node: a network can have a relayer network, for example.
+Each participating network has a Relayer, that feeds the network blocks to NEAR DA as they're
+produced. As discussed in the [Overview section](./overview.md#near-data-posting), the Relayer role
+can be fulfilled by a decentralised network.
 
-Still, independently from the process data is submitted, it costs $NEAR to
-submit blocks to [NEAR DA](https://github.com/near/rollup-data-availability).
-This being the case, it's necessary the relaying process is incentivised.
+Independent of what the Relayer implementation looks like, the Relayer needs to pay $NEAR to
+submit blocks to [NEAR DA](https://github.com/near/rollup-data-availability). The rewards for the
+Relayer at the least need to compensate the Relayer's fee expenditure.
 
-In this specific case, it should be a reasonable approach that each network
-incentivises their Relayers independently, as it's effectively an extra DA
-layer for the network - so it's directly beneficial for it. However, a
-mechanism for SFFL itself to reward Relayers could also be implemented.
+In this specific case, it should be a reasonable approach that each network incentivises their
+Relayers independently, as it's effectively an extra DA layer for the network - so it's directly
+beneficial for it. However, a mechanism for SFFL itself to reward Relayers could also be
+implemented.
+
+<!-- reviewed checkpoint -->
 
 ## Pushing Operator Set Updates to Networks
 
@@ -88,3 +82,7 @@ considered.
 Another approach would be to integrate a token into the AVS protocol. This way,
 rewards would be emissions, and the specifics on how to integrate the token and
 make it valuable should be investigated.
+
+The implementation for the EigenLayer payment processing is in the design phase as well.
+[Here](https://github.com/Layr-Labs/eigenlayer-contracts/issues/277).
+
