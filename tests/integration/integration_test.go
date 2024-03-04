@@ -46,11 +46,12 @@ const TEST_DATA_DIR = "../../test_data"
 
 func TestIntegration(t *testing.T) {
 	ctx, cancel := context.WithTimeout(context.Background(), 180*time.Second)
+	setup := setupTestEnv(t, ctx)
 	t.Cleanup(func() {
 		cancel()
-	})
 
-	setup := setupTestEnv(t, ctx)
+		setup.cleanup()
+	})
 
 	time.Sleep(10 * time.Second)
 
@@ -126,6 +127,7 @@ type testEnv struct {
 	avsReader           *chainio.AvsReader
 	registryRollups     []*registryrollup.ContractSFFLRegistryRollup
 	registryRollupAuths []*bind.TransactOpts
+	cleanup             func()
 }
 
 func setupTestEnv(t *testing.T, ctx context.Context) *testEnv {
@@ -181,7 +183,7 @@ func setupTestEnv(t *testing.T, ctx context.Context) *testEnv {
 
 	registryRollups, registryRollupAuths := deployRegistryRollups(t, ctx, avsReader, rollupAnvils)
 
-	t.Cleanup(func() {
+	cleanup := func() {
 		if err := os.RemoveAll(TEST_DATA_DIR); err != nil {
 			t.Fatalf("Error cleaning test data dir: %s", err.Error())
 		}
@@ -207,7 +209,7 @@ func setupTestEnv(t *testing.T, ctx context.Context) *testEnv {
 		}
 
 		cancelContainersCtx()
-	})
+	}
 
 	return &testEnv{
 		mainnetAnvil:        mainnetAnvil,
@@ -220,6 +222,7 @@ func setupTestEnv(t *testing.T, ctx context.Context) *testEnv {
 		avsReader:           avsReader,
 		registryRollups:     registryRollups,
 		registryRollupAuths: registryRollupAuths,
+		cleanup:             cleanup,
 	}
 }
 

@@ -55,14 +55,14 @@ type SFFLContractsRaw struct {
 	OperatorStateRetrieverAddr string `json:"operatorStateRetriever"`
 }
 
-func NewRawConfig(ctx *cli.Context) ConfigRaw {
-	var rawConfig ConfigRaw
+func NewConfigRaw(ctx *cli.Context) ConfigRaw {
+	var configRaw ConfigRaw
 	configFilePath := ctx.GlobalString(ConfigFileFlag.Name)
 	if configFilePath != "" {
-		sdkutils.ReadYamlConfig(configFilePath, &rawConfig)
+		sdkutils.ReadYamlConfig(configFilePath, &configRaw)
 	}
 
-	return rawConfig
+	return configRaw
 }
 
 // NewConfig parses config file to read from from flags or environment variables

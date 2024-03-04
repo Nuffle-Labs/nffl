@@ -105,7 +105,7 @@ func NewAggregator(ctx context.Context, config *config.Config, logger logging.Lo
 		return nil, err
 	}
 
-	chainId, err := ethHttpClient.ChainID(context.Background())
+	chainId, err := ethHttpClient.ChainID(ctx)
 	if err != nil {
 		logger.Error("Cannot get chainId", "err", err)
 		return nil, err
