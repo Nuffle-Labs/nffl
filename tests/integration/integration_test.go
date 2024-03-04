@@ -285,8 +285,8 @@ func readSfflDeploymentRaw() config.SFFLDeploymentRaw {
 
 func readRollupSfflDeploymentRaw() []config.RollupSFFLDeploymentRaw {
 	paths := []string{
-		"../../contracts/evm/script/output/2/sffl_avs_deployment_output.json",
-		"../../contracts/evm/script/output/3/sffl_avs_deployment_output.json",
+		"../../contracts/evm/script/output/2/rollup_sffl_deployment_output.json",
+		"../../contracts/evm/script/output/3/rollup_sffl_deployment_output.json",
 	}
 	rollupDeploymentsInfo := config.ReadRollupSFFLDeploymentsRaw(paths)
 
