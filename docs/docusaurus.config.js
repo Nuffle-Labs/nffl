@@ -12,8 +12,8 @@ const config = {
   tagline: 'NEAR Super Fast Finality Layer',
   favicon: 'img/favicon.ico',
 
-  url: 'https://nethermindeth.github.io',
-  baseUrl: '/near-sffl',
+  url: 'https://near-sffl.nethermind.io',
+  baseUrl: '/',
 
   organizationName: 'NethermindEth',
   projectName: 'near-sffl',
