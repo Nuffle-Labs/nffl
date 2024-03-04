@@ -75,7 +75,15 @@ const config = {
             items: [
               {
                 label: 'Introduction',
-                to: '/docs/intro',
+                to: '/',
+              },
+              {
+                label: 'Protocol Design',
+                to: '/category/protocol-design',
+              },
+              {
+                label: 'Milestones',
+                to: '/milestones',
               },
             ],
           },
