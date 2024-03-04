@@ -41,7 +41,7 @@ This is closely tied to the messaging flow. If an operator consistently
 abstains from participating in message signings, this can impact the network
 availability and attestation verification costs.
 
-# Slashing
+## Slashing
 
 The slashing design for EigenLayer is yet to be implemented. We are in touch with the AVS team at
 EigenLayer to devise a solution.
