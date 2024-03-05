@@ -133,14 +133,14 @@ planned.
 
 As defined in the [EigenLayer AVS guidelines](https://docs.eigenlayer.xyz/eigenlayer/avs-guides/first-steps-towards-designing-an-avs), AVS operation should be represented in terms of units of work called _Tasks_. These tasks are defined in the AVS contracts on Ethereum. The AVS payment and slashing are based on the operators fulfilling these tasks in a correct manner.
 
-In the SFFL architecture, the attestations defined above are not defined
-as a _Task_ - rather, they are defined as _Message_s. The _Task_ for SFFL nodes is defined as the
-amalgamation of all the _Message_ types, specifically the unit of work required from all validators is to attest on the aggregation (more specifically _Merkleization_) of messages in a time
-range.
+In the SFFL architecture, the attestations defined above are not defined as a _Task_ - rather, they
+are defined as _Message_s. The _Task_ for SFFL nodes is defined as the amalgamation of all the
+_Message_ types, specifically the unit of work required from all validators is to attest on the
+aggregation (more specifically _Merkleization_) of messages in a time range.
 
 Using the merkleization of aggregated messages, the existance or non-existance of a message in a
 time range is verified on Ethereum through the task response. The verification of the aggregated
-message is used for slashing and payment purposes.
+message is used for slashing and payment processing.
 
 For more details on checkpoints, refer to
 [Messaging and Checkpoints](./messaging_and_checkpoints.md).
