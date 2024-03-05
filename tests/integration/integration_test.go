@@ -174,7 +174,7 @@ func setupTestEnv(t *testing.T, ctx context.Context) *testEnv {
 	nodeConfig := genOperatorConfig(t, ctx, mainnetAnvil, rollupAnvils, rabbitMq)
 	operator := startOperator(t, ctx, nodeConfig)
 
-	config := buildConfig(t, sfflDeploymentRaw, configRaw, logger)
+	config := buildConfig(t, sfflDeploymentRaw, rollupSfflDeploymentsRaw, configRaw)
 	aggregator := startAggregator(t, ctx, config, logger)
 
 	avsReader, err := chainio.BuildAvsReaderFromConfig(config, mainnetAnvil.HttpClient, logger)
