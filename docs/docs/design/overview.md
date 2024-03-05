@@ -30,7 +30,7 @@ and receive _hello_ from one network to another. In abstract terms, this is the
 base feature of every bridging protocol. It's a good idea to refer to this
 diagram whenever any of the interactions seems unclear.
 
-![Full Architecture Overview](./img/full_architecture_overview.svg)
+![Full Architecture Overview](./img/full_architecture_overview.excalidraw.svg)
 
 ### Ethereum
 
