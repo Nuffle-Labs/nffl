@@ -32,7 +32,6 @@ mkdir -p ../../contracts/evm/script/output/$CHAIN_ID
 
 # start an anvil instance in the background that has eigenlayer contracts deployed
 anvil --dump-state data/${CHAIN_ID}/rollup-avs-and-deployed-anvil-state.json --chain-id $CHAIN_ID &
-ANVIL_PID=$!
 
 cd ../../contracts/evm
 forge script script/RollupSFFLDeployer.s.sol --rpc-url $RPC_URL --private-key $PRIVATE_KEY --broadcast -v
@@ -46,7 +45,8 @@ if [ "$OS" = "Darwin" ]; then
     sleep 62
     # we also do this here to make sure the operator has funds to register with the eigenlayer contracts
     # cast send 0x860B6912C2d0337ef05bbC89b0C2CB6CbAEAB4A5 --value 10ether --private-key 0x2a871d0798f97d79848a013d4936a73bf4cc922c825d33c1cf7073dff6d409c6
-    kill $ANVIL_PID
+    pkill anvil
 else
     # If the script is running on Linux or other UNIX-like systems
-    kill -SIGTERM $ANVIL_PID
+    pkill -SIGTERM anvil
+fi

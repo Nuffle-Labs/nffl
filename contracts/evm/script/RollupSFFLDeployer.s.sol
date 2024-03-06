@@ -20,14 +20,23 @@ contract RollupSFFLDeployer is Script, Utils {
     function run() external {
         vm.startBroadcast();
 
-        BN254.G1Point memory operatorPubkey = BN254.G1Point(
-            643552363890320897587044283125191574906281609959531590546948318138132520777,
-            7028377728703212953187883551402495866059211864756496641401904395458852281995
+        BN254.G1Point memory operatorPubkey1 = BN254.G1Point(
+            12222909836167080398016126983630203309556168901168761092891474571449786364088,
+            20437975848350322984759637041182104376789639114786029387395194772394338423116
         );
 
-        Operators.Operator[] memory operators = new Operators.Operator[](1);
+        BN254.G1Point memory operatorPubkey2 = BN254.G1Point(
+            15498688865597266792598681502490545326768905364544422554251437829428672369424,
+            12765061345034478746553829610723399787436683791700210344835302903634928389443
+        );
+
+        Operators.Operator[] memory operators = new Operators.Operator[](2);
         operators[0] = Operators.Operator({
-            pubkey: operatorPubkey, 
+            pubkey: operatorPubkey1,
+            weight: 10000
+        });
+        operators[1] = Operators.Operator({
+            pubkey: operatorPubkey2,
             weight: 10000
         });
         
