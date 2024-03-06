@@ -15,6 +15,7 @@ import (
 	erc20mock "github.com/NethermindEth/near-sffl/contracts/bindings/ERC20Mock"
 	opsetupdatereg "github.com/NethermindEth/near-sffl/contracts/bindings/SFFLOperatorSetUpdateRegistry"
 	taskmanager "github.com/NethermindEth/near-sffl/contracts/bindings/SFFLTaskManager"
+	"github.com/NethermindEth/near-sffl/core/config"
 )
 
 type AvsReaderer interface {
@@ -36,6 +37,10 @@ type AvsReader struct {
 
 var _ AvsReaderer = (*AvsReader)(nil)
 
+func BuildAvsReaderFromConfig(config *config.Config, client eth.EthClient, logger logging.Logger) (*AvsReader, error) {
+	return BuildAvsReader(config.SFFLRegistryCoordinatorAddr, config.OperatorStateRetrieverAddr, client, logger)
+}
+
 func BuildAvsReader(registryCoordinatorAddr, operatorStateRetrieverAddr gethcommon.Address, ethHttpClient eth.EthClient, logger logging.Logger) (*AvsReader, error) {
 	avsManagersBindings, err := NewAvsManagersBindings(registryCoordinatorAddr, operatorStateRetrieverAddr, ethHttpClient, logger)
 	if err != nil {
@@ -47,6 +52,7 @@ func BuildAvsReader(registryCoordinatorAddr, operatorStateRetrieverAddr gethcomm
 	}
 	return NewAvsReader(avsRegistryReader, avsManagersBindings, logger)
 }
+
 func NewAvsReader(avsRegistryReader sdkavsregistry.AvsRegistryReader, avsServiceBindings *AvsManagersBindings, logger logging.Logger) (*AvsReader, error) {
 	return &AvsReader{
 		AvsRegistryReader:  avsRegistryReader,

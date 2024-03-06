@@ -117,7 +117,7 @@ func NewAggregator(ctx context.Context, config *config.Config, logger logging.Lo
 	}
 	txMgr := txmgr.NewSimpleTxManager(ethHttpClient, logger, signerV2, config.AggregatorAddress)
 
-	avsWriter, err := chainio.BuildAvsWriter(txMgr, config.SFFLRegistryCoordinatorAddr, config.OperatorStateRetrieverAddr, ethHttpClient, logger)
+	avsWriter, err := chainio.BuildAvsWriterFromConfig(txMgr, config, ethHttpClient, logger)
 	if err != nil {
 		logger.Errorf("Cannot create avsWriter", "err", err)
 		return nil, err

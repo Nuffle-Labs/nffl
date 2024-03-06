@@ -176,7 +176,7 @@ func setupTestEnv(t *testing.T, ctx context.Context) *testEnv {
 	config := buildConfig(t, sfflDeploymentRaw, configRaw, logger)
 	aggregator := startAggregator(t, ctx, config, logger)
 
-	avsReader, err := chainio.BuildAvsReader(config.SFFLRegistryCoordinatorAddr, config.OperatorStateRetrieverAddr, mainnetAnvil.HttpClient, logger)
+	avsReader, err := chainio.BuildAvsReaderFromConfig(config, mainnetAnvil.HttpClient, logger)
 	if err != nil {
 		t.Fatalf("Cannot create AVS Reader: %s", err.Error())
 	}

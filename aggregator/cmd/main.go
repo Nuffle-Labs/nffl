@@ -39,13 +39,17 @@ func main() {
 func aggregatorMain(ctx *cli.Context) error {
 	log.Println("Initializing Aggregator")
 
-	configRaw := config.NewConfigRaw(ctx)
+	configRaw, err := config.NewConfigRaw(ctx)
+	if err != nil {
+		return err
+	}
+
 	logger, err := sdklogging.NewZapLogger(configRaw.Environment)
 	if err != nil {
 		return err
 	}
 
-	config, err := config.NewConfig(configRaw, ctx)
+	config, err := config.NewConfig(*configRaw, ctx)
 	if err != nil {
 		logger.Fatal("Error creating config", "err", err)
 		return err

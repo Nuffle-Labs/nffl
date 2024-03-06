@@ -2,6 +2,7 @@ package chainio
 
 import (
 	"context"
+	"github.com/NethermindEth/near-sffl/core/config"
 
 	gethcommon "github.com/ethereum/go-ethereum/common"
 	"github.com/ethereum/go-ethereum/core/types"
@@ -48,6 +49,10 @@ type AvsWriter struct {
 
 var _ AvsWriterer = (*AvsWriter)(nil)
 
+func BuildAvsWriterFromConfig(txMgr txmgr.TxManager, config *config.Config, client eth.EthClient, logger logging.Logger) (*AvsWriter, error) {
+	return BuildAvsWriter(txMgr, config.SFFLRegistryCoordinatorAddr, config.OperatorStateRetrieverAddr, client, logger)
+}
+
 func BuildAvsWriter(txMgr txmgr.TxManager, registryCoordinatorAddr, operatorStateRetrieverAddr gethcommon.Address, ethHttpClient eth.EthClient, logger logging.Logger) (*AvsWriter, error) {
 	avsServiceBindings, err := NewAvsManagersBindings(registryCoordinatorAddr, operatorStateRetrieverAddr, ethHttpClient, logger)
 	if err != nil {
@@ -71,73 +76,73 @@ func NewAvsWriter(avsRegistryWriter avsregistry.AvsRegistryWriter, avsServiceBin
 }
 
 // returns the tx receipt, as well as the task index (which it gets from parsing the tx receipt logs)
-func (avsWriter *AvsWriter) SendNewCheckpointTask(ctx context.Context, fromTimestamp uint64, toTimestamp uint64, quorumThreshold uint32, quorumNumbers []byte) (taskmanager.CheckpointTask, uint32, error) {
-	txOpts, err := avsWriter.TxMgr.GetNoSendTxOpts()
+func (w *AvsWriter) SendNewCheckpointTask(ctx context.Context, fromTimestamp uint64, toTimestamp uint64, quorumThreshold uint32, quorumNumbers []byte) (taskmanager.CheckpointTask, uint32, error) {
+	txOpts, err := w.TxMgr.GetNoSendTxOpts()
 	if err != nil {
-		avsWriter.logger.Errorf("Error getting tx opts")
+		w.logger.Errorf("Error getting tx opts")
 		return taskmanager.CheckpointTask{}, 0, err
 	}
-	tx, err := avsWriter.AvsContractBindings.TaskManager.CreateCheckpointTask(txOpts, fromTimestamp, toTimestamp, quorumThreshold, quorumNumbers)
+	tx, err := w.AvsContractBindings.TaskManager.CreateCheckpointTask(txOpts, fromTimestamp, toTimestamp, quorumThreshold, quorumNumbers)
 	if err != nil {
-		avsWriter.logger.Errorf("Error assembling CreateCheckpointTask tx")
+		w.logger.Errorf("Error assembling CreateCheckpointTask tx")
 		return taskmanager.CheckpointTask{}, 0, err
 	}
-	receipt, err := avsWriter.TxMgr.Send(ctx, tx)
+	receipt, err := w.TxMgr.Send(ctx, tx)
 	if err != nil {
-		avsWriter.logger.Errorf("Error submitting CreateCheckpointTask tx")
+		w.logger.Errorf("Error submitting CreateCheckpointTask tx")
 		return taskmanager.CheckpointTask{}, 0, err
 	}
-	checkpointTaskCreatedEvent, err := avsWriter.AvsContractBindings.TaskManager.ContractSFFLTaskManagerFilterer.ParseCheckpointTaskCreated(*receipt.Logs[0])
+	checkpointTaskCreatedEvent, err := w.AvsContractBindings.TaskManager.ContractSFFLTaskManagerFilterer.ParseCheckpointTaskCreated(*receipt.Logs[0])
 	if err != nil {
-		avsWriter.logger.Error("Aggregator failed to parse new task created event", "err", err)
+		w.logger.Error("Aggregator failed to parse new task created event", "err", err)
 		return taskmanager.CheckpointTask{}, 0, err
 	}
 	return checkpointTaskCreatedEvent.Task, checkpointTaskCreatedEvent.TaskIndex, nil
 }
 
-func (avsWriter *AvsWriter) SendAggregatedResponse(
+func (w *AvsWriter) SendAggregatedResponse(
 	ctx context.Context, task taskmanager.CheckpointTask,
 	taskResponse taskmanager.CheckpointTaskResponse,
 	nonSignerStakesAndSignature taskmanager.IBLSSignatureCheckerNonSignerStakesAndSignature,
 ) (*types.Receipt, error) {
-	txOpts, err := avsWriter.TxMgr.GetNoSendTxOpts()
+	txOpts, err := w.TxMgr.GetNoSendTxOpts()
 	if err != nil {
-		avsWriter.logger.Errorf("Error getting tx opts")
+		w.logger.Errorf("Error getting tx opts")
 		return nil, err
 	}
-	tx, err := avsWriter.AvsContractBindings.TaskManager.RespondToCheckpointTask(txOpts, task, taskResponse, nonSignerStakesAndSignature)
+	tx, err := w.AvsContractBindings.TaskManager.RespondToCheckpointTask(txOpts, task, taskResponse, nonSignerStakesAndSignature)
 	if err != nil {
-		avsWriter.logger.Error("Error submitting SubmitTaskResponse tx while calling respondToTask", "err", err)
+		w.logger.Error("Error submitting SubmitTaskResponse tx while calling respondToTask", "err", err)
 		return nil, err
 	}
-	receipt, err := avsWriter.TxMgr.Send(ctx, tx)
+	receipt, err := w.TxMgr.Send(ctx, tx)
 	if err != nil {
-		avsWriter.logger.Errorf("Error submitting CreateCheckpointTask tx")
+		w.logger.Errorf("Error submitting CreateCheckpointTask tx")
 		return nil, err
 	}
 	return receipt, nil
 }
 
-func (avsWriter *AvsWriter) RaiseChallenge(
+func (w *AvsWriter) RaiseChallenge(
 	ctx context.Context,
 	task taskmanager.CheckpointTask,
 	taskResponse taskmanager.CheckpointTaskResponse,
 	taskResponseMetadata taskmanager.CheckpointTaskResponseMetadata,
 	pubkeysOfNonSigningOperators []taskmanager.BN254G1Point,
 ) (*types.Receipt, error) {
-	txOpts, err := avsWriter.TxMgr.GetNoSendTxOpts()
+	txOpts, err := w.TxMgr.GetNoSendTxOpts()
 	if err != nil {
-		avsWriter.logger.Errorf("Error getting tx opts")
+		w.logger.Errorf("Error getting tx opts")
 		return nil, err
 	}
-	tx, err := avsWriter.AvsContractBindings.TaskManager.RaiseAndResolveCheckpointChallenge(txOpts, task, taskResponse, taskResponseMetadata, pubkeysOfNonSigningOperators)
+	tx, err := w.AvsContractBindings.TaskManager.RaiseAndResolveCheckpointChallenge(txOpts, task, taskResponse, taskResponseMetadata, pubkeysOfNonSigningOperators)
 	if err != nil {
-		avsWriter.logger.Errorf("Error assembling RaiseChallenge tx")
+		w.logger.Errorf("Error assembling RaiseChallenge tx")
 		return nil, err
 	}
-	receipt, err := avsWriter.TxMgr.Send(ctx, tx)
+	receipt, err := w.TxMgr.Send(ctx, tx)
 	if err != nil {
-		avsWriter.logger.Errorf("Error submitting CreateCheckpointTask tx")
+		w.logger.Errorf("Error submitting CreateCheckpointTask tx")
 		return nil, err
 	}
 	return receipt, nil
