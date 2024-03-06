@@ -1,0 +1,36 @@
+targets = [
+    { triple = "x86_64-unknown-linux-musl" },
+    { triple = "x86_64-pc-windows-msvc" },
+    { triple = "x86_64-apple-darwin" },
+]
+
+[licenses]
+unlicensed = "deny"
+allow = ["MIT", "Apache-2.0", "Apache-2.0 WITH LLVM-exception"]
+deny = ["AGPL-1.0", "AGPL-3.0"]
+copyleft = "warn"
+allow-osi-fsf-free = "either"
+default = "deny"
+confidence-threshold = 0.8
+exceptions = []
+private = { ignore = false, registries = [] }
+
+[sources]
+unknown-registry = "deny"
+unknown-git = "deny"
+allow-registry = ["https://github.com/rust-lang/crates.io-index"]
+allow-git = []
+
+[bans]
+deny = [
+    # See: https://github.com/rust-random/rand/issues/645
+    { name = "rand", version = "<0.6" },
+
+    # See: https://github.com/near/nearcore/pull/3595
+    { name = "keccak-hash", version = "<0.4.1" },
+    { name = "primitive-types", version = "<0.10.1" },
+    { name = "uint", version = "<0.8.2" },
+
+    # https://github.com/near/nearcore/pull/8562
+    { name = "borsh", version = "0.10, <0.10.2" },
+]
