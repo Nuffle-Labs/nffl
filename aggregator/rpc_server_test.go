@@ -29,7 +29,7 @@ func TestProcessSignedCheckpointTaskResponse(t *testing.T) {
 	var FROM_NEAR_BLOCK = uint64(3)
 	var TO_NEAR_BLOCK = uint64(4)
 
-	aggregator, _, _, mockBlsAggServ, _, _, _, err := createMockAggregator(mockCtrl, MOCK_OPERATOR_PUBKEY_DICT)
+	aggregator, _, _, mockBlsAggServ, _, _, _, _, err := createMockAggregator(mockCtrl, MOCK_OPERATOR_PUBKEY_DICT)
 	assert.Nil(t, err)
 
 	signedCheckpointTaskResponse, err := createMockSignedCheckpointTaskResponse(MockTask{
@@ -55,7 +55,7 @@ func TestProcessSignedStateRootUpdateMessage(t *testing.T) {
 	mockCtrl := gomock.NewController(t)
 	defer mockCtrl.Finish()
 
-	aggregator, _, _, _, mockMessageBlsAggServ, _, _, err := createMockAggregator(mockCtrl, MOCK_OPERATOR_PUBKEY_DICT)
+	aggregator, _, _, _, mockMessageBlsAggServ, _, _, _, err := createMockAggregator(mockCtrl, MOCK_OPERATOR_PUBKEY_DICT)
 	assert.Nil(t, err)
 
 	message := servicemanager.StateRootUpdateMessage{
@@ -81,7 +81,7 @@ func TestProcessOperatorSetUpdateMessage(t *testing.T) {
 	mockCtrl := gomock.NewController(t)
 	defer mockCtrl.Finish()
 
-	aggregator, mockAvsReader, _, _, _, mockMessageBlsAggServ, _, err := createMockAggregator(mockCtrl, MOCK_OPERATOR_PUBKEY_DICT)
+	aggregator, mockAvsReader, _, _, _, mockMessageBlsAggServ, _, _, err := createMockAggregator(mockCtrl, MOCK_OPERATOR_PUBKEY_DICT)
 	assert.Nil(t, err)
 
 	message := registryrollup.OperatorSetUpdateMessage{

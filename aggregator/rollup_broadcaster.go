@@ -96,6 +96,11 @@ func (writer *RollupWriter) UpdateOperatorSet(ctx context.Context, message regro
 	return err
 }
 
+type RollupBroadcasterer interface {
+	BroadcastOperatorSetUpdate(ctx context.Context, message regrollup.OperatorSetUpdateMessage, signatureInfo regrollup.OperatorsSignatureInfo)
+	GetErrorChan() <-chan error
+}
+
 type RollupBroadcaster struct {
 	writers   []*RollupWriter
 	errorChan chan error

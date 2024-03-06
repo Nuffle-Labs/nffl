@@ -74,7 +74,7 @@ type Aggregator struct {
 	restServerIpPortAddr string
 	avsWriter            chainio.AvsWriterer
 	avsReader            chainio.AvsReaderer
-	rollupBroadcaster    *RollupBroadcaster
+	rollupBroadcaster    RollupBroadcasterer
 
 	// aggregation related fields
 	taskBlsAggregationService              blsagg.BlsAggregationService
