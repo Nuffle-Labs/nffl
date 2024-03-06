@@ -19,7 +19,6 @@ import (
 	"time"
 
 	"github.com/NethermindEth/near-sffl/core"
-
 	"github.com/Layr-Labs/eigensdk-go/chainio/clients/eth"
 	"github.com/Layr-Labs/eigensdk-go/crypto/bls"
 	sdkEcdsa "github.com/Layr-Labs/eigensdk-go/crypto/ecdsa"
