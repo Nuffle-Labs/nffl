@@ -1,4 +1,4 @@
-// SPDX-License-Identifier: UNLICENSED
+// SPDX-License-Identifier: MIT
 pragma solidity ^0.8.12;
 
 import {ServiceManagerBase} from "eigenlayer-middleware/src/ServiceManagerBase.sol";
