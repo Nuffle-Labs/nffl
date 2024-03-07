@@ -10,7 +10,7 @@
     "format": "forge fmt",
     "build-bls-utils": "cd test/ffi/bls-utils && cargo build"
   },
-  "author": "NethermindEth",
+  "author": "Near.org",
   "license": "MIT",
   "dependencies": {
     "@eth-optimism/contracts": "^0.6.0"
