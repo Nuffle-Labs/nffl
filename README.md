@@ -19,7 +19,7 @@ This universal, secure and fast finality leads to major advancements in
 interoperability protocols, enabling or improving designs such as general
 bridging and chain abstraction.
 
-For more details, refer to the [Documentation](./docs).
+For more details, refer to the [Documentation](https://near-sffl.nethermind.io).
 
 ## Getting Started
 
