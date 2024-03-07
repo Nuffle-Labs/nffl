@@ -101,7 +101,7 @@ make start-test-relayer
 
 And that's it! You should be able to see each of the actors messaging each
 other as expected. You can edit some of the test parameters in the
-[`config-files`](./config-files).
+`/config-files`.
 
 ### Running through Docker Compose
 
