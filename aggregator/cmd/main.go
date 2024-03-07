@@ -49,12 +49,12 @@ func aggregatorMain(ctx *cli.Context) error {
 		return err
 	}
 
-	config, err := config.NewConfig(*configRaw, ctx)
+	config, err := config.NewConfig(ctx, *configRaw, logger)
 	if err != nil {
-		logger.Fatal("Error creating config", "err", err)
 		return err
 	}
 
+	// Print config as JSON
 	{
 		configJson, err := json.MarshalIndent(config, "", "  ")
 		if err != nil {

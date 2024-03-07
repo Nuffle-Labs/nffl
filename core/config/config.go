@@ -3,7 +3,6 @@ package config
 import (
 	"crypto/ecdsa"
 	"errors"
-	"fmt"
 	"os"
 
 	"github.com/ethereum/go-ethereum/common"
@@ -73,7 +72,7 @@ func NewConfigRaw(ctx *cli.Context) (*ConfigRaw, error) {
 // NewConfig parses config file to read from from flags or environment variables
 // Note: This config is shared by challenger and aggregator and so we put in the core.
 // Operator has a different config and is meant to be used by the operator CLI.
-func NewConfig(configRaw ConfigRaw, ctx *cli.Context) (*Config, error) {
+func NewConfig(ctx *cli.Context, configRaw ConfigRaw, logger sdklogging.Logger) (*Config, error) {
 	var sfflDeploymentRaw SFFLDeploymentRaw
 	sfflDeploymentFilePath := ctx.GlobalString(SFFLDeploymentFileFlag.Name)
 	if _, err := os.Stat(sfflDeploymentFilePath); errors.Is(err, os.ErrNotExist) {
@@ -88,12 +87,14 @@ func NewConfig(configRaw ConfigRaw, ctx *cli.Context) (*Config, error) {
 
 	ecdsaPrivateKey, err := crypto.HexToECDSA(ecdsaPrivateKeyString)
 	if err != nil {
-		return nil, fmt.Errorf("Cannot parse ecdsa private key: %w", err)
+		logger.Error("Cannot parse ecdsa private key", "err", err)
+		return nil, err
 	}
 
 	aggregatorAddr, err := sdkutils.EcdsaPrivateKeyToAddress(ecdsaPrivateKey)
 	if err != nil {
-		return nil, fmt.Errorf("Cannot get operator address: %w", err)
+		logger.Error("Cannot get operator address", "err", err)
+		return nil, err
 	}
 
 	config := &Config{
