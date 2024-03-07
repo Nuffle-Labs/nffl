@@ -68,7 +68,7 @@ type Attestor struct {
 	rollupIdsToUrls map[uint32]string
 	clients         map[uint32]eth.EthClient
 	notifier        Notifier
-	consumer        consumer.Consumer
+	consumer        *consumer.Consumer
 
 	registry   *prometheus.Registry
 	config     *types.NodeConfig

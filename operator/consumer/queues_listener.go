@@ -65,7 +65,7 @@ func (listener *QueuesListener) listen(rollupId uint32, rollupDataC <-chan rmq.D
 		case <-ctx.Done():
 			listener.logger.Info("Consumer context canceled")
 			// TODO: some closing and canceling here
-			break
+			return
 		}
 	}
 }

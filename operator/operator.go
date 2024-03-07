@@ -41,7 +41,6 @@ type Operator struct {
 	config    types.NodeConfig
 	logger    logging.Logger
 	ethClient eth.EthClient
-	// TODO(samlaf): remove both avsWriter and eigenlayerWrite from operator
 	// they are only used for registration, so we should make a special registration package
 	// this way, auditing this operator code makes it obvious that operators don't need to
 	// write to the chain during the course of their normal operations

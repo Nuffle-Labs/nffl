@@ -7,10 +7,13 @@ import (
 
 	"github.com/Layr-Labs/eigensdk-go/chainio/clients"
 	sdkclients "github.com/Layr-Labs/eigensdk-go/chainio/clients"
+	"github.com/Layr-Labs/eigensdk-go/chainio/clients/eth"
+	"github.com/Layr-Labs/eigensdk-go/chainio/txmgr"
 	"github.com/Layr-Labs/eigensdk-go/logging"
 	"github.com/Layr-Labs/eigensdk-go/services/avsregistry"
 	blsagg "github.com/Layr-Labs/eigensdk-go/services/bls_aggregation"
 	oppubkeysserv "github.com/Layr-Labs/eigensdk-go/services/operatorpubkeys"
+	"github.com/Layr-Labs/eigensdk-go/signerv2"
 	sdktypes "github.com/Layr-Labs/eigensdk-go/types"
 
 	"github.com/NethermindEth/near-sffl/aggregator/types"
@@ -89,49 +92,67 @@ type Aggregator struct {
 // NewAggregator creates a new Aggregator with the provided config.
 // TODO: Remove this context once OperatorPubkeysServiceInMemory's API is
 // changed and we can gracefully exit otherwise
-func NewAggregator(ctx context.Context, c *config.Config) (*Aggregator, error) {
-	avsReader, err := chainio.BuildAvsReaderFromConfig(c)
+func NewAggregator(ctx context.Context, config *config.Config, logger logging.Logger) (*Aggregator, error) {
+	ethHttpClient, err := eth.NewClient(config.EthHttpRpcUrl)
 	if err != nil {
-		c.Logger.Error("Cannot create avsReader", "err", err)
+		logger.Errorf("Cannot create http ethclient", "err", err)
 		return nil, err
 	}
 
-	avsWriter, err := chainio.BuildAvsWriterFromConfig(c)
+	avsReader, err := chainio.BuildAvsReader(config.SFFLRegistryCoordinatorAddr, config.OperatorStateRetrieverAddr, ethHttpClient, logger)
 	if err != nil {
-		c.Logger.Errorf("Cannot create avsWriter", "err", err)
+		logger.Error("Cannot create avsReader", "err", err)
+		return nil, err
+	}
+
+	chainId, err := ethHttpClient.ChainID(ctx)
+	if err != nil {
+		logger.Error("Cannot get chainId", "err", err)
+		return nil, err
+	}
+
+	signerV2, _, err := signerv2.SignerFromConfig(signerv2.Config{PrivateKey: config.EcdsaPrivateKey}, chainId)
+	if err != nil {
+		panic(err)
+	}
+	txMgr := txmgr.NewSimpleTxManager(ethHttpClient, logger, signerV2, config.AggregatorAddress)
+
+	avsWriter, err := chainio.BuildAvsWriterFromConfig(txMgr, config, ethHttpClient, logger)
+	if err != nil {
+		logger.Errorf("Cannot create avsWriter", "err", err)
 		return nil, err
 	}
 
 	chainioConfig := sdkclients.BuildAllConfig{
-		EthHttpUrl:                 c.EthHttpRpcUrl,
-		EthWsUrl:                   c.EthWsRpcUrl,
-		RegistryCoordinatorAddr:    c.SFFLRegistryCoordinatorAddr.String(),
-		OperatorStateRetrieverAddr: c.OperatorStateRetrieverAddr.String(),
+		EthHttpUrl:                 config.EthHttpRpcUrl,
+		EthWsUrl:                   config.EthWsRpcUrl,
+		RegistryCoordinatorAddr:    config.SFFLRegistryCoordinatorAddr.String(),
+		OperatorStateRetrieverAddr: config.OperatorStateRetrieverAddr.String(),
 		AvsName:                    avsName,
 		PromMetricsIpPortAddress:   ":9090",
 	}
-	clients, err := clients.BuildAll(chainioConfig, c.AggregatorAddress, c.SignerFn, c.Logger)
+	clients, err := clients.BuildAll(chainioConfig, config.AggregatorAddress, signerV2, logger)
 	if err != nil {
-		c.Logger.Errorf("Cannot create sdk clients", "err", err)
+		logger.Errorf("Cannot create sdk clients", "err", err)
 		return nil, err
 	}
 
-	msgDb, err := NewMessageDatabase(c.AggregatorDatabasePath)
+	msgDb, err := NewMessageDatabase(config.AggregatorDatabasePath)
 	if err != nil {
-		c.Logger.Errorf("Cannot create database", "err", err)
+		logger.Errorf("Cannot create database", "err", err)
 		return nil, err
 	}
 
-	operatorPubkeysService := oppubkeysserv.NewOperatorPubkeysServiceInMemory(ctx, clients.AvsRegistryChainSubscriber, clients.AvsRegistryChainReader, c.Logger)
-	avsRegistryService := avsregistry.NewAvsRegistryServiceChainCaller(avsReader, operatorPubkeysService, c.Logger)
-	taskBlsAggregationService := blsagg.NewBlsAggregatorService(avsRegistryService, c.Logger)
-	stateRootUpdateBlsAggregationService := NewMessageBlsAggregatorService(avsRegistryService, clients.EthHttpClient, c.Logger)
-	operatorSetUpdateBlsAggregationService := NewMessageBlsAggregatorService(avsRegistryService, clients.EthHttpClient, c.Logger)
+	operatorPubkeysService := oppubkeysserv.NewOperatorPubkeysServiceInMemory(ctx, clients.AvsRegistryChainSubscriber, clients.AvsRegistryChainReader, logger)
+	avsRegistryService := avsregistry.NewAvsRegistryServiceChainCaller(avsReader, operatorPubkeysService, logger)
+	taskBlsAggregationService := blsagg.NewBlsAggregatorService(avsRegistryService, logger)
+	stateRootUpdateBlsAggregationService := NewMessageBlsAggregatorService(avsRegistryService, clients.EthHttpClient, logger)
+	operatorSetUpdateBlsAggregationService := NewMessageBlsAggregatorService(avsRegistryService, clients.EthHttpClient, logger)
 
 	return &Aggregator{
-		logger:                                 c.Logger,
-		serverIpPortAddr:                       c.AggregatorServerIpPortAddr,
-		restServerIpPortAddr:                   c.AggregatorRestServerIpPortAddr,
+		logger:                                 logger,
+		serverIpPortAddr:                       config.AggregatorServerIpPortAddr,
+		restServerIpPortAddr:                   config.AggregatorRestServerIpPortAddr,
 		avsWriter:                              avsWriter,
 		avsReader:                              avsReader,
 		taskBlsAggregationService:              taskBlsAggregationService,
@@ -295,6 +316,7 @@ func (agg *Aggregator) handleStateRootUpdateReachedQuorum(blsAggServiceResp type
 		agg.logger.Error("Aggregator could not store message aggregation")
 		return
 	}
+
 }
 
 func (agg *Aggregator) handleOperatorSetUpdateReachedQuorum(blsAggServiceResp types.MessageBlsAggregationServiceResponse) {
