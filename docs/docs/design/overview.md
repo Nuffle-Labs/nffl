@@ -57,7 +57,7 @@ To settle rollup transactions on NEAR, participating rollups must post block dat
 NEAR DA is the data availability solution used for hosting the rollup block data.
 
 The data posted to NEAR DA is indexed by the AVS nodes. The nodes compare the posted blocks with
-their own full nodes' data and agree on the network state. 
+their own full nodes' data and agree on the network state.
 
 The role of posting block data to NEAR DA is separated from the rollup sequencer, into a _Relayer_
 role. This Relayer constantly posts block data to NEAR DA, providing a fast and public ledger to the current network state. The seperation of the Relayer allows for participating rollups to use the
