@@ -24,7 +24,9 @@ This universal, secure and fast finality leads to major advancements in
 interoperability protocols, enabling or improving designs such as general
 bridging and chain abstraction.
 
-For more details, refer to [Protocol Design](./design/overview.md).
+For more details, refer to [Protocol Design](./design/overview.md). SFFL is
+under active development and is not yet available on any publicly
+accessible environments.
 
 ## Getting Started
 
@@ -42,7 +44,8 @@ In order to set up the AVS environments, you'll first need to install
 Make sure you're in a **unix environment**, as this is a pre-requisite
 for running the NEAR indexer.
 
-Then, install [foundry](https://book.getfoundry.sh/getting-started/installation), `go install` [zap-pretty](https://github.com/maoueh/zap-pretty) and `npm install`
+Then, install [foundry](https://book.getfoundry.sh/getting-started/installation),
+`go install` [zap-pretty](https://github.com/maoueh/zap-pretty) and `npm install`
 [near-cli v3](https://github.com/near/near-cli). One way of doing so would be:
 
 ```bash
@@ -99,7 +102,7 @@ make start-test-relayer
 ```
 
 And that's it! You should be able to see each of the actors messaging each
-other as expected. You can edit some of the test parameters in the 
+other as expected. You can edit some of the test parameters in the
 `/config-files`.
 
 ### Running through Docker Compose
