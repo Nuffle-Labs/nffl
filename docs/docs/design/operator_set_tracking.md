@@ -21,7 +21,7 @@ one block, and as such happens at most once a block. It also has an
 incrementing ID - which is then used on the attestation message and that can be
 used to fetch the update content for verifying evidences on bad messages.
 
-This design and tracking logic is mostly implemented on the 
+This design and tracking logic is mostly implemented on the
 `SFFLOperatorSetUpdateRegistry` contract.
 
 ## Syncing

@@ -117,5 +117,5 @@ differs from the attested one.
 
 ## Slashing
 
-The slashing design for EigenLayer is yet to be implemented. We are in touch with the AVS team at
-EigenLayer to devise a solution.
+The slashing design for EigenLayer is yet to be implemented. We are in touch
+with the AVS team at EigenLayer to devise a solution.
