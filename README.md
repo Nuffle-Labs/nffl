@@ -20,7 +20,7 @@ interoperability protocols, enabling or improving designs such as general
 bridging and chain abstraction.
 
 For more details, refer to the [Documentation](https://near-sffl.nethermind.io).
-SFFL is under active development and is not yet available on any publically
+SFFL is under active development and is not yet available on any publicly
 accessible environments.
 
 ## Getting Started
