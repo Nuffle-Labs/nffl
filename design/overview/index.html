@@ -4,7 +4,7 @@
 <meta charset="UTF-8">
 <meta name="generator" content="Docusaurus v3.1.1">
 <title data-rh="true">Overview | NEAR SFFL</title><meta data-rh="true" name="viewport" content="width=device-width,initial-scale=1"><meta data-rh="true" name="twitter:card" content="summary_large_image"><meta data-rh="true" property="og:image" content="https://near-sffl.nethermind.io/img/near-sffl-social-card.jpg"><meta data-rh="true" name="twitter:image" content="https://near-sffl.nethermind.io/img/near-sffl-social-card.jpg"><meta data-rh="true" property="og:url" content="https://near-sffl.nethermind.io/design/overview"><meta data-rh="true" property="og:locale" content="en"><meta data-rh="true" name="docusaurus_locale" content="en"><meta data-rh="true" name="docsearch:language" content="en"><meta data-rh="true" name="docusaurus_version" content="current"><meta data-rh="true" name="docusaurus_tag" content="docs-default-current"><meta data-rh="true" name="docsearch:version" content="current"><meta data-rh="true" name="docsearch:docusaurus_tag" content="docs-default-current"><meta data-rh="true" property="og:title" content="Overview | NEAR SFFL"><meta data-rh="true" name="description" content="The NEAR Super Fast Finality Layer (SFFL) aims to provide a fast settlement"><meta data-rh="true" property="og:description" content="The NEAR Super Fast Finality Layer (SFFL) aims to provide a fast settlement"><link data-rh="true" rel="icon" href="/img/favicon.ico"><link data-rh="true" rel="canonical" href="https://near-sffl.nethermind.io/design/overview"><link data-rh="true" rel="alternate" href="https://near-sffl.nethermind.io/design/overview" hreflang="en"><link data-rh="true" rel="alternate" href="https://near-sffl.nethermind.io/design/overview" hreflang="x-default"><link rel="stylesheet" href="/assets/css/styles.c1a10ddf.css">
-<script src="/assets/js/runtime~main.14b05346.js" defer="defer"></script>
+<script src="/assets/js/runtime~main.0f91b58a.js" defer="defer"></script>
 <script src="/assets/js/main.55554ae1.js" defer="defer"></script>
 </head>
 <body class="navigation-with-keyboard">
@@ -15,18 +15,16 @@ other networks in a safe way.</p>
 <p>In order to achieve this, SFFL leverages both <a href="https://near.org" target="_blank" rel="noopener noreferrer">NEAR</a> and
 <a href="https://www.eigenlayer.xyz" target="_blank" rel="noopener noreferrer">EigenLayer</a>, providing not only a way for
 protocols to provide interoperability features by verifying state attestations
-secured by restaked ETH but also an intermediate DA layer that increases the
-overall network security for participating networks.</p>
+secured by staked ETH.</p>
 <p>The architecture is comprised of two off-chain actors, the <em>Operators</em> and the
-<em>Aggregator</em>, which are effectively the AVS nodes, and multiple on-chain
-actors:</p>
+<em>Aggregator</em>, the AVS nodes, and multiple on-chain contracts:</p>
 <ul>
-<li>in Ethereum Mainnet, there&#x27;s the SFFL AVS contract set, which interacts
-directly with EigenLayer&#x27;s.</li>
-<li>in participating networks, there are SFFL verifier contracts to check
+<li>on Ethereum Mainnet, there&#x27;s the SFFL AVS contract set, which interacts
+directly with EigenLayer contracts.</li>
+<li>on rollup networks, there are SFFL verifier contracts to check
 network state attestations.</li>
-<li>in NEAR, there is a NEAR DA contract for each participating network which
-serves as a medium for storing historical block data.</li>
+<li>on NEAR, there is a NEAR DA contract for each participating rollup network
+which serves as a medium for storing historical block data.</li>
 </ul>
 <h2 class="anchor anchorWithStickyNavbar_LWe7" id="architecture">Architecture<a href="#architecture" class="hash-link" aria-label="Direct link to Architecture" title="Direct link to Architecture">​</a></h2>
 <p>Below is a diagram representation of SFFL&#x27;s architecture. Let&#x27;s consider, as an
@@ -34,49 +32,49 @@ example, <code>HelloProtocol</code>, a very primitive protocol in which users wa
 and receive <em>hello</em> from one network to another. In abstract terms, this is the
 base feature of every bridging protocol. It&#x27;s a good idea to refer to this
 diagram whenever any of the interactions seems unclear.</p>
-<p><img decoding="async" loading="lazy" alt="Full Architecture Overview" src="/assets/images/full_architecture_overview-e30dd2652c193e94877b623740234938.svg" width="5442" height="3418" class="img_ev3q"></p>
+<p><img decoding="async" loading="lazy" alt="Full Architecture Overview" src="/assets/images/full_architecture_overview.excalidraw-eb1f4dc81123be077475d2de7e82872c.svg" width="5442" height="3418" class="img_ev3q"></p>
 <h3 class="anchor anchorWithStickyNavbar_LWe7" id="ethereum">Ethereum<a href="#ethereum" class="hash-link" aria-label="Direct link to Ethereum" title="Direct link to Ethereum">​</a></h3>
-<p>First of all, SFFL&#x27;s functionality comes from an AVS, that is, an EigenLayer
-<em>Actively Validated Service</em>, which is a system that requires a specific
-validation through a distributed network which is, in turn, registered and
-specified in terms of EigenLayer&#x27;s restaking capabilities.</p>
-<p>This means the SFFL architecture actually starts on Ethereum, as the <a href="https://github.com/Layr-Labs/eigenlayer-contracts/tree/dev/docs" target="_blank" rel="noopener noreferrer">EigenLayer
-core contracts</a>
-live there. So, in order for SFFL to have economic security, users must first
-restake ETH into EigenLayer, becoming <em>Restakers</em>.</p>
+<p>SFFL&#x27;s is enabled to provide the fast finality guarantees by leveraging the
+architecture of EigenLayer _Actively <em>Valildated Service</em>. EigenLayer AVS
+allows the coordination of validators in distributed network towards a common
+goal. EigenLayer allows validators to reuse Ethereum stake as the mechanism
+for incentivization.</p>
+<p>In order for SFFL to have economic security, users must first restake ETH into
+EigenLayer, becoming <em>Restakers</em>. This means the SFFL architecture actually
+starts on Ethereum, as the
+<a href="https://github.com/Layr-Labs/eigenlayer-contracts/tree/dev/docs" target="_blank" rel="noopener noreferrer">EigenLayer core contracts</a>
+live there.</p>
 <p>The SFFL has a set of smart contracts which, in EigenLayer terms, are called
-<em>middleware</em>, which are directly connected to the EigenLayer core contracts.
-Through this, as an AVS, various data and operations are available and SFFL
-operations such as registering as an <em>Operator</em> (a validator) and validating
-task resolutions (more on that later) can be implemented. <em>Restakers</em> can
-either become or delegate their restaked balance to <em>Operators</em>, which will
-then validate the AVS on their behalf.</p>
-<h3 class="anchor anchorWithStickyNavbar_LWe7" id="near-data-posting">NEAR Data Posting<a href="#near-data-posting" class="hash-link" aria-label="Direct link to NEAR Data Posting" title="Direct link to NEAR Data Posting">​</a></h3>
-<p>The SFFL is comprised of multiple participating networks. These networks take
-part in SFFL to achieve a faster &#x27;finality&#x27; for chain interoperability
-purposes. In order to do that, it must contain an entity called a <em>Relayer</em>.
-This Relayer constantly posts block data to NEAR DA, providing a fast and
-public ledger to the current network state.</p>
-<p>In order to do that, each network should have a NEAR DA contract. This contract
-is then called by the Relayer for submitting arbitrary data, in this case,
-exclusively block data.</p>
-<p>The data posted to NEAR through the DA contracts will then be indexed by the
-AVS operators, which will then double-check the posted blocks with their own
-full nodes&#x27; data and agree on the network state. This means that even if the
-<em>Relayer</em> acts maliciously, this doesn&#x27;t mean the AVS will necessarily agree
-with it.</p>
+<em>middleware</em>. The <em>middleware</em> contracts are directly connected to the
+EigenLayer core contracts. The AVS contracts facilitate the interaction between
+the off-chain node with the EigenLayer protocol. Operations such as registering
+as an <em>Operator</em> (a validator) and validating task resolutions are handled by
+the AVS contracts. <em>Restakers</em> can delegate their restaked Eth to <em>Operators</em>,
+who will then validate the AVS on their behalf.</p>
+<h3 class="anchor anchorWithStickyNavbar_LWe7" id="near-data-availability">NEAR Data Availability<a href="#near-data-availability" class="hash-link" aria-label="Direct link to NEAR Data Availability" title="Direct link to NEAR Data Availability">​</a></h3>
+<p>To settle rollup transactions on NEAR, participating rollups must post block
+data to NEAR. NEAR DA is the data availability solution used for hosting the
+rollup block data.</p>
+<p>The data posted to NEAR DA is indexed by the AVS nodes. The nodes compare the
+posted blocks with their own full nodes&#x27; data and agree on the network state.</p>
+<p>The role of posting block data to NEAR DA is separated from the rollup
+sequencer, into a <em>Relayer</em> role. This Relayer constantly posts block data to
+NEAR DA, providing a fast and public ledger to the current network state.
+The seperation of the Relayer allows for participating rollups to use the
+fast finality layer without any modifications to their sequencer implementation.</p>
+<p>Since the AVS nodes compare the data posted by the Relayer with their local
+full nodes, that even if the <em>Relayer</em> acts maliciously, this doesn&#x27;t mean the
+AVS will necessarily agree with it.</p>
 <p>There&#x27;s an example Relayer implementation, but it should slightly change
-depending on the specific network and stack, as it should ideally be
-integrated into a node.</p>
-<h3 class="anchor anchorWithStickyNavbar_LWe7" id="off-chain-sffl">Off-chain SFFL<a href="#off-chain-sffl" class="hash-link" aria-label="Direct link to Off-chain SFFL" title="Direct link to Off-chain SFFL">​</a></h3>
-<p>As can be seen in the diagram and usual for an AVS, the SFFL is not
-exclusively based on smart contracts. Actually, the attestation work is
-performed by an off-chain network of Operators which are linked to an
-Aggregator.</p>
-<p>An SFFL Operator, besides the actual operator node, runs a full node for each
-of the participant networks (including Ethereum), as well as a NEAR full node
-and a NEAR DA indexer. Their simplified flow can be described through the
-following:</p>
+depending on the specific network and stack, as it should ideally be operated
+by the sequencer.</p>
+<h3 class="anchor anchorWithStickyNavbar_LWe7" id="sffl-off-chain-nodes">SFFL off-chain nodes<a href="#sffl-off-chain-nodes" class="hash-link" aria-label="Direct link to SFFL off-chain nodes" title="Direct link to SFFL off-chain nodes">​</a></h3>
+<p>SFFL nodes attest to the state root of rollup after executing the block. The
+individual signatures are aggregated off-chain and submitted to Ethereum and
+participating rollups.</p>
+<p>An SFFL Operator, runs a full node for each of the participant networks
+(including Ethereum), as well as a NEAR full node and a NEAR DA indexer. The
+simplified flow can be described through the following:</p>
 <ol>
 <li>The indexer captures a block posted to NEAR DA for one of the networks and
 sends it to the operator node.</li>
@@ -84,8 +82,8 @@ sends it to the operator node.</li>
 <li>The operator node checks the block is the same as the one in their
 self-hosted network full node.<!-- -->
 <ol>
-<li>If the blocks do not match, the ultimate source of truth is the full
-node.</li>
+<li>If the blocks do not match, then the block posted by the Relayer are
+wrong and the SFFL nodes do not sign any state root.</li>
 </ol>
 </li>
 <li>The operator node, through their BLS keypair, signs a message attesting
@@ -93,58 +91,54 @@ that for the network in question in that block height, the state root is the
 one that was fetched.</li>
 <li>The operator sends the signed message to the Aggregator.</li>
 </ol>
-<p>The Aggregator, then, collects BLS signatures from multiple operators. Whenever
-a desired quorum is reached in terms of operator power (i.e. restaked amount),
+<p>The Aggregator collects BLS signatures from multiple SFFL nodes. When
+the desired quorum of operator power (i.e. restaked amount) is reached, then
 all of the signatures are aggregated into one and made available through an
 API.</p>
 <p>This aggregated signature, when validated by a program that has access to the
-operator set, is the equivalent of &quot;<em>A sufficient amount of operators has agreed
-that, for network <code>N</code>, at block height <code>H</code>, the state root is <code>S</code></em>&quot;. And that&#x27;s
-exactly what we want - so, with this, allowing cross-chain state access is
-simply verifying these attestations!</p>
-<p>Operators also track operator set updates on the AVS contracts and emit
-attestations for those in a somehow similar process - instead of expecting
-block data externally, it simply subscribes to Ethereum updates through its
-full node. The importance of that will be discussed in
-<a href="#network-registry">Network Registry</a>.</p>
-<p>For more details on the messaging flow, please check
+operator set, is the equivalent of &quot;<em>A sufficient amount of operators have
+agreed that, for network <code>N</code>, at block height <code>H</code>, the state root is <code>S</code></em>&quot;.
+By verifying the aggregated signatures a rollup can be sure of other rollup,
+allowing seamless cross-chain interoperability!</p>
+<p>Apart from voting on the state roots of rollups, SFFL operators also track
+operator set updates on the AVS contracts and emit attestations for those in a
+somehow similar process - instead of expecting block data externally, it simply
+subscribes to Ethereum updates through its full node. The importance of that
+will be discussed in <a href="#network-registry">Network Registry</a>.</p>
+<p>For more details on the messaging flow, please read
 <a href="/design/messaging_and_checkpoints">Messaging and Checkpoints</a>.</p>
 <h3 class="anchor anchorWithStickyNavbar_LWe7" id="network-registry">Network Registry<a href="#network-registry" class="hash-link" aria-label="Direct link to Network Registry" title="Direct link to Network Registry">​</a></h3>
-<p>The vital part of the participant network environment is the <em>Registry</em>
-contract. This contract, which should be deployed on each of the participating
-networks, should effectively be used to verify the attestations that were
-discussed above.</p>
-<p>In order to do that, these contracts should have access to the AVS operator
-set - otherwise, it can&#x27;t know if a signer is an operator or not, much less
-whether the attestation has passed quorum or not.</p>
-<p>So, actually SFFL Registry contracts have two roles - they keep a copy of the
-operator set and they validate attestations. In order to keep this operator set
-up to date, as it&#x27;s not always true that it can access Ethereum&#x27;s state
-somehow, it relies on other attestations - in this case, not for state root
-updates, but actually for operator set updates.</p>
-<p>What this means is that this operator set relies on the AVS attestations to be
+<p>The <em>Registry</em> contract is a vital component of the SFFL architecture.
+There is a <em>Registry</em> contract on each rollup. This contract is used to verify
+the state root attestations.</p>
+<p>In order to verify the signature, the Registry contract have access to the AVS
+operator set - otherwise, it can&#x27;t know if a signer is an operator or not, much
+less whether the attestation has passed quorum or not.</p>
+<p>In fact SFFL Registry contracts have two roles - 1) store a copy of the
+operator set and 2) verifying attestations. To keep the operator set
+up to date, the Registry contract accepts attestations for operator set updates.</p>
+<p>The operator set relies on the AVS attestations to be
 up-to-date - the AVS operators themselves agree on each operator set delta.
 This is an easily verifiable &#x27;task&#x27; in terms of slashing, and implements the
 cross-chain messaging necessary for communicating this from Ethereum to the
 other participant networks.</p>
-<p>In terms of operator set update submission, this would be an Aggregator task
-by default, but it would not be restricted to it - any user could also submit
-it. Changes on this, especially in terms of economic incentives, are planned.</p>
+<p>The operator set update is an Aggregator task by initially, but it would not be
+restricted to it - any user can submit it. Changes to this mechanism,
+especially in terms of economic incentives, are planned.</p>
 <h3 class="anchor anchorWithStickyNavbar_LWe7" id="checkpoint-tasks">Checkpoint Tasks<a href="#checkpoint-tasks" class="hash-link" aria-label="Direct link to Checkpoint Tasks" title="Direct link to Checkpoint Tasks">​</a></h3>
-<p>As defined in various AVS guidelines, such as
-<a href="https://docs.eigenlayer.xyz/eigenlayer/avs-guides/first-steps-towards-designing-an-avs" target="_blank" rel="noopener noreferrer">this one</a>,
-an AVSs operation should be understandable in terms of units of work called
-<em>Tasks</em>. These tasks are defined in the AVS contracts on Ethereum, and are
-directly related to slashing and payment flows.</p>
-<p>However, in terms of the SFFL, each of the attestations above is not defined
-as a <em>Task</em> - rather, it&#x27;s defined as a <em>Message</em>. As such, the <em>Task</em> that
-defines the SFFL is not any of those, but it&#x27;s actually <em>all of those</em> - more
-specifically, the unit of work required from all validators is to attest on
-the aggregation (more specifically <em>Merkleization</em>) of messages in a time
-range.</p>
-<p>This way, the existance or non-existance of a message in a time range can be
-later on checked on Ethereum through the task response. This is meant to be
-used for slashing and payment purposes.</p>
+<p>As defined in the <a href="https://docs.eigenlayer.xyz/eigenlayer/avs-guides/first-steps-towards-designing-an-avs" target="_blank" rel="noopener noreferrer">EigenLayer AVS guidelines</a>,
+AVS operation should be represented in terms of units of work called <em>Tasks</em>.
+These tasks are defined in the AVS contracts on Ethereum. The AVS payment and
+slashing are based on the operators fulfilling these tasks in a correct manner.</p>
+<p>In the SFFL architecture, the attestations defined above are not defined as a
+<em>Task</em> - rather, they are defined as _Message_s. The <em>Task</em> for SFFL nodes is
+defined as the amalgamation of all the <em>Message</em> types, specifically the unit
+of work required from all validators is to attest on the aggregation
+(more specifically <em>Merkleization</em>) of messages in a time range.</p>
+<p>Using the merkleization of aggregated messages, the existance or non-existance
+of a message in a time range is verified on Ethereum through the task response.
+The verification of the aggregated message is used for slashing and payment
+processing.</p>
 <p>For more details on checkpoints, refer to
 <a href="/design/messaging_and_checkpoints">Messaging and Checkpoints</a>.</p>
 <h3 class="anchor anchorWithStickyNavbar_LWe7" id="user-flow">User Flow<a href="#user-flow" class="hash-link" aria-label="Direct link to User Flow" title="Direct link to User Flow">​</a></h3>
@@ -170,6 +164,6 @@ there is our &quot;hello!&quot;!</p>
 the user, may seem strange, can be simply abstracted from them. In
 implementation terms, it&#x27;s a matter of fetching the attestation and the proof,
 as well as linking the protocol&#x27;s contracts to SFFL&#x27;s and relaying the fetched
-data.</p></div></article><nav class="pagination-nav docusaurus-mt-lg" aria-label="Docs pages"><a class="pagination-nav__link pagination-nav__link--prev" href="/category/protocol-design"><div class="pagination-nav__sublabel">Previous</div><div class="pagination-nav__label">Protocol Design</div></a><a class="pagination-nav__link pagination-nav__link--next" href="/design/messaging_and_checkpoints"><div class="pagination-nav__sublabel">Next</div><div class="pagination-nav__label">Messaging and Checkpoints</div></a></nav></div></div><div class="col col--3"><div class="tableOfContents_bqdL thin-scrollbar theme-doc-toc-desktop"><ul class="table-of-contents table-of-contents__left-border"><li><a href="#architecture" class="table-of-contents__link toc-highlight">Architecture</a><ul><li><a href="#ethereum" class="table-of-contents__link toc-highlight">Ethereum</a></li><li><a href="#near-data-posting" class="table-of-contents__link toc-highlight">NEAR Data Posting</a></li><li><a href="#off-chain-sffl" class="table-of-contents__link toc-highlight">Off-chain SFFL</a></li><li><a href="#network-registry" class="table-of-contents__link toc-highlight">Network Registry</a></li><li><a href="#checkpoint-tasks" class="table-of-contents__link toc-highlight">Checkpoint Tasks</a></li><li><a href="#user-flow" class="table-of-contents__link toc-highlight">User Flow</a></li></ul></li></ul></div></div></div></div></main></div></div></div><footer class="footer footer--dark"><div class="container container-fluid"><div class="row footer__links"><div class="col footer__col"><div class="footer__title">Docs</div><ul class="footer__items clean-list"><li class="footer__item"><a class="footer__link-item" href="/">Introduction</a></li><li class="footer__item"><a class="footer__link-item" href="/category/protocol-design">Protocol Design</a></li><li class="footer__item"><a class="footer__link-item" href="/milestones">Milestones</a></li></ul></div><div class="col footer__col"><div class="footer__title">Community</div><ul class="footer__items clean-list"><li class="footer__item"><a href="http://near.chat/" target="_blank" rel="noopener noreferrer" class="footer__link-item">Discord<svg width="13.5" height="13.5" aria-hidden="true" viewBox="0 0 24 24" class="iconExternalLink_nPIU"><path fill="currentColor" d="M21 13v10h-21v-19h12v2h-10v15h17v-8h2zm3-12h-10.988l4.035 4-6.977 7.07 2.828 2.828 6.977-7.07 4.125 4.172v-11z"></path></svg></a></li><li class="footer__item"><a href="https://gov.near.org/" target="_blank" rel="noopener noreferrer" class="footer__link-item">Discourse<svg width="13.5" height="13.5" aria-hidden="true" viewBox="0 0 24 24" class="iconExternalLink_nPIU"><path fill="currentColor" d="M21 13v10h-21v-19h12v2h-10v15h17v-8h2zm3-12h-10.988l4.035 4-6.977 7.07 2.828 2.828 6.977-7.07 4.125 4.172v-11z"></path></svg></a></li><li class="footer__item"><a href="https://www.reddit.com/r/nearprotocol/" target="_blank" rel="noopener noreferrer" class="footer__link-item">Reddit<svg width="13.5" height="13.5" aria-hidden="true" viewBox="0 0 24 24" class="iconExternalLink_nPIU"><path fill="currentColor" d="M21 13v10h-21v-19h12v2h-10v15h17v-8h2zm3-12h-10.988l4.035 4-6.977 7.07 2.828 2.828 6.977-7.07 4.125 4.172v-11z"></path></svg></a></li><li class="footer__item"><a href="https://t.me/cryptonear" target="_blank" rel="noopener noreferrer" class="footer__link-item">Telegram<svg width="13.5" height="13.5" aria-hidden="true" viewBox="0 0 24 24" class="iconExternalLink_nPIU"><path fill="currentColor" d="M21 13v10h-21v-19h12v2h-10v15h17v-8h2zm3-12h-10.988l4.035 4-6.977 7.07 2.828 2.828 6.977-7.07 4.125 4.172v-11z"></path></svg></a></li><li class="footer__item"><a href="https://pages.near.org/wechat" target="_blank" rel="noopener noreferrer" class="footer__link-item">WeChat<svg width="13.5" height="13.5" aria-hidden="true" viewBox="0 0 24 24" class="iconExternalLink_nPIU"><path fill="currentColor" d="M21 13v10h-21v-19h12v2h-10v15h17v-8h2zm3-12h-10.988l4.035 4-6.977 7.07 2.828 2.828 6.977-7.07 4.125 4.172v-11z"></path></svg></a></li><li class="footer__item"><a href="https://twitter.com/nearprotocol" target="_blank" rel="noopener noreferrer" class="footer__link-item">X<svg width="13.5" height="13.5" aria-hidden="true" viewBox="0 0 24 24" class="iconExternalLink_nPIU"><path fill="currentColor" d="M21 13v10h-21v-19h12v2h-10v15h17v-8h2zm3-12h-10.988l4.035 4-6.977 7.07 2.828 2.828 6.977-7.07 4.125 4.172v-11z"></path></svg></a></li><li class="footer__item"><a href="https://www.youtube.com/channel/UCuKdIYVN8iE3fv8alyk1aMw" target="_blank" rel="noopener noreferrer" class="footer__link-item">YouTube<svg width="13.5" height="13.5" aria-hidden="true" viewBox="0 0 24 24" class="iconExternalLink_nPIU"><path fill="currentColor" d="M21 13v10h-21v-19h12v2h-10v15h17v-8h2zm3-12h-10.988l4.035 4-6.977 7.07 2.828 2.828 6.977-7.07 4.125 4.172v-11z"></path></svg></a></li></ul></div><div class="col footer__col"><div class="footer__title">More</div><ul class="footer__items clean-list"><li class="footer__item"><a href="https://github.com/NethermindEth/near-sffl" target="_blank" rel="noopener noreferrer" class="footer__link-item">GitHub<svg width="13.5" height="13.5" aria-hidden="true" viewBox="0 0 24 24" class="iconExternalLink_nPIU"><path fill="currentColor" d="M21 13v10h-21v-19h12v2h-10v15h17v-8h2zm3-12h-10.988l4.035 4-6.977 7.07 2.828 2.828 6.977-7.07 4.125 4.172v-11z"></path></svg></a></li></ul></div></div><div class="footer__bottom text--center"><div class="footer__copyright">Copyright © 2024 Near.org. Built with Docusaurus.</div></div></div></footer></div>
+data.</p></div></article><nav class="pagination-nav docusaurus-mt-lg" aria-label="Docs pages"><a class="pagination-nav__link pagination-nav__link--prev" href="/category/protocol-design"><div class="pagination-nav__sublabel">Previous</div><div class="pagination-nav__label">Protocol Design</div></a><a class="pagination-nav__link pagination-nav__link--next" href="/design/messaging_and_checkpoints"><div class="pagination-nav__sublabel">Next</div><div class="pagination-nav__label">Messaging and Checkpoints</div></a></nav></div></div><div class="col col--3"><div class="tableOfContents_bqdL thin-scrollbar theme-doc-toc-desktop"><ul class="table-of-contents table-of-contents__left-border"><li><a href="#architecture" class="table-of-contents__link toc-highlight">Architecture</a><ul><li><a href="#ethereum" class="table-of-contents__link toc-highlight">Ethereum</a></li><li><a href="#near-data-availability" class="table-of-contents__link toc-highlight">NEAR Data Availability</a></li><li><a href="#sffl-off-chain-nodes" class="table-of-contents__link toc-highlight">SFFL off-chain nodes</a></li><li><a href="#network-registry" class="table-of-contents__link toc-highlight">Network Registry</a></li><li><a href="#checkpoint-tasks" class="table-of-contents__link toc-highlight">Checkpoint Tasks</a></li><li><a href="#user-flow" class="table-of-contents__link toc-highlight">User Flow</a></li></ul></li></ul></div></div></div></div></main></div></div></div><footer class="footer footer--dark"><div class="container container-fluid"><div class="row footer__links"><div class="col footer__col"><div class="footer__title">Docs</div><ul class="footer__items clean-list"><li class="footer__item"><a class="footer__link-item" href="/">Introduction</a></li><li class="footer__item"><a class="footer__link-item" href="/category/protocol-design">Protocol Design</a></li><li class="footer__item"><a class="footer__link-item" href="/milestones">Milestones</a></li></ul></div><div class="col footer__col"><div class="footer__title">Community</div><ul class="footer__items clean-list"><li class="footer__item"><a href="http://near.chat/" target="_blank" rel="noopener noreferrer" class="footer__link-item">Discord<svg width="13.5" height="13.5" aria-hidden="true" viewBox="0 0 24 24" class="iconExternalLink_nPIU"><path fill="currentColor" d="M21 13v10h-21v-19h12v2h-10v15h17v-8h2zm3-12h-10.988l4.035 4-6.977 7.07 2.828 2.828 6.977-7.07 4.125 4.172v-11z"></path></svg></a></li><li class="footer__item"><a href="https://gov.near.org/" target="_blank" rel="noopener noreferrer" class="footer__link-item">Discourse<svg width="13.5" height="13.5" aria-hidden="true" viewBox="0 0 24 24" class="iconExternalLink_nPIU"><path fill="currentColor" d="M21 13v10h-21v-19h12v2h-10v15h17v-8h2zm3-12h-10.988l4.035 4-6.977 7.07 2.828 2.828 6.977-7.07 4.125 4.172v-11z"></path></svg></a></li><li class="footer__item"><a href="https://www.reddit.com/r/nearprotocol/" target="_blank" rel="noopener noreferrer" class="footer__link-item">Reddit<svg width="13.5" height="13.5" aria-hidden="true" viewBox="0 0 24 24" class="iconExternalLink_nPIU"><path fill="currentColor" d="M21 13v10h-21v-19h12v2h-10v15h17v-8h2zm3-12h-10.988l4.035 4-6.977 7.07 2.828 2.828 6.977-7.07 4.125 4.172v-11z"></path></svg></a></li><li class="footer__item"><a href="https://t.me/cryptonear" target="_blank" rel="noopener noreferrer" class="footer__link-item">Telegram<svg width="13.5" height="13.5" aria-hidden="true" viewBox="0 0 24 24" class="iconExternalLink_nPIU"><path fill="currentColor" d="M21 13v10h-21v-19h12v2h-10v15h17v-8h2zm3-12h-10.988l4.035 4-6.977 7.07 2.828 2.828 6.977-7.07 4.125 4.172v-11z"></path></svg></a></li><li class="footer__item"><a href="https://pages.near.org/wechat" target="_blank" rel="noopener noreferrer" class="footer__link-item">WeChat<svg width="13.5" height="13.5" aria-hidden="true" viewBox="0 0 24 24" class="iconExternalLink_nPIU"><path fill="currentColor" d="M21 13v10h-21v-19h12v2h-10v15h17v-8h2zm3-12h-10.988l4.035 4-6.977 7.07 2.828 2.828 6.977-7.07 4.125 4.172v-11z"></path></svg></a></li><li class="footer__item"><a href="https://twitter.com/nearprotocol" target="_blank" rel="noopener noreferrer" class="footer__link-item">X<svg width="13.5" height="13.5" aria-hidden="true" viewBox="0 0 24 24" class="iconExternalLink_nPIU"><path fill="currentColor" d="M21 13v10h-21v-19h12v2h-10v15h17v-8h2zm3-12h-10.988l4.035 4-6.977 7.07 2.828 2.828 6.977-7.07 4.125 4.172v-11z"></path></svg></a></li><li class="footer__item"><a href="https://www.youtube.com/channel/UCuKdIYVN8iE3fv8alyk1aMw" target="_blank" rel="noopener noreferrer" class="footer__link-item">YouTube<svg width="13.5" height="13.5" aria-hidden="true" viewBox="0 0 24 24" class="iconExternalLink_nPIU"><path fill="currentColor" d="M21 13v10h-21v-19h12v2h-10v15h17v-8h2zm3-12h-10.988l4.035 4-6.977 7.07 2.828 2.828 6.977-7.07 4.125 4.172v-11z"></path></svg></a></li></ul></div><div class="col footer__col"><div class="footer__title">More</div><ul class="footer__items clean-list"><li class="footer__item"><a href="https://github.com/NethermindEth/near-sffl" target="_blank" rel="noopener noreferrer" class="footer__link-item">GitHub<svg width="13.5" height="13.5" aria-hidden="true" viewBox="0 0 24 24" class="iconExternalLink_nPIU"><path fill="currentColor" d="M21 13v10h-21v-19h12v2h-10v15h17v-8h2zm3-12h-10.988l4.035 4-6.977 7.07 2.828 2.828 6.977-7.07 4.125 4.172v-11z"></path></svg></a></li></ul></div></div><div class="footer__bottom text--center"><div class="footer__copyright">Copyright © 2024 Near.org. Built with Docusaurus.</div></div></div></footer></div>
 </body>
 </html>
