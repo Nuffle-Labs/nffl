@@ -14,7 +14,7 @@ contract RollupSFFLDeployer is Script, Utils {
     using BN254 for BN254.G1Point;
     using Operators for Operators.OperatorSet;
 
-    uint128 public constant DEFAULT_WEIGHT = 100;
+    uint128 public constant DEFAULT_WEIGHT = 10000;
     uint128 public QUORUM_THRESHOLD = 2 * uint128(100) / 3;
 
     function run() external {
@@ -33,11 +33,11 @@ contract RollupSFFLDeployer is Script, Utils {
         Operators.Operator[] memory operators = new Operators.Operator[](2);
         operators[0] = Operators.Operator({
             pubkey: operatorPubkey1,
-            weight: 10000
+            weight: DEFAULT_WEIGHT
         });
         operators[1] = Operators.Operator({
             pubkey: operatorPubkey2,
-            weight: 10000
+            weight: DEFAULT_WEIGHT
         });
         
         uint64 operatorUpdateId = 1;
