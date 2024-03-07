@@ -11,7 +11,6 @@ import (
 
 	opsetupdatereg "github.com/NethermindEth/near-sffl/contracts/bindings/SFFLOperatorSetUpdateRegistry"
 	taskmanager "github.com/NethermindEth/near-sffl/contracts/bindings/SFFLTaskManager"
-	"github.com/NethermindEth/near-sffl/core/config"
 )
 
 type AvsSubscriberer interface {
@@ -28,15 +27,6 @@ type AvsSubscriberer interface {
 type AvsSubscriber struct {
 	AvsContractBindings *AvsManagersBindings
 	logger              sdklogging.Logger
-}
-
-func BuildAvsSubscriberFromConfig(config *config.Config) (*AvsSubscriber, error) {
-	return BuildAvsSubscriber(
-		config.SFFLRegistryCoordinatorAddr,
-		config.OperatorStateRetrieverAddr,
-		config.EthWsClient,
-		config.Logger,
-	)
 }
 
 func BuildAvsSubscriber(registryCoordinatorAddr, blsOperatorStateRetrieverAddr gethcommon.Address, ethclient eth.EthClient, logger sdklogging.Logger) (*AvsSubscriber, error) {

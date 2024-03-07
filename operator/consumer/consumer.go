@@ -62,7 +62,7 @@ type Consumer struct {
 	logger logging.Logger
 }
 
-func NewConsumer(config ConsumerConfig, logger logging.Logger) Consumer {
+func NewConsumer(config ConsumerConfig, logger logging.Logger) *Consumer {
 	ctx, cancel := context.WithCancel(context.Background())
 
 	consumer := Consumer{
@@ -74,7 +74,7 @@ func NewConsumer(config ConsumerConfig, logger logging.Logger) Consumer {
 
 	go consumer.Reconnect(config.Addr, ctx)
 
-	return consumer
+	return &consumer
 }
 
 func (consumer *Consumer) Reconnect(addr string, ctx context.Context) {
@@ -106,7 +106,7 @@ func (consumer *Consumer) Reconnect(addr string, ctx context.Context) {
 		case <-ctx.Done():
 			consumer.logger.Info("Consumer context canceled")
 			// deref cancel smth?
-			break
+			return
 
 		case err := <-consumer.connClosedErrC:
 			if !err.Recover {

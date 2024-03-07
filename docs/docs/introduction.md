@@ -134,8 +134,7 @@ docker compose up
 This will execute all services in the correct order and let you examine the
 individual logs. You'll also be able to access each container's services from
 the host through their image name, if necessary. The config files used for this
-test are also at [`config-files`](./config-files), denominated with
-`docker-compose`.
+test are also at `/config-files`, denominated with `docker-compose`.
 
 To terminate all services, simply run:
 

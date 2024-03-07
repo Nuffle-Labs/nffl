@@ -11,7 +11,7 @@
     "build-bls-utils": "cd test/ffi/bls-utils && cargo build"
   },
   "author": "NethermindEth",
-  "license": "UNLICENSED",
+  "license": "MIT",
   "dependencies": {
     "@eth-optimism/contracts": "^0.6.0"
   }
