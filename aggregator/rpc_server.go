@@ -26,7 +26,6 @@ var (
 )
 
 func (agg *Aggregator) startServer() error {
-
 	err := rpc.Register(agg)
 	if err != nil {
 		agg.logger.Fatal("Format of service TaskManager isn't correct. ", "err", err)

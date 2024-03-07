@@ -2,6 +2,7 @@ package chainio
 
 import (
 	"context"
+	"github.com/NethermindEth/near-sffl/core/config"
 
 	gethcommon "github.com/ethereum/go-ethereum/common"
 	"github.com/ethereum/go-ethereum/core/types"
@@ -12,7 +13,6 @@ import (
 	logging "github.com/Layr-Labs/eigensdk-go/logging"
 
 	taskmanager "github.com/NethermindEth/near-sffl/contracts/bindings/SFFLTaskManager"
-	"github.com/NethermindEth/near-sffl/core/config"
 )
 
 type AvsWriterer interface {
@@ -49,8 +49,8 @@ type AvsWriter struct {
 
 var _ AvsWriterer = (*AvsWriter)(nil)
 
-func BuildAvsWriterFromConfig(c *config.Config) (*AvsWriter, error) {
-	return BuildAvsWriter(c.TxMgr, c.SFFLRegistryCoordinatorAddr, c.OperatorStateRetrieverAddr, c.EthHttpClient, c.Logger)
+func BuildAvsWriterFromConfig(txMgr txmgr.TxManager, config *config.Config, client eth.EthClient, logger logging.Logger) (*AvsWriter, error) {
+	return BuildAvsWriter(txMgr, config.SFFLRegistryCoordinatorAddr, config.OperatorStateRetrieverAddr, client, logger)
 }
 
 func BuildAvsWriter(txMgr txmgr.TxManager, registryCoordinatorAddr, operatorStateRetrieverAddr gethcommon.Address, ethHttpClient eth.EthClient, logger logging.Logger) (*AvsWriter, error) {

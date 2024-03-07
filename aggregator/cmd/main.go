@@ -7,6 +7,7 @@ import (
 	"log"
 	"os"
 
+	sdklogging "github.com/Layr-Labs/eigensdk-go/logging"
 	"github.com/urfave/cli"
 
 	"github.com/NethermindEth/near-sffl/aggregator"
@@ -21,7 +22,6 @@ var (
 )
 
 func main() {
-
 	app := cli.NewApp()
 	app.Flags = config.Flags
 	app.Version = fmt.Sprintf("%s-%s-%s", Version, GitCommit, GitDate)
@@ -37,21 +37,34 @@ func main() {
 }
 
 func aggregatorMain(ctx *cli.Context) error {
-
 	log.Println("Initializing Aggregator")
-	config, err := config.NewConfig(ctx)
+
+	configRaw, err := config.NewConfigRaw(ctx)
 	if err != nil {
 		return err
 	}
-	configJson, err := json.MarshalIndent(config, "", "  ")
+
+	logger, err := sdklogging.NewZapLogger(configRaw.Environment)
 	if err != nil {
-		config.Logger.Fatalf(err.Error())
+		return err
 	}
-	fmt.Println("Config:", string(configJson))
+
+	config, err := config.NewConfig(ctx, *configRaw, logger)
+	if err != nil {
+		return err
+	}
+
+	// Print config as JSON
+	{
+		configJson, err := json.MarshalIndent(config, "", "  ")
+		if err != nil {
+			logger.Fatalf(err.Error())
+		}
+		fmt.Println("Config:", string(configJson))
+	}
 
 	bgCtx := context.Background()
-
-	agg, err := aggregator.NewAggregator(bgCtx, config)
+	agg, err := aggregator.NewAggregator(bgCtx, config, logger)
 	if err != nil {
 		return err
 	}
@@ -62,5 +75,4 @@ func aggregatorMain(ctx *cli.Context) error {
 	}
 
 	return nil
-
 }
