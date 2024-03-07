@@ -1,4 +1,7 @@
 // SPDX-License-Identifier: BUSL-1.1
+// Utility contract from EigenLayer's Incredible Squaring AVS:
+// https://github.com/Layr-Labs/incredible-squaring-avs/blob/2c21b017da9f7a0df7b2c8896fbabf05fc80137a/contracts/script/utils/Utils.sol
+
 pragma solidity =0.8.12;
 
 import {IRegistryCoordinator} from "eigenlayer-middleware/src/interfaces/IRegistryCoordinator.sol";
