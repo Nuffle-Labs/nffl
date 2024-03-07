@@ -43,46 +43,19 @@ Relayers independently, as it's effectively an extra DA layer for the network - 
 beneficial for it. However, a mechanism for SFFL itself to reward Relayers could also be
 implemented.
 
-<!-- reviewed checkpoint -->
-
 ## Pushing Operator Set Updates to Networks
 
-As discussed in [Operator Set Tracking](./operator_set_tracking.md), it's ideal
-that every participant network has their local operator set updated quickly
-whenever changes happen so as to keep it equivalent to the actual operator set
-and avoid various issues that arise in terms of verifying attestations.
-
-So, some effort is required to keep these networks up-to-date, and, more
-importantly, there is an associated cost of broadcasting transactions.
-
-Currently this is centralized on the Aggregator, which besides aggregating
-attestations also sends operator set updates to the non-Ethereum networks.
-In terms of a decentralizing mechanism, as SFFL already enables chain
-interoperability, rewards could be registered in networks for submitting
-operator set updates and then proven in a specific network.
+As discussed in [Operator Set Tracking](./operator_set_tracking.md), every participating rollup
+network has a copy of the operator set. The operator set is kept to update with the operator set on
+Ethereum. There might be some synchronisation issues with the cross-chain interoperability. Theo
+minimise a difference in the operator set, the protocol should have an incentive mechanism.
 
 ## Challenging a Checkpoint
 
-Once a checkpoint is published, it'll have an assigned challenge period.
-During this period, anyone can try and prove the checkpoint is wrong - leading
-to one or more of the faults mentioned in [Faults](./faults.md) through
-membership or non-membership proofs - and then slashing.
-
-As this is potentially a costly process (not yet implemented), the challenger
-must be incentivised. Ideally, in case of a successful challenge, a fixed
-amount of ETH on Ethereum should be readily available to challengers to both
-cover transaction costs and make it profitable to scan for faults. 
-
-## Rewards
-
-The actual rewards are not yet determined. These can be based on specific
-protocol reserves, in which case the sources of these reserves must be
-considered.
-
-Another approach would be to integrate a token into the AVS protocol. This way,
-rewards would be emissions, and the specifics on how to integrate the token and
-make it valuable should be investigated.
-
-The implementation for the EigenLayer payment processing is in the design phase as well.
-[Here](https://github.com/Layr-Labs/eigenlayer-contracts/issues/277).
-
+All checkpoints published to Ethereum can be challenged. The protocol when instantiated will set a
+challenge period for the checkpoints, during which anyone can submit a fraud proof. The fraud proof
+would need to prove one of the faults described in the [Faults](./faults.md) section. Constructing
+fraud proof is potentially a costly process, therefore the challenger should be rewarded for
+submitting a valid fraud proof. Ideally, in case of a successful challenge, a fixed amount of
+rewards on Ethereum should be readily available to challengers to both cover transaction costs and
+make it profitable to scan for faults.
