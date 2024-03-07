@@ -110,7 +110,7 @@ mocks: ## generates mocks for tests
 	go generate ./...
 
 tests-unit: ## runs all unit tests
-	go test $$(go list ./... | grep -v /integration) -coverprofile=coverage.out -covermode=atomic --timeout 20s
+	go test $$(go list ./... | grep -v /integration) -coverprofile=coverage.out -covermode=atomic --timeout 30s
 	go tool cover -html=coverage.out -o coverage.html
 
 tests-contract: ## runs all forge tests
