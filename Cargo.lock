@@ -3477,7 +3477,7 @@ version = "0.0.1"
 dependencies = [
  "actix",
  "anyhow",
- "clap 3.2.25",
+ "clap 4.4.11",
  "deadpool",
  "deadpool-lapin",
  "futures",
