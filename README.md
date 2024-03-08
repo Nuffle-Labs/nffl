@@ -142,7 +142,7 @@ docker compose down
 
 ## More Details
 
-For more details, refer to the [Documentation](./docs).
+For more details, refer to the [Documentation](https://near-sffl.nethermind.io).
 
 The AVS implementation was based on the
 [Incredible Squaring AVS](https://github.com/Layr-Labs/incredible-squaring-avs)
