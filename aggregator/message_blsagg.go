@@ -175,8 +175,10 @@ func (mbas *MessageBlsAggregatorService) singleMessageAggregatorGoroutineFunc(
 		select {
 		case signedMessageDigest := <-signedMessageDigestsC:
 			mbas.logger.Debug("Message goroutine received new signed message digest", "messageDigest", messageDigest)
-			mbas.handleSignedMessageDigest(signedMessageDigest, validationInfo)
-			return
+
+			if mbas.handleSignedMessageDigest(signedMessageDigest, validationInfo) {
+				return
+			}
 		case <-messageExpiredTimer.C:
 			mbas.aggregatedResponsesC <- aggtypes.MessageBlsAggregationServiceResponse{
 				Err: MessageExpiredError,
@@ -234,12 +236,12 @@ func (mbas *MessageBlsAggregatorService) fetchValidationInfo(quorumNumbers []typ
 	}
 }
 
-func (mbas *MessageBlsAggregatorService) handleSignedMessageDigest(signedMessageDigest SignedMessageDigest, validationInfo signedMessageDigestValidationInfo) {
+func (mbas *MessageBlsAggregatorService) handleSignedMessageDigest(signedMessageDigest SignedMessageDigest, validationInfo signedMessageDigestValidationInfo) bool {
 	err := mbas.verifySignature(signedMessageDigest, validationInfo.operatorsAvsStateDict)
 	signedMessageDigest.SignatureVerificationErrorC <- err
 
 	if err != nil {
-		return
+		return false
 	}
 
 	digestAggregatedOperators, ok := validationInfo.aggregatedOperatorsDict[signedMessageDigest.MessageDigest]
@@ -267,7 +269,7 @@ func (mbas *MessageBlsAggregatorService) handleSignedMessageDigest(signedMessage
 	validationInfo.aggregatedOperatorsDict[signedMessageDigest.MessageDigest] = digestAggregatedOperators
 
 	if !checkIfStakeThresholdsMet(digestAggregatedOperators.signersTotalStakePerQuorum, validationInfo.totalStakePerQuorum, validationInfo.quorumThresholdPercentagesMap) {
-		return
+		return false
 	}
 
 	nonSignersOperatorIds := []types.OperatorId{}
@@ -283,7 +285,7 @@ func (mbas *MessageBlsAggregatorService) handleSignedMessageDigest(signedMessage
 		mbas.aggregatedResponsesC <- aggtypes.MessageBlsAggregationServiceResponse{
 			Err: err,
 		}
-		return
+		return false
 	}
 
 	messageBlsAggregationServiceResponse := aggtypes.MessageBlsAggregationServiceResponse{
@@ -301,6 +303,8 @@ func (mbas *MessageBlsAggregatorService) handleSignedMessageDigest(signedMessage
 	}
 
 	mbas.aggregatedResponsesC <- messageBlsAggregationServiceResponse
+
+	return true
 }
 
 func (mbas *MessageBlsAggregatorService) closeMessageGoroutine(messageDigest coretypes.MessageDigest) {
