@@ -2,6 +2,8 @@ package aggregator
 
 import (
 	"context"
+	"time"
+
 	"github.com/Layr-Labs/eigensdk-go/chainio/clients/eth"
 	"github.com/Layr-Labs/eigensdk-go/chainio/txmgr"
 	"github.com/Layr-Labs/eigensdk-go/logging"
@@ -9,7 +11,6 @@ import (
 	regrollup "github.com/NethermindEth/near-sffl/contracts/bindings/SFFLRegistryRollup"
 	"github.com/NethermindEth/near-sffl/core/config"
 	"github.com/ethereum/go-ethereum/common"
-	"time"
 )
 
 const NUM_OF_RETRIES = 5
