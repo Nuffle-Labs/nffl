@@ -111,11 +111,9 @@ func NewAttestor(config *types.NodeConfig, blsKeypair *bls.KeyPair, operatorId b
 }
 
 func (attestor *Attestor) Start(ctx context.Context) error {
-	clientsNum := len(attestor.clients)
-	subscriptions := make([]ethereum.Subscription, clientsNum)
-	headersCs := make([]chan *ethtypes.Header, clientsNum)
+	subscriptions := make(map[uint32]ethereum.Subscription)
+	headersCs := make(map[uint32]chan *ethtypes.Header)
 
-	i := 0
 	for rollupId, client := range attestor.clients {
 		headersC := make(chan *ethtypes.Header)
 		subscription, err := client.SubscribeNewHead(ctx, headersC)
@@ -124,17 +122,14 @@ func (attestor *Attestor) Start(ctx context.Context) error {
 			return err
 		}
 
-		subscriptions[i] = subscription
-		headersCs[i] = headersC
-		i++
+		subscriptions[rollupId] = subscription
+		headersCs[rollupId] = headersC
 	}
 
 	go attestor.processMQBlocks(ctx)
 
-	i = 0
 	for rollupId, _ := range attestor.clients {
-		go attestor.processRollupHeaders(rollupId, headersCs[i], subscriptions[i], ctx)
-		i++
+		go attestor.processRollupHeaders(rollupId, headersCs[rollupId], subscriptions[rollupId], ctx)
 	}
 
 	return nil
