@@ -53,11 +53,11 @@ designs.
 In order to allow for the implementation of slashing and payment processes, the
 AVS Task was defined as a _Checkpoint_ Task.
 
-A Checkpoint Task is comprised of the submission of a merkle root of the
-_Message_ type. Checkpoint Task are submitted at a regular cadence. Checkpoint
-Task not only provides a safe ledger to the AVS state, but also allows for
-establishing slashing and payment processes while keeping the SFFL cost of
-operation cheap.
+A Checkpoint Task is, essentially, comprised of the submission of a merkle root
+of the attested _Messages_ during a time range. Checkpoint Task are submitted
+at a regular cadence. Checkpoint Task not only provides a safe ledger to the
+AVS state, but also allows for establishing slashing and payment processes
+while keeping the SFFL cost of operation cheap.
 
 To facilitate the Checkpoint Task, the operators must then agree on all the
 Messages sent in that time period e.g. daily, and aggregate them into a [Sparse
