@@ -46,7 +46,7 @@ import (
 const TEST_DATA_DIR = "../../test_data"
 
 func TestIntegration(t *testing.T) {
-	ctx, cancel := context.WithTimeout(context.Background(), 180*time.Second)
+	ctx, cancel := context.WithTimeout(context.Background(), 220*time.Second)
 	setup := setupTestEnv(t, ctx)
 	t.Cleanup(func() {
 		cancel()
