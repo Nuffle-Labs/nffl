@@ -2,6 +2,7 @@ package integration_test
 
 import (
 	"context"
+	"crypto/ecdsa"
 	"encoding/base64"
 	"encoding/json"
 	"fmt"
@@ -54,9 +55,7 @@ func TestIntegration(t *testing.T) {
 		setup.cleanup()
 	})
 
-	time.Sleep(10 * time.Second)
-
-	newOperator := startOperator(t, ctx, genOperatorConfig(t, ctx, setup.mainnetAnvil, setup.rollupAnvils, setup.rabbitMq))
+	time.Sleep(30 * time.Second)
 
 	taskHash, err := setup.avsReader.AvsServiceBindings.TaskManager.AllCheckpointTaskHashes(&bind.CallOpts{}, 0)
 	if err != nil {
@@ -75,11 +74,36 @@ func TestIntegration(t *testing.T) {
 		t.Fatalf("Task response hash is empty")
 	}
 
-	stateRootUpdate, err := getStateRootUpdateAggregation(setup.aggregatorRestUrl, uint32(setup.rollupAnvils[0].ChainID.Uint64()), 9)
+	stateRootHeight := uint64(10)
+	stateRootUpdate, err := getStateRootUpdateAggregation(setup.aggregatorRestUrl, uint32(setup.rollupAnvils[0].ChainID.Uint64()), stateRootHeight)
 	if err != nil {
 		t.Fatalf("Cannot get state root update: %s", err.Error())
 	}
+	_, err = setup.registryRollups[1].UpdateStateRoot(setup.registryRollupAuths[1], registryrollup.StateRootUpdateMessage(stateRootUpdate.Message), core.FormatBlsAggregationRollup(&stateRootUpdate.Aggregation))
+	if err != nil {
+		t.Fatalf("Error updating state root: %s", err.Error())
+	}
 
+	newOperatorConfig, _, _ := genOperatorConfig(t, ctx, setup.mainnetAnvil, setup.rollupAnvils, setup.rabbitMq)
+	newOperator := startOperator(t, ctx, newOperatorConfig)
+
+	time.Sleep(30 * time.Second)
+
+	for _, registryRollup := range setup.registryRollups {
+		nextOperatorSetUpdateId, err := registryRollup.NextOperatorUpdateId(&bind.CallOpts{})
+		if err != nil {
+			t.Fatalf("Error getting next operator set update ID: %s", err.Error())
+		}
+		if nextOperatorSetUpdateId != 2 {
+			t.Fatalf("Wrong next operator set update ID: expected %d, got %d", 2, nextOperatorSetUpdateId)
+		}
+	}
+
+	stateRootHeight = uint64(16)
+	stateRootUpdate, err = getStateRootUpdateAggregation(setup.aggregatorRestUrl, uint32(setup.rollupAnvils[0].ChainID.Uint64()), stateRootHeight)
+	if err != nil {
+		t.Fatalf("Cannot get state root update: %s", err.Error())
+	}
 	_, err = setup.registryRollups[1].UpdateStateRoot(setup.registryRollupAuths[1], registryrollup.StateRootUpdateMessage(stateRootUpdate.Message), core.FormatBlsAggregationRollup(&stateRootUpdate.Aggregation))
 	if err != nil {
 		t.Fatalf("Error updating state root: %s", err.Error())
@@ -108,11 +132,6 @@ func TestIntegration(t *testing.T) {
 		},
 	}
 	assert.Equal(t, expectedUpdatedOperators, operatorSetUpdate.Message.Operators)
-
-	_, err = setup.registryRollups[1].UpdateOperatorSet(setup.registryRollupAuths[1], operatorSetUpdate.Message, core.FormatBlsAggregationRollup(&operatorSetUpdate.Aggregation))
-	if err != nil {
-		t.Fatalf("Error updating state root: %s", err.Error())
-	}
 
 	<-ctx.Done()
 }
@@ -164,7 +183,6 @@ func setupTestEnv(t *testing.T, ctx context.Context) *testEnv {
 	startRollupIndexing(t, ctx, rollupAnvils, indexerContainer)
 
 	sfflDeploymentRaw := readSfflDeploymentRaw()
-	rollupSfflDeploymentsRaw := readRollupSfflDeploymentRaw()
 
 	configRaw := buildConfigRaw(mainnetAnvil, rollupAnvils)
 	logger, err := sdklogging.NewZapLogger(configRaw.Environment)
@@ -172,18 +190,29 @@ func setupTestEnv(t *testing.T, ctx context.Context) *testEnv {
 		t.Fatalf("Failed to create logger: %s", err.Error())
 	}
 
-	nodeConfig := genOperatorConfig(t, ctx, mainnetAnvil, rollupAnvils, rabbitMq)
-	operator := startOperator(t, ctx, nodeConfig)
+	nodeConfig, keyPair, _ := genOperatorConfig(t, ctx, mainnetAnvil, rollupAnvils, rabbitMq)
 
-	config := buildConfig(t, sfflDeploymentRaw, rollupSfflDeploymentsRaw, configRaw)
-	aggregator := startAggregator(t, ctx, config, logger)
-
-	avsReader, err := chainio.BuildAvsReaderFromConfig(config, mainnetAnvil.HttpClient, logger)
+	avsReader, err := chainio.BuildAvsReader(common.HexToAddress(sfflDeploymentRaw.Addresses.RegistryCoordinatorAddr), common.HexToAddress(sfflDeploymentRaw.Addresses.OperatorStateRetrieverAddr), mainnetAnvil.HttpClient, logger)
 	if err != nil {
 		t.Fatalf("Cannot create AVS Reader: %s", err.Error())
 	}
 
-	registryRollups, registryRollupAuths := deployRegistryRollups(t, ctx, avsReader, rollupAnvils)
+	rollupInitialOperatorSet := []registryrollup.OperatorsOperator{
+		{
+			Pubkey: registryrollup.BN254G1Point{
+				X: keyPair.PubKey.X.BigInt(big.NewInt(0)),
+				Y: keyPair.PubKey.Y.BigInt(big.NewInt(0)),
+			},
+			Weight: big.NewInt(1000),
+		},
+	}
+
+	addresses, registryRollups, registryRollupAuths := deployRegistryRollups(t, ctx, rollupInitialOperatorSet, 1, avsReader, rollupAnvils)
+
+	operator := startOperator(t, ctx, nodeConfig)
+
+	config := buildConfig(t, sfflDeploymentRaw, addresses, rollupAnvils, configRaw)
+	aggregator := startAggregator(t, ctx, config, logger)
 
 	cleanup := func() {
 		if err := os.RemoveAll(TEST_DATA_DIR); err != nil {
@@ -284,17 +313,7 @@ func readSfflDeploymentRaw() config.SFFLDeploymentRaw {
 	return sfflDeploymentRaw
 }
 
-func readRollupSfflDeploymentRaw() []config.RollupSFFLDeploymentRaw {
-	paths := []string{
-		"../../contracts/evm/script/output/2/rollup_sffl_deployment_output.json",
-		"../../contracts/evm/script/output/3/rollup_sffl_deployment_output.json",
-	}
-	rollupDeploymentsInfo := config.ReadRollupSFFLDeploymentsRaw(paths)
-
-	return rollupDeploymentsInfo
-}
-
-func genOperatorConfig(t *testing.T, ctx context.Context, mainnetAnvil *AnvilInstance, rollupAnvils []*AnvilInstance, rabbitMq *rabbitmq.RabbitMQContainer) types.NodeConfig {
+func genOperatorConfig(t *testing.T, ctx context.Context, mainnetAnvil *AnvilInstance, rollupAnvils []*AnvilInstance, rabbitMq *rabbitmq.RabbitMQContainer) (types.NodeConfig, *bls.KeyPair, *ecdsa.PrivateKey) {
 	nodeConfig := types.NodeConfig{}
 	nodeConfigFilePath := "../../config-files/operator.anvil.yaml"
 	err := sdkutils.ReadYamlConfig(nodeConfigFilePath, &nodeConfig)
@@ -367,7 +386,7 @@ func genOperatorConfig(t *testing.T, ctx context.Context, mainnetAnvil *AnvilIns
 
 	mainnetAnvil.setBalance(address, big.NewInt(1e18))
 
-	return nodeConfig
+	return nodeConfig, keyPair, ecdsaKey
 }
 
 func buildConfigRaw(mainnetAnvil *AnvilInstance, rollupAnvils []*AnvilInstance) config.ConfigRaw {
@@ -387,7 +406,7 @@ func buildConfigRaw(mainnetAnvil *AnvilInstance, rollupAnvils []*AnvilInstance) 
 	return configRaw
 }
 
-func buildConfig(t *testing.T, sfflDeploymentRaw config.SFFLDeploymentRaw, rollupSfflDeploymentsRaw []config.RollupSFFLDeploymentRaw, aggConfigRaw config.ConfigRaw) *config.Config {
+func buildConfig(t *testing.T, sfflDeploymentRaw config.SFFLDeploymentRaw, addresses []common.Address, rollupAnvils []*AnvilInstance, aggConfigRaw config.ConfigRaw) *config.Config {
 	aggregatorEcdsaPrivateKeyString := "0x2a871d0798f97d79848a013d4936a73bf4cc922c825d33c1cf7073dff6d409c6"
 	if aggregatorEcdsaPrivateKeyString[:2] == "0x" {
 		aggregatorEcdsaPrivateKeyString = aggregatorEcdsaPrivateKeyString[2:]
@@ -401,7 +420,11 @@ func buildConfig(t *testing.T, sfflDeploymentRaw config.SFFLDeploymentRaw, rollu
 		t.Fatalf("Cannot get operator address: %s", err.Error())
 	}
 
-	rollupsInfo := config.CompileRollupsInfo(rollupSfflDeploymentsRaw, &aggConfigRaw)
+	rollupsInfo := make(map[uint32]config.RollupInfo)
+	for i, addr := range addresses {
+		rollupsInfo[uint32(rollupAnvils[i].ChainID.Int64())] = config.RollupInfo{SFFLRegistryRollupAddr: addr, RpcUrl: rollupAnvils[i].WsUrl}
+	}
+
 	return &config.Config{
 		EcdsaPrivateKey:                aggregatorEcdsaPrivateKey,
 		EthHttpRpcUrl:                  aggConfigRaw.EthRpcUrl,
@@ -452,15 +475,7 @@ func startAnvilTestContainer(t *testing.T, ctx context.Context, name, exposedPor
 		}
 		req.Cmd = []string{"--host", "0.0.0.0", "--load-state", "/root/.anvil/state.json", "--port", exposedPort, "--chain-id", chainId}
 	} else {
-		req.Mounts = testcontainers.ContainerMounts{
-			testcontainers.ContainerMount{
-				Source: testcontainers.GenericBindMountSource{
-					HostPath: filepath.Join(integrationDir, fmt.Sprintf("../anvil/data/%s/rollup-avs-and-deployed-anvil-state.json", chainId)),
-				},
-				Target: "/root/.anvil/state.json",
-			},
-		}
-		req.Cmd = []string{"--host", "0.0.0.0", "--load-state", "/root/.anvil/state.json", "--port", exposedPort, "--block-time", "10", "--chain-id", chainId}
+		req.Cmd = []string{"--host", "0.0.0.0", "--port", exposedPort, "--block-time", "10", "--chain-id", chainId}
 	}
 
 	anvilC, err := testcontainers.GenericContainer(ctx, testcontainers.GenericContainerRequest{
@@ -517,21 +532,23 @@ func startAnvilTestContainer(t *testing.T, ctx context.Context, name, exposedPor
 	return anvil
 }
 
-func deployRegistryRollups(t *testing.T, ctx context.Context, avsReader chainio.AvsReaderer, anvils []*AnvilInstance) ([]*registryrollup.ContractSFFLRegistryRollup, []*bind.TransactOpts) {
+func deployRegistryRollups(t *testing.T, ctx context.Context, initialOperatorSet []registryrollup.OperatorsOperator, nextOperatorSetUpdateId uint64, avsReader chainio.AvsReaderer, anvils []*AnvilInstance) ([]common.Address, []*registryrollup.ContractSFFLRegistryRollup, []*bind.TransactOpts) {
 	var registryRollups []*registryrollup.ContractSFFLRegistryRollup
 	var auths []*bind.TransactOpts
+	var addresses []common.Address
 
 	for _, anvil := range anvils {
-		registryRollup, auth := deployRegistryRollup(t, ctx, avsReader, anvil)
+		addr, registryRollup, auth := deployRegistryRollup(t, ctx, initialOperatorSet, nextOperatorSetUpdateId, avsReader, anvil)
 
 		registryRollups = append(registryRollups, registryRollup)
 		auths = append(auths, auth)
+		addresses = append(addresses, addr)
 	}
 
-	return registryRollups, auths
+	return addresses, registryRollups, auths
 }
 
-func deployRegistryRollup(t *testing.T, ctx context.Context, avsReader chainio.AvsReaderer, anvil *AnvilInstance) (*registryrollup.ContractSFFLRegistryRollup, *bind.TransactOpts) {
+func deployRegistryRollup(t *testing.T, ctx context.Context, initialOperatorSet []registryrollup.OperatorsOperator, nextOperatorSetUpdateId uint64, avsReader chainio.AvsReaderer, anvil *AnvilInstance) (common.Address, *registryrollup.ContractSFFLRegistryRollup, *bind.TransactOpts) {
 	t.Logf("Deploying RegistryRollup to chain %s", anvil.ChainID.String())
 
 	privateKeyString := "ac0974bec39a17e36ba4a6b4d238ff944bacb478cbed5efcae784d7bf4f2ff80"
@@ -545,33 +562,18 @@ func deployRegistryRollup(t *testing.T, ctx context.Context, avsReader chainio.A
 		t.Fatalf("Error generating transactor: %s", err.Error())
 	}
 
-	operatorSetUpdateId := uint64(0)
-
-	operatorsDelta, err := avsReader.GetOperatorSetUpdateDelta(ctx, operatorSetUpdateId)
-	if err != nil {
-		t.Fatalf("Error getting operator set: %s", err.Error())
-	}
-
-	var operators []registryrollup.OperatorsOperator
-	for _, operator := range operatorsDelta {
-		operators = append(operators, registryrollup.OperatorsOperator{
-			Pubkey: registryrollup.BN254G1Point(operator.Pubkey),
-			Weight: operator.Weight,
-		})
-	}
-
-	if len(operators) == 0 {
+	if len(initialOperatorSet) == 0 {
 		t.Fatal("Operator set is empty")
 	}
 
-	t.Logf("RegistryRollup deployed with operators: %v", operators)
+	t.Logf("RegistryRollup deployed with operators: %v", initialOperatorSet)
 
-	_, _, registryRollup, err := registryrollup.DeployContractSFFLRegistryRollup(auth, anvil.WsClient, operators, big.NewInt(66), operatorSetUpdateId+1)
+	addr, _, registryRollup, err := registryrollup.DeployContractSFFLRegistryRollup(auth, anvil.WsClient, initialOperatorSet, big.NewInt(66), nextOperatorSetUpdateId)
 	if err != nil {
 		t.Fatalf("Error deploying RegistryRollup: %s", err.Error())
 	}
 
-	return registryRollup, auth
+	return addr, registryRollup, auth
 }
 
 func startRollupIndexing(t *testing.T, ctx context.Context, rollupAnvils []*AnvilInstance, indexerContainer testcontainers.Container) {
