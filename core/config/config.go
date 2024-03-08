@@ -128,7 +128,7 @@ func CompileRollupsInfo(rollupDeploymentsInfo []RollupSFFLDeploymentRaw, configR
 // NewConfig parses config file to read from from flags or environment variables
 // Note: This config is shared by challenger and aggregator and so we put in the core.
 // Operator has a different config and is meant to be used by the operator CLI.
-func NewConfig(configRaw ConfigRaw, ctx *cli.Context) (*Config, error) {
+func NewConfig(ctx *cli.Context, configRaw ConfigRaw, logger sdklogging.Logger) (*Config, error) {
 	rollupSFFLDeploymentFilesPath := ctx.GlobalStringSlice(RollupSFFLDeploymentFilesFlag.Name)
 	rollupDeploymentsInfo := ReadRollupSFFLDeploymentsRaw(rollupSFFLDeploymentFilesPath)
 	rollupsInfo := CompileRollupsInfo(rollupDeploymentsInfo, &configRaw)

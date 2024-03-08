@@ -101,7 +101,7 @@ func NewAggregator(ctx context.Context, config *config.Config, logger logging.Lo
 		return nil, err
 	}
 
-	avsReader, err := chainio.BuildAvsReader(config.SFFLRegistryCoordinatorAddr, config.OperatorStateRetrieverAddr, ethHttpClient, logger)
+	avsReader, err := chainio.BuildAvsReaderFromConfig(config, ethHttpClient, logger)
 	if err != nil {
 		logger.Error("Cannot create avsReader", "err", err)
 		return nil, err
