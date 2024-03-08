@@ -8,6 +8,7 @@ import (
 	"github.com/Layr-Labs/eigensdk-go/chainio/txmgr"
 	"github.com/Layr-Labs/eigensdk-go/logging"
 	"github.com/Layr-Labs/eigensdk-go/signerv2"
+	"github.com/ethereum/go-ethereum/accounts/abi/bind"
 	"github.com/ethereum/go-ethereum/common"
 
 	registryrollup "github.com/NethermindEth/near-sffl/contracts/bindings/SFFLRegistryRollup"
@@ -61,6 +62,17 @@ func (w *RollupWriter) UpdateOperatorSet(ctx context.Context, message registryro
 		if err != nil {
 			w.logger.Error("Error getting tx opts", "err", err)
 			return err
+		}
+
+		nextOperatorUpdateId, err := w.sfflRegistryRollup.NextOperatorUpdateId(&bind.CallOpts{})
+		if err != nil {
+			w.logger.Error("Error fetching NextOperatorUpdateId", "err", err)
+			return err
+		}
+
+		// TODO: queue in case message.id > nextOperatorUpdateId
+		if message.Id != nextOperatorUpdateId {
+			return nil
 		}
 
 		tx, err := w.sfflRegistryRollup.UpdateOperatorSet(txOpts, message, signatureInfo)
