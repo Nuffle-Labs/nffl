@@ -87,6 +87,7 @@ We have already reached [Milestone 3](#3-node-development)!
 - Design and implement dynamic network set changes.
 - Investigate heterogenous network support.
   - If viable, implement heterogenous network support.
+- Add support for other DA layers, such as [EigenDA](https://eigenda.xyz/).
 
 ## #7: Incentives
 
