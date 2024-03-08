@@ -235,7 +235,7 @@ loop:
 			}
 
 			// Filter notifications
-			if rollupHeader.Number != mqBlock.Block.Header().Number {
+			if rollupHeader.Number.Cmp(mqBlock.Block.Header().Number) != 0 {
 				continue loop
 			}
 
