@@ -115,15 +115,17 @@ func (mbas *MessageBlsAggregatorService) InitializeMessageIfNotExists(
 	timeToExpiry time.Duration,
 	ethBlockNumber uint64,
 ) error {
+	mbas.messageChansLock.Lock()
+	defer mbas.messageChansLock.Unlock()
+
 	if _, taskExists := mbas.signedMessageDigestsCs[messageDigest]; taskExists {
 		return nil
 	}
 
 	signedMessageDigestsC := make(chan SignedMessageDigest)
-	mbas.messageChansLock.Lock()
 	mbas.signedMessageDigestsCs[messageDigest] = signedMessageDigestsC
-	mbas.messageChansLock.Unlock()
 	go mbas.singleMessageAggregatorGoroutineFunc(messageDigest, quorumNumbers, quorumThresholdPercentages, timeToExpiry, signedMessageDigestsC, ethBlockNumber)
+
 	return nil
 }
 
@@ -133,9 +135,11 @@ func (mbas *MessageBlsAggregatorService) ProcessNewSignature(
 	blsSignature *bls.Signature,
 	operatorId bls.OperatorId,
 ) error {
-	mbas.messageChansLock.Lock()
+	mbas.messageChansLock.RLock()
+	defer mbas.messageChansLock.RUnlock()
+
 	messageC, taskInitialized := mbas.signedMessageDigestsCs[messageDigest]
-	mbas.messageChansLock.Unlock()
+
 	if !taskInitialized {
 		return MessageNotFoundErrorFn(messageDigest)
 	}
