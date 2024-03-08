@@ -14,8 +14,8 @@ contract RollupSFFLDeployer is Script, Utils {
     using BN254 for BN254.G1Point;
     using Operators for Operators.OperatorSet;
 
-    uint128 public constant DEFAULT_WEIGHT = 10000;
-    uint128 public QUORUM_THRESHOLD = 2 * uint128(100) / 3;
+    uint128 public constant DEFAULT_WEIGHT = 100;
+    uint128 public QUORUM_THRESHOLD = 2 * uint128(DEFAULT_WEIGHT) / 3;
 
     function run() external {
         vm.startBroadcast();

@@ -18,12 +18,12 @@ import (
 	"testing"
 	"time"
 
-	"github.com/NethermindEth/near-sffl/core"
 	"github.com/Layr-Labs/eigensdk-go/chainio/clients/eth"
 	"github.com/Layr-Labs/eigensdk-go/crypto/bls"
 	sdkEcdsa "github.com/Layr-Labs/eigensdk-go/crypto/ecdsa"
 	sdklogging "github.com/Layr-Labs/eigensdk-go/logging"
 	sdkutils "github.com/Layr-Labs/eigensdk-go/utils"
+	"github.com/NethermindEth/near-sffl/core"
 	"github.com/docker/go-connections/nat"
 	"github.com/ethereum/go-ethereum/accounts/abi/bind"
 	"github.com/ethereum/go-ethereum/common"
@@ -190,12 +190,6 @@ func setupTestEnv(t *testing.T, ctx context.Context) *testEnv {
 	}
 
 	nodeConfig, keyPair, _ := genOperatorConfig(t, ctx, mainnetAnvil, rollupAnvils, rabbitMq)
-
-	avsReader, err := chainio.BuildAvsReader(common.HexToAddress(sfflDeploymentRaw.Addresses.RegistryCoordinatorAddr), common.HexToAddress(sfflDeploymentRaw.Addresses.OperatorStateRetrieverAddr), mainnetAnvil.HttpClient, logger)
-	if err != nil {
-		t.Fatalf("Cannot create AVS Reader: %s", err.Error())
-	}
-
 	rollupInitialOperatorSet := []registryrollup.OperatorsOperator{
 		{
 			Pubkey: registryrollup.BN254G1Point{
@@ -205,13 +199,16 @@ func setupTestEnv(t *testing.T, ctx context.Context) *testEnv {
 			Weight: big.NewInt(1000),
 		},
 	}
-
-	addresses, registryRollups, registryRollupAuths := deployRegistryRollups(t, ctx, rollupInitialOperatorSet, 1, avsReader, rollupAnvils)
-
+	addresses, registryRollups, registryRollupAuths := deployRegistryRollups(t, rollupInitialOperatorSet, 1, rollupAnvils)
 	operator := startOperator(t, ctx, nodeConfig)
 
 	config := buildConfig(t, sfflDeploymentRaw, addresses, rollupAnvils, configRaw)
 	aggregator := startAggregator(t, ctx, config, logger)
+
+	avsReader, err := chainio.BuildAvsReader(common.HexToAddress(sfflDeploymentRaw.Addresses.RegistryCoordinatorAddr), common.HexToAddress(sfflDeploymentRaw.Addresses.OperatorStateRetrieverAddr), mainnetAnvil.HttpClient, logger)
+	if err != nil {
+		t.Fatalf("Cannot create AVS Reader: %s", err.Error())
+	}
 
 	cleanup := func() {
 		if err := os.RemoveAll(TEST_DATA_DIR); err != nil {
@@ -531,13 +528,13 @@ func startAnvilTestContainer(t *testing.T, ctx context.Context, name, exposedPor
 	return anvil
 }
 
-func deployRegistryRollups(t *testing.T, ctx context.Context, initialOperatorSet []registryrollup.OperatorsOperator, nextOperatorSetUpdateId uint64, avsReader chainio.AvsReaderer, anvils []*AnvilInstance) ([]common.Address, []*registryrollup.ContractSFFLRegistryRollup, []*bind.TransactOpts) {
+func deployRegistryRollups(t *testing.T, initialOperatorSet []registryrollup.OperatorsOperator, nextOperatorSetUpdateId uint64, anvils []*AnvilInstance) ([]common.Address, []*registryrollup.ContractSFFLRegistryRollup, []*bind.TransactOpts) {
 	var registryRollups []*registryrollup.ContractSFFLRegistryRollup
 	var auths []*bind.TransactOpts
 	var addresses []common.Address
 
 	for _, anvil := range anvils {
-		addr, registryRollup, auth := deployRegistryRollup(t, ctx, initialOperatorSet, nextOperatorSetUpdateId, avsReader, anvil)
+		addr, registryRollup, auth := deployRegistryRollup(t, initialOperatorSet, nextOperatorSetUpdateId, anvil)
 
 		registryRollups = append(registryRollups, registryRollup)
 		auths = append(auths, auth)
@@ -547,7 +544,7 @@ func deployRegistryRollups(t *testing.T, ctx context.Context, initialOperatorSet
 	return addresses, registryRollups, auths
 }
 
-func deployRegistryRollup(t *testing.T, ctx context.Context, initialOperatorSet []registryrollup.OperatorsOperator, nextOperatorSetUpdateId uint64, avsReader chainio.AvsReaderer, anvil *AnvilInstance) (common.Address, *registryrollup.ContractSFFLRegistryRollup, *bind.TransactOpts) {
+func deployRegistryRollup(t *testing.T, initialOperatorSet []registryrollup.OperatorsOperator, nextOperatorSetUpdateId uint64, anvil *AnvilInstance) (common.Address, *registryrollup.ContractSFFLRegistryRollup, *bind.TransactOpts) {
 	t.Logf("Deploying RegistryRollup to chain %s", anvil.ChainID.String())
 
 	privateKeyString := "ac0974bec39a17e36ba4a6b4d238ff944bacb478cbed5efcae784d7bf4f2ff80"

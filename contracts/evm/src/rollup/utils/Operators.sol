@@ -157,7 +157,7 @@ library Operators {
 
             uint256 operatorWeight = self.pubkeyHashToWeight[nonSignerPubkeyHashes[i]];
 
-            require(operatorWeight >= 0, "Operator has zero weight");
+            require(operatorWeight != 0, "Operator has zero weight");
 
             apk = apk.plus(signatureInfo.nonSignerPubkeys[i]);
             weight -= operatorWeight;

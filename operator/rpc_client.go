@@ -105,7 +105,7 @@ func (c *AggregatorRpcClient) SendSignedStateRootUpdateToAggregator(signedStateR
 }
 
 func (c *AggregatorRpcClient) SendSignedOperatorSetUpdateToAggregator(signedOperatorSetUpdateMessage *coretypes.SignedOperatorSetUpdateMessage) {
-	c.logger.Info("Sending signed state root update message to aggregator", "signedOperatorSetUpdateMessage", fmt.Sprintf("%#v", signedOperatorSetUpdateMessage))
+	c.logger.Info("Sending operator set update message to aggregator", "signedOperatorSetUpdateMessage", fmt.Sprintf("%#v", signedOperatorSetUpdateMessage))
 
 	c.sendRequest(func() error {
 		var reply bool
@@ -114,7 +114,7 @@ func (c *AggregatorRpcClient) SendSignedOperatorSetUpdateToAggregator(signedOper
 		if err != nil {
 			c.logger.Info("Received error from aggregator", "err", err)
 		} else {
-			c.logger.Info("Signed state root update message accepted by aggregator.", "reply", reply)
+			c.logger.Info("Signed operator set update message accepted by aggregator.", "reply", reply)
 			c.metrics.IncNumMessagesAcceptedByAggregator()
 		}
 
