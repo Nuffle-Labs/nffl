@@ -136,9 +136,8 @@ func (mbas *MessageBlsAggregatorService) ProcessNewSignature(
 	operatorId bls.OperatorId,
 ) error {
 	mbas.messageChansLock.RLock()
-	defer mbas.messageChansLock.RUnlock()
-
 	messageC, taskInitialized := mbas.signedMessageDigestsCs[messageDigest]
+	mbas.messageChansLock.RUnlock()
 
 	if !taskInitialized {
 		return MessageNotFoundErrorFn(messageDigest)

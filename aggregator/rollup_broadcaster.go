@@ -95,7 +95,7 @@ func (w *RollupWriter) UpdateOperatorSet(ctx context.Context, message registryro
 		if err == nil {
 			return nil
 		} else {
-			// TODO: return on same tx err
+			// TODO: return on some tx errors
 			w.logger.Warn("Sending UpdateOperatorSet failed", "err", err)
 		}
 
