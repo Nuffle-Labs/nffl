@@ -3,6 +3,7 @@ package config
 import (
 	"crypto/ecdsa"
 	"errors"
+	"fmt"
 	"os"
 
 	"github.com/ethereum/go-ethereum/common"
