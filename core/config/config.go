@@ -3,6 +3,7 @@ package config
 import (
 	"crypto/ecdsa"
 	"errors"
+	"fmt"
 	"os"
 
 	"github.com/ethereum/go-ethereum/common"
@@ -24,6 +25,7 @@ type Config struct {
 	// only take an ethclient or an rpcUrl (and build the ethclient at each constructor site)
 	EthHttpRpcUrl                  string
 	EthWsRpcUrl                    string
+	RollupsInfo                    map[uint32]RollupInfo
 	OperatorStateRetrieverAddr     common.Address
 	SFFLRegistryCoordinatorAddr    common.Address
 	AggregatorServerIpPortAddr     string
@@ -43,6 +45,7 @@ type ConfigRaw struct {
 	AggregatorRestServerIpPortAddr string              `yaml:"aggregator_rest_server_ip_port_address"`
 	AggregatorDatabasePath         string              `yaml:"aggregator_database_path"`
 	RegisterOperatorOnStartup      bool                `yaml:"register_operator_on_startup"`
+	RollupIdsToRpcUrls             map[uint32]string   `yaml:"rollup_ids_to_rpc_urls"`
 }
 
 // These are read from SFFLDeploymentFileFlag
@@ -52,6 +55,26 @@ type SFFLDeploymentRaw struct {
 type SFFLContractsRaw struct {
 	RegistryCoordinatorAddr    string `json:"registryCoordinator"`
 	OperatorStateRetrieverAddr string `json:"operatorStateRetriever"`
+}
+
+// These are read from RollupSFFLDeploymentFilesFlag
+type RollupSFFLDeploymentRaw struct {
+	Addresses RollupAddressesRaw `json:"addresses"`
+	ChainInfo ChainInfoRaw       `json:"chainInfo"`
+}
+
+type RollupAddressesRaw struct {
+	SFFLRegistryRollupAddr string `json:"sfflRegistryRollup"`
+}
+
+type ChainInfoRaw struct {
+	ChainId         uint32 `json:"chainId"`
+	DeploymentBlock uint   `json:"deploymentBlock"`
+}
+
+type RollupInfo struct {
+	SFFLRegistryRollupAddr common.Address
+	RpcUrl                 string
 }
 
 func NewConfigRaw(ctx *cli.Context) (*ConfigRaw, error) {
@@ -69,10 +92,48 @@ func NewConfigRaw(ctx *cli.Context) (*ConfigRaw, error) {
 	return &configRaw, nil
 }
 
+func ReadRollupSFFLDeploymentsRaw(rollupSFFLDeploymentFilesPath []string) []RollupSFFLDeploymentRaw {
+	rollupDeploymentsInfo := make([]RollupSFFLDeploymentRaw, len(rollupSFFLDeploymentFilesPath))
+	for i, filePath := range rollupSFFLDeploymentFilesPath {
+		var rollupSFFLDeploymentRaw RollupSFFLDeploymentRaw
+		if _, err := os.Stat(filePath); errors.Is(err, os.ErrNotExist) {
+			panic("Path " + filePath + " does not exist")
+		}
+
+		sdkutils.ReadJsonConfig(filePath, &rollupSFFLDeploymentRaw)
+		rollupDeploymentsInfo[i] = rollupSFFLDeploymentRaw
+	}
+
+	return rollupDeploymentsInfo
+}
+
+func CompileRollupsInfo(rollupDeploymentsInfo []RollupSFFLDeploymentRaw, configRaw *ConfigRaw) map[uint32]RollupInfo {
+	// Map with ConfigRaw
+	rollupsInfo := make(map[uint32]RollupInfo)
+	for _, info := range rollupDeploymentsInfo {
+		url, exist := configRaw.RollupIdsToRpcUrls[info.ChainInfo.ChainId]
+		if !exist {
+			// TODO: or just skip?
+			panic(fmt.Sprintf("RPC URL doesn't exist for chainId %d", info.ChainInfo.ChainId))
+		}
+
+		rollupsInfo[info.ChainInfo.ChainId] = RollupInfo{
+			RpcUrl:                 "http://" + url,
+			SFFLRegistryRollupAddr: common.HexToAddress(info.Addresses.SFFLRegistryRollupAddr),
+		}
+	}
+
+	return rollupsInfo
+}
+
 // NewConfig parses config file to read from from flags or environment variables
 // Note: This config is shared by challenger and aggregator and so we put in the core.
 // Operator has a different config and is meant to be used by the operator CLI.
 func NewConfig(ctx *cli.Context, configRaw ConfigRaw, logger sdklogging.Logger) (*Config, error) {
+	rollupSFFLDeploymentFilesPath := ctx.GlobalStringSlice(RollupSFFLDeploymentFilesFlag.Name)
+	rollupDeploymentsInfo := ReadRollupSFFLDeploymentsRaw(rollupSFFLDeploymentFilesPath)
+	rollupsInfo := CompileRollupsInfo(rollupDeploymentsInfo, &configRaw)
+
 	var sfflDeploymentRaw SFFLDeploymentRaw
 	sfflDeploymentFilePath := ctx.GlobalString(SFFLDeploymentFileFlag.Name)
 	if _, err := os.Stat(sfflDeploymentFilePath); errors.Is(err, os.ErrNotExist) {
@@ -108,6 +169,7 @@ func NewConfig(ctx *cli.Context, configRaw ConfigRaw, logger sdklogging.Logger) 
 		AggregatorRestServerIpPortAddr: configRaw.AggregatorRestServerIpPortAddr,
 		AggregatorDatabasePath:         configRaw.AggregatorDatabasePath,
 		AggregatorAddress:              aggregatorAddr,
+		RollupsInfo:                    rollupsInfo,
 	}
 	config.validate()
 
@@ -142,6 +204,11 @@ var (
 		Required: true,
 		EnvVar:   "ECDSA_PRIVATE_KEY",
 	}
+	RollupSFFLDeploymentFilesFlag = cli.StringSliceFlag{
+		Name:     "rollup-configs",
+		Usage:    "Load configuration from files",
+		Required: true,
+	}
 	/* Optional Flags */
 )
 
@@ -149,6 +216,7 @@ var requiredFlags = []cli.Flag{
 	ConfigFileFlag,
 	SFFLDeploymentFileFlag,
 	EcdsaPrivateKeyFlag,
+	RollupSFFLDeploymentFilesFlag,
 }
 
 var optionalFlags = []cli.Flag{}

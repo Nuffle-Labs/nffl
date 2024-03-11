@@ -55,7 +55,7 @@ func TestSendNewTask(t *testing.T) {
 	mockCtrl := gomock.NewController(t)
 	defer mockCtrl.Finish()
 
-	aggregator, _, mockAvsWriterer, mockTaskBlsAggService, _, _, _, err := createMockAggregator(mockCtrl, MOCK_OPERATOR_PUBKEY_DICT)
+	aggregator, _, mockAvsWriterer, mockTaskBlsAggService, _, _, _, _, err := createMockAggregator(mockCtrl, MOCK_OPERATOR_PUBKEY_DICT)
 	assert.Nil(t, err)
 
 	var TASK_INDEX = uint32(0)
@@ -82,7 +82,7 @@ func TestHandleStateRootUpdateAggregationReachedQuorum(t *testing.T) {
 	mockCtrl := gomock.NewController(t)
 	defer mockCtrl.Finish()
 
-	aggregator, _, _, _, _, _, mockMsgDb, err := createMockAggregator(mockCtrl, MOCK_OPERATOR_PUBKEY_DICT)
+	aggregator, _, _, _, _, _, mockMsgDb, _, err := createMockAggregator(mockCtrl, MOCK_OPERATOR_PUBKEY_DICT)
 	assert.Nil(t, err)
 
 	msg := servicemanager.StateRootUpdateMessage{}
@@ -109,7 +109,7 @@ func TestHandleOperatorSetUpdateAggregationReachedQuorum(t *testing.T) {
 	mockCtrl := gomock.NewController(t)
 	defer mockCtrl.Finish()
 
-	aggregator, _, _, _, _, _, mockMsgDb, err := createMockAggregator(mockCtrl, MOCK_OPERATOR_PUBKEY_DICT)
+	aggregator, _, _, _, _, _, mockMsgDb, mockRollupBroadcaster, err := createMockAggregator(mockCtrl, MOCK_OPERATOR_PUBKEY_DICT)
 	assert.Nil(t, err)
 
 	msg := registryrollup.OperatorSetUpdateMessage{}
@@ -117,7 +117,10 @@ func TestHandleOperatorSetUpdateAggregationReachedQuorum(t *testing.T) {
 	assert.Nil(t, err)
 
 	blsAggServiceResp := types.MessageBlsAggregationServiceResponse{
-		MessageDigest: msgDigest,
+		MessageDigest:       msgDigest,
+		NonSignersPubkeysG1: make([]*bls.G1Point, 0),
+		SignersApkG2:        bls.NewZeroG2Point(),
+		SignersAggSigG1:     bls.NewZeroSignature(),
 	}
 
 	aggregator.operatorSetUpdates[msgDigest] = msg
@@ -125,16 +128,19 @@ func TestHandleOperatorSetUpdateAggregationReachedQuorum(t *testing.T) {
 	mockMsgDb.EXPECT().StoreOperatorSetUpdate(msg)
 	mockMsgDb.EXPECT().StoreOperatorSetUpdateAggregation(msg, blsAggServiceResp)
 
+	signatureInfo := core.FormatBlsAggregationRollup(&blsAggServiceResp)
+	mockRollupBroadcaster.EXPECT().BroadcastOperatorSetUpdate(context.Background(), msg, signatureInfo)
+
 	assert.Contains(t, aggregator.operatorSetUpdates, msgDigest)
 
-	aggregator.handleOperatorSetUpdateReachedQuorum(blsAggServiceResp)
+	aggregator.handleOperatorSetUpdateReachedQuorum(context.Background(), blsAggServiceResp)
 
 	assert.NotContains(t, aggregator.operatorSetUpdates, msgDigest)
 }
 
 func createMockAggregator(
 	mockCtrl *gomock.Controller, operatorPubkeyDict map[bls.OperatorId]types.OperatorInfo,
-) (*Aggregator, *chainiomocks.MockAvsReaderer, *chainiomocks.MockAvsWriterer, *blsaggservmock.MockBlsAggregationService, *mocks.MockMessageBlsAggregationService, *mocks.MockMessageBlsAggregationService, *mocks.MockMessageDatabaser, error) {
+) (*Aggregator, *chainiomocks.MockAvsReaderer, *chainiomocks.MockAvsWriterer, *blsaggservmock.MockBlsAggregationService, *mocks.MockMessageBlsAggregationService, *mocks.MockMessageBlsAggregationService, *mocks.MockMessageDatabaser, *mocks.MockRollupBroadcasterer, error) {
 	logger := sdklogging.NewNoopLogger()
 	mockAvsWriter := chainiomocks.NewMockAvsWriterer(mockCtrl)
 	mockAvsReader := chainiomocks.NewMockAvsReaderer(mockCtrl)
@@ -142,6 +148,7 @@ func createMockAggregator(
 	mockStateRootUpdateBlsAggregationService := mocks.NewMockMessageBlsAggregationService(mockCtrl)
 	mockOperatorSetUpdateBlsAggregationService := mocks.NewMockMessageBlsAggregationService(mockCtrl)
 	mockMsgDb := mocks.NewMockMessageDatabaser(mockCtrl)
+	mockRollupBroadcaster := mocks.NewMockRollupBroadcasterer(mockCtrl)
 
 	aggregator := &Aggregator{
 		logger:                                 logger,
@@ -155,8 +162,9 @@ func createMockAggregator(
 		taskResponses:                          make(map[coretypes.TaskIndex]map[sdktypes.TaskResponseDigest]taskmanager.CheckpointTaskResponse),
 		stateRootUpdates:                       make(map[coretypes.MessageDigest]servicemanager.StateRootUpdateMessage),
 		operatorSetUpdates:                     make(map[coretypes.MessageDigest]registryrollup.OperatorSetUpdateMessage),
+		rollupBroadcaster:                      mockRollupBroadcaster,
 	}
-	return aggregator, mockAvsReader, mockAvsWriter, mockTaskBlsAggregationService, mockStateRootUpdateBlsAggregationService, mockOperatorSetUpdateBlsAggregationService, mockMsgDb, nil
+	return aggregator, mockAvsReader, mockAvsWriter, mockTaskBlsAggregationService, mockStateRootUpdateBlsAggregationService, mockOperatorSetUpdateBlsAggregationService, mockMsgDb, mockRollupBroadcaster, nil
 }
 
 // just a mock ethclient to pass to bindings

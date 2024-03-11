@@ -34,6 +34,7 @@ func NewAvsManagersBindings(registryCoordinatorAddr, operatorStateRetrieverAddr 
 	if err != nil {
 		return nil, err
 	}
+
 	contractServiceManager, err := csservicemanager.NewContractSFFLServiceManager(serviceManagerAddr, ethclient)
 	if err != nil {
 		logger.Error("Failed to fetch IServiceManager contract", "err", err)
@@ -55,6 +56,7 @@ func NewAvsManagersBindings(registryCoordinatorAddr, operatorStateRetrieverAddr 
 	if err != nil {
 		return nil, err
 	}
+
 	contractOperatorSetUpdateRegistry, err := opsetupdatereg.NewContractSFFLOperatorSetUpdateRegistry(operatorSetUpdateRegistryAddr, ethclient)
 	if err != nil {
 		logger.Error("Failed to fetch OperatorSetUpdateRegistry contract", "err", err)
@@ -77,5 +79,6 @@ func (b *AvsManagersBindings) GetErc20Mock(tokenAddr common.Address) (*erc20mock
 		b.logger.Error("Failed to fetch ERC20Mock contract", "err", err)
 		return nil, err
 	}
+
 	return contractErc20Mock, nil
 }

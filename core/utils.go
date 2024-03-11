@@ -1,6 +1,7 @@
 package core
 
 import (
+	"github.com/NethermindEth/near-sffl/aggregator/types"
 	"math/big"
 
 	"github.com/Layr-Labs/eigensdk-go/crypto/bls"
@@ -200,4 +201,31 @@ func ConvertToBN254G2Point(input *bls.G2Point) taskmanager.BN254G2Point {
 		Y: [2]*big.Int{input.Y.A1.BigInt(big.NewInt(0)), input.Y.A0.BigInt(big.NewInt(0))},
 	}
 	return output
+}
+
+func FormatBlsAggregationRollup(agg *types.MessageBlsAggregationServiceResponse) registryrollup.OperatorsSignatureInfo {
+	var nonSignerPubkeys []registryrollup.BN254G1Point
+
+	for _, pubkey := range agg.NonSignersPubkeysG1 {
+		nonSignerPubkeys = append(nonSignerPubkeys, registryrollup.BN254G1Point{
+			X: pubkey.X.BigInt(big.NewInt(0)),
+			Y: pubkey.Y.BigInt(big.NewInt(0)),
+		})
+	}
+
+	apkG2 := registryrollup.BN254G2Point{
+		X: [2]*big.Int{agg.SignersApkG2.X.A1.BigInt(big.NewInt(0)), agg.SignersApkG2.X.A0.BigInt(big.NewInt(0))},
+		Y: [2]*big.Int{agg.SignersApkG2.Y.A1.BigInt(big.NewInt(0)), agg.SignersApkG2.Y.A0.BigInt(big.NewInt(0))},
+	}
+
+	sigma := registryrollup.BN254G1Point{
+		X: agg.SignersAggSigG1.X.BigInt(big.NewInt(0)),
+		Y: agg.SignersAggSigG1.Y.BigInt(big.NewInt(0)),
+	}
+
+	return registryrollup.OperatorsSignatureInfo{
+		NonSignerPubkeys: nonSignerPubkeys,
+		ApkG2:            apkG2,
+		Sigma:            sigma,
+	}
 }

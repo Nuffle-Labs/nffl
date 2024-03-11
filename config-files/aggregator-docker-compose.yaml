@@ -6,3 +6,6 @@ eth_ws_url: ws://mainnet-anvil:8545
 aggregator_server_ip_port_address: 0.0.0.0:8090
 aggregator_rest_server_ip_port_address: localhost:5000
 aggregator_database_path: ""
+rollup_ids_to_rpc_urls:
+  2: ws://rollup0-anvil:8546
+  3: ws://rollup1-anvil:8547
