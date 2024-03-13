@@ -6,8 +6,6 @@ import (
 	"github.com/Layr-Labs/eigensdk-go/crypto/bls"
 	sdktypes "github.com/Layr-Labs/eigensdk-go/types"
 	"github.com/ethereum/go-ethereum/common"
-
-	coretypes "github.com/NethermindEth/near-sffl/core/types"
 )
 
 // TODO: Hardcoded for now
@@ -27,7 +25,7 @@ type OperatorInfo struct {
 type MessageBlsAggregationServiceResponse struct {
 	Err                          error
 	EthBlockNumber               uint64
-	MessageDigest                coretypes.MessageDigest
+	MessageDigest                [32]byte // TODO: solve this when integrating canonical messages
 	NonSignersPubkeysG1          []*bls.G1Point
 	QuorumApksG1                 []*bls.G1Point
 	SignersApkG2                 *bls.G2Point

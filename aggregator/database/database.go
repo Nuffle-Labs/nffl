@@ -1,26 +1,31 @@
 package database
 
 import (
+	"errors"
+	"math"
+
 	"gorm.io/driver/sqlite"
 	"gorm.io/gorm"
 	"gorm.io/gorm/clause"
 
 	"github.com/NethermindEth/near-sffl/aggregator/database/models"
-	"github.com/NethermindEth/near-sffl/aggregator/types"
+	aggtypes "github.com/NethermindEth/near-sffl/aggregator/types"
 	registryrollup "github.com/NethermindEth/near-sffl/contracts/bindings/SFFLRegistryRollup"
 	servicemanager "github.com/NethermindEth/near-sffl/contracts/bindings/SFFLServiceManager"
+	coretypes "github.com/NethermindEth/near-sffl/core/types"
 )
 
 type Databaser interface {
 	Close() error
 	StoreStateRootUpdate(stateRootUpdateMessage servicemanager.StateRootUpdateMessage) error
 	FetchStateRootUpdate(rollupId uint32, blockHeight uint64, stateRootUpdateMessage *servicemanager.StateRootUpdateMessage) error
-	StoreStateRootUpdateAggregation(stateRootUpdateMessage servicemanager.StateRootUpdateMessage, aggregation types.MessageBlsAggregationServiceResponse) error
-	FetchStateRootUpdateAggregation(rollupId uint32, blockHeight uint64, aggregation *types.MessageBlsAggregationServiceResponse) error
+	StoreStateRootUpdateAggregation(stateRootUpdateMessage servicemanager.StateRootUpdateMessage, aggregation aggtypes.MessageBlsAggregationServiceResponse) error
+	FetchStateRootUpdateAggregation(rollupId uint32, blockHeight uint64, aggregation *aggtypes.MessageBlsAggregationServiceResponse) error
 	StoreOperatorSetUpdate(operatorSetUpdateMessage registryrollup.OperatorSetUpdateMessage) error
 	FetchOperatorSetUpdate(id uint64, operatorSetUpdateMessage *registryrollup.OperatorSetUpdateMessage) error
-	StoreOperatorSetUpdateAggregation(operatorSetUpdateMessage registryrollup.OperatorSetUpdateMessage, aggregation types.MessageBlsAggregationServiceResponse) error
-	FetchOperatorSetUpdateAggregation(id uint64, aggregation *types.MessageBlsAggregationServiceResponse) error
+	StoreOperatorSetUpdateAggregation(operatorSetUpdateMessage registryrollup.OperatorSetUpdateMessage, aggregation aggtypes.MessageBlsAggregationServiceResponse) error
+	FetchOperatorSetUpdateAggregation(id uint64, aggregation *aggtypes.MessageBlsAggregationServiceResponse) error
+	FetchCheckpointMessages(fromTimestamp uint64, toTimestamp uint64, result *coretypes.CheckpointMessages) error
 }
 
 type Database struct {
@@ -88,7 +93,7 @@ func (d *Database) FetchStateRootUpdate(rollupId uint32, blockHeight uint64, sta
 	return nil
 }
 
-func (d *Database) StoreStateRootUpdateAggregation(stateRootUpdateMessage servicemanager.StateRootUpdateMessage, aggregation types.MessageBlsAggregationServiceResponse) error {
+func (d *Database) StoreStateRootUpdateAggregation(stateRootUpdateMessage servicemanager.StateRootUpdateMessage, aggregation aggtypes.MessageBlsAggregationServiceResponse) error {
 	err := d.db.
 		Clauses(clause.OnConflict{UpdateAll: true}).
 		Model(&models.StateRootUpdateMessage{}).
@@ -114,7 +119,7 @@ func (d *Database) StoreStateRootUpdateAggregation(stateRootUpdateMessage servic
 	return nil
 }
 
-func (d *Database) FetchStateRootUpdateAggregation(rollupId uint32, blockHeight uint64, aggregation *types.MessageBlsAggregationServiceResponse) error {
+func (d *Database) FetchStateRootUpdateAggregation(rollupId uint32, blockHeight uint64, aggregation *aggtypes.MessageBlsAggregationServiceResponse) error {
 	var model models.StateRootUpdateMessage
 
 	tx := d.db.
@@ -162,7 +167,7 @@ func (d *Database) FetchOperatorSetUpdate(id uint64, operatorSetUpdateMessage *r
 	return nil
 }
 
-func (d *Database) StoreOperatorSetUpdateAggregation(operatorSetUpdateMessage registryrollup.OperatorSetUpdateMessage, aggregation types.MessageBlsAggregationServiceResponse) error {
+func (d *Database) StoreOperatorSetUpdateAggregation(operatorSetUpdateMessage registryrollup.OperatorSetUpdateMessage, aggregation aggtypes.MessageBlsAggregationServiceResponse) error {
 	err := d.db.
 		Clauses(clause.OnConflict{UpdateAll: true}).
 		Model(&models.OperatorSetUpdateMessage{}).
@@ -187,7 +192,7 @@ func (d *Database) StoreOperatorSetUpdateAggregation(operatorSetUpdateMessage re
 	return nil
 }
 
-func (d *Database) FetchOperatorSetUpdateAggregation(id uint64, aggregation *types.MessageBlsAggregationServiceResponse) error {
+func (d *Database) FetchOperatorSetUpdateAggregation(id uint64, aggregation *aggtypes.MessageBlsAggregationServiceResponse) error {
 	var model models.OperatorSetUpdateMessage
 
 	tx := d.db.
@@ -200,6 +205,64 @@ func (d *Database) FetchOperatorSetUpdateAggregation(id uint64, aggregation *typ
 	}
 
 	*aggregation = model.Aggregation.Parse()
+
+	return nil
+}
+
+func (d *Database) FetchCheckpointMessages(fromTimestamp uint64, toTimestamp uint64, result *coretypes.CheckpointMessages) error {
+	if fromTimestamp > math.MaxInt64 || toTimestamp > math.MaxInt64 {
+		return errors.New("timestamp does not fit in int64")
+	}
+
+	var stateRootUpdates []models.StateRootUpdateMessage
+
+	tx := d.db.
+		Preload("Aggregation").
+		Model(&models.StateRootUpdateMessage{}).
+		Where("timestamp >= ?", fromTimestamp).
+		Where("timestamp <= ?", toTimestamp).
+		First(&stateRootUpdates)
+	if tx.Error != nil {
+		return tx.Error
+	}
+
+	var operatorSetUpdates []models.OperatorSetUpdateMessage
+
+	tx = d.db.
+		Preload("Aggregation").
+		Model(&models.OperatorSetUpdateMessage{}).
+		Where("timestamp >= ?", fromTimestamp).
+		Where("timestamp <= ?", toTimestamp).
+		First(&operatorSetUpdates)
+	if tx.Error != nil {
+		return tx.Error
+	}
+
+	stateRootUpdateMessages := make([]servicemanager.StateRootUpdateMessage, 0, len(stateRootUpdates))
+	stateRootUpdateMessageAggregations := make([]aggtypes.MessageBlsAggregationServiceResponse, 0, len(stateRootUpdates))
+	operatorSetUpdateMessages := make([]registryrollup.OperatorSetUpdateMessage, 0, len(operatorSetUpdates))
+	operatorSetUpdateMessageAggregations := make([]aggtypes.MessageBlsAggregationServiceResponse, 0, len(operatorSetUpdates))
+
+	for _, stateRootUpdate := range stateRootUpdates {
+		agg := stateRootUpdate.Aggregation
+
+		stateRootUpdateMessages = append(stateRootUpdateMessages, stateRootUpdate.Parse())
+		stateRootUpdateMessageAggregations = append(stateRootUpdateMessageAggregations, agg.Parse())
+	}
+
+	for _, operatorSetUpdate := range operatorSetUpdates {
+		agg := operatorSetUpdate.Aggregation
+
+		operatorSetUpdateMessages = append(operatorSetUpdateMessages, operatorSetUpdate.Parse())
+		operatorSetUpdateMessageAggregations = append(operatorSetUpdateMessageAggregations, agg.Parse())
+	}
+
+	*result = coretypes.CheckpointMessages{
+		StateRootUpdateMessages:              stateRootUpdateMessages,
+		StateRootUpdateMessageAggregations:   stateRootUpdateMessageAggregations,
+		OperatorSetUpdateMessages:            operatorSetUpdateMessages,
+		OperatorSetUpdateMessageAggregations: operatorSetUpdateMessageAggregations,
+	}
 
 	return nil
 }
