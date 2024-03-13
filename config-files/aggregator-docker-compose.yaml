@@ -4,7 +4,7 @@ eth_rpc_url: http://mainnet-anvil:8545
 eth_ws_url: ws://mainnet-anvil:8545
 # address which the aggregator listens on for operator signed messages
 aggregator_server_ip_port_address: 0.0.0.0:8090
-aggregator_rest_server_ip_port_address: localhost:5000
+aggregator_rest_server_ip_port_address: localhost:5001
 aggregator_database_path: ""
 rollup_ids_to_rpc_urls:
   2: ws://rollup0-anvil:8546

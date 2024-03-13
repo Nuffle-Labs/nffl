@@ -153,7 +153,8 @@ func (attestor *Attestor) processMQBlocks(ctx context.Context) {
 			go func(mqBlock consumer.BlockData) {
 				select {
 				case <-time.After(MQ_REBROADCAST_DELAY):
-					attestor.notifier.Notify(mqBlock.RollupId, mqBlock)
+					err := attestor.notifier.Notify(mqBlock.RollupId, mqBlock)
+					attestor.logger.Warn("Renotify", "err", err)
 					return
 
 				case <-ctx.Done():
