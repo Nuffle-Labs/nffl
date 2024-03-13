@@ -13,6 +13,7 @@ import (
 
 	registryrollup "github.com/NethermindEth/near-sffl/contracts/bindings/SFFLRegistryRollup"
 	"github.com/NethermindEth/near-sffl/core/config"
+	"github.com/NethermindEth/near-sffl/core/types/messages"
 )
 
 const NUM_OF_RETRIES = 5
@@ -56,7 +57,7 @@ func NewRollupWriter(ctx context.Context, rollupInfo config.RollupInfo, signerCo
 	}, nil
 }
 
-func (w *RollupWriter) UpdateOperatorSet(ctx context.Context, message registryrollup.OperatorSetUpdateMessage, signatureInfo registryrollup.OperatorsSignatureInfo) error {
+func (w *RollupWriter) UpdateOperatorSet(ctx context.Context, message messages.OperatorSetUpdateMessage, signatureInfo registryrollup.OperatorsSignatureInfo) error {
 	operation := func() error {
 		txOpts, err := w.txMgr.GetNoSendTxOpts()
 		if err != nil {
@@ -76,7 +77,7 @@ func (w *RollupWriter) UpdateOperatorSet(ctx context.Context, message registryro
 			return nil
 		}
 
-		tx, err := w.sfflRegistryRollup.UpdateOperatorSet(txOpts, message, signatureInfo)
+		tx, err := w.sfflRegistryRollup.UpdateOperatorSet(txOpts, message.ToBinding(), signatureInfo)
 		if err != nil {
 			w.logger.Error("Error assembling UpdateOperatorSet tx", "err", err)
 			return err
@@ -116,7 +117,7 @@ func (w *RollupWriter) UpdateOperatorSet(ctx context.Context, message registryro
 }
 
 type RollupBroadcasterer interface {
-	BroadcastOperatorSetUpdate(ctx context.Context, message registryrollup.OperatorSetUpdateMessage, signatureInfo registryrollup.OperatorsSignatureInfo)
+	BroadcastOperatorSetUpdate(ctx context.Context, message messages.OperatorSetUpdateMessage, signatureInfo registryrollup.OperatorsSignatureInfo)
 	GetErrorChan() <-chan error
 }
 
@@ -143,7 +144,7 @@ func NewRollupBroadcaster(ctx context.Context, rollupsInfo map[uint32]config.Rol
 	}, nil
 }
 
-func (b *RollupBroadcaster) BroadcastOperatorSetUpdate(ctx context.Context, message registryrollup.OperatorSetUpdateMessage, signatureInfo registryrollup.OperatorsSignatureInfo) {
+func (b *RollupBroadcaster) BroadcastOperatorSetUpdate(ctx context.Context, message messages.OperatorSetUpdateMessage, signatureInfo registryrollup.OperatorsSignatureInfo) {
 	go func() {
 		for _, writer := range b.writers {
 			select {

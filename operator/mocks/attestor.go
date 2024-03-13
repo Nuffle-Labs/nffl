@@ -2,11 +2,10 @@ package mocks
 
 import (
 	"context"
-	"github.com/NethermindEth/near-sffl/core/types"
 
 	"github.com/Layr-Labs/eigensdk-go/crypto/bls"
 
-	servicemanager "github.com/NethermindEth/near-sffl/contracts/bindings/SFFLServiceManager"
+	messages "github.com/NethermindEth/near-sffl/core/types/messages"
 	"github.com/NethermindEth/near-sffl/operator/attestor"
 )
 
@@ -15,7 +14,7 @@ type MockAttestor struct {
 	blsKeypair *bls.KeyPair
 	operatorId bls.OperatorId
 
-	signedRootC chan types.SignedStateRootUpdateMessage
+	signedRootC chan messages.SignedStateRootUpdateMessage
 }
 
 func NewMockAttestor(blsKeypair *bls.KeyPair, operatorId bls.OperatorId) *MockAttestor {
@@ -24,7 +23,7 @@ func NewMockAttestor(blsKeypair *bls.KeyPair, operatorId bls.OperatorId) *MockAt
 		blsKeypair:  blsKeypair,
 		operatorId:  operatorId,
 		consumer:    consumer,
-		signedRootC: make(chan types.SignedStateRootUpdateMessage),
+		signedRootC: make(chan messages.SignedStateRootUpdateMessage),
 	}
 }
 
@@ -34,7 +33,7 @@ func (mockAttestor *MockAttestor) Start(ctx context.Context) error {
 		for {
 			mqBlock := <-mqBlockC
 
-			message := servicemanager.StateRootUpdateMessage{
+			message := messages.StateRootUpdateMessage{
 				RollupId:    mqBlock.RollupId,
 				BlockHeight: mqBlock.Block.Header().Number.Uint64(),
 				Timestamp:   mqBlock.Block.Header().Time,
@@ -45,7 +44,7 @@ func (mockAttestor *MockAttestor) Start(ctx context.Context) error {
 				panic(err)
 			}
 
-			signedStateRootUpdateMessage := types.SignedStateRootUpdateMessage{
+			signedStateRootUpdateMessage := messages.SignedStateRootUpdateMessage{
 				Message:      message,
 				BlsSignature: *signature,
 				OperatorId:   mockAttestor.operatorId,
@@ -60,7 +59,7 @@ func (mockAttestor *MockAttestor) Start(ctx context.Context) error {
 
 func (mockAttestor *MockAttestor) Close() error { return mockAttestor.consumer.Close() }
 
-func (mockAttestor *MockAttestor) GetSignedRootC() <-chan types.SignedStateRootUpdateMessage {
+func (mockAttestor *MockAttestor) GetSignedRootC() <-chan messages.SignedStateRootUpdateMessage {
 	return mockAttestor.signedRootC
 }
 

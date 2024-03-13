@@ -4,9 +4,7 @@ import (
 	"github.com/Layr-Labs/eigensdk-go/crypto/bls"
 	"gorm.io/gorm"
 
-	"github.com/NethermindEth/near-sffl/aggregator/types"
-	registryrollup "github.com/NethermindEth/near-sffl/contracts/bindings/SFFLRegistryRollup"
-	servicemanager "github.com/NethermindEth/near-sffl/contracts/bindings/SFFLServiceManager"
+	coretypes "github.com/NethermindEth/near-sffl/core/types"
 )
 
 type MessageBlsAggregation struct {
@@ -24,21 +22,6 @@ type MessageBlsAggregation struct {
 	NonSignerStakeIndices        [][]uint32     `gorm:"type:json;serializer:json"`
 }
 
-func (m MessageBlsAggregation) Parse() types.MessageBlsAggregationServiceResponse {
-	return types.MessageBlsAggregationServiceResponse{
-		EthBlockNumber:               m.EthBlockNumber,
-		MessageDigest:                [32]byte(m.MessageDigest),
-		NonSignersPubkeysG1:          m.NonSignersPubkeysG1,
-		QuorumApksG1:                 m.QuorumApksG1,
-		SignersApkG2:                 m.SignersApkG2,
-		SignersAggSigG1:              m.SignersAggSigG1,
-		NonSignerQuorumBitmapIndices: m.NonSignerQuorumBitmapIndices,
-		QuorumApkIndices:             m.QuorumApkIndices,
-		TotalStakeIndices:            m.TotalStakeIndices,
-		NonSignerStakeIndices:        m.NonSignerStakeIndices,
-	}
-}
-
 type StateRootUpdateMessage struct {
 	gorm.Model
 
@@ -50,29 +33,12 @@ type StateRootUpdateMessage struct {
 	Aggregation   *MessageBlsAggregation `gorm:"foreignKey:AggregationId;references:ID"`
 }
 
-func (m StateRootUpdateMessage) Parse() servicemanager.StateRootUpdateMessage {
-	return servicemanager.StateRootUpdateMessage{
-		RollupId:    m.RollupId,
-		BlockHeight: m.BlockHeight,
-		Timestamp:   m.Timestamp,
-		StateRoot:   [32]byte(m.StateRoot),
-	}
-}
-
 type OperatorSetUpdateMessage struct {
 	gorm.Model
 
-	UpdateId      uint64                             `gorm:"uniqueIndex:operator_set_update_message_key;type:text"`
-	Timestamp     uint64                             `gorm:"index;type:integer"` // TODO: validate range
-	Operators     []registryrollup.OperatorsOperator `gorm:"type:json;serializer:json"`
+	UpdateId      uint64                     `gorm:"uniqueIndex:operator_set_update_message_key;type:text"`
+	Timestamp     uint64                     `gorm:"index;type:integer"` // TODO: validate range
+	Operators     []coretypes.RollupOperator `gorm:"type:json;serializer:json"`
 	AggregationId uint32
 	Aggregation   *MessageBlsAggregation `gorm:"foreignKey:AggregationId;references:ID"`
-}
-
-func (m OperatorSetUpdateMessage) Parse() registryrollup.OperatorSetUpdateMessage {
-	return registryrollup.OperatorSetUpdateMessage{
-		Id:        m.UpdateId,
-		Timestamp: m.Timestamp,
-		Operators: m.Operators,
-	}
 }

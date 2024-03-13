@@ -11,12 +11,9 @@ import (
 	"github.com/stretchr/testify/assert"
 	"go.uber.org/mock/gomock"
 
-	aggtypes "github.com/NethermindEth/near-sffl/aggregator/types"
-	registryrollup "github.com/NethermindEth/near-sffl/contracts/bindings/SFFLRegistryRollup"
-	servicemanager "github.com/NethermindEth/near-sffl/contracts/bindings/SFFLServiceManager"
-	"github.com/NethermindEth/near-sffl/core"
-	"github.com/NethermindEth/near-sffl/core/types"
+	"github.com/NethermindEth/near-sffl/aggregator/types"
 	coretypes "github.com/NethermindEth/near-sffl/core/types"
+	"github.com/NethermindEth/near-sffl/core/types/messages"
 )
 
 func TestGetStateRootUpdateAggregation(t *testing.T) {
@@ -28,21 +25,23 @@ func TestGetStateRootUpdateAggregation(t *testing.T) {
 
 	go aggregator.startRestServer()
 
-	msg := servicemanager.StateRootUpdateMessage{
+	msg := messages.StateRootUpdateMessage{
 		RollupId:    1,
 		BlockHeight: 2,
 		Timestamp:   3,
 		StateRoot:   keccak256(4),
 	}
-	msgDigest, err := core.GetStateRootUpdateMessageDigest(&msg)
+	msgDigest, err := msg.Digest()
 	assert.Nil(t, err)
 
-	aggregation := aggtypes.MessageBlsAggregationServiceResponse{
-		MessageDigest: msgDigest,
+	aggregation := types.MessageBlsAggregationServiceResponse{
+		MessageBlsAggregation: messages.MessageBlsAggregation{
+			MessageDigest: msgDigest,
+		},
 	}
 
 	mockDb.EXPECT().FetchStateRootUpdate(msg.RollupId, msg.BlockHeight, gomock.Any()).DoAndReturn(
-		func(rollupId coretypes.RollupId, blockHeight uint64, msgPtr *servicemanager.StateRootUpdateMessage) error {
+		func(rollupId coretypes.RollupId, blockHeight uint64, msgPtr *messages.StateRootUpdateMessage) error {
 			if rollupId != msg.RollupId || blockHeight != msg.BlockHeight {
 				return errors.New("Unexpected args")
 			}
@@ -54,12 +53,12 @@ func TestGetStateRootUpdateAggregation(t *testing.T) {
 	)
 
 	mockDb.EXPECT().FetchStateRootUpdateAggregation(msg.RollupId, msg.BlockHeight, gomock.Any()).DoAndReturn(
-		func(rollupId coretypes.RollupId, blockHeight uint64, aggPtr *aggtypes.MessageBlsAggregationServiceResponse) error {
+		func(rollupId coretypes.RollupId, blockHeight uint64, aggPtr *messages.MessageBlsAggregation) error {
 			if rollupId != msg.RollupId || blockHeight != msg.BlockHeight {
 				return errors.New("Unexpected args")
 			}
 
-			*aggPtr = aggregation
+			*aggPtr = aggregation.MessageBlsAggregation
 
 			return nil
 		},
@@ -78,7 +77,7 @@ func TestGetStateRootUpdateAggregation(t *testing.T) {
 
 	expectedBody := GetStateRootUpdateAggregationResponse{
 		Message:     msg,
-		Aggregation: aggregation,
+		Aggregation: aggregation.MessageBlsAggregation,
 	}
 	var body GetStateRootUpdateAggregationResponse
 
@@ -103,19 +102,19 @@ func TestGetOperatorSetUpdateAggregation(t *testing.T) {
 
 	go aggregator.startRestServer()
 
-	msg := registryrollup.OperatorSetUpdateMessage{
+	msg := messages.OperatorSetUpdateMessage{
 		Id:        1,
 		Timestamp: 2,
 	}
-	msgDigest, err := core.GetOperatorSetUpdateMessageDigest(&msg)
+	msgDigest, err := msg.Digest()
 	assert.Nil(t, err)
 
-	aggregation := aggtypes.MessageBlsAggregationServiceResponse{
+	aggregation := messages.MessageBlsAggregation{
 		MessageDigest: msgDigest,
 	}
 
 	mockDb.EXPECT().FetchOperatorSetUpdate(msg.Id, gomock.Any()).DoAndReturn(
-		func(id uint64, msgPtr *registryrollup.OperatorSetUpdateMessage) error {
+		func(id uint64, msgPtr *messages.OperatorSetUpdateMessage) error {
 			if id != msg.Id {
 				return errors.New("Unexpected args")
 			}
@@ -127,7 +126,7 @@ func TestGetOperatorSetUpdateAggregation(t *testing.T) {
 	)
 
 	mockDb.EXPECT().FetchOperatorSetUpdateAggregation(msg.Id, gomock.Any()).DoAndReturn(
-		func(id uint64, aggPtr *aggtypes.MessageBlsAggregationServiceResponse) error {
+		func(id uint64, aggPtr *messages.MessageBlsAggregation) error {
 			if id != msg.Id {
 				return errors.New("Unexpected args")
 			}
@@ -176,36 +175,36 @@ func TestGetCheckpointMessages(t *testing.T) {
 
 	go aggregator.startRestServer()
 
-	msg := servicemanager.StateRootUpdateMessage{
+	msg := messages.StateRootUpdateMessage{
 		RollupId:    1,
 		BlockHeight: 2,
 		Timestamp:   3,
 	}
-	msgDigest, err := core.GetStateRootUpdateMessageDigest(&msg)
+	msgDigest, err := msg.Digest()
 	assert.Nil(t, err)
 
-	aggregation := aggtypes.MessageBlsAggregationServiceResponse{
+	aggregation := messages.MessageBlsAggregation{
 		MessageDigest: msgDigest,
 	}
 
-	msg2 := registryrollup.OperatorSetUpdateMessage{
+	msg2 := messages.OperatorSetUpdateMessage{
 		Id:        1,
 		Timestamp: 2,
 	}
-	msgDigest2, err := core.GetOperatorSetUpdateMessageDigest(&msg2)
+	msgDigest2, err := msg2.Digest()
 	assert.Nil(t, err)
 
-	aggregation2 := aggtypes.MessageBlsAggregationServiceResponse{
+	aggregation2 := messages.MessageBlsAggregation{
 		MessageDigest: msgDigest2,
 	}
 
 	mockDb.EXPECT().FetchCheckpointMessages(uint64(0), uint64(3), gomock.Any()).DoAndReturn(
-		func(fromTimestamp uint64, toTimestamp uint64, result *types.CheckpointMessages) error {
-			*result = types.CheckpointMessages{
-				StateRootUpdateMessages:              []servicemanager.StateRootUpdateMessage{msg},
-				StateRootUpdateMessageAggregations:   []aggtypes.MessageBlsAggregationServiceResponse{aggregation},
-				OperatorSetUpdateMessages:            []registryrollup.OperatorSetUpdateMessage{msg2},
-				OperatorSetUpdateMessageAggregations: []aggtypes.MessageBlsAggregationServiceResponse{aggregation2},
+		func(fromTimestamp uint64, toTimestamp uint64, result *messages.CheckpointMessages) error {
+			*result = messages.CheckpointMessages{
+				StateRootUpdateMessages:              []messages.StateRootUpdateMessage{msg},
+				StateRootUpdateMessageAggregations:   []messages.MessageBlsAggregation{aggregation},
+				OperatorSetUpdateMessages:            []messages.OperatorSetUpdateMessage{msg2},
+				OperatorSetUpdateMessageAggregations: []messages.MessageBlsAggregation{aggregation2},
 			}
 
 			return nil
@@ -224,11 +223,11 @@ func TestGetCheckpointMessages(t *testing.T) {
 	aggregator.handleGetCheckpointMessages(recorder, req)
 
 	expectedBody := GetCheckpointMessagesResponse{
-		CheckpointMessages: types.CheckpointMessages{
-			StateRootUpdateMessages:              []servicemanager.StateRootUpdateMessage{msg},
-			StateRootUpdateMessageAggregations:   []aggtypes.MessageBlsAggregationServiceResponse{aggregation},
-			OperatorSetUpdateMessages:            []registryrollup.OperatorSetUpdateMessage{msg2},
-			OperatorSetUpdateMessageAggregations: []aggtypes.MessageBlsAggregationServiceResponse{aggregation2},
+		CheckpointMessages: messages.CheckpointMessages{
+			StateRootUpdateMessages:              []messages.StateRootUpdateMessage{msg},
+			StateRootUpdateMessageAggregations:   []messages.MessageBlsAggregation{aggregation},
+			OperatorSetUpdateMessages:            []messages.OperatorSetUpdateMessage{msg2},
+			OperatorSetUpdateMessageAggregations: []messages.MessageBlsAggregation{aggregation2},
 		},
 	}
 	var body GetCheckpointMessagesResponse

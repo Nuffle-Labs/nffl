@@ -14,7 +14,6 @@ import (
 	"github.com/Layr-Labs/eigensdk-go/chainio/txmgr"
 	"github.com/Layr-Labs/eigensdk-go/crypto/bls"
 	sdkecdsa "github.com/Layr-Labs/eigensdk-go/crypto/ecdsa"
-	"github.com/Layr-Labs/eigensdk-go/logging"
 	sdklogging "github.com/Layr-Labs/eigensdk-go/logging"
 	"github.com/Layr-Labs/eigensdk-go/metrics/collectors/economic"
 	rpccalls "github.com/Layr-Labs/eigensdk-go/metrics/collectors/rpc_calls"
@@ -25,10 +24,8 @@ import (
 	"github.com/ethereum/go-ethereum/common"
 	"github.com/prometheus/client_golang/prometheus"
 
-	registryrollup "github.com/NethermindEth/near-sffl/contracts/bindings/SFFLRegistryRollup"
-	taskmanager "github.com/NethermindEth/near-sffl/contracts/bindings/SFFLTaskManager"
-	"github.com/NethermindEth/near-sffl/core"
 	coretypes "github.com/NethermindEth/near-sffl/core/types"
+	"github.com/NethermindEth/near-sffl/core/types/messages"
 	"github.com/NethermindEth/near-sffl/metrics"
 	"github.com/NethermindEth/near-sffl/operator/attestor"
 )
@@ -38,7 +35,7 @@ const SEM_VER = "0.0.1"
 
 type Operator struct {
 	config    coretypes.NodeConfig
-	logger    logging.Logger
+	logger    sdklogging.Logger
 	ethClient eth.EthClient
 	// they are only used for registration, so we should make a special registration package
 	// this way, auditing this operator code makes it obvious that operators don't need to
@@ -95,7 +92,7 @@ func createEthClients(config *coretypes.NodeConfig, registry *prometheus.Registr
 }
 
 func createLogger(config *coretypes.NodeConfig) (sdklogging.Logger, error) {
-	var logLevel logging.LogLevel
+	var logLevel sdklogging.LogLevel
 	if config.Production {
 		logLevel = sdklogging.Production
 	} else {
@@ -329,15 +326,15 @@ func (o *Operator) Close() error {
 	return nil
 }
 
-func (o *Operator) SignTaskResponse(taskResponse *taskmanager.CheckpointTaskResponse) (*coretypes.SignedCheckpointTaskResponse, error) {
-	taskResponseHash, err := core.GetCheckpointTaskResponseDigest(taskResponse)
+func (o *Operator) SignTaskResponse(taskResponse *messages.CheckpointTaskResponse) (*messages.SignedCheckpointTaskResponse, error) {
+	taskResponseHash, err := taskResponse.Digest()
 	if err != nil {
 		o.logger.Error("Error getting task response header hash. skipping task (this is not expected and should be investigated)", "err", err)
 		return nil, err
 	}
 
 	blsSignature := o.blsKeypair.SignMessage(taskResponseHash)
-	signedCheckpointTaskResponse := &coretypes.SignedCheckpointTaskResponse{
+	signedCheckpointTaskResponse := &messages.SignedCheckpointTaskResponse{
 		TaskResponse: *taskResponse,
 		BlsSignature: *blsSignature,
 		OperatorId:   o.operatorId,
@@ -347,13 +344,13 @@ func (o *Operator) SignTaskResponse(taskResponse *taskmanager.CheckpointTaskResp
 	return signedCheckpointTaskResponse, nil
 }
 
-func SignOperatorSetUpdate(message registryrollup.OperatorSetUpdateMessage, blsKeyPair *bls.KeyPair, operatorId bls.OperatorId) (*coretypes.SignedOperatorSetUpdateMessage, error) {
-	messageHash, err := core.GetOperatorSetUpdateMessageDigest(&message)
+func SignOperatorSetUpdate(message messages.OperatorSetUpdateMessage, blsKeyPair *bls.KeyPair, operatorId bls.OperatorId) (*messages.SignedOperatorSetUpdateMessage, error) {
+	messageHash, err := message.Digest()
 	if err != nil {
 		return nil, err
 	}
 	signature := blsKeyPair.SignMessage(messageHash)
-	signedOperatorSetUpdate := coretypes.SignedOperatorSetUpdateMessage{
+	signedOperatorSetUpdate := messages.SignedOperatorSetUpdateMessage{
 		Message:      message,
 		OperatorId:   operatorId,
 		BlsSignature: *signature,

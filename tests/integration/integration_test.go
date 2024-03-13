@@ -24,7 +24,6 @@ import (
 	sdkEcdsa "github.com/Layr-Labs/eigensdk-go/crypto/ecdsa"
 	sdklogging "github.com/Layr-Labs/eigensdk-go/logging"
 	sdkutils "github.com/Layr-Labs/eigensdk-go/utils"
-	"github.com/NethermindEth/near-sffl/core"
 	"github.com/docker/go-connections/nat"
 	"github.com/ethereum/go-ethereum/accounts/abi/bind"
 	"github.com/ethereum/go-ethereum/common"
@@ -83,7 +82,7 @@ func TestIntegration(t *testing.T) {
 	if err != nil {
 		t.Fatalf("Cannot get state root update: %s", err.Error())
 	}
-	_, err = setup.registryRollups[1].UpdateStateRoot(setup.registryRollupAuths[1], registryrollup.StateRootUpdateMessage(stateRootUpdate.Message), core.FormatBlsAggregationRollup(&stateRootUpdate.Aggregation))
+	_, err = setup.registryRollups[1].UpdateStateRoot(setup.registryRollupAuths[1], registryrollup.StateRootUpdateMessage(stateRootUpdate.Message), stateRootUpdate.Aggregation.ToBindingRollup())
 	if err != nil {
 		t.Fatalf("Error updating state root: %s", err.Error())
 	}
@@ -105,7 +104,16 @@ func TestIntegration(t *testing.T) {
 		}
 	}
 
-	// Check if operator set was updated on mainnets
+	stateRootHeight = uint64(16)
+	stateRootUpdate, err = getStateRootUpdateAggregation(setup.aggregatorRestUrl, uint32(setup.rollupAnvils[0].ChainID.Uint64()), stateRootHeight)
+	if err != nil {
+		t.Fatalf("Cannot get state root update: %s", err.Error())
+	}
+	_, err = setup.registryRollups[1].UpdateStateRoot(setup.registryRollupAuths[1], registryrollup.StateRootUpdateMessage(stateRootUpdate.Message), stateRootUpdate.Aggregation.ToBindingRollup())
+	if err != nil {
+		t.Fatalf("Error updating state root: %s", err.Error())
+	}
+
 	operatorSetUpdateCount, err := setup.avsReader.AvsServiceBindings.OperatorSetUpdateRegistry.GetOperatorSetUpdateCount(&bind.CallOpts{})
 	if err != nil {
 		t.Fatalf("Error getting operator set update count: %s", err.Error())
@@ -125,7 +133,7 @@ func TestIntegration(t *testing.T) {
 	}
 
 	// Check if operator sets are same on rollups
-	_, err = setup.registryRollups[1].UpdateStateRoot(setup.registryRollupAuths[1], registryrollup.StateRootUpdateMessage(stateRootUpdate.Message), core.FormatBlsAggregationRollup(&stateRootUpdate.Aggregation))
+	_, err = setup.registryRollups[1].UpdateStateRoot(setup.registryRollupAuths[1], registryrollup.StateRootUpdateMessage(stateRootUpdate.Message), stateRootUpdate.Aggregation.ToBindingRollup())
 	if err != nil {
 		t.Fatalf("Error updating state root: %s", err.Error())
 	}
