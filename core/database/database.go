@@ -3,6 +3,7 @@ package database
 import (
 	"gorm.io/driver/sqlite"
 	"gorm.io/gorm"
+	"gorm.io/gorm/clause"
 
 	"github.com/NethermindEth/near-sffl/aggregator/types"
 	registryrollup "github.com/NethermindEth/near-sffl/contracts/bindings/SFFLRegistryRollup"
@@ -59,12 +60,14 @@ func (d *Database) Close() error {
 }
 
 func (d *Database) StoreStateRootUpdate(stateRootUpdateMessage servicemanager.StateRootUpdateMessage) error {
-	tx := d.db.Create(&models.StateRootUpdateMessage{
-		RollupId:    stateRootUpdateMessage.RollupId,
-		BlockHeight: stateRootUpdateMessage.BlockHeight,
-		Timestamp:   stateRootUpdateMessage.Timestamp,
-		StateRoot:   stateRootUpdateMessage.StateRoot[:],
-	})
+	tx := d.db.
+		Clauses(clause.OnConflict{UpdateAll: true}).
+		Create(&models.StateRootUpdateMessage{
+			RollupId:    stateRootUpdateMessage.RollupId,
+			BlockHeight: stateRootUpdateMessage.BlockHeight,
+			Timestamp:   stateRootUpdateMessage.Timestamp,
+			StateRoot:   stateRootUpdateMessage.StateRoot[:],
+		})
 
 	return tx.Error
 }
@@ -87,6 +90,7 @@ func (d *Database) FetchStateRootUpdate(rollupId uint32, blockHeight uint64, sta
 
 func (d *Database) StoreStateRootUpdateAggregation(stateRootUpdateMessage servicemanager.StateRootUpdateMessage, aggregation types.MessageBlsAggregationServiceResponse) error {
 	err := d.db.
+		Clauses(clause.OnConflict{UpdateAll: true}).
 		Model(&models.StateRootUpdateMessage{}).
 		Where("rollup_id = ?", stateRootUpdateMessage.RollupId).
 		Where("block_height = ?", stateRootUpdateMessage.BlockHeight).
@@ -129,11 +133,13 @@ func (d *Database) FetchStateRootUpdateAggregation(rollupId uint32, blockHeight 
 }
 
 func (d *Database) StoreOperatorSetUpdate(operatorSetUpdateMessage registryrollup.OperatorSetUpdateMessage) error {
-	tx := d.db.Create(&models.OperatorSetUpdateMessage{
-		UpdateId:  operatorSetUpdateMessage.Id,
-		Timestamp: operatorSetUpdateMessage.Timestamp,
-		Operators: operatorSetUpdateMessage.Operators,
-	})
+	tx := d.db.
+		Clauses(clause.OnConflict{UpdateAll: true}).
+		Create(&models.OperatorSetUpdateMessage{
+			UpdateId:  operatorSetUpdateMessage.Id,
+			Timestamp: operatorSetUpdateMessage.Timestamp,
+			Operators: operatorSetUpdateMessage.Operators,
+		})
 
 	return tx.Error
 }
@@ -158,6 +164,7 @@ func (d *Database) FetchOperatorSetUpdate(id uint64, operatorSetUpdateMessage *r
 
 func (d *Database) StoreOperatorSetUpdateAggregation(operatorSetUpdateMessage registryrollup.OperatorSetUpdateMessage, aggregation types.MessageBlsAggregationServiceResponse) error {
 	err := d.db.
+		Clauses(clause.OnConflict{UpdateAll: true}).
 		Model(&models.OperatorSetUpdateMessage{}).
 		Where("update_id = ?", operatorSetUpdateMessage.Id).
 		Association("Aggregation").

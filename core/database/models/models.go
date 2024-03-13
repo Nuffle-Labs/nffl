@@ -42,8 +42,8 @@ func (m MessageBlsAggregation) Parse() types.MessageBlsAggregationServiceRespons
 type StateRootUpdateMessage struct {
 	gorm.Model
 
-	RollupId      uint32 `gorm:"index;type:text"`
-	BlockHeight   uint64 `gorm:"index;type:text"`
+	RollupId      uint32 `gorm:"uniqueIndex:state_root_update_message_key;type:text"`
+	BlockHeight   uint64 `gorm:"uniqueIndex:state_root_update_message_key;type:text"`
 	Timestamp     uint64 `gorm:"index;type:integer"` // TODO: validate range
 	StateRoot     []byte
 	AggregationId uint32
@@ -62,7 +62,7 @@ func (m StateRootUpdateMessage) Parse() servicemanager.StateRootUpdateMessage {
 type OperatorSetUpdateMessage struct {
 	gorm.Model
 
-	UpdateId      uint64                             `gorm:"index;type:text"`
+	UpdateId      uint64                             `gorm:"uniqueIndex:operator_set_update_message_key;type:text"`
 	Timestamp     uint64                             `gorm:"index;type:integer"` // TODO: validate range
 	Operators     []registryrollup.OperatorsOperator `gorm:"type:json;serializer:json"`
 	AggregationId uint32
