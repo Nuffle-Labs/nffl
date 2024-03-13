@@ -143,12 +143,9 @@ func TestIntegration(t *testing.T) {
 		t.Fatalf("Error getting operator set update: %s", err.Error())
 	}
 
-	expectedUpdatedOperators := []registryrollup.OperatorsOperator{
+	expectedUpdatedOperators := []types.RollupOperator{
 		{
-			Pubkey: registryrollup.BN254G1Point{
-				X: newOperator.BlsPubkeyG1().X.BigInt(big.NewInt(0)),
-				Y: newOperator.BlsPubkeyG1().Y.BigInt(big.NewInt(0)),
-			},
+			Pubkey: newOperator.BlsPubkeyG1(),
 			Weight: big.NewInt(1000),
 		},
 	}
