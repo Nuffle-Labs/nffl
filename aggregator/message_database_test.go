@@ -14,6 +14,7 @@ import (
 	registryrollup "github.com/NethermindEth/near-sffl/contracts/bindings/SFFLRegistryRollup"
 	servicemanager "github.com/NethermindEth/near-sffl/contracts/bindings/SFFLServiceManager"
 	"github.com/NethermindEth/near-sffl/core"
+	"github.com/NethermindEth/near-sffl/tests"
 )
 
 func TestFetchUnknown(t *testing.T) {
@@ -96,7 +97,7 @@ func TestFetchKnownStateRootUpdate(t *testing.T) {
 		RollupId:    1,
 		BlockHeight: 2,
 		Timestamp:   3,
-		StateRoot:   keccak256(4),
+		StateRoot:   tests.Keccak256(4),
 	}
 	prefix := "stateRootUpdates"
 	key := fmt.Sprintf("%d_%d", value.RollupId, value.BlockHeight)
@@ -128,7 +129,7 @@ func TestStoreAndFetchStateRootUpdate(t *testing.T) {
 		RollupId:    1,
 		BlockHeight: 2,
 		Timestamp:   3,
-		StateRoot:   keccak256(4),
+		StateRoot:   tests.Keccak256(4),
 	}
 
 	err = db.StoreStateRootUpdate(value)
@@ -166,7 +167,7 @@ func TestFetchKnownStateRootUpdateAggregation(t *testing.T) {
 		RollupId:    1,
 		BlockHeight: 2,
 		Timestamp:   3,
-		StateRoot:   keccak256(4),
+		StateRoot:   tests.Keccak256(4),
 	}
 	msgDigest, err := core.GetStateRootUpdateMessageDigest(&msg)
 	assert.Nil(t, err)
@@ -204,7 +205,7 @@ func TestStoreAndFetchStateRootUpdateAggregation(t *testing.T) {
 		RollupId:    1,
 		BlockHeight: 2,
 		Timestamp:   3,
-		StateRoot:   keccak256(4),
+		StateRoot:   tests.Keccak256(4),
 	}
 	msgDigest, err := core.GetStateRootUpdateMessageDigest(&msg)
 	assert.Nil(t, err)
