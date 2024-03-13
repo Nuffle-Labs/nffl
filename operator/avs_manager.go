@@ -20,7 +20,7 @@ import (
 	registryrollup "github.com/NethermindEth/near-sffl/contracts/bindings/SFFLRegistryRollup"
 	taskmanager "github.com/NethermindEth/near-sffl/contracts/bindings/SFFLTaskManager"
 	"github.com/NethermindEth/near-sffl/core/chainio"
-	"github.com/NethermindEth/near-sffl/types"
+	"github.com/NethermindEth/near-sffl/core/types"
 )
 
 type AvsManagerer interface {

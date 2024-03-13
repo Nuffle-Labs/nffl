@@ -17,7 +17,6 @@ import (
 	"github.com/NethermindEth/near-sffl/core"
 	coretypes "github.com/NethermindEth/near-sffl/core/types"
 	"github.com/NethermindEth/near-sffl/operator/consumer"
-	"github.com/NethermindEth/near-sffl/types"
 )
 
 const (
@@ -71,14 +70,14 @@ type Attestor struct {
 	consumer        *consumer.Consumer
 
 	registry   *prometheus.Registry
-	config     *types.NodeConfig
+	config     *coretypes.NodeConfig
 	blsKeypair *bls.KeyPair
 	operatorId bls.OperatorId
 
 	logger sdklogging.Logger
 }
 
-func NewAttestor(config *types.NodeConfig, blsKeypair *bls.KeyPair, operatorId bls.OperatorId, logger sdklogging.Logger) (*Attestor, error) {
+func NewAttestor(config *coretypes.NodeConfig, blsKeypair *bls.KeyPair, operatorId bls.OperatorId, logger sdklogging.Logger) (*Attestor, error) {
 	registry := prometheus.NewRegistry()
 
 	consumer := consumer.NewConsumer(consumer.ConsumerConfig{

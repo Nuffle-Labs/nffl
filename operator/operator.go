@@ -31,14 +31,13 @@ import (
 	coretypes "github.com/NethermindEth/near-sffl/core/types"
 	"github.com/NethermindEth/near-sffl/metrics"
 	"github.com/NethermindEth/near-sffl/operator/attestor"
-	"github.com/NethermindEth/near-sffl/types"
 )
 
 const AVS_NAME = "super-fast-finality-layer"
 const SEM_VER = "0.0.1"
 
 type Operator struct {
-	config    types.NodeConfig
+	config    coretypes.NodeConfig
 	logger    logging.Logger
 	ethClient eth.EthClient
 	// they are only used for registration, so we should make a special registration package
@@ -64,7 +63,7 @@ type Operator struct {
 	avsManager *AvsManager
 }
 
-func createEthClients(config *types.NodeConfig, registry *prometheus.Registry, logger sdklogging.Logger) (eth.EthClient, eth.EthClient, error) {
+func createEthClients(config *coretypes.NodeConfig, registry *prometheus.Registry, logger sdklogging.Logger) (eth.EthClient, eth.EthClient, error) {
 	if config.EnableMetrics {
 		rpcCallsCollector := rpccalls.NewCollector(AVS_NAME, registry)
 		ethRpcClient, err := eth.NewInstrumentedClient(config.EthRpcUrl, rpcCallsCollector)
@@ -95,7 +94,7 @@ func createEthClients(config *types.NodeConfig, registry *prometheus.Registry, l
 	return ethRpcClient, ethWsClient, nil
 }
 
-func createLogger(config *types.NodeConfig) (sdklogging.Logger, error) {
+func createLogger(config *coretypes.NodeConfig) (sdklogging.Logger, error) {
 	var logLevel logging.LogLevel
 	if config.Production {
 		logLevel = sdklogging.Production
@@ -109,7 +108,7 @@ func createLogger(config *types.NodeConfig) (sdklogging.Logger, error) {
 // TODO(samlaf): config is a mess right now, since the chainio client constructors
 //
 //	take the config in core (which is shared with aggregator and challenger)
-func NewOperatorFromConfig(c types.NodeConfig) (*Operator, error) {
+func NewOperatorFromConfig(c coretypes.NodeConfig) (*Operator, error) {
 	logger, err := createLogger(&c)
 	if err != nil {
 		return nil, err

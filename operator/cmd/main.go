@@ -9,8 +9,8 @@ import (
 	"github.com/urfave/cli"
 
 	"github.com/NethermindEth/near-sffl/core/config"
+	"github.com/NethermindEth/near-sffl/core/types"
 	"github.com/NethermindEth/near-sffl/operator"
-	"github.com/NethermindEth/near-sffl/types"
 
 	sdkutils "github.com/Layr-Labs/eigensdk-go/utils"
 )

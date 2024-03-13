@@ -40,8 +40,8 @@ import (
 	registryrollup "github.com/NethermindEth/near-sffl/contracts/bindings/SFFLRegistryRollup"
 	"github.com/NethermindEth/near-sffl/core/chainio"
 	"github.com/NethermindEth/near-sffl/core/config"
+	"github.com/NethermindEth/near-sffl/core/types"
 	"github.com/NethermindEth/near-sffl/operator"
-	"github.com/NethermindEth/near-sffl/types"
 )
 
 const TEST_DATA_DIR = "../../test_data"
