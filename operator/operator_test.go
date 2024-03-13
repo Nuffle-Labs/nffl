@@ -8,13 +8,14 @@ import (
 	"testing"
 	"time"
 
+	"github.com/Layr-Labs/eigensdk-go/crypto/bls"
+	sdklogging "github.com/Layr-Labs/eigensdk-go/logging"
 	"github.com/ethereum/go-ethereum/common"
 	"github.com/ethereum/go-ethereum/core/types"
 	"github.com/ethereum/go-ethereum/event"
+	"github.com/prometheus/client_golang/prometheus"
 	"github.com/stretchr/testify/assert"
 	"go.uber.org/mock/gomock"
-
-	"github.com/Layr-Labs/eigensdk-go/crypto/bls"
 
 	aggtypes "github.com/NethermindEth/near-sffl/aggregator/types"
 	opsetupdatereg "github.com/NethermindEth/near-sffl/contracts/bindings/SFFLOperatorSetUpdateRegistry"
@@ -23,9 +24,16 @@ import (
 	taskmanager "github.com/NethermindEth/near-sffl/contracts/bindings/SFFLTaskManager"
 	chainiomocks "github.com/NethermindEth/near-sffl/core/chainio/mocks"
 	coretypes "github.com/NethermindEth/near-sffl/core/types"
+	"github.com/NethermindEth/near-sffl/metrics"
 	"github.com/NethermindEth/near-sffl/operator/consumer"
+	"github.com/NethermindEth/near-sffl/operator/mocks"
 	operatormocks "github.com/NethermindEth/near-sffl/operator/mocks"
 )
+
+const MOCK_OPERATOR_BLS_PRIVATE_KEY = "69"
+
+// hash of bls_public_key (hardcoded for sk=69)
+var MOCK_OPERATOR_ID = [32]byte{207, 73, 226, 221, 104, 100, 123, 41, 192, 3, 9, 119, 90, 83, 233, 159, 231, 151, 245, 96, 150, 48, 144, 27, 102, 253, 39, 101, 1, 26, 135, 173}
 
 func TestOperator(t *testing.T) {
 	operator, avsManager, mockConsumer, err := createMockOperator()
@@ -173,5 +181,37 @@ func TestOperator(t *testing.T) {
 
 		time.Sleep(1 * time.Second)
 	})
+}
 
+func createMockOperator() (*Operator, *AvsManager, *mocks.MockConsumer, error) {
+	logger := sdklogging.NewNoopLogger()
+	reg := prometheus.NewRegistry()
+	noopMetrics := metrics.NewNoopMetrics()
+
+	blsPrivateKey, err := bls.NewPrivateKey(MOCK_OPERATOR_BLS_PRIVATE_KEY)
+	if err != nil {
+		return nil, nil, nil, err
+	}
+	operatorKeypair := bls.NewKeyPair(blsPrivateKey)
+
+	mockAttestor := mocks.NewMockAttestor(operatorKeypair, MOCK_OPERATOR_ID)
+	avsManager := &AvsManager{
+		logger:                            logger,
+		checkpointTaskCreatedChan:         make(chan *taskmanager.ContractSFFLTaskManagerCheckpointTaskCreated),
+		operatorSetUpdateChan:             make(chan *opsetupdatereg.ContractSFFLOperatorSetUpdateRegistryOperatorSetUpdatedAtBlock),
+		checkpointTaskResponseCreatedChan: make(chan taskmanager.CheckpointTaskResponse),
+		operatorSetUpdateMessageChan:      make(chan registryrollup.OperatorSetUpdateMessage),
+	}
+
+	operator := &Operator{
+		logger:     logger,
+		blsKeypair: operatorKeypair,
+		metricsReg: reg,
+		metrics:    noopMetrics,
+		operatorId: MOCK_OPERATOR_ID,
+		attestor:   mockAttestor,
+		avsManager: avsManager,
+	}
+
+	return operator, avsManager, mockAttestor.MockGetConsumer(), nil
 }
