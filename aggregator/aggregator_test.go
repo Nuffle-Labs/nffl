@@ -17,6 +17,7 @@ import (
 	blsaggservmock "github.com/Layr-Labs/eigensdk-go/services/mocks/blsagg"
 	sdktypes "github.com/Layr-Labs/eigensdk-go/types"
 
+	dbmocks "github.com/NethermindEth/near-sffl/aggregator/database/mocks"
 	aggmocks "github.com/NethermindEth/near-sffl/aggregator/mocks"
 	"github.com/NethermindEth/near-sffl/aggregator/types"
 	registryrollup "github.com/NethermindEth/near-sffl/contracts/bindings/SFFLRegistryRollup"
@@ -24,7 +25,6 @@ import (
 	taskmanager "github.com/NethermindEth/near-sffl/contracts/bindings/SFFLTaskManager"
 	"github.com/NethermindEth/near-sffl/core"
 	chainiomocks "github.com/NethermindEth/near-sffl/core/chainio/mocks"
-	dbmocks "github.com/NethermindEth/near-sffl/core/database/mocks"
 	coretypes "github.com/NethermindEth/near-sffl/core/types"
 )
 

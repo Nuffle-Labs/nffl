@@ -5,10 +5,10 @@ import (
 	"gorm.io/gorm"
 	"gorm.io/gorm/clause"
 
+	"github.com/NethermindEth/near-sffl/aggregator/database/models"
 	"github.com/NethermindEth/near-sffl/aggregator/types"
 	registryrollup "github.com/NethermindEth/near-sffl/contracts/bindings/SFFLRegistryRollup"
 	servicemanager "github.com/NethermindEth/near-sffl/contracts/bindings/SFFLServiceManager"
-	"github.com/NethermindEth/near-sffl/core/database/models"
 )
 
 type Databaser interface {

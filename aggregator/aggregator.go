@@ -16,6 +16,7 @@ import (
 	"github.com/Layr-Labs/eigensdk-go/signerv2"
 	sdktypes "github.com/Layr-Labs/eigensdk-go/types"
 
+	"github.com/NethermindEth/near-sffl/aggregator/database"
 	"github.com/NethermindEth/near-sffl/aggregator/types"
 	registryrollup "github.com/NethermindEth/near-sffl/contracts/bindings/SFFLRegistryRollup"
 	servicemanager "github.com/NethermindEth/near-sffl/contracts/bindings/SFFLServiceManager"
@@ -23,7 +24,6 @@ import (
 	"github.com/NethermindEth/near-sffl/core"
 	"github.com/NethermindEth/near-sffl/core/chainio"
 	"github.com/NethermindEth/near-sffl/core/config"
-	"github.com/NethermindEth/near-sffl/core/database"
 	coretypes "github.com/NethermindEth/near-sffl/core/types"
 )
 
