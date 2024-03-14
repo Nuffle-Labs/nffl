@@ -16,6 +16,7 @@ import (
 	"github.com/Layr-Labs/eigensdk-go/signerv2"
 	sdktypes "github.com/Layr-Labs/eigensdk-go/types"
 
+	"github.com/NethermindEth/near-sffl/aggregator/database"
 	"github.com/NethermindEth/near-sffl/aggregator/types"
 	registryrollup "github.com/NethermindEth/near-sffl/contracts/bindings/SFFLRegistryRollup"
 	servicemanager "github.com/NethermindEth/near-sffl/contracts/bindings/SFFLServiceManager"
@@ -84,7 +85,7 @@ type Aggregator struct {
 	tasksLock                              sync.RWMutex
 	taskResponses                          map[coretypes.TaskIndex]map[sdktypes.TaskResponseDigest]taskmanager.CheckpointTaskResponse
 	taskResponsesLock                      sync.RWMutex
-	msgDb                                  MessageDatabaser
+	msgDb                                  database.Databaser
 	stateRootUpdates                       map[coretypes.MessageDigest]servicemanager.StateRootUpdateMessage
 	stateRootUpdatesLock                   sync.RWMutex
 	operatorSetUpdates                     map[coretypes.MessageDigest]registryrollup.OperatorSetUpdateMessage
@@ -140,7 +141,7 @@ func NewAggregator(ctx context.Context, config *config.Config, logger logging.Lo
 		return nil, err
 	}
 
-	msgDb, err := NewMessageDatabase(config.AggregatorDatabasePath)
+	msgDb, err := database.NewDatabase(config.AggregatorDatabasePath)
 	if err != nil {
 		logger.Errorf("Cannot create database", "err", err)
 		return nil, err

@@ -17,7 +17,8 @@ import (
 	blsaggservmock "github.com/Layr-Labs/eigensdk-go/services/mocks/blsagg"
 	sdktypes "github.com/Layr-Labs/eigensdk-go/types"
 
-	"github.com/NethermindEth/near-sffl/aggregator/mocks"
+	dbmocks "github.com/NethermindEth/near-sffl/aggregator/database/mocks"
+	aggmocks "github.com/NethermindEth/near-sffl/aggregator/mocks"
 	"github.com/NethermindEth/near-sffl/aggregator/types"
 	registryrollup "github.com/NethermindEth/near-sffl/contracts/bindings/SFFLRegistryRollup"
 	servicemanager "github.com/NethermindEth/near-sffl/contracts/bindings/SFFLServiceManager"
@@ -65,7 +66,7 @@ func TestSendNewTask(t *testing.T) {
 
 	mockAvsWriterer.EXPECT().SendNewCheckpointTask(
 		context.Background(), FROM_NEAR_BLOCK, TO_NEAR_BLOCK, types.QUORUM_THRESHOLD_NUMERATOR, coretypes.QUORUM_NUMBERS,
-	).Return(mocks.MockSendNewCheckpointTask(BLOCK_NUMBER, TASK_INDEX, FROM_NEAR_BLOCK, TO_NEAR_BLOCK))
+	).Return(aggmocks.MockSendNewCheckpointTask(BLOCK_NUMBER, TASK_INDEX, FROM_NEAR_BLOCK, TO_NEAR_BLOCK))
 
 	// 100 blocks, each takes 12 seconds. We hardcode for now since aggregator also hardcodes this value
 	taskTimeToExpiry := 100 * 12 * time.Second
@@ -140,15 +141,15 @@ func TestHandleOperatorSetUpdateAggregationReachedQuorum(t *testing.T) {
 
 func createMockAggregator(
 	mockCtrl *gomock.Controller, operatorPubkeyDict map[bls.OperatorId]types.OperatorInfo,
-) (*Aggregator, *chainiomocks.MockAvsReaderer, *chainiomocks.MockAvsWriterer, *blsaggservmock.MockBlsAggregationService, *mocks.MockMessageBlsAggregationService, *mocks.MockMessageBlsAggregationService, *mocks.MockMessageDatabaser, *mocks.MockRollupBroadcasterer, error) {
+) (*Aggregator, *chainiomocks.MockAvsReaderer, *chainiomocks.MockAvsWriterer, *blsaggservmock.MockBlsAggregationService, *aggmocks.MockMessageBlsAggregationService, *aggmocks.MockMessageBlsAggregationService, *dbmocks.MockDatabaser, *aggmocks.MockRollupBroadcasterer, error) {
 	logger := sdklogging.NewNoopLogger()
 	mockAvsWriter := chainiomocks.NewMockAvsWriterer(mockCtrl)
 	mockAvsReader := chainiomocks.NewMockAvsReaderer(mockCtrl)
 	mockTaskBlsAggregationService := blsaggservmock.NewMockBlsAggregationService(mockCtrl)
-	mockStateRootUpdateBlsAggregationService := mocks.NewMockMessageBlsAggregationService(mockCtrl)
-	mockOperatorSetUpdateBlsAggregationService := mocks.NewMockMessageBlsAggregationService(mockCtrl)
-	mockMsgDb := mocks.NewMockMessageDatabaser(mockCtrl)
-	mockRollupBroadcaster := mocks.NewMockRollupBroadcasterer(mockCtrl)
+	mockStateRootUpdateBlsAggregationService := aggmocks.NewMockMessageBlsAggregationService(mockCtrl)
+	mockOperatorSetUpdateBlsAggregationService := aggmocks.NewMockMessageBlsAggregationService(mockCtrl)
+	mockMsgDb := dbmocks.NewMockDatabaser(mockCtrl)
+	mockRollupBroadcaster := aggmocks.NewMockRollupBroadcasterer(mockCtrl)
 
 	aggregator := &Aggregator{
 		logger:                                 logger,
