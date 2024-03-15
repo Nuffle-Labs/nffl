@@ -14,6 +14,7 @@ import (
 	types "github.com/NethermindEth/near-sffl/aggregator/types"
 	contractSFFLRegistryRollup "github.com/NethermindEth/near-sffl/contracts/bindings/SFFLRegistryRollup"
 	contractSFFLServiceManager "github.com/NethermindEth/near-sffl/contracts/bindings/SFFLServiceManager"
+	types0 "github.com/NethermindEth/near-sffl/core/types"
 	gomock "go.uber.org/mock/gomock"
 )
 
@@ -52,6 +53,20 @@ func (m *MockDatabaser) Close() error {
 func (mr *MockDatabaserMockRecorder) Close() *gomock.Call {
 	mr.mock.ctrl.T.Helper()
 	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "Close", reflect.TypeOf((*MockDatabaser)(nil).Close))
+}
+
+// FetchCheckpointMessages mocks base method.
+func (m *MockDatabaser) FetchCheckpointMessages(arg0, arg1 uint64, arg2 *types0.CheckpointMessages) error {
+	m.ctrl.T.Helper()
+	ret := m.ctrl.Call(m, "FetchCheckpointMessages", arg0, arg1, arg2)
+	ret0, _ := ret[0].(error)
+	return ret0
+}
+
+// FetchCheckpointMessages indicates an expected call of FetchCheckpointMessages.
+func (mr *MockDatabaserMockRecorder) FetchCheckpointMessages(arg0, arg1, arg2 any) *gomock.Call {
+	mr.mock.ctrl.T.Helper()
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "FetchCheckpointMessages", reflect.TypeOf((*MockDatabaser)(nil).FetchCheckpointMessages), arg0, arg1, arg2)
 }
 
 // FetchOperatorSetUpdate mocks base method.
