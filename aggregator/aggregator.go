@@ -307,9 +307,9 @@ func (agg *Aggregator) handleStateRootUpdateReachedQuorum(blsAggServiceResp type
 	agg.stateRootUpdatesLock.RUnlock()
 
 	defer func() {
-		agg.stateRootUpdatesLock.RLock()
+		agg.stateRootUpdatesLock.Lock()
 		delete(agg.stateRootUpdates, blsAggServiceResp.MessageDigest)
-		agg.stateRootUpdatesLock.RUnlock()
+		agg.stateRootUpdatesLock.Unlock()
 	}()
 
 	if !ok {
@@ -332,7 +332,6 @@ func (agg *Aggregator) handleStateRootUpdateReachedQuorum(blsAggServiceResp type
 		agg.logger.Error("Aggregator could not store message aggregation")
 		return
 	}
-
 }
 
 func (agg *Aggregator) handleOperatorSetUpdateReachedQuorum(ctx context.Context, blsAggServiceResp types.MessageBlsAggregationServiceResponse) {
@@ -341,9 +340,9 @@ func (agg *Aggregator) handleOperatorSetUpdateReachedQuorum(ctx context.Context,
 	agg.operatorSetUpdatesLock.RUnlock()
 
 	defer func() {
-		agg.operatorSetUpdatesLock.RLock()
+		agg.operatorSetUpdatesLock.Lock()
 		delete(agg.operatorSetUpdates, blsAggServiceResp.MessageDigest)
-		agg.operatorSetUpdatesLock.RUnlock()
+		agg.operatorSetUpdatesLock.Unlock()
 	}()
 
 	if !ok {
