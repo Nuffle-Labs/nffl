@@ -8,7 +8,7 @@ import (
 	"go.uber.org/mock/gomock"
 
 	"github.com/NethermindEth/near-sffl/aggregator/database"
-	"github.com/NethermindEth/near-sffl/aggregator/types"
+	aggtypes "github.com/NethermindEth/near-sffl/aggregator/types"
 	registryrollup "github.com/NethermindEth/near-sffl/contracts/bindings/SFFLRegistryRollup"
 	servicemanager "github.com/NethermindEth/near-sffl/contracts/bindings/SFFLServiceManager"
 	"github.com/NethermindEth/near-sffl/core"
@@ -60,7 +60,7 @@ func TestFetchUnknownStateRootUpdateAggregation(t *testing.T) {
 	db, err := database.NewDatabase("")
 	assert.Nil(t, err)
 
-	var entry types.MessageBlsAggregationServiceResponse
+	var entry aggtypes.MessageBlsAggregationServiceResponse
 
 	err = db.FetchStateRootUpdateAggregation(1, 2, &entry)
 	assert.NotNil(t, err)
@@ -86,14 +86,14 @@ func TestStoreAndFetchStateRootUpdateAggregation(t *testing.T) {
 	msgDigest, err := core.GetStateRootUpdateMessageDigest(&msg)
 	assert.Nil(t, err)
 
-	value := types.MessageBlsAggregationServiceResponse{
+	value := aggtypes.MessageBlsAggregationServiceResponse{
 		MessageDigest: msgDigest,
 	}
 
 	err = db.StoreStateRootUpdateAggregation(msg, value)
 	assert.Nil(t, err)
 
-	var entry types.MessageBlsAggregationServiceResponse
+	var entry aggtypes.MessageBlsAggregationServiceResponse
 
 	err = db.FetchStateRootUpdateAggregation(msg.RollupId, msg.BlockHeight, &entry)
 	assert.Nil(t, err)
@@ -147,7 +147,7 @@ func TestFetchUnknownOperatorSetUpdateAggregation(t *testing.T) {
 	db, err := database.NewDatabase("")
 	assert.Nil(t, err)
 
-	var entry types.MessageBlsAggregationServiceResponse
+	var entry aggtypes.MessageBlsAggregationServiceResponse
 
 	err = db.FetchOperatorSetUpdateAggregation(1, &entry)
 	assert.NotNil(t, err)
@@ -174,14 +174,14 @@ func TestStoreAndFetchOperatorSetUpdateAggregation(t *testing.T) {
 	msgDigest, err := core.GetOperatorSetUpdateMessageDigest(&msg)
 	assert.Nil(t, err)
 
-	value := types.MessageBlsAggregationServiceResponse{
+	value := aggtypes.MessageBlsAggregationServiceResponse{
 		MessageDigest: msgDigest,
 	}
 
 	err = db.StoreOperatorSetUpdateAggregation(msg, value)
 	assert.Nil(t, err)
 
-	var entry types.MessageBlsAggregationServiceResponse
+	var entry aggtypes.MessageBlsAggregationServiceResponse
 
 	err = db.FetchOperatorSetUpdateAggregation(msg.Id, &entry)
 	assert.Nil(t, err)
