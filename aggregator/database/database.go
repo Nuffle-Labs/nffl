@@ -221,7 +221,7 @@ func (d *Database) FetchCheckpointMessages(fromTimestamp uint64, toTimestamp uin
 		Model(&models.StateRootUpdateMessage{}).
 		Where("timestamp >= ?", fromTimestamp).
 		Where("timestamp <= ?", toTimestamp).
-		First(&stateRootUpdates)
+		Find(&stateRootUpdates)
 	if tx.Error != nil {
 		return tx.Error
 	}
@@ -233,7 +233,7 @@ func (d *Database) FetchCheckpointMessages(fromTimestamp uint64, toTimestamp uin
 		Model(&models.OperatorSetUpdateMessage{}).
 		Where("timestamp >= ?", fromTimestamp).
 		Where("timestamp <= ?", toTimestamp).
-		First(&operatorSetUpdates)
+		Find(&operatorSetUpdates)
 	if tx.Error != nil {
 		return tx.Error
 	}
