@@ -202,7 +202,7 @@ func (attestor *Attestor) processRollupHeaders(rollupId uint32, headersC chan *e
 
 		case header, ok := <-headersC:
 			if !ok {
-				continue
+				return
 			}
 
 			go attestor.processHeader(rollupId, header, ctx)
