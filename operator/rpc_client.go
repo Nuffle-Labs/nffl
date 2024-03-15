@@ -25,7 +25,7 @@ const (
 )
 
 const (
-	ResendInterval = 5 * time.Second
+	ResendInterval = 2 * time.Second
 )
 
 type RpcMessageType struct {
@@ -73,13 +73,17 @@ func (c *AggregatorRpcClient) onTick() {
 
 		// Critically ugly section
 		{
-			c.rpcClientMutex.Lock()
-			if c.rpcClient == nil {
-				c.rpcClientMutex.Unlock()
+			c.messageDequeMutex.Lock()
+			if len(c.messageDeque) == 0 {
+				c.messageDequeMutex.Unlock()
 				continue
 			}
+			c.messageDequeMutex.Unlock()
+		}
 
-			c.rpcClientMutex.Unlock()
+		err := c.InitializeClientIfNotExist()
+		if err != nil {
+			continue
 		}
 
 		c.tryResendFromDeque()
@@ -131,12 +135,11 @@ func (c *AggregatorRpcClient) InitializeClientIfNotExist() error {
 		return nil
 	}
 
-	c.logger.Info("rpc client is nil. Dialing aggregator rpc client")
 	return c.dialAggregatorRpcClient()
 }
 
 // Expected to be called with initialized client.
-func (c *AggregatorRpcClient) tryResendFromDeque() error {
+func (c *AggregatorRpcClient) tryResendFromDeque() {
 	c.messageDequeMutex.Lock()
 	defer c.messageDequeMutex.Unlock()
 
@@ -144,8 +147,9 @@ func (c *AggregatorRpcClient) tryResendFromDeque() error {
 		c.logger.Info("Resending messages from queue")
 	}
 
-	for len(c.messageDeque) != 0 {
-		message := c.messageDeque[0]
+	errorPos := 0
+	for i := 0; i < len(c.messageDeque); i++ {
+		message := c.messageDeque[i]
 
 		// Assumes client exists
 		var err error
@@ -173,13 +177,13 @@ func (c *AggregatorRpcClient) tryResendFromDeque() error {
 
 		if err != nil {
 			c.logger.Error("Couldn't resend message", "err", err)
-			return err
-		}
 
-		c.messageDeque = c.messageDeque[1:]
+			c.messageDeque[errorPos] = message
+			errorPos++
+		}
 	}
 
-	return nil
+	c.messageDeque = c.messageDeque[:errorPos]
 }
 
 func (c *AggregatorRpcClient) SendSignedCheckpointTaskResponseToAggregator(signedCheckpointTaskResponse *coretypes.SignedCheckpointTaskResponse) {
@@ -200,11 +204,7 @@ func (c *AggregatorRpcClient) SendSignedCheckpointTaskResponseToAggregator(signe
 		return
 	}
 
-	err = c.tryResendFromDeque()
-	if err != nil {
-		appendProtected()
-		return
-	}
+	c.tryResendFromDeque()
 
 	var reply bool
 	err = c.rpcClient.Call("Aggregator.ProcessSignedCheckpointTaskResponse", signedCheckpointTaskResponse, &reply)
@@ -212,7 +212,6 @@ func (c *AggregatorRpcClient) SendSignedCheckpointTaskResponseToAggregator(signe
 		c.logger.Info("Received error from aggregator", "err", err)
 
 		// TODO(edwin): filter which errors to append
-		return
 		appendProtected()
 		return
 	}
@@ -239,11 +238,7 @@ func (c *AggregatorRpcClient) SendSignedStateRootUpdateToAggregator(signedStateR
 		return
 	}
 
-	err = c.tryResendFromDeque()
-	if err != nil {
-		appendProtected()
-		return
-	}
+	c.tryResendFromDeque()
 
 	var reply bool
 	err = c.rpcClient.Call("Aggregator.ProcessSignedStateRootUpdateMessage", signedStateRootUpdateMessage, &reply)
@@ -276,11 +271,7 @@ func (c *AggregatorRpcClient) SendSignedOperatorSetUpdateToAggregator(signedOper
 		return
 	}
 
-	err = c.tryResendFromDeque()
-	if err != nil {
-		appendProtected()
-		return
-	}
+	c.tryResendFromDeque()
 
 	var reply bool
 	err = c.rpcClient.Call("Aggregator.ProcessSignedOperatorSetUpdateMessage", signedOperatorSetUpdateMessage, &reply)
