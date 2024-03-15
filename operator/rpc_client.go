@@ -41,11 +41,10 @@ type AggregatorRpcClient struct {
 	logger               logging.Logger
 	aggregatorIpPortAddr string
 
-	messageDequeMutex sync.Mutex
-	messageDeque      []RpcMessageType
+	unsentMessagesMutex sync.Mutex
+	unsentMessages      []RpcMessageType
 
-	resendTickerMutex sync.Mutex
-	resendTicker      *time.Ticker
+	resendTicker *time.Ticker
 }
 
 func NewAggregatorRpcClient(aggregatorIpPortAddr string, logger logging.Logger, metrics metrics.Metrics) (*AggregatorRpcClient, error) {
@@ -57,7 +56,7 @@ func NewAggregatorRpcClient(aggregatorIpPortAddr string, logger logging.Logger, 
 		metrics:              metrics,
 		logger:               logger,
 		aggregatorIpPortAddr: aggregatorIpPortAddr,
-		messageDeque:         make([]RpcMessageType, 0),
+		unsentMessages:       make([]RpcMessageType, 0),
 		resendTicker:         resendTicker,
 	}
 
@@ -94,12 +93,12 @@ func (c *AggregatorRpcClient) onTick() {
 
 		// Critically ugly section
 		{
-			c.messageDequeMutex.Lock()
-			if len(c.messageDeque) == 0 {
-				c.messageDequeMutex.Unlock()
+			c.unsentMessagesMutex.Lock()
+			if len(c.unsentMessages) == 0 {
+				c.unsentMessagesMutex.Unlock()
 				continue
 			}
-			c.messageDequeMutex.Unlock()
+			c.unsentMessagesMutex.Unlock()
 		}
 
 		err := c.InitializeClientIfNotExist()
@@ -113,16 +112,16 @@ func (c *AggregatorRpcClient) onTick() {
 
 // Expected to be called with initialized client.
 func (c *AggregatorRpcClient) tryResendFromDeque() {
-	c.messageDequeMutex.Lock()
-	defer c.messageDequeMutex.Unlock()
+	c.unsentMessagesMutex.Lock()
+	defer c.unsentMessagesMutex.Unlock()
 
-	if len(c.messageDeque) != 0 {
+	if len(c.unsentMessages) != 0 {
 		c.logger.Info("Resending messages from queue")
 	}
 
 	errorPos := 0
-	for i := 0; i < len(c.messageDeque); i++ {
-		message := c.messageDeque[i]
+	for i := 0; i < len(c.unsentMessages); i++ {
+		message := c.unsentMessages[i]
 
 		// Assumes client exists
 		var err error
@@ -149,19 +148,19 @@ func (c *AggregatorRpcClient) tryResendFromDeque() {
 		if err != nil {
 			c.logger.Error("Couldn't resend message", "err", err)
 
-			c.messageDeque[errorPos] = message
+			c.unsentMessages[errorPos] = message
 			errorPos++
 		}
 	}
 
-	c.messageDeque = c.messageDeque[:errorPos]
+	c.unsentMessages = c.unsentMessages[:errorPos]
 }
 
 func (c *AggregatorRpcClient) sendRequest(sendCb func() error, message RpcMessageType) {
 	appendProtected := func() {
-		c.messageDequeMutex.Lock()
-		c.messageDeque = append(c.messageDeque, message)
-		c.messageDequeMutex.Unlock()
+		c.unsentMessagesMutex.Lock()
+		c.unsentMessages = append(c.unsentMessages, message)
+		c.unsentMessagesMutex.Unlock()
 	}
 
 	err := c.InitializeClientIfNotExist()
@@ -245,5 +244,3 @@ func (c *AggregatorRpcClient) SendSignedOperatorSetUpdateToAggregator(signedOper
 		return nil
 	}, message)
 }
-
-// Init if not initialized
