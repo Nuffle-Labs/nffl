@@ -65,6 +65,27 @@ func NewAggregatorRpcClient(aggregatorIpPortAddr string, logger logging.Logger, 
 	return client, nil
 }
 
+func (c *AggregatorRpcClient) dialAggregatorRpcClient() error {
+	c.logger.Info("rpc client is nil. Dialing aggregator rpc client")
+
+	client, err := rpc.DialHTTP("tcp", c.aggregatorIpPortAddr)
+	if err != nil {
+		return err
+	}
+	c.rpcClient = client
+	return nil
+}
+
+func (c *AggregatorRpcClient) InitializeClientIfNotExist() error {
+	c.rpcClientMutex.Lock()
+	defer c.rpcClientMutex.Unlock()
+
+	if c.rpcClient != nil {
+		return nil
+	}
+
+	return c.dialAggregatorRpcClient()
+}
 func (c *AggregatorRpcClient) onTick() {
 	tickerC := c.resendTicker.C
 	for {
@@ -90,54 +111,6 @@ func (c *AggregatorRpcClient) onTick() {
 	}
 }
 
-func (c *AggregatorRpcClient) dialAggregatorRpcClient() error {
-	c.logger.Info("rpc client is nil. Dialing aggregator rpc client")
-
-	client, err := rpc.DialHTTP("tcp", c.aggregatorIpPortAddr)
-	if err != nil {
-		return err
-	}
-	c.rpcClient = client
-	return nil
-}
-
-func (c *AggregatorRpcClient) sendRequest(sendCb func() error, maxRetries int, retryInterval time.Duration) {
-	if c.rpcClient == nil {
-		c.logger.Info("rpc client is nil. Dialing aggregator rpc client")
-		err := c.dialAggregatorRpcClient()
-		if err != nil {
-			c.logger.Error("Could not dial aggregator rpc client. Not sending signed task response header to aggregator. Is aggregator running?", "err", err)
-			return
-		}
-	}
-
-	c.logger.Info("Sending data to aggregator")
-	for i := 0; i < maxRetries; i++ {
-		err := sendCb()
-
-		if err == nil {
-			c.logger.Info("Data successfully sent to aggregator")
-			return
-		}
-
-		c.logger.Infof("Retrying in %s", retryInterval.String())
-		time.Sleep(retryInterval)
-	}
-
-	c.logger.Errorf("Could not send data to aggregator. Tried %d times.", maxRetries)
-}
-
-func (c *AggregatorRpcClient) InitializeClientIfNotExist() error {
-	c.rpcClientMutex.Lock()
-	defer c.rpcClientMutex.Unlock()
-
-	if c.rpcClient != nil {
-		return nil
-	}
-
-	return c.dialAggregatorRpcClient()
-}
-
 // Expected to be called with initialized client.
 func (c *AggregatorRpcClient) tryResendFromDeque() {
 	c.messageDequeMutex.Lock()
@@ -160,8 +133,6 @@ func (c *AggregatorRpcClient) tryResendFromDeque() {
 			signedCheckpointTaskResponse := message.Message.(*coretypes.SignedCheckpointTaskResponse)
 			// TODO(edwin): handle error
 			err = c.rpcClient.Call("Aggregator.ProcessSignedCheckpointTaskResponse", signedCheckpointTaskResponse, &reply)
-
-			//c.rpcClient.Call("Aggregator.ProcessSignedCheckpointTaskResponse", signedCheckpointTaskResponse, &reply)
 
 		case StateRootType:
 			signedStateRootUpdateMessage := message.Message.(*coretypes.SignedStateRootUpdateMessage)
@@ -186,15 +157,10 @@ func (c *AggregatorRpcClient) tryResendFromDeque() {
 	c.messageDeque = c.messageDeque[:errorPos]
 }
 
-func (c *AggregatorRpcClient) SendSignedCheckpointTaskResponseToAggregator(signedCheckpointTaskResponse *coretypes.SignedCheckpointTaskResponse) {
-	c.logger.Info("Sending signed task response header to aggregator", "signedCheckpointTaskResponse", fmt.Sprintf("%#v", signedCheckpointTaskResponse))
-
+func (c *AggregatorRpcClient) sendRequest(sendCb func() error, message RpcMessageType) {
 	appendProtected := func() {
 		c.messageDequeMutex.Lock()
-		c.messageDeque = append(c.messageDeque, RpcMessageType{
-			MessageType: CheckpointType,
-			Message:     signedCheckpointTaskResponse,
-		})
+		c.messageDeque = append(c.messageDeque, message)
 		c.messageDequeMutex.Unlock()
 	}
 
@@ -206,84 +172,78 @@ func (c *AggregatorRpcClient) SendSignedCheckpointTaskResponseToAggregator(signe
 
 	c.tryResendFromDeque()
 
-	var reply bool
-	err = c.rpcClient.Call("Aggregator.ProcessSignedCheckpointTaskResponse", signedCheckpointTaskResponse, &reply)
+	c.logger.Info("Sending data to aggregator")
+	err = sendCb()
 	if err != nil {
-		c.logger.Info("Received error from aggregator", "err", err)
-
-		// TODO(edwin): filter which errors to append
 		appendProtected()
 		return
 	}
+}
 
-	c.logger.Info("Signed task response header accepted by aggregator.", "reply", reply)
-	c.metrics.IncNumMessagesAcceptedByAggregator()
+func (c *AggregatorRpcClient) SendSignedCheckpointTaskResponseToAggregator(signedCheckpointTaskResponse *coretypes.SignedCheckpointTaskResponse) {
+	c.logger.Info("Sending signed task response header to aggregator", "signedCheckpointTaskResponse", fmt.Sprintf("%#v", signedCheckpointTaskResponse))
+
+	message := RpcMessageType{
+		MessageType: CheckpointType,
+		Message:     signedCheckpointTaskResponse,
+	}
+
+	c.sendRequest(func() error {
+		var reply bool
+		err := c.rpcClient.Call("Aggregator.ProcessSignedCheckpointTaskResponse", signedCheckpointTaskResponse, &reply)
+		if err != nil {
+			c.logger.Info("Received error from aggregator", "err", err)
+			return err
+		}
+
+		c.logger.Info("Signed task response header accepted by aggregator.", "reply", reply)
+		c.metrics.IncNumMessagesAcceptedByAggregator()
+		return nil
+	}, message)
 }
 
 func (c *AggregatorRpcClient) SendSignedStateRootUpdateToAggregator(signedStateRootUpdateMessage *coretypes.SignedStateRootUpdateMessage) {
 	c.logger.Info("Sending signed state root update message to aggregator", "signedStateRootUpdateMessage", fmt.Sprintf("%#v", signedStateRootUpdateMessage))
 
-	appendProtected := func() {
-		c.messageDequeMutex.Lock()
-		c.messageDeque = append(c.messageDeque, RpcMessageType{
-			MessageType: StateRootType,
-			Message:     signedStateRootUpdateMessage,
-		})
-		c.messageDequeMutex.Unlock()
+	message := RpcMessageType{
+		MessageType: StateRootType,
+		Message:     signedStateRootUpdateMessage,
 	}
 
-	err := c.InitializeClientIfNotExist()
-	if err != nil {
-		appendProtected()
-		return
-	}
+	c.sendRequest(func() error {
+		var reply bool
+		err := c.rpcClient.Call("Aggregator.ProcessSignedStateRootUpdateMessage", signedStateRootUpdateMessage, &reply)
+		if err != nil {
+			c.logger.Info("Received error from aggregator", "err", err)
+			return err
+		}
 
-	c.tryResendFromDeque()
-
-	var reply bool
-	err = c.rpcClient.Call("Aggregator.ProcessSignedStateRootUpdateMessage", signedStateRootUpdateMessage, &reply)
-	if err != nil {
-		c.logger.Info("Received error from aggregator", "err", err)
-
-		appendProtected()
-		return
-	}
-
-	c.logger.Info("Signed state root update message accepted by aggregator.", "reply", reply)
-	c.metrics.IncNumMessagesAcceptedByAggregator()
+		c.logger.Info("Signed state root update message accepted by aggregator.", "reply", reply)
+		c.metrics.IncNumMessagesAcceptedByAggregator()
+		return nil
+	}, message)
 }
 
 func (c *AggregatorRpcClient) SendSignedOperatorSetUpdateToAggregator(signedOperatorSetUpdateMessage *coretypes.SignedOperatorSetUpdateMessage) {
 	c.logger.Info("Sending operator set update message to aggregator", "signedOperatorSetUpdateMessage", fmt.Sprintf("%#v", signedOperatorSetUpdateMessage))
 
-	appendProtected := func() {
-		c.messageDequeMutex.Lock()
-		c.messageDeque = append(c.messageDeque, RpcMessageType{
-			MessageType: OperatorSetUpdateType,
-			Message:     signedOperatorSetUpdateMessage,
-		})
-		c.messageDequeMutex.Unlock()
+	message := RpcMessageType{
+		MessageType: OperatorSetUpdateType,
+		Message:     signedOperatorSetUpdateMessage,
 	}
 
-	err := c.InitializeClientIfNotExist()
-	if err != nil {
-		appendProtected()
-		return
-	}
+	c.sendRequest(func() error {
+		var reply bool
+		err := c.rpcClient.Call("Aggregator.ProcessSignedOperatorSetUpdateMessage", signedOperatorSetUpdateMessage, &reply)
+		if err != nil {
+			c.logger.Info("Received error from aggregator", "err", err)
+			return err
+		}
 
-	c.tryResendFromDeque()
-
-	var reply bool
-	err = c.rpcClient.Call("Aggregator.ProcessSignedOperatorSetUpdateMessage", signedOperatorSetUpdateMessage, &reply)
-	if err != nil {
-		c.logger.Info("Received error from aggregator", "err", err)
-
-		appendProtected()
-		return
-	}
-
-	c.logger.Info("Signed operator set update message accepted by aggregator.", "reply", reply)
-	c.metrics.IncNumMessagesAcceptedByAggregator()
+		c.logger.Info("Signed operator set update message accepted by aggregator.", "reply", reply)
+		c.metrics.IncNumMessagesAcceptedByAggregator()
+		return nil
+	}, message)
 }
 
 // Init if not initialized

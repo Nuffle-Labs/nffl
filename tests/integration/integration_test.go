@@ -147,6 +147,7 @@ func TestIntegration(t *testing.T) {
 	}
 	assert.Equal(t, expectedUpdatedOperators, operatorSetUpdate.Message.Operators)
 
+	t.Log("Done")
 	<-ctx.Done()
 }
 
@@ -606,6 +607,8 @@ func startRollupIndexing(t *testing.T, ctx context.Context, rollupAnvils []*Anvi
 		go func() {
 			for {
 				select {
+				case <-ctx.Done():
+					return
 				case err := <-sub.Err():
 					t.Errorf("Error on rollup block subscription: %s", err.Error())
 					return
@@ -637,8 +640,6 @@ func startRollupIndexing(t *testing.T, ctx context.Context, rollupAnvils []*Anvi
 					}
 
 					submitBlock(t, ctx, getDaContractAccountId(anvil), block, indexerUrl)
-				case <-ctx.Done():
-					return
 				}
 			}
 		}()
