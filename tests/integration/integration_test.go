@@ -84,7 +84,7 @@ func TestIntegration(t *testing.T) {
 	if err != nil {
 		t.Fatalf("Cannot get state root update: %s", err.Error())
 	}
-	_, err = setup.registryRollups[1].UpdateStateRoot(setup.registryRollupAuths[1], registryrollup.StateRootUpdateMessage(stateRootUpdate.Message), stateRootUpdate.Aggregation.ToBindingRollup())
+	_, err = setup.registryRollups[1].UpdateStateRoot(setup.registryRollupAuths[1], registryrollup.StateRootUpdateMessage(stateRootUpdate.Message), stateRootUpdate.Aggregation.ExtractBindingRollup())
 	if err != nil {
 		t.Fatalf("Error updating state root: %s", err.Error())
 	}
@@ -111,7 +111,7 @@ func TestIntegration(t *testing.T) {
 	if err != nil {
 		t.Fatalf("Cannot get state root update: %s", err.Error())
 	}
-	_, err = setup.registryRollups[1].UpdateStateRoot(setup.registryRollupAuths[1], registryrollup.StateRootUpdateMessage(stateRootUpdate.Message), stateRootUpdate.Aggregation.ToBindingRollup())
+	_, err = setup.registryRollups[1].UpdateStateRoot(setup.registryRollupAuths[1], registryrollup.StateRootUpdateMessage(stateRootUpdate.Message), stateRootUpdate.Aggregation.ExtractBindingRollup())
 	if err != nil {
 		t.Fatalf("Error updating state root: %s", err.Error())
 	}

@@ -349,7 +349,7 @@ func (agg *Aggregator) handleOperatorSetUpdateReachedQuorum(ctx context.Context,
 		return
 	}
 
-	signatureInfo := blsAggServiceResp.ToBindingRollup()
+	signatureInfo := blsAggServiceResp.ExtractBindingRollup()
 	agg.rollupBroadcaster.BroadcastOperatorSetUpdate(ctx, msg, signatureInfo)
 
 	err := agg.msgDb.StoreOperatorSetUpdate(msg)

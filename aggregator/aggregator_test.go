@@ -131,7 +131,7 @@ func TestHandleOperatorSetUpdateAggregationReachedQuorum(t *testing.T) {
 	mockMsgDb.EXPECT().StoreOperatorSetUpdate(msg)
 	mockMsgDb.EXPECT().StoreOperatorSetUpdateAggregation(msg, blsAggServiceResp.MessageBlsAggregation)
 
-	signatureInfo := blsAggServiceResp.ToBindingRollup()
+	signatureInfo := blsAggServiceResp.ExtractBindingRollup()
 	mockRollupBroadcaster.EXPECT().BroadcastOperatorSetUpdate(context.Background(), msg, signatureInfo)
 
 	assert.Contains(t, aggregator.operatorSetUpdates, msgDigest)

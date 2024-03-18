@@ -53,7 +53,7 @@ func (msg MessageBlsAggregation) ToModel() models.MessageBlsAggregation {
 	}
 }
 
-func (msg MessageBlsAggregation) ToBindingMainnet() taskmanager.IBLSSignatureCheckerNonSignerStakesAndSignature {
+func (msg MessageBlsAggregation) ExtractBindingMainnet() taskmanager.IBLSSignatureCheckerNonSignerStakesAndSignature {
 	nonSignersPubkeys := make([]taskmanager.BN254G1Point, 0, len(msg.NonSignersPubkeysG1))
 	quorumApks := make([]taskmanager.BN254G1Point, 0, len(msg.QuorumApksG1))
 
@@ -77,7 +77,7 @@ func (msg MessageBlsAggregation) ToBindingMainnet() taskmanager.IBLSSignatureChe
 	}
 }
 
-func (msg MessageBlsAggregation) ToBindingRollup() registryrollup.OperatorsSignatureInfo {
+func (msg MessageBlsAggregation) ExtractBindingRollup() registryrollup.OperatorsSignatureInfo {
 	nonSignersPubkeys := make([]registryrollup.BN254G1Point, 0, len(msg.NonSignersPubkeysG1))
 
 	for _, pubkey := range msg.NonSignersPubkeysG1 {

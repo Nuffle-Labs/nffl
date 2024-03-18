@@ -66,7 +66,7 @@ func (r *AvsReader) CheckSignatures(
 	ctx context.Context, quorumNumbers []byte, aggregation messages.MessageBlsAggregation,
 ) (taskmanager.IBLSSignatureCheckerQuorumStakeTotals, error) {
 	stakeTotalsPerQuorum, _, err := r.AvsServiceBindings.TaskManager.CheckSignatures(
-		&bind.CallOpts{}, aggregation.MessageDigest, quorumNumbers, uint32(aggregation.EthBlockNumber), aggregation.ToBindingMainnet(),
+		&bind.CallOpts{}, aggregation.MessageDigest, quorumNumbers, uint32(aggregation.EthBlockNumber), aggregation.ExtractBindingMainnet(),
 	)
 	if err != nil {
 		return taskmanager.IBLSSignatureCheckerQuorumStakeTotals{}, err
