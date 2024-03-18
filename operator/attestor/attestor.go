@@ -13,9 +13,9 @@ import (
 	ethtypes "github.com/ethereum/go-ethereum/core/types"
 	"github.com/prometheus/client_golang/prometheus"
 
-	coretypes "github.com/NethermindEth/near-sffl/core/types"
 	"github.com/NethermindEth/near-sffl/core/types/messages"
 	"github.com/NethermindEth/near-sffl/operator/consumer"
+	optypes "github.com/NethermindEth/near-sffl/operator/types"
 )
 
 const (
@@ -69,14 +69,14 @@ type Attestor struct {
 	consumer        *consumer.Consumer
 
 	registry   *prometheus.Registry
-	config     *coretypes.NodeConfig
+	config     *optypes.NodeConfig
 	blsKeypair *bls.KeyPair
 	operatorId bls.OperatorId
 
 	logger sdklogging.Logger
 }
 
-func NewAttestor(config *coretypes.NodeConfig, blsKeypair *bls.KeyPair, operatorId bls.OperatorId, logger sdklogging.Logger) (*Attestor, error) {
+func NewAttestor(config *optypes.NodeConfig, blsKeypair *bls.KeyPair, operatorId bls.OperatorId, logger sdklogging.Logger) (*Attestor, error) {
 	registry := prometheus.NewRegistry()
 
 	consumer := consumer.NewConsumer(consumer.ConsumerConfig{

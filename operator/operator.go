@@ -24,17 +24,17 @@ import (
 	"github.com/ethereum/go-ethereum/common"
 	"github.com/prometheus/client_golang/prometheus"
 
-	coretypes "github.com/NethermindEth/near-sffl/core/types"
 	"github.com/NethermindEth/near-sffl/core/types/messages"
 	"github.com/NethermindEth/near-sffl/metrics"
 	"github.com/NethermindEth/near-sffl/operator/attestor"
+	optypes "github.com/NethermindEth/near-sffl/operator/types"
 )
 
 const AVS_NAME = "super-fast-finality-layer"
 const SEM_VER = "0.0.1"
 
 type Operator struct {
-	config    coretypes.NodeConfig
+	config    optypes.NodeConfig
 	logger    sdklogging.Logger
 	ethClient eth.EthClient
 	// they are only used for registration, so we should make a special registration package
@@ -60,7 +60,7 @@ type Operator struct {
 	avsManager *AvsManager
 }
 
-func createEthClients(config *coretypes.NodeConfig, registry *prometheus.Registry, logger sdklogging.Logger) (eth.EthClient, eth.EthClient, error) {
+func createEthClients(config *optypes.NodeConfig, registry *prometheus.Registry, logger sdklogging.Logger) (eth.EthClient, eth.EthClient, error) {
 	if config.EnableMetrics {
 		rpcCallsCollector := rpccalls.NewCollector(AVS_NAME, registry)
 		ethRpcClient, err := eth.NewInstrumentedClient(config.EthRpcUrl, rpcCallsCollector)
@@ -91,7 +91,7 @@ func createEthClients(config *coretypes.NodeConfig, registry *prometheus.Registr
 	return ethRpcClient, ethWsClient, nil
 }
 
-func createLogger(config *coretypes.NodeConfig) (sdklogging.Logger, error) {
+func createLogger(config *optypes.NodeConfig) (sdklogging.Logger, error) {
 	var logLevel sdklogging.LogLevel
 	if config.Production {
 		logLevel = sdklogging.Production
@@ -105,7 +105,7 @@ func createLogger(config *coretypes.NodeConfig) (sdklogging.Logger, error) {
 // TODO(samlaf): config is a mess right now, since the chainio client constructors
 //
 //	take the config in core (which is shared with aggregator and challenger)
-func NewOperatorFromConfig(c coretypes.NodeConfig) (*Operator, error) {
+func NewOperatorFromConfig(c optypes.NodeConfig) (*Operator, error) {
 	logger, err := createLogger(&c)
 	if err != nil {
 		return nil, err

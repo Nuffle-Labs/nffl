@@ -41,6 +41,7 @@ import (
 	"github.com/NethermindEth/near-sffl/core/config"
 	"github.com/NethermindEth/near-sffl/core/types"
 	"github.com/NethermindEth/near-sffl/operator"
+	optypes "github.com/NethermindEth/near-sffl/operator/types"
 )
 
 const TEST_DATA_DIR = "../../test_data"
@@ -273,7 +274,7 @@ func setupTestEnv(t *testing.T, ctx context.Context) *testEnv {
 	}
 }
 
-func startOperator(t *testing.T, ctx context.Context, nodeConfig types.NodeConfig) *operator.Operator {
+func startOperator(t *testing.T, ctx context.Context, nodeConfig optypes.NodeConfig) *operator.Operator {
 	operator, err := operator.NewOperatorFromConfig(nodeConfig)
 	if err != nil {
 		t.Fatalf("Failed to create operator: %s", err.Error())
@@ -329,8 +330,8 @@ func readSfflDeploymentRaw() config.SFFLDeploymentRaw {
 	return sfflDeploymentRaw
 }
 
-func genOperatorConfig(t *testing.T, ctx context.Context, mainnetAnvil *AnvilInstance, rollupAnvils []*AnvilInstance, rabbitMq *rabbitmq.RabbitMQContainer) (types.NodeConfig, *bls.KeyPair, *ecdsa.PrivateKey) {
-	nodeConfig := types.NodeConfig{}
+func genOperatorConfig(t *testing.T, ctx context.Context, mainnetAnvil *AnvilInstance, rollupAnvils []*AnvilInstance, rabbitMq *rabbitmq.RabbitMQContainer) (optypes.NodeConfig, *bls.KeyPair, *ecdsa.PrivateKey) {
+	nodeConfig := optypes.NodeConfig{}
 	nodeConfigFilePath := "../../config-files/operator.anvil.yaml"
 	err := sdkutils.ReadYamlConfig(nodeConfigFilePath, &nodeConfig)
 	if err != nil {

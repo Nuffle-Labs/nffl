@@ -5,11 +5,11 @@ import (
 	"log"
 
 	sdkutils "github.com/Layr-Labs/eigensdk-go/utils"
-	"github.com/NethermindEth/near-sffl/core/types"
+	optypes "github.com/NethermindEth/near-sffl/operator/types"
 )
 
-func readNodeConfig(configPath string) (*types.NodeConfig, error) {
-	nodeConfig := types.NodeConfig{}
+func readNodeConfig(configPath string) (*optypes.NodeConfig, error) {
+	nodeConfig := optypes.NodeConfig{}
 	err := sdkutils.ReadYamlConfig(configPath, &nodeConfig)
 	if err != nil {
 		return nil, err
