@@ -17,6 +17,7 @@ import (
 	contractRegistryCoordinator "github.com/Layr-Labs/eigensdk-go/contracts/bindings/RegistryCoordinator"
 	bls "github.com/Layr-Labs/eigensdk-go/crypto/bls"
 	contractSFFLTaskManager "github.com/NethermindEth/near-sffl/contracts/bindings/SFFLTaskManager"
+	messages "github.com/NethermindEth/near-sffl/core/types/messages"
 	common "github.com/ethereum/go-ethereum/common"
 	types "github.com/ethereum/go-ethereum/core/types"
 	gomock "go.uber.org/mock/gomock"
@@ -61,7 +62,7 @@ func (mr *MockAvsWritererMockRecorder) DeregisterOperator(arg0, arg1, arg2 any) 
 }
 
 // RaiseChallenge mocks base method.
-func (m *MockAvsWriterer) RaiseChallenge(arg0 context.Context, arg1 contractSFFLTaskManager.CheckpointTask, arg2 contractSFFLTaskManager.CheckpointTaskResponse, arg3 contractSFFLTaskManager.CheckpointTaskResponseMetadata, arg4 []contractSFFLTaskManager.BN254G1Point) (*types.Receipt, error) {
+func (m *MockAvsWriterer) RaiseChallenge(arg0 context.Context, arg1 contractSFFLTaskManager.CheckpointTask, arg2 messages.CheckpointTaskResponse, arg3 contractSFFLTaskManager.CheckpointTaskResponseMetadata, arg4 []contractSFFLTaskManager.BN254G1Point) (*types.Receipt, error) {
 	m.ctrl.T.Helper()
 	ret := m.ctrl.Call(m, "RaiseChallenge", arg0, arg1, arg2, arg3, arg4)
 	ret0, _ := ret[0].(*types.Receipt)
@@ -91,7 +92,7 @@ func (mr *MockAvsWritererMockRecorder) RegisterOperatorInQuorumWithAVSRegistryCo
 }
 
 // SendAggregatedResponse mocks base method.
-func (m *MockAvsWriterer) SendAggregatedResponse(arg0 context.Context, arg1 contractSFFLTaskManager.CheckpointTask, arg2 contractSFFLTaskManager.CheckpointTaskResponse, arg3 contractSFFLTaskManager.IBLSSignatureCheckerNonSignerStakesAndSignature) (*types.Receipt, error) {
+func (m *MockAvsWriterer) SendAggregatedResponse(arg0 context.Context, arg1 contractSFFLTaskManager.CheckpointTask, arg2 messages.CheckpointTaskResponse, arg3 messages.MessageBlsAggregation) (*types.Receipt, error) {
 	m.ctrl.T.Helper()
 	ret := m.ctrl.Call(m, "SendAggregatedResponse", arg0, arg1, arg2, arg3)
 	ret0, _ := ret[0].(*types.Receipt)

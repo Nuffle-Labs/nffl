@@ -18,6 +18,7 @@ import (
 	contractERC20Mock "github.com/NethermindEth/near-sffl/contracts/bindings/ERC20Mock"
 	contractSFFLOperatorSetUpdateRegistry "github.com/NethermindEth/near-sffl/contracts/bindings/SFFLOperatorSetUpdateRegistry"
 	contractSFFLTaskManager "github.com/NethermindEth/near-sffl/contracts/bindings/SFFLTaskManager"
+	messages "github.com/NethermindEth/near-sffl/core/types/messages"
 	bind "github.com/ethereum/go-ethereum/accounts/abi/bind"
 	common "github.com/ethereum/go-ethereum/common"
 	gomock "go.uber.org/mock/gomock"
@@ -47,18 +48,18 @@ func (m *MockAvsReaderer) EXPECT() *MockAvsReadererMockRecorder {
 }
 
 // CheckSignatures mocks base method.
-func (m *MockAvsReaderer) CheckSignatures(arg0 context.Context, arg1 [32]byte, arg2 []byte, arg3 uint32, arg4 contractSFFLTaskManager.IBLSSignatureCheckerNonSignerStakesAndSignature) (contractSFFLTaskManager.IBLSSignatureCheckerQuorumStakeTotals, error) {
+func (m *MockAvsReaderer) CheckSignatures(arg0 context.Context, arg1 []byte, arg2 messages.MessageBlsAggregation) (contractSFFLTaskManager.IBLSSignatureCheckerQuorumStakeTotals, error) {
 	m.ctrl.T.Helper()
-	ret := m.ctrl.Call(m, "CheckSignatures", arg0, arg1, arg2, arg3, arg4)
+	ret := m.ctrl.Call(m, "CheckSignatures", arg0, arg1, arg2)
 	ret0, _ := ret[0].(contractSFFLTaskManager.IBLSSignatureCheckerQuorumStakeTotals)
 	ret1, _ := ret[1].(error)
 	return ret0, ret1
 }
 
 // CheckSignatures indicates an expected call of CheckSignatures.
-func (mr *MockAvsReadererMockRecorder) CheckSignatures(arg0, arg1, arg2, arg3, arg4 any) *gomock.Call {
+func (mr *MockAvsReadererMockRecorder) CheckSignatures(arg0, arg1, arg2 any) *gomock.Call {
 	mr.mock.ctrl.T.Helper()
-	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "CheckSignatures", reflect.TypeOf((*MockAvsReaderer)(nil).CheckSignatures), arg0, arg1, arg2, arg3, arg4)
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "CheckSignatures", reflect.TypeOf((*MockAvsReaderer)(nil).CheckSignatures), arg0, arg1, arg2)
 }
 
 // GetCheckSignaturesIndices mocks base method.

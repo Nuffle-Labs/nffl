@@ -11,7 +11,6 @@ import (
 	"github.com/stretchr/testify/assert"
 	"go.uber.org/mock/gomock"
 
-	"github.com/NethermindEth/near-sffl/aggregator/types"
 	aggtypes "github.com/NethermindEth/near-sffl/aggregator/types"
 	coretypes "github.com/NethermindEth/near-sffl/core/types"
 	"github.com/NethermindEth/near-sffl/core/types/messages"
@@ -35,7 +34,7 @@ func TestGetStateRootUpdateAggregation(t *testing.T) {
 	msgDigest, err := msg.Digest()
 	assert.Nil(t, err)
 
-	aggregation := types.MessageBlsAggregationServiceResponse{
+	aggregation := aggtypes.MessageBlsAggregationServiceResponse{
 		MessageBlsAggregation: messages.MessageBlsAggregation{
 			MessageDigest: msgDigest,
 		},
