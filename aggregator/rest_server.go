@@ -7,6 +7,7 @@ import (
 
 	"github.com/gorilla/mux"
 
+	aggtypes "github.com/NethermindEth/near-sffl/aggregator/types"
 	"github.com/NethermindEth/near-sffl/core/types/messages"
 )
 
@@ -22,11 +23,6 @@ func (agg *Aggregator) startRestServer() error {
 	}
 
 	return nil
-}
-
-type GetStateRootUpdateAggregationResponse struct {
-	Message     messages.StateRootUpdateMessage
-	Aggregation messages.MessageBlsAggregation
 }
 
 func (agg *Aggregator) handleGetStateRootUpdateAggregation(w http.ResponseWriter, r *http.Request) {
@@ -60,15 +56,10 @@ func (agg *Aggregator) handleGetStateRootUpdateAggregation(w http.ResponseWriter
 
 	w.WriteHeader(http.StatusOK)
 	w.Header().Set("Content-Type", "application/json")
-	json.NewEncoder(w).Encode(GetStateRootUpdateAggregationResponse{
+	json.NewEncoder(w).Encode(aggtypes.GetStateRootUpdateAggregationResponse{
 		Message:     message,
 		Aggregation: aggregation,
 	})
-}
-
-type GetOperatorSetUpdateAggregationResponse struct {
-	Message     messages.OperatorSetUpdateMessage
-	Aggregation messages.MessageBlsAggregation
 }
 
 func (agg *Aggregator) handleGetOperatorSetUpdateAggregation(w http.ResponseWriter, r *http.Request) {
@@ -96,14 +87,10 @@ func (agg *Aggregator) handleGetOperatorSetUpdateAggregation(w http.ResponseWrit
 
 	w.WriteHeader(http.StatusOK)
 	w.Header().Set("Content-Type", "application/json")
-	json.NewEncoder(w).Encode(GetOperatorSetUpdateAggregationResponse{
+	json.NewEncoder(w).Encode(aggtypes.GetOperatorSetUpdateAggregationResponse{
 		Message:     message,
 		Aggregation: aggregation,
 	})
-}
-
-type GetCheckpointMessagesResponse struct {
-	CheckpointMessages messages.CheckpointMessages
 }
 
 func (agg *Aggregator) handleGetCheckpointMessages(w http.ResponseWriter, r *http.Request) {
@@ -127,7 +114,7 @@ func (agg *Aggregator) handleGetCheckpointMessages(w http.ResponseWriter, r *htt
 
 	w.WriteHeader(http.StatusOK)
 	w.Header().Set("Content-Type", "application/json")
-	json.NewEncoder(w).Encode(GetCheckpointMessagesResponse{
+	json.NewEncoder(w).Encode(aggtypes.GetCheckpointMessagesResponse{
 		CheckpointMessages: checkpointMessages,
 	})
 }

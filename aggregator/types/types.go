@@ -27,3 +27,17 @@ type MessageBlsAggregationServiceResponse struct {
 
 	Err error
 }
+
+type GetStateRootUpdateAggregationResponse struct {
+	Message     messages.StateRootUpdateMessage
+	Aggregation messages.MessageBlsAggregation
+}
+
+type GetOperatorSetUpdateAggregationResponse struct {
+	Message     messages.OperatorSetUpdateMessage
+	Aggregation messages.MessageBlsAggregation
+}
+
+type GetCheckpointMessagesResponse struct {
+	CheckpointMessages messages.CheckpointMessages
+}

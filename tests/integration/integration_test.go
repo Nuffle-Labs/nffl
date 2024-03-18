@@ -36,6 +36,7 @@ import (
 	"github.com/testcontainers/testcontainers-go/wait"
 
 	"github.com/NethermindEth/near-sffl/aggregator"
+	aggtypes "github.com/NethermindEth/near-sffl/aggregator/types"
 	registryrollup "github.com/NethermindEth/near-sffl/contracts/bindings/SFFLRegistryRollup"
 	"github.com/NethermindEth/near-sffl/core/chainio"
 	"github.com/NethermindEth/near-sffl/core/config"
@@ -768,7 +769,7 @@ func execCommand(t *testing.T, name string, arg, env []string, shouldLog bool) e
 	return err
 }
 
-func getStateRootUpdateAggregation(addr string, rollupID uint32, blockHeight uint64) (*aggregator.GetStateRootUpdateAggregationResponse, error) {
+func getStateRootUpdateAggregation(addr string, rollupID uint32, blockHeight uint64) (*aggtypes.GetStateRootUpdateAggregationResponse, error) {
 	url := fmt.Sprintf("%s/aggregation/state-root-update?rollupId=%d&blockHeight=%d", addr, rollupID, blockHeight)
 
 	resp, err := http.Get(url)
@@ -786,7 +787,7 @@ func getStateRootUpdateAggregation(addr string, rollupID uint32, blockHeight uin
 		return nil, fmt.Errorf("error: %s, message: %s", resp.Status, string(bodyBytes))
 	}
 
-	var response aggregator.GetStateRootUpdateAggregationResponse
+	var response aggtypes.GetStateRootUpdateAggregationResponse
 	if err := json.NewDecoder(resp.Body).Decode(&response); err != nil {
 		return nil, err
 	}
@@ -794,7 +795,7 @@ func getStateRootUpdateAggregation(addr string, rollupID uint32, blockHeight uin
 	return &response, nil
 }
 
-func getOperatorSetUpdateAggregation(addr string, id uint64) (*aggregator.GetOperatorSetUpdateAggregationResponse, error) {
+func getOperatorSetUpdateAggregation(addr string, id uint64) (*aggtypes.GetOperatorSetUpdateAggregationResponse, error) {
 	url := fmt.Sprintf("%s/aggregation/operator-set-update?id=%d", addr, id)
 
 	resp, err := http.Get(url)
@@ -812,7 +813,7 @@ func getOperatorSetUpdateAggregation(addr string, id uint64) (*aggregator.GetOpe
 		return nil, fmt.Errorf("error: %s", resp.Status)
 	}
 
-	var response aggregator.GetOperatorSetUpdateAggregationResponse
+	var response aggtypes.GetOperatorSetUpdateAggregationResponse
 	err = json.NewDecoder(resp.Body).Decode(&response)
 	if err != nil {
 		return nil, err

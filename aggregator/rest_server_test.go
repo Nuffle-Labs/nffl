@@ -12,6 +12,7 @@ import (
 	"go.uber.org/mock/gomock"
 
 	"github.com/NethermindEth/near-sffl/aggregator/types"
+	aggtypes "github.com/NethermindEth/near-sffl/aggregator/types"
 	coretypes "github.com/NethermindEth/near-sffl/core/types"
 	"github.com/NethermindEth/near-sffl/core/types/messages"
 )
@@ -75,11 +76,11 @@ func TestGetStateRootUpdateAggregation(t *testing.T) {
 
 	aggregator.handleGetStateRootUpdateAggregation(recorder, req)
 
-	expectedBody := GetStateRootUpdateAggregationResponse{
+	expectedBody := aggtypes.GetStateRootUpdateAggregationResponse{
 		Message:     msg,
 		Aggregation: aggregation.MessageBlsAggregation,
 	}
-	var body GetStateRootUpdateAggregationResponse
+	var body aggtypes.GetStateRootUpdateAggregationResponse
 
 	assert.Equal(t, recorder.Code, http.StatusOK)
 
@@ -148,11 +149,11 @@ func TestGetOperatorSetUpdateAggregation(t *testing.T) {
 
 	aggregator.handleGetOperatorSetUpdateAggregation(recorder, req)
 
-	expectedBody := GetOperatorSetUpdateAggregationResponse{
+	expectedBody := aggtypes.GetOperatorSetUpdateAggregationResponse{
 		Message:     msg,
 		Aggregation: aggregation,
 	}
-	var body GetOperatorSetUpdateAggregationResponse
+	var body aggtypes.GetOperatorSetUpdateAggregationResponse
 
 	assert.Equal(t, recorder.Code, http.StatusOK)
 
@@ -222,7 +223,7 @@ func TestGetCheckpointMessages(t *testing.T) {
 
 	aggregator.handleGetCheckpointMessages(recorder, req)
 
-	expectedBody := GetCheckpointMessagesResponse{
+	expectedBody := aggtypes.GetCheckpointMessagesResponse{
 		CheckpointMessages: messages.CheckpointMessages{
 			StateRootUpdateMessages:              []messages.StateRootUpdateMessage{msg},
 			StateRootUpdateMessageAggregations:   []messages.MessageBlsAggregation{aggregation},
@@ -230,7 +231,7 @@ func TestGetCheckpointMessages(t *testing.T) {
 			OperatorSetUpdateMessageAggregations: []messages.MessageBlsAggregation{aggregation2},
 		},
 	}
-	var body GetCheckpointMessagesResponse
+	var body aggtypes.GetCheckpointMessagesResponse
 
 	assert.Equal(t, recorder.Code, http.StatusOK)
 
