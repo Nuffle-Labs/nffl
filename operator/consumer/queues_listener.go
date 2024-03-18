@@ -33,7 +33,7 @@ func NewQueuesListener(receivedBlocksC chan<- BlockData, logger logging.Logger) 
 	return listener
 }
 
-func (l *QueuesListener) Add(rollupId uint32, rollupDataC <-chan rmq.Delivery, ctx context.Context) error {
+func (l *QueuesListener) Add(ctx context.Context, rollupId uint32, rollupDataC <-chan rmq.Delivery) error {
 	l.queueDeliveryMutex.Lock()
 	defer l.queueDeliveryMutex.Unlock()
 
@@ -42,7 +42,7 @@ func (l *QueuesListener) Add(rollupId uint32, rollupDataC <-chan rmq.Delivery, c
 	}
 	l.queueDeliveryCs[rollupId] = rollupDataC
 
-	go l.listen(rollupId, rollupDataC, ctx)
+	go l.listen(ctx, rollupId, rollupDataC)
 
 	return nil
 }
@@ -53,7 +53,7 @@ func (l *QueuesListener) Remove(rollupId uint32) {
 	l.queueDeliveryMutex.Unlock()
 }
 
-func (l *QueuesListener) listen(rollupId uint32, rollupDataC <-chan rmq.Delivery, ctx context.Context) {
+func (l *QueuesListener) listen(ctx context.Context, rollupId uint32, rollupDataC <-chan rmq.Delivery) {
 	for {
 		select {
 		case d, ok := <-rollupDataC:

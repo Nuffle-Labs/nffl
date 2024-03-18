@@ -203,7 +203,7 @@ func (consumer *Consumer) setupChannel(conn *rmq.Connection, ctx context.Context
 			return err
 		}
 
-		err = listener.Add(rollupId, rollupDataC, ctx)
+		err = listener.Add(ctx, rollupId, rollupDataC)
 		if err != nil {
 			return err
 		}

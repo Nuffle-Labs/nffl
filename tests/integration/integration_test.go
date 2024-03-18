@@ -28,7 +28,6 @@ import (
 	"github.com/docker/go-connections/nat"
 	"github.com/ethereum/go-ethereum/accounts/abi/bind"
 	"github.com/ethereum/go-ethereum/common"
-	"github.com/ethereum/go-ethereum/common/hexutil"
 	ethtypes "github.com/ethereum/go-ethereum/core/types"
 	"github.com/ethereum/go-ethereum/crypto"
 	"github.com/ethereum/go-ethereum/rlp"
@@ -75,12 +74,12 @@ func TestIntegration(t *testing.T) {
 		t.Fatalf("Task response hash is empty")
 	}
 
-	stateRootHeight, err := setup.rollupAnvils[1].getCurrentBlockHeight()
+	stateRootHeight, err := setup.rollupAnvils[1].HttpClient.BlockNumber(ctx)
 	if err != nil {
 		t.Fatalf("Cannot get current block height: %s", err.Error())
 	}
 
-	stateRootUpdate, err := getStateRootUpdateAggregation(setup.aggregatorRestUrl, uint32(setup.rollupAnvils[0].ChainID.Uint64()), stateRootHeight.Uint64()-1)
+	stateRootUpdate, err := getStateRootUpdateAggregation(setup.aggregatorRestUrl, uint32(setup.rollupAnvils[0].ChainID.Uint64()), stateRootHeight-1)
 	if err != nil {
 		t.Fatalf("Cannot get state root update: %s", err.Error())
 	}
@@ -115,12 +114,12 @@ func TestIntegration(t *testing.T) {
 		t.Fatalf("Wrong operator set update count")
 	}
 
-	stateRootHeight, err = setup.rollupAnvils[1].getCurrentBlockHeight()
+	stateRootHeight, err = setup.rollupAnvils[1].HttpClient.BlockNumber(ctx)
 	if err != nil {
 		t.Fatalf("Cannot get current block height: %s", err.Error())
 	}
 
-	stateRootUpdate, err = getStateRootUpdateAggregation(setup.aggregatorRestUrl, uint32(setup.rollupAnvils[0].ChainID.Uint64()), stateRootHeight.Uint64()-1)
+	stateRootUpdate, err = getStateRootUpdateAggregation(setup.aggregatorRestUrl, uint32(setup.rollupAnvils[0].ChainID.Uint64()), stateRootHeight-1)
 	if err != nil {
 		t.Fatalf("Cannot get state root update: %s", err.Error())
 	}
@@ -864,12 +863,4 @@ func (ai *AnvilInstance) setBalance(address common.Address, balance *big.Int) er
 
 func (ai *AnvilInstance) mine(blockCount, timestampInterval *big.Int) error {
 	return ai.WsClient.Client.Client().Call(nil, "anvil_mine", "0x"+blockCount.Text(16), "0x"+timestampInterval.Text(16))
-}
-
-func (ai *AnvilInstance) getCurrentBlockHeight() (*big.Int, error) {
-	var result hexutil.Big
-	if err := ai.WsClient.Client.Client().Call(&result, "eth_blockNumber"); err != nil {
-		return nil, err
-	}
-	return (*big.Int)(&result), nil
 }

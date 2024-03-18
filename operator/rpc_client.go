@@ -34,15 +34,15 @@ type RpcMessageType struct {
 }
 
 type AggregatorRpcClient struct {
-	rpcClientMutex sync.Mutex
-	rpcClient      *rpc.Client
+	rpcClientLock sync.Mutex
+	rpcClient     *rpc.Client
 
 	metrics              metrics.Metrics
 	logger               logging.Logger
 	aggregatorIpPortAddr string
 
-	unsentMessagesMutex sync.Mutex
-	unsentMessages      []RpcMessageType
+	unsentMessagesLock sync.Mutex
+	unsentMessages     []RpcMessageType
 
 	resendTicker *time.Ticker
 }
@@ -76,8 +76,8 @@ func (c *AggregatorRpcClient) dialAggregatorRpcClient() error {
 }
 
 func (c *AggregatorRpcClient) InitializeClientIfNotExist() error {
-	c.rpcClientMutex.Lock()
-	defer c.rpcClientMutex.Unlock()
+	c.rpcClientLock.Lock()
+	defer c.rpcClientLock.Unlock()
 
 	if c.rpcClient != nil {
 		return nil
@@ -93,12 +93,12 @@ func (c *AggregatorRpcClient) onTick() {
 
 		// Critically ugly section
 		{
-			c.unsentMessagesMutex.Lock()
+			c.unsentMessagesLock.Lock()
 			if len(c.unsentMessages) == 0 {
-				c.unsentMessagesMutex.Unlock()
+				c.unsentMessagesLock.Unlock()
 				continue
 			}
-			c.unsentMessagesMutex.Unlock()
+			c.unsentMessagesLock.Unlock()
 		}
 
 		err := c.InitializeClientIfNotExist()
@@ -112,8 +112,8 @@ func (c *AggregatorRpcClient) onTick() {
 
 // Expected to be called with initialized client.
 func (c *AggregatorRpcClient) tryResendFromDeque() {
-	c.unsentMessagesMutex.Lock()
-	defer c.unsentMessagesMutex.Unlock()
+	c.unsentMessagesLock.Lock()
+	defer c.unsentMessagesLock.Unlock()
 
 	if len(c.unsentMessages) != 0 {
 		c.logger.Info("Resending messages from queue")
@@ -158,9 +158,9 @@ func (c *AggregatorRpcClient) tryResendFromDeque() {
 
 func (c *AggregatorRpcClient) sendRequest(sendCb func() error, message RpcMessageType) {
 	appendProtected := func() {
-		c.unsentMessagesMutex.Lock()
+		c.unsentMessagesLock.Lock()
 		c.unsentMessages = append(c.unsentMessages, message)
-		c.unsentMessagesMutex.Unlock()
+		c.unsentMessagesLock.Unlock()
 	}
 
 	err := c.InitializeClientIfNotExist()
