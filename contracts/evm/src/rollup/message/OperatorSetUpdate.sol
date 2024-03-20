@@ -19,6 +19,13 @@ library OperatorSetUpdate {
     }
 
     /**
+     * @notice Size, in bits, of the message index.
+     * @dev This is linked to the byte size of Message.id. This MUST be updated
+     * if the Message.id type is changed.
+     */
+    uint256 internal constant INDEX_BITS = 64;
+
+    /**
      * @notice Hashes an operator set update message
      * @param message Message structured data
      * @return Message hash
@@ -34,5 +41,26 @@ library OperatorSetUpdate {
      */
     function hash(Message memory message) internal pure returns (bytes32) {
         return keccak256(abi.encode(message));
+    }
+
+    /**
+     * @notice Gets a state root update index
+     * @dev This is linked to the byte size of Message.id. This MUST be updated
+     * if the Message.id type is changed.
+     * @param message Message structured data
+     * @return Message index
+     */
+    function indexCalldata(Message calldata message) internal pure returns (uint256) {
+        return uint256(message.id);
+    }
+
+    /**
+     * @notice Gets a state root update index
+     * @dev This is linked to the byte size of Message.id. This MUST be updated
+     * if the Message.id type is changed.
+     * @return Message index
+     */
+    function index(Message memory message) internal pure returns (uint256) {
+        return uint256(message.id);
     }
 }
