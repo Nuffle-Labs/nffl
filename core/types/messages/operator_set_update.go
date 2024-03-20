@@ -6,7 +6,6 @@ import (
 	"github.com/Layr-Labs/eigensdk-go/crypto/bls"
 	"github.com/ethereum/go-ethereum/accounts/abi"
 
-	"github.com/NethermindEth/near-sffl/aggregator/database/models"
 	registryrollup "github.com/NethermindEth/near-sffl/contracts/bindings/SFFLRegistryRollup"
 	"github.com/NethermindEth/near-sffl/core"
 	coretypes "github.com/NethermindEth/near-sffl/core/types"
@@ -22,22 +21,6 @@ type SignedOperatorSetUpdateMessage struct {
 	Message      OperatorSetUpdateMessage
 	BlsSignature bls.Signature
 	OperatorId   bls.OperatorId
-}
-
-func NewOperatorSetUpdateMessageFromModel(model models.OperatorSetUpdateMessage) OperatorSetUpdateMessage {
-	return OperatorSetUpdateMessage{
-		Id:        model.UpdateId,
-		Timestamp: model.Timestamp,
-		Operators: model.Operators,
-	}
-}
-
-func (msg OperatorSetUpdateMessage) ToModel() models.OperatorSetUpdateMessage {
-	return models.OperatorSetUpdateMessage{
-		UpdateId:  msg.Id,
-		Timestamp: msg.Timestamp,
-		Operators: msg.Operators,
-	}
 }
 
 func NewOperatorSetUpdateMessageFromBinding(binding registryrollup.OperatorSetUpdateMessage) OperatorSetUpdateMessage {

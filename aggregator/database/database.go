@@ -85,13 +85,13 @@ func (d *Database) FetchStateRootUpdate(rollupId uint32, blockHeight uint64, sta
 		return tx.Error
 	}
 
-	*stateRootUpdateMessage = messages.NewStateRootUpdateMessageFromModel(model)
+	*stateRootUpdateMessage = model.ToMessage()
 
 	return nil
 }
 
 func (d *Database) StoreStateRootUpdateAggregation(stateRootUpdateMessage messages.StateRootUpdateMessage, aggregation messages.MessageBlsAggregation) error {
-	model := aggregation.ToModel()
+	model := models.NewMessageBlsAggregationModel(aggregation)
 
 	err := d.db.
 		Clauses(clause.OnConflict{UpdateAll: true}).
@@ -120,7 +120,7 @@ func (d *Database) FetchStateRootUpdateAggregation(rollupId uint32, blockHeight 
 		return tx.Error
 	}
 
-	*aggregation = messages.NewMessageBlsAggregationFromModel(*model.Aggregation)
+	*aggregation = model.Aggregation.ToMessage()
 
 	return nil
 }
@@ -146,7 +146,7 @@ func (d *Database) FetchOperatorSetUpdate(id uint64, operatorSetUpdateMessage *m
 	if tx.Error != nil {
 		return tx.Error
 	}
-	*operatorSetUpdateMessage = messages.NewOperatorSetUpdateMessageFromModel(model)
+	*operatorSetUpdateMessage = model.ToMessage()
 
 	if tx.Error != nil {
 		return tx.Error
@@ -156,7 +156,7 @@ func (d *Database) FetchOperatorSetUpdate(id uint64, operatorSetUpdateMessage *m
 }
 
 func (d *Database) StoreOperatorSetUpdateAggregation(operatorSetUpdateMessage messages.OperatorSetUpdateMessage, aggregation messages.MessageBlsAggregation) error {
-	model := aggregation.ToModel()
+	model := models.NewMessageBlsAggregationModel(aggregation)
 
 	err := d.db.
 		Clauses(clause.OnConflict{UpdateAll: true}).
@@ -183,7 +183,7 @@ func (d *Database) FetchOperatorSetUpdateAggregation(id uint64, aggregation *mes
 		return tx.Error
 	}
 
-	*aggregation = messages.NewMessageBlsAggregationFromModel(*model.Aggregation)
+	*aggregation = model.Aggregation.ToMessage()
 
 	return nil
 }
@@ -225,15 +225,15 @@ func (d *Database) FetchCheckpointMessages(fromTimestamp uint64, toTimestamp uin
 	for _, stateRootUpdate := range stateRootUpdates {
 		agg := stateRootUpdate.Aggregation
 
-		stateRootUpdateMessages = append(stateRootUpdateMessages, messages.NewStateRootUpdateMessageFromModel(stateRootUpdate))
-		stateRootUpdateMessageAggregations = append(stateRootUpdateMessageAggregations, messages.NewMessageBlsAggregationFromModel(*agg))
+		stateRootUpdateMessages = append(stateRootUpdateMessages, stateRootUpdate.ToMessage())
+		stateRootUpdateMessageAggregations = append(stateRootUpdateMessageAggregations, agg.ToMessage())
 	}
 
 	for _, operatorSetUpdate := range operatorSetUpdates {
 		agg := operatorSetUpdate.Aggregation
 
-		operatorSetUpdateMessages = append(operatorSetUpdateMessages, messages.NewOperatorSetUpdateMessageFromModel(operatorSetUpdate))
-		operatorSetUpdateMessageAggregations = append(operatorSetUpdateMessageAggregations, messages.NewMessageBlsAggregationFromModel(*agg))
+		operatorSetUpdateMessages = append(operatorSetUpdateMessages, operatorSetUpdate.ToMessage())
+		operatorSetUpdateMessageAggregations = append(operatorSetUpdateMessageAggregations, agg.ToMessage())
 	}
 
 	*result = messages.CheckpointMessages{

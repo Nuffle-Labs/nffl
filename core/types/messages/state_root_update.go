@@ -4,7 +4,6 @@ import (
 	"github.com/Layr-Labs/eigensdk-go/crypto/bls"
 	"github.com/ethereum/go-ethereum/accounts/abi"
 
-	"github.com/NethermindEth/near-sffl/aggregator/database/models"
 	servicemanager "github.com/NethermindEth/near-sffl/contracts/bindings/SFFLServiceManager"
 	"github.com/NethermindEth/near-sffl/core"
 	coretypes "github.com/NethermindEth/near-sffl/core/types"
@@ -21,24 +20,6 @@ type SignedStateRootUpdateMessage struct {
 	Message      StateRootUpdateMessage
 	BlsSignature bls.Signature
 	OperatorId   bls.OperatorId
-}
-
-func NewStateRootUpdateMessageFromModel(model models.StateRootUpdateMessage) StateRootUpdateMessage {
-	return StateRootUpdateMessage{
-		RollupId:    model.RollupId,
-		BlockHeight: model.BlockHeight,
-		Timestamp:   model.Timestamp,
-		StateRoot:   [32]byte(model.StateRoot),
-	}
-}
-
-func (msg StateRootUpdateMessage) ToModel() models.StateRootUpdateMessage {
-	return models.StateRootUpdateMessage{
-		RollupId:    msg.RollupId,
-		BlockHeight: msg.BlockHeight,
-		Timestamp:   msg.Timestamp,
-		StateRoot:   msg.StateRoot[:],
-	}
 }
 
 func NewStateRootUpdateMessageFromBinding(binding servicemanager.StateRootUpdateMessage) StateRootUpdateMessage {

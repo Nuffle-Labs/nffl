@@ -3,7 +3,6 @@ package messages
 import (
 	"github.com/Layr-Labs/eigensdk-go/crypto/bls"
 
-	"github.com/NethermindEth/near-sffl/aggregator/database/models"
 	registryrollup "github.com/NethermindEth/near-sffl/contracts/bindings/SFFLRegistryRollup"
 	taskmanager "github.com/NethermindEth/near-sffl/contracts/bindings/SFFLTaskManager"
 	"github.com/NethermindEth/near-sffl/core"
@@ -21,36 +20,6 @@ type MessageBlsAggregation struct {
 	QuorumApkIndices             []uint32
 	TotalStakeIndices            []uint32
 	NonSignerStakeIndices        [][]uint32
-}
-
-func NewMessageBlsAggregationFromModel(model models.MessageBlsAggregation) MessageBlsAggregation {
-	return MessageBlsAggregation{
-		EthBlockNumber:               model.EthBlockNumber,
-		MessageDigest:                [32]byte(model.MessageDigest),
-		NonSignersPubkeysG1:          model.NonSignersPubkeysG1,
-		QuorumApksG1:                 model.QuorumApksG1,
-		SignersApkG2:                 model.SignersApkG2,
-		SignersAggSigG1:              model.SignersAggSigG1,
-		NonSignerQuorumBitmapIndices: model.NonSignerQuorumBitmapIndices,
-		QuorumApkIndices:             model.QuorumApkIndices,
-		TotalStakeIndices:            model.TotalStakeIndices,
-		NonSignerStakeIndices:        model.NonSignerStakeIndices,
-	}
-}
-
-func (msg MessageBlsAggregation) ToModel() models.MessageBlsAggregation {
-	return models.MessageBlsAggregation{
-		EthBlockNumber:               msg.EthBlockNumber,
-		MessageDigest:                msg.MessageDigest[:],
-		NonSignersPubkeysG1:          msg.NonSignersPubkeysG1,
-		QuorumApksG1:                 msg.QuorumApksG1,
-		SignersApkG2:                 msg.SignersApkG2,
-		SignersAggSigG1:              msg.SignersAggSigG1,
-		NonSignerQuorumBitmapIndices: msg.NonSignerQuorumBitmapIndices,
-		QuorumApkIndices:             msg.QuorumApkIndices,
-		TotalStakeIndices:            msg.TotalStakeIndices,
-		NonSignerStakeIndices:        msg.NonSignerStakeIndices,
-	}
 }
 
 func (msg MessageBlsAggregation) ExtractBindingMainnet() taskmanager.IBLSSignatureCheckerNonSignerStakesAndSignature {
