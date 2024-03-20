@@ -225,4 +225,22 @@ contract SFFLRegistryBaseTest is Test {
         vm.expectRevert("Agreement denied");
         registry.updateAndGetStorageValue(message, proofParams, hex"ff");
     }
+
+    function test_updateAndGetStorageValue_RevertWhen_NoNearDaData() public {
+        SFFLRegistryBase.ProofParams memory proofParams = SFFLRegistryBase.ProofParams({
+            target: 0xEeeeeEeeeEeEeeEeEeEeeEEEeeeeEeeeeeeeEEeE,
+            storageKey: 0x470ebe1a3f7c174ece10a895b1c5597999ee280a8a7afaae776da0692fc28e7b,
+            stateTrieWitness: hex"f86eb86cf86aa1209f74bd52020a869dbd6c5918e246e54fe47bed2b9e96439c406e5c0732d089bfb846f8448080a01efe59d3e576d132e64cb197fc20e8cb2ed260308c189f2a0bb14843eb126b1ca056570de287d73cd1cb6092bb8fdee6173974955fdef345ae579ee9f475ea7432",
+            storageTrieWitness: hex"f848b846f844a1206cda01cb275318e1eb18c3a672f0185922be53b3d63d6a92fbf81420cf1a2783a1a0ffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffff"
+        });
+
+        bytes32 stateRoot = 0xd223489d5fdd65f1fb9beb4dd16a35540d34993f68409f8033a27e8115020f15;
+
+        StateRootUpdate.Message memory message = StateRootUpdate.Message(1, 2, 3, 0, 0, stateRoot);
+
+        registry.setShouldDenyAgreement(false);
+
+        vm.expectRevert("Empty NEAR DA commitment");
+        registry.updateAndGetStorageValue(message, proofParams, hex"ff");
+    }
 }
