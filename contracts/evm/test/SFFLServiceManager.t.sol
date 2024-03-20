@@ -77,7 +77,9 @@ contract SFFLServiceManagerTest is TestUtils {
             rollupId: 0,
             blockHeight: 1,
             timestamp: 2,
-            stateRoot: bytes32(keccak256(hex"f00d"))
+            transactionId: keccak256(hex"03"),
+            commitment: keccak256(hex"04"),
+            stateRoot: keccak256(hex"f00d")
         });
 
         (, IBLSSignatureChecker.NonSignerStakesAndSignature memory nonSignerStakesAndSignature) =
@@ -98,7 +100,9 @@ contract SFFLServiceManagerTest is TestUtils {
             rollupId: 0,
             blockHeight: 1,
             timestamp: 2,
-            stateRoot: bytes32(keccak256(hex"f00d"))
+            transactionId: keccak256(hex"03"),
+            commitment: keccak256(hex"04"),
+            stateRoot: keccak256(hex"f00d")
         });
 
         (, IBLSSignatureChecker.NonSignerStakesAndSignature memory nonSignerStakesAndSignature) =
