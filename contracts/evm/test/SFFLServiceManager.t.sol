@@ -77,8 +77,8 @@ contract SFFLServiceManagerTest is TestUtils {
             rollupId: 0,
             blockHeight: 1,
             timestamp: 2,
-            transactionId: keccak256(hex"03"),
-            commitment: keccak256(hex"04"),
+            nearDaTransactionId: keccak256(hex"03"),
+            nearDaCommitment: keccak256(hex"04"),
             stateRoot: keccak256(hex"f00d")
         });
 
@@ -100,8 +100,8 @@ contract SFFLServiceManagerTest is TestUtils {
             rollupId: 0,
             blockHeight: 1,
             timestamp: 2,
-            transactionId: keccak256(hex"03"),
-            commitment: keccak256(hex"04"),
+            nearDaTransactionId: keccak256(hex"03"),
+            nearDaCommitment: keccak256(hex"04"),
             stateRoot: keccak256(hex"f00d")
         });
 

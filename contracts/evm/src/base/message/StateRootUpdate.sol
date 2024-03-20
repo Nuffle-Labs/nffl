@@ -18,8 +18,8 @@ library StateRootUpdate {
         uint32 rollupId;
         uint64 blockHeight;
         uint64 timestamp;
-        bytes32 transactionId;
-        bytes32 commitment;
+        bytes32 nearDaTransactionId;
+        bytes32 nearDaCommitment;
         bytes32 stateRoot;
     }
 
