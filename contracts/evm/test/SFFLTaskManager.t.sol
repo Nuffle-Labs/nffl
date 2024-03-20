@@ -12,7 +12,7 @@ import {StateRootUpdate} from "../src/base/message/StateRootUpdate.sol";
 import {SFFLTaskManager} from "../src/eth/SFFLTaskManager.sol";
 import {Checkpoint} from "../src/eth/task/Checkpoint.sol";
 import {SparseMerkleTree} from "../src/eth/utils/SparseMerkleTree.sol";
-import {OperatorSetUpdate, Operators} from "../src/base/message/OperatorSetUpdate.sol";
+import {OperatorSetUpdate, RollupOperators} from "../src/base/message/OperatorSetUpdate.sol";
 
 import {TestUtils} from "./utils/TestUtils.sol";
 
@@ -480,8 +480,8 @@ contract SFFLTaskManagerTest is TestUtils {
     }
 
     function test_verifyMessageInclusionState_operatorSetUpdate_Inclusion() public {
-        Operators.Operator[] memory operators = new Operators.Operator[](1);
-        operators[0] = Operators.Operator({pubkey: BN254.G1Point(10000, 10001), weight: 10002});
+        RollupOperators.Operator[] memory operators = new RollupOperators.Operator[](1);
+        operators[0] = RollupOperators.Operator({pubkey: BN254.G1Point(10000, 10001), weight: 10002});
 
         OperatorSetUpdate.Message memory message =
             OperatorSetUpdate.Message({id: 10000, timestamp: 10002, operators: operators});
@@ -516,8 +516,8 @@ contract SFFLTaskManagerTest is TestUtils {
     }
 
     function test_verifyMessageInclusionState_operatorSetUpdate_NonInclusionEmpty() public {
-        Operators.Operator[] memory operators = new Operators.Operator[](1);
-        operators[0] = Operators.Operator({pubkey: BN254.G1Point(10000, 10001), weight: 10002});
+        RollupOperators.Operator[] memory operators = new RollupOperators.Operator[](1);
+        operators[0] = RollupOperators.Operator({pubkey: BN254.G1Point(10000, 10001), weight: 10002});
 
         OperatorSetUpdate.Message memory message =
             OperatorSetUpdate.Message({id: 30000, timestamp: 10002, operators: operators});
@@ -539,8 +539,8 @@ contract SFFLTaskManagerTest is TestUtils {
     }
 
     function test_verifyMessageInclusionState_operatorSetUpdate_NonInclusionNonEmpty() public {
-        Operators.Operator[] memory operators = new Operators.Operator[](1);
-        operators[0] = Operators.Operator({pubkey: BN254.G1Point(10000, 10001), weight: 10002});
+        RollupOperators.Operator[] memory operators = new RollupOperators.Operator[](1);
+        operators[0] = RollupOperators.Operator({pubkey: BN254.G1Point(10000, 10001), weight: 10002});
 
         OperatorSetUpdate.Message memory message =
             OperatorSetUpdate.Message({id: 10000, timestamp: 10002, operators: operators});
@@ -579,8 +579,8 @@ contract SFFLTaskManagerTest is TestUtils {
     }
 
     function test_verifyMessageInclusionState_operatorSetUpdate_RevertWhen_WrongMessageIndex() public {
-        Operators.Operator[] memory operators = new Operators.Operator[](1);
-        operators[0] = Operators.Operator({pubkey: BN254.G1Point(10000, 10001), weight: 10002});
+        RollupOperators.Operator[] memory operators = new RollupOperators.Operator[](1);
+        operators[0] = RollupOperators.Operator({pubkey: BN254.G1Point(10000, 10001), weight: 10002});
 
         OperatorSetUpdate.Message memory message =
             OperatorSetUpdate.Message({id: 10000, timestamp: 10002, operators: operators});

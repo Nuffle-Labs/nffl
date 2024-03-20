@@ -5,7 +5,7 @@ import {BN254} from "eigenlayer-middleware/src/libraries/BN254.sol";
 
 import {SFFLRegistryRollup} from "../src/rollup/SFFLRegistryRollup.sol";
 import {StateRootUpdate} from "../src/base/message/StateRootUpdate.sol";
-import {Operators} from "../src/base/utils/Operators.sol";
+import {RollupOperators} from "../src/base/utils/RollupOperators.sol";
 import {OperatorSetUpdate} from "../src/base/message/OperatorSetUpdate.sol";
 
 import {TestUtils} from "./utils/TestUtils.sol";
@@ -17,8 +17,8 @@ contract SFFLRegistryRollupTest is TestUtils {
 
     SFFLRegistryRollup public registry;
 
-    Operators.Operator[] public initialOperators;
-    Operators.Operator[] public extraOperators;
+    RollupOperators.Operator[] public initialOperators;
+    RollupOperators.Operator[] public extraOperators;
 
     uint128 public constant DEFAULT_WEIGHT = 100;
     uint128 public QUORUM_THRESHOLD = 2 * uint128(100) / 3;
@@ -30,7 +30,7 @@ contract SFFLRegistryRollupTest is TestUtils {
     function setUp() public {
         // BLSUtilsFFI.keygen(4, 100)
         initialOperators.push(
-            Operators.Operator(
+            RollupOperators.Operator(
                 BN254.G1Point(
                     9616480996400718794846151252530035789548914510416131398073228825370885543387,
                     1193202739907461244540326755381374372389880624644682929124544554638046348630
@@ -39,7 +39,7 @@ contract SFFLRegistryRollupTest is TestUtils {
             )
         );
         initialOperators.push(
-            Operators.Operator(
+            RollupOperators.Operator(
                 BN254.G1Point(
                     18127872302725521126948039783576335344235515541656874329008995106922633337074,
                     8399728219671791397177034566462901981672518419761436513477052772303615710768
@@ -48,7 +48,7 @@ contract SFFLRegistryRollupTest is TestUtils {
             )
         );
         initialOperators.push(
-            Operators.Operator(
+            RollupOperators.Operator(
                 BN254.G1Point(
                     21052107500402163350976152667562860793896335512669052649238089783827995103691,
                     19540845318985121430596366476154886876615197304682640344094567483512876396969
@@ -57,7 +57,7 @@ contract SFFLRegistryRollupTest is TestUtils {
             )
         );
         initialOperators.push(
-            Operators.Operator(
+            RollupOperators.Operator(
                 BN254.G1Point(
                     2219290000546820918614914859472334932465240992233723879760496915453797571330,
                     12792826480108937261317636923053265154992326678284813916740018134087766211155
@@ -67,7 +67,7 @@ contract SFFLRegistryRollupTest is TestUtils {
         );
 
         extraOperators.push(
-            Operators.Operator(
+            RollupOperators.Operator(
                 BN254.G1Point(
                     1768235322131906328721284719328963673934008473718528701566488601237085071962,
                     4002933128315738291771882099514828917162455208473397665597366416040939248693
@@ -93,10 +93,10 @@ contract SFFLRegistryRollupTest is TestUtils {
     }
 
     function test_updateOperatorSet() public {
-        Operators.Operator[] memory operators = new Operators.Operator[](3);
+        RollupOperators.Operator[] memory operators = new RollupOperators.Operator[](3);
 
-        operators[0] = Operators.Operator(initialOperators[3].pubkey, 0);
-        operators[1] = Operators.Operator(initialOperators[2].pubkey, 3 * DEFAULT_WEIGHT);
+        operators[0] = RollupOperators.Operator(initialOperators[3].pubkey, 0);
+        operators[1] = RollupOperators.Operator(initialOperators[2].pubkey, 3 * DEFAULT_WEIGHT);
         operators[2] = extraOperators[0];
 
         OperatorSetUpdate.Message memory message =
@@ -105,7 +105,7 @@ contract SFFLRegistryRollupTest is TestUtils {
         BN254.G1Point[] memory nonSignerPubkeys = new BN254.G1Point[](1);
         nonSignerPubkeys[0] = initialOperators[3].pubkey;
 
-        Operators.SignatureInfo memory signatureInfo = Operators.SignatureInfo({
+        RollupOperators.SignatureInfo memory signatureInfo = RollupOperators.SignatureInfo({
             nonSignerPubkeys: nonSignerPubkeys,
             apkG2: BN254.G2Point(
                 [
@@ -146,10 +146,10 @@ contract SFFLRegistryRollupTest is TestUtils {
     }
 
     function test_updateOperatorSet_RevertWhen_QuorumNotMet() public {
-        Operators.Operator[] memory operators = new Operators.Operator[](3);
+        RollupOperators.Operator[] memory operators = new RollupOperators.Operator[](3);
 
-        operators[0] = Operators.Operator(initialOperators[3].pubkey, 0);
-        operators[1] = Operators.Operator(initialOperators[2].pubkey, 3 * DEFAULT_WEIGHT);
+        operators[0] = RollupOperators.Operator(initialOperators[3].pubkey, 0);
+        operators[1] = RollupOperators.Operator(initialOperators[2].pubkey, 3 * DEFAULT_WEIGHT);
         operators[2] = extraOperators[0];
 
         OperatorSetUpdate.Message memory message =
@@ -159,7 +159,7 @@ contract SFFLRegistryRollupTest is TestUtils {
         nonSignerPubkeys[0] = initialOperators[3].pubkey;
         nonSignerPubkeys[1] = initialOperators[2].pubkey;
 
-        Operators.SignatureInfo memory signatureInfo = Operators.SignatureInfo({
+        RollupOperators.SignatureInfo memory signatureInfo = RollupOperators.SignatureInfo({
             nonSignerPubkeys: nonSignerPubkeys,
             apkG2: BN254.G2Point(
                 [
@@ -182,10 +182,10 @@ contract SFFLRegistryRollupTest is TestUtils {
     }
 
     function test_updateOperatorSet_RevertWhen_WrongMessageId() public {
-        Operators.Operator[] memory operators = new Operators.Operator[](3);
+        RollupOperators.Operator[] memory operators = new RollupOperators.Operator[](3);
 
-        operators[0] = Operators.Operator(initialOperators[3].pubkey, 0);
-        operators[1] = Operators.Operator(initialOperators[2].pubkey, 3 * DEFAULT_WEIGHT);
+        operators[0] = RollupOperators.Operator(initialOperators[3].pubkey, 0);
+        operators[1] = RollupOperators.Operator(initialOperators[2].pubkey, 3 * DEFAULT_WEIGHT);
         operators[2] = extraOperators[0];
 
         OperatorSetUpdate.Message memory message =
@@ -195,7 +195,7 @@ contract SFFLRegistryRollupTest is TestUtils {
         nonSignerPubkeys[0] = initialOperators[3].pubkey;
         nonSignerPubkeys[1] = initialOperators[2].pubkey;
 
-        Operators.SignatureInfo memory signatureInfo = Operators.SignatureInfo({
+        RollupOperators.SignatureInfo memory signatureInfo = RollupOperators.SignatureInfo({
             nonSignerPubkeys: nonSignerPubkeys,
             apkG2: BN254.G2Point(
                 [
@@ -224,7 +224,7 @@ contract SFFLRegistryRollupTest is TestUtils {
         BN254.G1Point[] memory nonSignerPubkeys = new BN254.G1Point[](1);
         nonSignerPubkeys[0] = initialOperators[3].pubkey;
 
-        Operators.SignatureInfo memory signatureInfo = Operators.SignatureInfo({
+        RollupOperators.SignatureInfo memory signatureInfo = RollupOperators.SignatureInfo({
             nonSignerPubkeys: nonSignerPubkeys,
             apkG2: BN254.G2Point(
                 [
@@ -259,7 +259,7 @@ contract SFFLRegistryRollupTest is TestUtils {
         nonSignerPubkeys[0] = initialOperators[3].pubkey;
         nonSignerPubkeys[1] = initialOperators[2].pubkey;
 
-        Operators.SignatureInfo memory signatureInfo = Operators.SignatureInfo({
+        RollupOperators.SignatureInfo memory signatureInfo = RollupOperators.SignatureInfo({
             nonSignerPubkeys: nonSignerPubkeys,
             apkG2: BN254.G2Point(
                 [

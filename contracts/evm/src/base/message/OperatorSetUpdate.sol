@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: MIT
 pragma solidity ^0.8.12;
 
-import {Operators} from "../utils/Operators.sol";
+import {RollupOperators} from "../utils/RollupOperators.sol";
 
 /**
  * @title SFFL operator set update message library
@@ -15,7 +15,7 @@ library OperatorSetUpdate {
     struct Message {
         uint64 id;
         uint64 timestamp;
-        Operators.Operator[] operators;
+        RollupOperators.Operator[] operators;
     }
 
     /**

@@ -11,7 +11,7 @@ import {BN254} from "eigenlayer-middleware/src/libraries/BN254.sol";
 
 import {SFFLRegistryCoordinator} from "./SFFLRegistryCoordinator.sol";
 import {RegistryCoordinator} from "../external/RegistryCoordinator.sol";
-import {Operators as RollupOperators} from "../base/utils/Operators.sol";
+import {RollupOperators} from "../base/utils/RollupOperators.sol";
 
 /**
  * @title SFFL AVS Operator Set Update Registry
