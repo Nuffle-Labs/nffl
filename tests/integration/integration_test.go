@@ -84,7 +84,6 @@ func TestIntegration(t *testing.T) {
 	if err != nil {
 		t.Fatalf("Cannot get state root update: %s", err.Error())
 	}
-
 	_, err = setup.registryRollups[1].UpdateStateRoot(setup.registryRollupAuths[1], registryrollup.StateRootUpdateMessage(stateRootUpdate.Message.ToBinding()), stateRootUpdate.Aggregation.ExtractBindingRollup())
 	if err != nil {
 		t.Fatalf("Error updating state root: %s", err.Error())
@@ -213,7 +212,7 @@ func setupTestEnv(t *testing.T, ctx context.Context) *testEnv {
 	}
 
 	nodeConfig, keyPair, _ := genOperatorConfig(t, ctx, mainnetAnvil, rollupAnvils, rabbitMq)
-	rollupInitialOperatorSet := []registryrollup.OperatorsOperator{
+	rollupInitialOperatorSet := []registryrollup.RollupOperatorsOperator{
 		{
 			Pubkey: registryrollup.BN254G1Point{
 				X: keyPair.PubKey.X.BigInt(big.NewInt(0)),
@@ -551,7 +550,7 @@ func startAnvilTestContainer(t *testing.T, ctx context.Context, name, exposedPor
 	return anvil
 }
 
-func deployRegistryRollups(t *testing.T, initialOperatorSet []registryrollup.OperatorsOperator, nextOperatorSetUpdateId uint64, anvils []*AnvilInstance) ([]common.Address, []*registryrollup.ContractSFFLRegistryRollup, []*bind.TransactOpts) {
+func deployRegistryRollups(t *testing.T, initialOperatorSet []registryrollup.RollupOperatorsOperator, nextOperatorSetUpdateId uint64, anvils []*AnvilInstance) ([]common.Address, []*registryrollup.ContractSFFLRegistryRollup, []*bind.TransactOpts) {
 	var registryRollups []*registryrollup.ContractSFFLRegistryRollup
 	var auths []*bind.TransactOpts
 	var addresses []common.Address
@@ -567,7 +566,7 @@ func deployRegistryRollups(t *testing.T, initialOperatorSet []registryrollup.Ope
 	return addresses, registryRollups, auths
 }
 
-func deployRegistryRollup(t *testing.T, initialOperatorSet []registryrollup.OperatorsOperator, nextOperatorSetUpdateId uint64, anvil *AnvilInstance) (common.Address, *registryrollup.ContractSFFLRegistryRollup, *bind.TransactOpts) {
+func deployRegistryRollup(t *testing.T, initialOperatorSet []registryrollup.RollupOperatorsOperator, nextOperatorSetUpdateId uint64, anvil *AnvilInstance) (common.Address, *registryrollup.ContractSFFLRegistryRollup, *bind.TransactOpts) {
 	t.Logf("Deploying RegistryRollup to chain %s", anvil.ChainID.String())
 
 	privateKeyString := "ac0974bec39a17e36ba4a6b4d238ff944bacb478cbed5efcae784d7bf4f2ff80"

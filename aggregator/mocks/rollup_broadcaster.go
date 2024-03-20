@@ -41,7 +41,7 @@ func (m *MockRollupBroadcasterer) EXPECT() *MockRollupBroadcastererMockRecorder 
 }
 
 // BroadcastOperatorSetUpdate mocks base method.
-func (m *MockRollupBroadcasterer) BroadcastOperatorSetUpdate(arg0 context.Context, arg1 messages.OperatorSetUpdateMessage, arg2 contractSFFLRegistryRollup.OperatorsSignatureInfo) {
+func (m *MockRollupBroadcasterer) BroadcastOperatorSetUpdate(arg0 context.Context, arg1 messages.OperatorSetUpdateMessage, arg2 contractSFFLRegistryRollup.RollupOperatorsSignatureInfo) {
 	m.ctrl.T.Helper()
 	m.ctrl.Call(m, "BroadcastOperatorSetUpdate", arg0, arg1, arg2)
 }

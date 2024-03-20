@@ -41,10 +41,10 @@ func NewOperatorSetUpdateMessageFromBinding(binding registryrollup.OperatorSetUp
 }
 
 func (msg OperatorSetUpdateMessage) ToBinding() registryrollup.OperatorSetUpdateMessage {
-	operators := make([]registryrollup.OperatorsOperator, 0, len(msg.Operators))
+	operators := make([]registryrollup.RollupOperatorsOperator, 0, len(msg.Operators))
 
 	for _, operator := range msg.Operators {
-		operators = append(operators, registryrollup.OperatorsOperator{
+		operators = append(operators, registryrollup.RollupOperatorsOperator{
 			Pubkey: registryrollup.BN254G1Point{
 				X: operator.Pubkey.X.BigInt(big.NewInt(0)),
 				Y: operator.Pubkey.Y.BigInt(big.NewInt(0)),

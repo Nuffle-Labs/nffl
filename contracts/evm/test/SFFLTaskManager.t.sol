@@ -337,7 +337,9 @@ contract SFFLTaskManagerTest is TestUtils {
             rollupId: 10000,
             blockHeight: 10001,
             timestamp: 10002,
-            stateRoot: 0x0000000000000000000000000000000000000000000000000000000000002713
+            stateRoot: 0x0000000000000000000000000000000000000000000000000000000000002713,
+            nearDaTransactionId: bytes32(0),
+            nearDaCommitment: bytes32(0)
         });
 
         bytes32[] memory sideNodes = new bytes32[](15);
@@ -378,7 +380,9 @@ contract SFFLTaskManagerTest is TestUtils {
             rollupId: 0,
             blockHeight: 30000,
             timestamp: 10002,
-            stateRoot: 0x0000000000000000000000000000000000000000000000000000000000002713
+            stateRoot: 0x0000000000000000000000000000000000000000000000000000000000002713,
+            nearDaTransactionId: bytes32(0),
+            nearDaCommitment: bytes32(0)
         });
 
         bytes32[] memory sideNodes = new bytes32[](16);
@@ -420,7 +424,9 @@ contract SFFLTaskManagerTest is TestUtils {
             rollupId: 10000,
             blockHeight: 10001,
             timestamp: 10002,
-            stateRoot: 0x0000000000000000000000000000000000000000000000000000000000002713
+            stateRoot: 0x0000000000000000000000000000000000000000000000000000000000002713,
+            nearDaTransactionId: bytes32(0),
+            nearDaCommitment: bytes32(0)
         });
 
         bytes32[] memory sideNodes = new bytes32[](15);
@@ -457,8 +463,14 @@ contract SFFLTaskManagerTest is TestUtils {
     }
 
     function test_verifyMessageInclusionState_stateRootUpdate_RevertWhen_WrongMessageIndex() public {
-        StateRootUpdate.Message memory message =
-            StateRootUpdate.Message({rollupId: 0, blockHeight: 0, timestamp: 0, stateRoot: bytes32(0)});
+        StateRootUpdate.Message memory message = StateRootUpdate.Message({
+            rollupId: 0,
+            blockHeight: 0,
+            timestamp: 0,
+            stateRoot: bytes32(0),
+            nearDaTransactionId: bytes32(0),
+            nearDaCommitment: bytes32(0)
+        });
 
         bytes32[] memory sideNodes = new bytes32[](0);
 
