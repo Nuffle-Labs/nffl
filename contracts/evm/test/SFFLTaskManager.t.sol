@@ -420,7 +420,7 @@ contract SFFLTaskManagerTest is TestUtils {
             rollupId: 10000,
             blockHeight: 10001,
             timestamp: 10002,
-            stateRoot: keccak256(hex"f00d")
+            stateRoot: 0x0000000000000000000000000000000000000000000000000000000000002713
         });
 
         bytes32[] memory sideNodes = new bytes32[](15);
@@ -441,7 +441,7 @@ contract SFFLTaskManagerTest is TestUtils {
         sideNodes[14] = 0xdd800125d84e27106c229756b09fe761a3c69d2262028dc0c7e9ac2c0681acbd;
 
         SparseMerkleTree.Proof memory proof = SparseMerkleTree.Proof({
-            leaf: message.hash(),
+            leaf: 0xd67f20415d18ba4b38648a11b455c6321cdef24a672ba15186b44328783442bc,
             index: 184467440737095516170001,
             bitmask: 604444463063240877801472,
             sideNodes: sideNodes
@@ -449,7 +449,7 @@ contract SFFLTaskManagerTest is TestUtils {
 
         Checkpoint.TaskResponse memory taskResponse = Checkpoint.TaskResponse({
             referenceTaskIndex: 0,
-            stateRootUpdatesRoot: 0x8fe06abef3998ee2105da5947f0e99b222369915a375ae998990b2fd906009f9,
+            stateRootUpdatesRoot: 0xe851c350c3f776ac66806602d053d356a5b9e4c2427e5f55791f7bb124cc1064,
             operatorSetUpdatesRoot: keccak256(hex"f00d")
         });
 
@@ -539,7 +539,8 @@ contract SFFLTaskManagerTest is TestUtils {
     }
 
     function test_verifyMessageInclusionState_operatorSetUpdate_NonInclusionNonEmpty() public {
-        Operators.Operator[] memory operators = new Operators.Operator[](0);
+        Operators.Operator[] memory operators = new Operators.Operator[](1);
+        operators[0] = Operators.Operator({pubkey: BN254.G1Point(10000, 10001), weight: 10002});
 
         OperatorSetUpdate.Message memory message =
             OperatorSetUpdate.Message({id: 10000, timestamp: 10002, operators: operators});
@@ -561,13 +562,17 @@ contract SFFLTaskManagerTest is TestUtils {
         sideNodes[13] = 0x562f534d190ffa53d939bab0d1f485a83845ba46a0a92b068d1dfeac6f57cf29;
         sideNodes[14] = 0xcb9b3e5376a897e531e3ea237a34095e5fe172f8c31327499a595c6e14c8fd1a;
 
-        SparseMerkleTree.Proof memory proof =
-            SparseMerkleTree.Proof({leaf: message.hash(), index: 10000, bitmask: 32767, sideNodes: sideNodes});
+        SparseMerkleTree.Proof memory proof = SparseMerkleTree.Proof({
+            leaf: 0xc6143d0203286e9dd52b20acd0dea3436f28e3dbbb082d8477799b0f4036e381,
+            index: 10000,
+            bitmask: 32767,
+            sideNodes: sideNodes
+        });
 
         Checkpoint.TaskResponse memory taskResponse = Checkpoint.TaskResponse({
             referenceTaskIndex: 0,
             stateRootUpdatesRoot: keccak256(hex"beef"),
-            operatorSetUpdatesRoot: 0x9f5e852559fea0683233b07bf43cc5a6df4f14238337b48aeb7decdbf62373f0
+            operatorSetUpdatesRoot: 0x776cb4def6c1452032ec2b6f800ec5804a233a35d1d537bec747369943d9ec93
         });
 
         assertFalse(taskManager.verifyMessageInclusionState(message, taskResponse, proof));

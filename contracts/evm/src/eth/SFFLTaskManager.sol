@@ -266,11 +266,14 @@ contract SFFLTaskManager is Initializable, OwnableUpgradeable, Pausable, BLSSign
         SparseMerkleTree.Proof calldata proof
     ) public pure returns (bool) {
         require(proof.index == uint256(message.indexCalldata()), "Wrong message index");
+        require(
+            SparseMerkleTree.verifyProof(taskResponse.stateRootUpdatesRoot, StateRootUpdate.INDEX_BITS, proof),
+            "Invalid SMT proof"
+        );
 
         bool isInclusionProof = proof.leaf == message.hashCalldata();
-        bool valid = SparseMerkleTree.verifyProof(taskResponse.stateRootUpdatesRoot, StateRootUpdate.INDEX_BITS, proof);
 
-        return valid && isInclusionProof;
+        return isInclusionProof;
     }
 
     /**
@@ -288,12 +291,14 @@ contract SFFLTaskManager is Initializable, OwnableUpgradeable, Pausable, BLSSign
         SparseMerkleTree.Proof calldata proof
     ) public pure returns (bool) {
         require(proof.index == uint256(message.indexCalldata()), "Wrong message index");
+        require(
+            SparseMerkleTree.verifyProof(taskResponse.operatorSetUpdatesRoot, OperatorSetUpdate.INDEX_BITS, proof),
+            "Invalid SMT proof"
+        );
 
         bool isInclusionProof = proof.leaf == message.hashCalldata();
-        bool valid =
-            SparseMerkleTree.verifyProof(taskResponse.operatorSetUpdatesRoot, OperatorSetUpdate.INDEX_BITS, proof);
 
-        return valid && isInclusionProof;
+        return isInclusionProof;
     }
 
     /**
