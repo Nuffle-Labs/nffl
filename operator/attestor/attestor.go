@@ -255,6 +255,9 @@ loop:
 		BlockHeight: rollupHeader.Number.Uint64(),
 		Timestamp:   rollupHeader.Time,
 		StateRoot:   rollupHeader.Root,
+		// TODO: get below fields from mqBlock
+		NearDaTransactionId: [32]byte{1},
+		NearDaCommitment:    [32]byte{2},
 	}
 	signature, err := SignStateRootUpdateMessage(attestor.blsKeypair, &message)
 	if err != nil {

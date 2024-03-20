@@ -65,10 +65,12 @@ func (d *Database) StoreStateRootUpdate(stateRootUpdateMessage messages.StateRoo
 	tx := d.db.
 		Clauses(clause.OnConflict{UpdateAll: true}).
 		Create(&models.StateRootUpdateMessage{
-			RollupId:    stateRootUpdateMessage.RollupId,
-			BlockHeight: stateRootUpdateMessage.BlockHeight,
-			Timestamp:   stateRootUpdateMessage.Timestamp,
-			StateRoot:   stateRootUpdateMessage.StateRoot[:],
+			RollupId:            stateRootUpdateMessage.RollupId,
+			BlockHeight:         stateRootUpdateMessage.BlockHeight,
+			Timestamp:           stateRootUpdateMessage.Timestamp,
+			NearDaTransactionId: stateRootUpdateMessage.NearDaTransactionId[:],
+			NearDaCommitment:    stateRootUpdateMessage.NearDaCommitment[:],
+			StateRoot:           stateRootUpdateMessage.StateRoot[:],
 		})
 
 	return tx.Error

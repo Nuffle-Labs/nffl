@@ -10,10 +10,12 @@ import (
 )
 
 type StateRootUpdateMessage struct {
-	RollupId    coretypes.RollupId
-	BlockHeight coretypes.BlockNumber
-	Timestamp   coretypes.Timestamp
-	StateRoot   [32]byte
+	RollupId            coretypes.RollupId
+	BlockHeight         coretypes.BlockNumber
+	Timestamp           coretypes.Timestamp
+	NearDaTransactionId [32]byte
+	NearDaCommitment    [32]byte
+	StateRoot           [32]byte
 }
 
 type SignedStateRootUpdateMessage struct {
@@ -35,6 +37,8 @@ func (msg StateRootUpdateMessage) AbiEncode() ([]byte, error) {
 		{Name: "rollupId", Type: "uint32"},
 		{Name: "blockHeight", Type: "uint64"},
 		{Name: "timestamp", Type: "uint64"},
+		{Name: "nearDaTransactionId", Type: "bytes32"},
+		{Name: "nearDaCommitment", Type: "bytes32"},
 		{Name: "stateRoot", Type: "bytes32"},
 	})
 	if err != nil {
