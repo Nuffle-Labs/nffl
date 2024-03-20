@@ -12,7 +12,7 @@ import {StateRootUpdate} from "../src/base/message/StateRootUpdate.sol";
 import {SFFLTaskManager} from "../src/eth/SFFLTaskManager.sol";
 import {Checkpoint} from "../src/eth/task/Checkpoint.sol";
 import {SparseMerkleTree} from "../src/eth/utils/SparseMerkleTree.sol";
-import {OperatorSetUpdate, Operators} from "../src/rollup/message/OperatorSetUpdate.sol";
+import {OperatorSetUpdate, Operators} from "../src/base/message/OperatorSetUpdate.sol";
 
 import {TestUtils} from "./utils/TestUtils.sol";
 

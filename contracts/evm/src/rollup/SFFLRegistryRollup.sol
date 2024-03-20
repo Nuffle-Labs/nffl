@@ -7,8 +7,8 @@ import {BN254} from "eigenlayer-middleware/src/libraries/BN254.sol";
 
 import {SFFLRegistryBase} from "../base/SFFLRegistryBase.sol";
 import {StateRootUpdate} from "../base/message/StateRootUpdate.sol";
-import {Operators} from "./utils/Operators.sol";
-import {OperatorSetUpdate} from "./message/OperatorSetUpdate.sol";
+import {OperatorSetUpdate} from "../base/message/OperatorSetUpdate.sol";
+import {Operators} from "../base/utils/Operators.sol";
 
 /**
  * @title SFFL registry for rollups / external networks

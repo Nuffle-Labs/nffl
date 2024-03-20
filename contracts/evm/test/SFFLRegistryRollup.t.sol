@@ -5,8 +5,8 @@ import {BN254} from "eigenlayer-middleware/src/libraries/BN254.sol";
 
 import {SFFLRegistryRollup} from "../src/rollup/SFFLRegistryRollup.sol";
 import {StateRootUpdate} from "../src/base/message/StateRootUpdate.sol";
-import {Operators} from "../src/rollup/utils/Operators.sol";
-import {OperatorSetUpdate} from "../src/rollup/message/OperatorSetUpdate.sol";
+import {Operators} from "../src/base/utils/Operators.sol";
+import {OperatorSetUpdate} from "../src/base/message/OperatorSetUpdate.sol";
 
 import {TestUtils} from "./utils/TestUtils.sol";
 

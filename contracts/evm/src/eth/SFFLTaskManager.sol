@@ -12,7 +12,7 @@ import {IRegistryCoordinator} from "eigenlayer-middleware/src/interfaces/IRegist
 import {BN254} from "eigenlayer-middleware/src/libraries/BN254.sol";
 
 import {StateRootUpdate} from "../base/message/StateRootUpdate.sol";
-import {OperatorSetUpdate} from "../rollup/message/OperatorSetUpdate.sol";
+import {OperatorSetUpdate} from "../base/message/OperatorSetUpdate.sol";
 import {SparseMerkleTree} from "./utils/SparseMerkleTree.sol";
 import {Checkpoint} from "./task/Checkpoint.sol";
 
