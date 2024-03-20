@@ -11,6 +11,9 @@ import {IPauserRegistry} from "@eigenlayer/contracts/interfaces/IPauserRegistry.
 import {IRegistryCoordinator} from "eigenlayer-middleware/src/interfaces/IRegistryCoordinator.sol";
 import {BN254} from "eigenlayer-middleware/src/libraries/BN254.sol";
 
+import {StateRootUpdate} from "../base/message/StateRootUpdate.sol";
+import {OperatorSetUpdate} from "../rollup/message/OperatorSetUpdate.sol";
+import {SparseMerkleTree} from "./utils/SparseMerkleTree.sol";
 import {Checkpoint} from "./task/Checkpoint.sol";
 
 /**
@@ -22,6 +25,8 @@ contract SFFLTaskManager is Initializable, OwnableUpgradeable, Pausable, BLSSign
     using BN254 for BN254.G1Point;
     using Checkpoint for Checkpoint.Task;
     using Checkpoint for Checkpoint.TaskResponse;
+    using StateRootUpdate for StateRootUpdate.Message;
+    using OperatorSetUpdate for OperatorSetUpdate.Message;
 
     /**
      * @notice Block range for task responding
@@ -244,6 +249,51 @@ contract SFFLTaskManager is Initializable, OwnableUpgradeable, Pausable, BLSSign
         checkpointTaskSuccesfullyChallenged[referenceTaskIndex] = true;
 
         emit CheckpointTaskChallengedSuccessfully(referenceTaskIndex, msg.sender);
+    }
+
+    /**
+     * @notice Verifies an expected state root update message inclusion state
+     * in a checkpoint task response
+     * @param message State root update message
+     * @param taskResponse Checkpoint task response
+     * @param proof (Non-)inclusion proof for the task state root updates SMT
+     * @return Whether the message is included in the checkpoint task response
+     * or not
+     */
+    function verifyMessageInclusionState(
+        StateRootUpdate.Message calldata message,
+        Checkpoint.TaskResponse calldata taskResponse,
+        SparseMerkleTree.Proof calldata proof
+    ) public pure returns (bool) {
+        require(proof.index == uint256(message.indexCalldata()), "Wrong message index");
+
+        bool isInclusionProof = proof.leaf == message.hashCalldata();
+        bool valid = SparseMerkleTree.verifyProof(taskResponse.stateRootUpdatesRoot, StateRootUpdate.INDEX_BITS, proof);
+
+        return valid && isInclusionProof;
+    }
+
+    /**
+     * @notice Verifies an expected operator set update message inclusion state
+     * in a checkpoint task response
+     * @param message operator set update message
+     * @param taskResponse Checkpoint task response
+     * @param proof (Non-)inclusion proof for the task operator set updates SMT
+     * @return Whether the message is included in the checkpoint task response
+     * or not
+     */
+    function verifyMessageInclusionState(
+        OperatorSetUpdate.Message calldata message,
+        Checkpoint.TaskResponse calldata taskResponse,
+        SparseMerkleTree.Proof calldata proof
+    ) public pure returns (bool) {
+        require(proof.index == uint256(message.indexCalldata()), "Wrong message index");
+
+        bool isInclusionProof = proof.leaf == message.hashCalldata();
+        bool valid =
+            SparseMerkleTree.verifyProof(taskResponse.operatorSetUpdatesRoot, OperatorSetUpdate.INDEX_BITS, proof);
+
+        return valid && isInclusionProof;
     }
 
     /**
