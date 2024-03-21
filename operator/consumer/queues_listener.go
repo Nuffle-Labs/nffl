@@ -3,6 +3,7 @@ package consumer
 import (
 	"context"
 	"errors"
+	"sync"
 
 	"github.com/Layr-Labs/eigensdk-go/logging"
 	"github.com/ethereum/go-ethereum/core/types"
@@ -15,8 +16,9 @@ var (
 )
 
 type QueuesListener struct {
-	receivedBlocksC chan<- BlockData
-	queueDeliveryCs map[uint32]<-chan rmq.Delivery
+	receivedBlocksC    chan<- BlockData
+	queueDeliveryCs    map[uint32]<-chan rmq.Delivery
+	queueDeliveryMutex sync.Mutex
 
 	logger logging.Logger
 }
@@ -31,39 +33,49 @@ func NewQueuesListener(receivedBlocksC chan<- BlockData, logger logging.Logger) 
 	return listener
 }
 
-func (listener *QueuesListener) Add(rollupId uint32, rollupDataC <-chan rmq.Delivery, ctx context.Context) error {
-	if _, exists := listener.queueDeliveryCs[rollupId]; exists {
+func (l *QueuesListener) Add(ctx context.Context, rollupId uint32, rollupDataC <-chan rmq.Delivery) error {
+	l.queueDeliveryMutex.Lock()
+	defer l.queueDeliveryMutex.Unlock()
+
+	if _, exists := l.queueDeliveryCs[rollupId]; exists {
 		return QueueExistsError
 	}
+	l.queueDeliveryCs[rollupId] = rollupDataC
 
-	listener.queueDeliveryCs[rollupId] = rollupDataC
-	go listener.listen(rollupId, rollupDataC, ctx)
+	go l.listen(ctx, rollupId, rollupDataC)
 
 	return nil
 }
 
-func (listener *QueuesListener) listen(rollupId uint32, rollupDataC <-chan rmq.Delivery, ctx context.Context) {
+func (l *QueuesListener) Remove(rollupId uint32) {
+	l.queueDeliveryMutex.Lock()
+	delete(l.queueDeliveryCs, rollupId)
+	l.queueDeliveryMutex.Unlock()
+}
+
+func (l *QueuesListener) listen(ctx context.Context, rollupId uint32, rollupDataC <-chan rmq.Delivery) {
 	for {
 		select {
 		case d, ok := <-rollupDataC:
 			if !ok {
-				listener.logger.Info("Deliveries channel close", "rollupId", rollupId)
-				break
+				l.logger.Info("Deliveries channel close", "rollupId", rollupId)
+				l.Remove(rollupId)
+				return
 			}
 
-			listener.logger.Info("New delivery", "rollupId", rollupId)
+			l.logger.Info("New delivery", "rollupId", rollupId)
 
 			var block types.Block
 			if err := rlp.DecodeBytes(d.Body, &block); err != nil {
-				listener.logger.Warn("Invalid block", "rollupId", rollupId, "err", err)
+				l.logger.Warn("Invalid block", "rollupId", rollupId, "err", err)
 				continue
 			}
 
-			listener.receivedBlocksC <- BlockData{RollupId: rollupId, Block: block}
+			l.receivedBlocksC <- BlockData{RollupId: rollupId, Block: block}
 			d.Ack(false)
 
 		case <-ctx.Done():
-			listener.logger.Info("Consumer context canceled")
+			l.logger.Info("Consumer context canceled")
 			// TODO: some closing and canceling here
 			return
 		}

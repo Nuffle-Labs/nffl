@@ -72,6 +72,7 @@ func (w *RollupWriter) UpdateOperatorSet(ctx context.Context, message registryro
 
 		// TODO: queue in case message.id > nextOperatorUpdateId
 		if message.Id != nextOperatorUpdateId {
+			w.logger.Warn("MessageId didn't match nextOperatorUpdateId", "id", message.Id, "nextOperatorUpdateId", nextOperatorUpdateId)
 			return nil
 		}
 
@@ -93,6 +94,8 @@ func (w *RollupWriter) UpdateOperatorSet(ctx context.Context, message registryro
 	for i := 0; i < NUM_OF_RETRIES; i++ {
 		err = operation()
 		if err == nil {
+			w.logger.Info("Rollup Operator set updated")
+
 			return nil
 		} else {
 			// TODO: return on some tx errors

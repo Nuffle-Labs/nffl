@@ -8,6 +8,7 @@ import (
 	"fmt"
 	"io"
 	"io/fs"
+	"io/ioutil"
 	"log"
 	"math/big"
 	"net/http"
@@ -46,7 +47,7 @@ import (
 const TEST_DATA_DIR = "../../test_data"
 
 func TestIntegration(t *testing.T) {
-	ctx, cancel := context.WithTimeout(context.Background(), 220*time.Second)
+	ctx, cancel := context.WithTimeout(context.Background(), 250*time.Second)
 	setup := setupTestEnv(t, ctx)
 	t.Cleanup(func() {
 		cancel()
@@ -73,8 +74,12 @@ func TestIntegration(t *testing.T) {
 		t.Fatalf("Task response hash is empty")
 	}
 
-	stateRootHeight := uint64(10)
-	stateRootUpdate, err := getStateRootUpdateAggregation(setup.aggregatorRestUrl, uint32(setup.rollupAnvils[0].ChainID.Uint64()), stateRootHeight)
+	stateRootHeight, err := setup.rollupAnvils[1].HttpClient.BlockNumber(ctx)
+	if err != nil {
+		t.Fatalf("Cannot get current block height: %s", err.Error())
+	}
+
+	stateRootUpdate, err := getStateRootUpdateAggregation(setup.aggregatorRestUrl, uint32(setup.rollupAnvils[0].ChainID.Uint64()), stateRootHeight-1)
 	if err != nil {
 		t.Fatalf("Cannot get state root update: %s", err.Error())
 	}
@@ -86,34 +91,43 @@ func TestIntegration(t *testing.T) {
 	newOperatorConfig, _, _ := genOperatorConfig(t, ctx, setup.mainnetAnvil, setup.rollupAnvils, setup.rabbitMq)
 	newOperator := startOperator(t, ctx, newOperatorConfig)
 
-	time.Sleep(30 * time.Second)
+	time.Sleep(50 * time.Second)
 
+	// Check if operator set was updated on rollups
 	for _, registryRollup := range setup.registryRollups {
 		nextOperatorSetUpdateId, err := registryRollup.NextOperatorUpdateId(&bind.CallOpts{})
 		if err != nil {
 			t.Fatalf("Error getting next operator set update ID: %s", err.Error())
 		}
+
 		if nextOperatorSetUpdateId != 2 {
 			t.Fatalf("Wrong next operator set update ID: expected %d, got %d", 2, nextOperatorSetUpdateId)
 		}
 	}
 
-	stateRootHeight = uint64(16)
-	stateRootUpdate, err = getStateRootUpdateAggregation(setup.aggregatorRestUrl, uint32(setup.rollupAnvils[0].ChainID.Uint64()), stateRootHeight)
-	if err != nil {
-		t.Fatalf("Cannot get state root update: %s", err.Error())
-	}
-	_, err = setup.registryRollups[1].UpdateStateRoot(setup.registryRollupAuths[1], registryrollup.StateRootUpdateMessage(stateRootUpdate.Message), core.FormatBlsAggregationRollup(&stateRootUpdate.Aggregation))
-	if err != nil {
-		t.Fatalf("Error updating state root: %s", err.Error())
-	}
-
+	// Check if operator set was updated on mainnets
 	operatorSetUpdateCount, err := setup.avsReader.AvsServiceBindings.OperatorSetUpdateRegistry.GetOperatorSetUpdateCount(&bind.CallOpts{})
 	if err != nil {
 		t.Fatalf("Error getting operator set update count: %s", err.Error())
 	}
 	if operatorSetUpdateCount != 2 {
 		t.Fatalf("Wrong operator set update count")
+	}
+
+	stateRootHeight, err = setup.rollupAnvils[1].HttpClient.BlockNumber(ctx)
+	if err != nil {
+		t.Fatalf("Cannot get current block height: %s", err.Error())
+	}
+
+	stateRootUpdate, err = getStateRootUpdateAggregation(setup.aggregatorRestUrl, uint32(setup.rollupAnvils[0].ChainID.Uint64()), stateRootHeight-1)
+	if err != nil {
+		t.Fatalf("Cannot get state root update: %s", err.Error())
+	}
+
+	// Check if operator sets are same on rollups
+	_, err = setup.registryRollups[1].UpdateStateRoot(setup.registryRollupAuths[1], registryrollup.StateRootUpdateMessage(stateRootUpdate.Message), core.FormatBlsAggregationRollup(&stateRootUpdate.Aggregation))
+	if err != nil {
+		t.Fatalf("Error updating state root: %s", err.Error())
 	}
 
 	operatorSetUpdate, err := getOperatorSetUpdateAggregation(setup.aggregatorRestUrl, operatorSetUpdateCount-1)
@@ -132,6 +146,7 @@ func TestIntegration(t *testing.T) {
 	}
 	assert.Equal(t, expectedUpdatedOperators, operatorSetUpdate.Message.Operators)
 
+	t.Log("Done")
 	<-ctx.Done()
 }
 
@@ -591,6 +606,8 @@ func startRollupIndexing(t *testing.T, ctx context.Context, rollupAnvils []*Anvi
 		go func() {
 			for {
 				select {
+				case <-ctx.Done():
+					return
 				case err := <-sub.Err():
 					t.Errorf("Error on rollup block subscription: %s", err.Error())
 					return
@@ -622,8 +639,6 @@ func startRollupIndexing(t *testing.T, ctx context.Context, rollupAnvils []*Anvi
 					}
 
 					submitBlock(t, ctx, getDaContractAccountId(anvil), block, indexerUrl)
-				case <-ctx.Done():
-					return
 				}
 			}
 		}()
@@ -757,12 +772,16 @@ func getStateRootUpdateAggregation(addr string, rollupID uint32, blockHeight uin
 	defer resp.Body.Close()
 
 	if resp.StatusCode != http.StatusOK {
-		return nil, fmt.Errorf("Error: %s", resp.Status)
+		bodyBytes, errRead := ioutil.ReadAll(resp.Body)
+		if errRead != nil {
+			return nil, fmt.Errorf("failed to read response body for error: %v", errRead)
+		}
+
+		return nil, fmt.Errorf("error: %s, message: %s", resp.Status, string(bodyBytes))
 	}
 
 	var response aggregator.GetStateRootUpdateAggregationResponse
-	err = json.NewDecoder(resp.Body).Decode(&response)
-	if err != nil {
+	if err := json.NewDecoder(resp.Body).Decode(&response); err != nil {
 		return nil, err
 	}
 
@@ -779,7 +798,12 @@ func getOperatorSetUpdateAggregation(addr string, id uint64) (*aggregator.GetOpe
 	defer resp.Body.Close()
 
 	if resp.StatusCode != http.StatusOK {
-		return nil, fmt.Errorf("Error: %s", resp.Status)
+		body, errRead := ioutil.ReadAll(resp.Body)
+		if errRead != nil {
+			return nil, fmt.Errorf("error: %s, message: %s", resp.Status, string(body))
+		}
+
+		return nil, fmt.Errorf("error: %s", resp.Status)
 	}
 
 	var response aggregator.GetOperatorSetUpdateAggregationResponse
