@@ -19,19 +19,10 @@ type AggregatorRpcClienter interface {
 }
 
 const (
-	CheckpointType = iota
-	StateRootType
-	OperatorSetUpdateType
-)
-
-const (
 	ResendInterval = 2 * time.Second
 )
 
-type RpcMessageType struct {
-	MessageType int
-	Message     interface{}
-}
+type RpcMessage = interface{}
 
 type AggregatorRpcClient struct {
 	rpcClientLock sync.Mutex
@@ -42,7 +33,7 @@ type AggregatorRpcClient struct {
 	aggregatorIpPortAddr string
 
 	unsentMessagesLock sync.Mutex
-	unsentMessages     []RpcMessageType
+	unsentMessages     []RpcMessage
 
 	resendTicker *time.Ticker
 }
@@ -56,7 +47,7 @@ func NewAggregatorRpcClient(aggregatorIpPortAddr string, logger logging.Logger, 
 		metrics:              metrics,
 		logger:               logger,
 		aggregatorIpPortAddr: aggregatorIpPortAddr,
-		unsentMessages:       make([]RpcMessageType, 0),
+		unsentMessages:       make([]RpcMessage, 0),
 		resendTicker:         resendTicker,
 	}
 
@@ -91,7 +82,6 @@ func (c *AggregatorRpcClient) onTick() {
 		// TODO(edwin): handle closed chan
 		<-tickerC
 
-		// Critically ugly section
 		{
 			c.unsentMessagesLock.Lock()
 			if len(c.unsentMessages) == 0 {
@@ -127,18 +117,18 @@ func (c *AggregatorRpcClient) tryResendFromDeque() {
 		var err error
 		var reply bool
 
-		switch message.MessageType {
-		case CheckpointType:
-			signedCheckpointTaskResponse := message.Message.(*coretypes.SignedCheckpointTaskResponse)
+		switch message.(type) {
+		case *coretypes.SignedCheckpointTaskResponse:
+			signedCheckpointTaskResponse := message.(*coretypes.SignedCheckpointTaskResponse)
 			// TODO(edwin): handle error
 			err = c.rpcClient.Call("Aggregator.ProcessSignedCheckpointTaskResponse", signedCheckpointTaskResponse, &reply)
 
-		case StateRootType:
-			signedStateRootUpdateMessage := message.Message.(*coretypes.SignedStateRootUpdateMessage)
+		case *coretypes.SignedStateRootUpdateMessage:
+			signedStateRootUpdateMessage := message.(*coretypes.SignedStateRootUpdateMessage)
 			err = c.rpcClient.Call("Aggregator.ProcessSignedStateRootUpdateMessage", signedStateRootUpdateMessage, &reply)
 
-		case OperatorSetUpdateType:
-			signedOperatorSetUpdateMessage := message.Message.(*coretypes.SignedOperatorSetUpdateMessage)
+		case *coretypes.SignedOperatorSetUpdateMessage:
+			signedOperatorSetUpdateMessage := message.(*coretypes.SignedOperatorSetUpdateMessage)
 			err = c.rpcClient.Call("Aggregator.ProcessSignedOperatorSetUpdateMessage", signedOperatorSetUpdateMessage, &reply)
 
 		default:
@@ -156,7 +146,7 @@ func (c *AggregatorRpcClient) tryResendFromDeque() {
 	c.unsentMessages = c.unsentMessages[:errorPos]
 }
 
-func (c *AggregatorRpcClient) sendRequest(sendCb func() error, message RpcMessageType) {
+func (c *AggregatorRpcClient) sendRequest(sendCb func() error, message RpcMessage) {
 	appendProtected := func() {
 		c.unsentMessagesLock.Lock()
 		c.unsentMessages = append(c.unsentMessages, message)
@@ -182,11 +172,6 @@ func (c *AggregatorRpcClient) sendRequest(sendCb func() error, message RpcMessag
 func (c *AggregatorRpcClient) SendSignedCheckpointTaskResponseToAggregator(signedCheckpointTaskResponse *coretypes.SignedCheckpointTaskResponse) {
 	c.logger.Info("Sending signed task response header to aggregator", "signedCheckpointTaskResponse", fmt.Sprintf("%#v", signedCheckpointTaskResponse))
 
-	message := RpcMessageType{
-		MessageType: CheckpointType,
-		Message:     signedCheckpointTaskResponse,
-	}
-
 	c.sendRequest(func() error {
 		var reply bool
 		err := c.rpcClient.Call("Aggregator.ProcessSignedCheckpointTaskResponse", signedCheckpointTaskResponse, &reply)
@@ -198,16 +183,11 @@ func (c *AggregatorRpcClient) SendSignedCheckpointTaskResponseToAggregator(signe
 		c.logger.Info("Signed task response header accepted by aggregator.", "reply", reply)
 		c.metrics.IncNumMessagesAcceptedByAggregator()
 		return nil
-	}, message)
+	}, signedCheckpointTaskResponse)
 }
 
 func (c *AggregatorRpcClient) SendSignedStateRootUpdateToAggregator(signedStateRootUpdateMessage *coretypes.SignedStateRootUpdateMessage) {
 	c.logger.Info("Sending signed state root update message to aggregator", "signedStateRootUpdateMessage", fmt.Sprintf("%#v", signedStateRootUpdateMessage))
-
-	message := RpcMessageType{
-		MessageType: StateRootType,
-		Message:     signedStateRootUpdateMessage,
-	}
 
 	c.sendRequest(func() error {
 		var reply bool
@@ -220,16 +200,11 @@ func (c *AggregatorRpcClient) SendSignedStateRootUpdateToAggregator(signedStateR
 		c.logger.Info("Signed state root update message accepted by aggregator.", "reply", reply)
 		c.metrics.IncNumMessagesAcceptedByAggregator()
 		return nil
-	}, message)
+	}, signedStateRootUpdateMessage)
 }
 
 func (c *AggregatorRpcClient) SendSignedOperatorSetUpdateToAggregator(signedOperatorSetUpdateMessage *coretypes.SignedOperatorSetUpdateMessage) {
 	c.logger.Info("Sending operator set update message to aggregator", "signedOperatorSetUpdateMessage", fmt.Sprintf("%#v", signedOperatorSetUpdateMessage))
-
-	message := RpcMessageType{
-		MessageType: OperatorSetUpdateType,
-		Message:     signedOperatorSetUpdateMessage,
-	}
 
 	c.sendRequest(func() error {
 		var reply bool
@@ -242,5 +217,5 @@ func (c *AggregatorRpcClient) SendSignedOperatorSetUpdateToAggregator(signedOper
 		c.logger.Info("Signed operator set update message accepted by aggregator.", "reply", reply)
 		c.metrics.IncNumMessagesAcceptedByAggregator()
 		return nil
-	}, message)
+	}, signedOperatorSetUpdateMessage)
 }
