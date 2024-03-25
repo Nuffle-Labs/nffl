@@ -118,17 +118,17 @@ func (c *AggregatorRpcClient) tryResendFromDeque() {
 		var reply bool
 
 		switch message.(type) {
-		case *coretypes.SignedCheckpointTaskResponse:
-			signedCheckpointTaskResponse := message.(*coretypes.SignedCheckpointTaskResponse)
+		case *messages.SignedCheckpointTaskResponse:
+			signedCheckpointTaskResponse := message.(*messages.SignedCheckpointTaskResponse)
 			// TODO(edwin): handle error
 			err = c.rpcClient.Call("Aggregator.ProcessSignedCheckpointTaskResponse", signedCheckpointTaskResponse, &reply)
 
-		case *coretypes.SignedStateRootUpdateMessage:
-			signedStateRootUpdateMessage := message.(*coretypes.SignedStateRootUpdateMessage)
+		case *messages.SignedStateRootUpdateMessage:
+			signedStateRootUpdateMessage := message.(*messages.SignedStateRootUpdateMessage)
 			err = c.rpcClient.Call("Aggregator.ProcessSignedStateRootUpdateMessage", signedStateRootUpdateMessage, &reply)
 
-		case *coretypes.SignedOperatorSetUpdateMessage:
-			signedOperatorSetUpdateMessage := message.(*coretypes.SignedOperatorSetUpdateMessage)
+		case *messages.SignedOperatorSetUpdateMessage:
+			signedOperatorSetUpdateMessage := message.(*messages.SignedOperatorSetUpdateMessage)
 			err = c.rpcClient.Call("Aggregator.ProcessSignedOperatorSetUpdateMessage", signedOperatorSetUpdateMessage, &reply)
 
 		default:
