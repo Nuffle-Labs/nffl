@@ -4,15 +4,13 @@ import (
 	"math/big"
 	"testing"
 
+	"github.com/Layr-Labs/eigensdk-go/crypto/bls"
 	"github.com/stretchr/testify/assert"
 	"go.uber.org/mock/gomock"
 
 	"github.com/NethermindEth/near-sffl/aggregator/database"
-	aggtypes "github.com/NethermindEth/near-sffl/aggregator/types"
-	registryrollup "github.com/NethermindEth/near-sffl/contracts/bindings/SFFLRegistryRollup"
-	servicemanager "github.com/NethermindEth/near-sffl/contracts/bindings/SFFLServiceManager"
-	"github.com/NethermindEth/near-sffl/core"
 	coretypes "github.com/NethermindEth/near-sffl/core/types"
+	"github.com/NethermindEth/near-sffl/core/types/messages"
 	"github.com/NethermindEth/near-sffl/tests"
 )
 
@@ -23,7 +21,7 @@ func TestFetchUnknownStateRootUpdate(t *testing.T) {
 	db, err := database.NewDatabase("")
 	assert.Nil(t, err)
 
-	var entry servicemanager.StateRootUpdateMessage
+	var entry messages.StateRootUpdateMessage
 
 	err = db.FetchStateRootUpdate(1, 2, &entry)
 	assert.NotNil(t, err)
@@ -36,7 +34,7 @@ func TestStoreAndFetchStateRootUpdate(t *testing.T) {
 	db, err := database.NewDatabase("")
 	assert.Nil(t, err)
 
-	value := servicemanager.StateRootUpdateMessage{
+	value := messages.StateRootUpdateMessage{
 		RollupId:    1,
 		BlockHeight: 2,
 		Timestamp:   3,
@@ -46,7 +44,7 @@ func TestStoreAndFetchStateRootUpdate(t *testing.T) {
 	err = db.StoreStateRootUpdate(value)
 	assert.Nil(t, err)
 
-	var entry servicemanager.StateRootUpdateMessage
+	var entry messages.StateRootUpdateMessage
 
 	err = db.FetchStateRootUpdate(value.RollupId, value.BlockHeight, &entry)
 	assert.Nil(t, err)
@@ -61,7 +59,7 @@ func TestFetchUnknownStateRootUpdateAggregation(t *testing.T) {
 	db, err := database.NewDatabase("")
 	assert.Nil(t, err)
 
-	var entry aggtypes.MessageBlsAggregationServiceResponse
+	var entry messages.MessageBlsAggregation
 
 	err = db.FetchStateRootUpdateAggregation(1, 2, &entry)
 	assert.NotNil(t, err)
@@ -74,7 +72,7 @@ func TestStoreAndFetchStateRootUpdateAggregation(t *testing.T) {
 	db, err := database.NewDatabase("")
 	assert.Nil(t, err)
 
-	msg := servicemanager.StateRootUpdateMessage{
+	msg := messages.StateRootUpdateMessage{
 		RollupId:    1,
 		BlockHeight: 2,
 		Timestamp:   3,
@@ -84,17 +82,17 @@ func TestStoreAndFetchStateRootUpdateAggregation(t *testing.T) {
 	err = db.StoreStateRootUpdate(msg)
 	assert.Nil(t, err)
 
-	msgDigest, err := core.GetStateRootUpdateMessageDigest(&msg)
+	msgDigest, err := msg.Digest()
 	assert.Nil(t, err)
 
-	value := aggtypes.MessageBlsAggregationServiceResponse{
+	value := messages.MessageBlsAggregation{
 		MessageDigest: msgDigest,
 	}
 
 	err = db.StoreStateRootUpdateAggregation(msg, value)
 	assert.Nil(t, err)
 
-	var entry aggtypes.MessageBlsAggregationServiceResponse
+	var entry messages.MessageBlsAggregation
 
 	err = db.FetchStateRootUpdateAggregation(msg.RollupId, msg.BlockHeight, &entry)
 	assert.Nil(t, err)
@@ -109,7 +107,7 @@ func TestFetchUnknownOperatorSetUpdate(t *testing.T) {
 	db, err := database.NewDatabase("")
 	assert.Nil(t, err)
 
-	var entry registryrollup.OperatorSetUpdateMessage
+	var entry messages.OperatorSetUpdateMessage
 
 	err = db.FetchOperatorSetUpdate(1, &entry)
 	assert.NotNil(t, err)
@@ -122,18 +120,18 @@ func TestStoreAndFetchOperatorSetUpdate(t *testing.T) {
 	db, err := database.NewDatabase("")
 	assert.Nil(t, err)
 
-	value := registryrollup.OperatorSetUpdateMessage{
+	value := messages.OperatorSetUpdateMessage{
 		Id:        1,
 		Timestamp: 2,
-		Operators: []registryrollup.OperatorsOperator{
-			{Pubkey: registryrollup.BN254G1Point{X: big.NewInt(3), Y: big.NewInt(4)}, Weight: big.NewInt(5)},
+		Operators: []coretypes.RollupOperator{
+			{Pubkey: bls.NewG1Point(big.NewInt(3), big.NewInt(4)), Weight: big.NewInt(5)},
 		},
 	}
 
 	err = db.StoreOperatorSetUpdate(value)
 	assert.Nil(t, err)
 
-	var entry registryrollup.OperatorSetUpdateMessage
+	var entry messages.OperatorSetUpdateMessage
 
 	err = db.FetchOperatorSetUpdate(value.Id, &entry)
 	assert.Nil(t, err)
@@ -148,7 +146,7 @@ func TestFetchUnknownOperatorSetUpdateAggregation(t *testing.T) {
 	db, err := database.NewDatabase("")
 	assert.Nil(t, err)
 
-	var entry aggtypes.MessageBlsAggregationServiceResponse
+	var entry messages.MessageBlsAggregation
 
 	err = db.FetchOperatorSetUpdateAggregation(1, &entry)
 	assert.NotNil(t, err)
@@ -161,28 +159,28 @@ func TestStoreAndFetchOperatorSetUpdateAggregation(t *testing.T) {
 	db, err := database.NewDatabase("")
 	assert.Nil(t, err)
 
-	msg := registryrollup.OperatorSetUpdateMessage{
+	msg := messages.OperatorSetUpdateMessage{
 		Id:        1,
 		Timestamp: 2,
-		Operators: []registryrollup.OperatorsOperator{
-			{Pubkey: registryrollup.BN254G1Point{X: big.NewInt(3), Y: big.NewInt(4)}, Weight: big.NewInt(5)},
+		Operators: []coretypes.RollupOperator{
+			{Pubkey: bls.NewG1Point(big.NewInt(3), big.NewInt(4)), Weight: big.NewInt(5)},
 		},
 	}
 
 	err = db.StoreOperatorSetUpdate(msg)
 	assert.Nil(t, err)
 
-	msgDigest, err := core.GetOperatorSetUpdateMessageDigest(&msg)
+	msgDigest, err := msg.Digest()
 	assert.Nil(t, err)
 
-	value := aggtypes.MessageBlsAggregationServiceResponse{
+	value := messages.MessageBlsAggregation{
 		MessageDigest: msgDigest,
 	}
 
 	err = db.StoreOperatorSetUpdateAggregation(msg, value)
 	assert.Nil(t, err)
 
-	var entry aggtypes.MessageBlsAggregationServiceResponse
+	var entry messages.MessageBlsAggregation
 
 	err = db.FetchOperatorSetUpdateAggregation(msg.Id, &entry)
 	assert.Nil(t, err)
@@ -197,61 +195,61 @@ func TestFetchCheckpointMessages(t *testing.T) {
 	db, err := database.NewDatabase("")
 	assert.Nil(t, err)
 
-	msg1 := servicemanager.StateRootUpdateMessage{
+	msg1 := messages.StateRootUpdateMessage{
 		RollupId:    1,
 		BlockHeight: 1,
 		Timestamp:   0,
 		StateRoot:   tests.Keccak256(4),
 	}
 
-	msgDigest1, err := core.GetStateRootUpdateMessageDigest(&msg1)
+	msgDigest1, err := msg1.Digest()
 	assert.Nil(t, err)
 
-	aggregation1 := aggtypes.MessageBlsAggregationServiceResponse{
+	aggregation1 := messages.MessageBlsAggregation{
 		MessageDigest: msgDigest1,
 	}
 
-	msg2 := servicemanager.StateRootUpdateMessage{
+	msg2 := messages.StateRootUpdateMessage{
 		RollupId:    1,
 		BlockHeight: 2,
 		Timestamp:   1,
 		StateRoot:   tests.Keccak256(4),
 	}
 
-	msgDigest2, err := core.GetStateRootUpdateMessageDigest(&msg2)
+	msgDigest2, err := msg2.Digest()
 	assert.Nil(t, err)
 
-	aggregation2 := aggtypes.MessageBlsAggregationServiceResponse{
+	aggregation2 := messages.MessageBlsAggregation{
 		MessageDigest: msgDigest2,
 	}
 
-	msg3 := registryrollup.OperatorSetUpdateMessage{
+	msg3 := messages.OperatorSetUpdateMessage{
 		Id:        1,
 		Timestamp: 2,
-		Operators: []registryrollup.OperatorsOperator{
-			{Pubkey: registryrollup.BN254G1Point{X: big.NewInt(3), Y: big.NewInt(4)}, Weight: big.NewInt(5)},
+		Operators: []coretypes.RollupOperator{
+			{Pubkey: bls.NewG1Point(big.NewInt(3), big.NewInt(4)), Weight: big.NewInt(5)},
 		},
 	}
 
-	msgDigest3, err := core.GetOperatorSetUpdateMessageDigest(&msg3)
+	msgDigest3, err := msg3.Digest()
 	assert.Nil(t, err)
 
-	aggregation3 := aggtypes.MessageBlsAggregationServiceResponse{
+	aggregation3 := messages.MessageBlsAggregation{
 		MessageDigest: msgDigest3,
 	}
 
-	msg4 := registryrollup.OperatorSetUpdateMessage{
+	msg4 := messages.OperatorSetUpdateMessage{
 		Id:        2,
 		Timestamp: 3,
-		Operators: []registryrollup.OperatorsOperator{
-			{Pubkey: registryrollup.BN254G1Point{X: big.NewInt(3), Y: big.NewInt(4)}, Weight: big.NewInt(5)},
+		Operators: []coretypes.RollupOperator{
+			{Pubkey: bls.NewG1Point(big.NewInt(3), big.NewInt(4)), Weight: big.NewInt(5)},
 		},
 	}
 
-	msgDigest4, err := core.GetOperatorSetUpdateMessageDigest(&msg4)
+	msgDigest4, err := msg4.Digest()
 	assert.Nil(t, err)
 
-	aggregation4 := aggtypes.MessageBlsAggregationServiceResponse{
+	aggregation4 := messages.MessageBlsAggregation{
 		MessageDigest: msgDigest4,
 	}
 
@@ -279,41 +277,41 @@ func TestFetchCheckpointMessages(t *testing.T) {
 	err = db.StoreOperatorSetUpdateAggregation(msg4, aggregation4)
 	assert.Nil(t, err)
 
-	var result coretypes.CheckpointMessages
+	var result messages.CheckpointMessages
 
 	err = db.FetchCheckpointMessages(0, 3, &result)
 	assert.Nil(t, err)
-	assert.Equal(t, result, coretypes.CheckpointMessages{
-		StateRootUpdateMessages:              []servicemanager.StateRootUpdateMessage{msg1, msg2},
-		StateRootUpdateMessageAggregations:   []aggtypes.MessageBlsAggregationServiceResponse{aggregation1, aggregation2},
-		OperatorSetUpdateMessages:            []registryrollup.OperatorSetUpdateMessage{msg3, msg4},
-		OperatorSetUpdateMessageAggregations: []aggtypes.MessageBlsAggregationServiceResponse{aggregation3, aggregation4},
+	assert.Equal(t, result, messages.CheckpointMessages{
+		StateRootUpdateMessages:              []messages.StateRootUpdateMessage{msg1, msg2},
+		StateRootUpdateMessageAggregations:   []messages.MessageBlsAggregation{aggregation1, aggregation2},
+		OperatorSetUpdateMessages:            []messages.OperatorSetUpdateMessage{msg3, msg4},
+		OperatorSetUpdateMessageAggregations: []messages.MessageBlsAggregation{aggregation3, aggregation4},
 	})
 
 	err = db.FetchCheckpointMessages(1, 3, &result)
 	assert.Nil(t, err)
-	assert.Equal(t, result, coretypes.CheckpointMessages{
-		StateRootUpdateMessages:              []servicemanager.StateRootUpdateMessage{msg2},
-		StateRootUpdateMessageAggregations:   []aggtypes.MessageBlsAggregationServiceResponse{aggregation2},
-		OperatorSetUpdateMessages:            []registryrollup.OperatorSetUpdateMessage{msg3, msg4},
-		OperatorSetUpdateMessageAggregations: []aggtypes.MessageBlsAggregationServiceResponse{aggregation3, aggregation4},
+	assert.Equal(t, result, messages.CheckpointMessages{
+		StateRootUpdateMessages:              []messages.StateRootUpdateMessage{msg2},
+		StateRootUpdateMessageAggregations:   []messages.MessageBlsAggregation{aggregation2},
+		OperatorSetUpdateMessages:            []messages.OperatorSetUpdateMessage{msg3, msg4},
+		OperatorSetUpdateMessageAggregations: []messages.MessageBlsAggregation{aggregation3, aggregation4},
 	})
 
 	err = db.FetchCheckpointMessages(1, 2, &result)
 	assert.Nil(t, err)
-	assert.Equal(t, result, coretypes.CheckpointMessages{
-		StateRootUpdateMessages:              []servicemanager.StateRootUpdateMessage{msg2},
-		StateRootUpdateMessageAggregations:   []aggtypes.MessageBlsAggregationServiceResponse{aggregation2},
-		OperatorSetUpdateMessages:            []registryrollup.OperatorSetUpdateMessage{msg3},
-		OperatorSetUpdateMessageAggregations: []aggtypes.MessageBlsAggregationServiceResponse{aggregation3},
+	assert.Equal(t, result, messages.CheckpointMessages{
+		StateRootUpdateMessages:              []messages.StateRootUpdateMessage{msg2},
+		StateRootUpdateMessageAggregations:   []messages.MessageBlsAggregation{aggregation2},
+		OperatorSetUpdateMessages:            []messages.OperatorSetUpdateMessage{msg3},
+		OperatorSetUpdateMessageAggregations: []messages.MessageBlsAggregation{aggregation3},
 	})
 
 	err = db.FetchCheckpointMessages(4, 10, &result)
 	assert.Nil(t, err)
-	assert.Equal(t, result, coretypes.CheckpointMessages{
-		StateRootUpdateMessages:              []servicemanager.StateRootUpdateMessage{},
-		StateRootUpdateMessageAggregations:   []aggtypes.MessageBlsAggregationServiceResponse{},
-		OperatorSetUpdateMessages:            []registryrollup.OperatorSetUpdateMessage{},
-		OperatorSetUpdateMessageAggregations: []aggtypes.MessageBlsAggregationServiceResponse{},
+	assert.Equal(t, result, messages.CheckpointMessages{
+		StateRootUpdateMessages:              []messages.StateRootUpdateMessage{},
+		StateRootUpdateMessageAggregations:   []messages.MessageBlsAggregation{},
+		OperatorSetUpdateMessages:            []messages.OperatorSetUpdateMessage{},
+		OperatorSetUpdateMessageAggregations: []messages.MessageBlsAggregation{},
 	})
 }

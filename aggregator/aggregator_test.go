@@ -20,12 +20,10 @@ import (
 	dbmocks "github.com/NethermindEth/near-sffl/aggregator/database/mocks"
 	aggmocks "github.com/NethermindEth/near-sffl/aggregator/mocks"
 	"github.com/NethermindEth/near-sffl/aggregator/types"
-	registryrollup "github.com/NethermindEth/near-sffl/contracts/bindings/SFFLRegistryRollup"
-	servicemanager "github.com/NethermindEth/near-sffl/contracts/bindings/SFFLServiceManager"
 	taskmanager "github.com/NethermindEth/near-sffl/contracts/bindings/SFFLTaskManager"
-	"github.com/NethermindEth/near-sffl/core"
 	chainiomocks "github.com/NethermindEth/near-sffl/core/chainio/mocks"
 	coretypes "github.com/NethermindEth/near-sffl/core/types"
+	"github.com/NethermindEth/near-sffl/core/types/messages"
 )
 
 var MOCK_OPERATOR_ID = [32]byte{207, 73, 226, 221, 104, 100, 123, 41, 192, 3, 9, 119, 90, 83, 233, 159, 231, 151, 245, 96, 150, 48, 144, 27, 102, 253, 39, 101, 1, 26, 135, 173}
@@ -86,18 +84,20 @@ func TestHandleStateRootUpdateAggregationReachedQuorum(t *testing.T) {
 	aggregator, _, _, _, _, _, mockMsgDb, _, err := createMockAggregator(mockCtrl, MOCK_OPERATOR_PUBKEY_DICT)
 	assert.Nil(t, err)
 
-	msg := servicemanager.StateRootUpdateMessage{}
-	msgDigest, err := core.GetStateRootUpdateMessageDigest(&msg)
+	msg := messages.StateRootUpdateMessage{}
+	msgDigest, err := msg.Digest()
 	assert.Nil(t, err)
 
 	blsAggServiceResp := types.MessageBlsAggregationServiceResponse{
-		MessageDigest: msgDigest,
+		MessageBlsAggregation: messages.MessageBlsAggregation{
+			MessageDigest: msgDigest,
+		},
 	}
 
 	aggregator.stateRootUpdates[msgDigest] = msg
 
 	mockMsgDb.EXPECT().StoreStateRootUpdate(msg)
-	mockMsgDb.EXPECT().StoreStateRootUpdateAggregation(msg, blsAggServiceResp)
+	mockMsgDb.EXPECT().StoreStateRootUpdateAggregation(msg, blsAggServiceResp.MessageBlsAggregation)
 
 	assert.Contains(t, aggregator.stateRootUpdates, msgDigest)
 
@@ -113,23 +113,25 @@ func TestHandleOperatorSetUpdateAggregationReachedQuorum(t *testing.T) {
 	aggregator, _, _, _, _, _, mockMsgDb, mockRollupBroadcaster, err := createMockAggregator(mockCtrl, MOCK_OPERATOR_PUBKEY_DICT)
 	assert.Nil(t, err)
 
-	msg := registryrollup.OperatorSetUpdateMessage{}
-	msgDigest, err := core.GetOperatorSetUpdateMessageDigest(&msg)
+	msg := messages.OperatorSetUpdateMessage{}
+	msgDigest, err := msg.Digest()
 	assert.Nil(t, err)
 
 	blsAggServiceResp := types.MessageBlsAggregationServiceResponse{
-		MessageDigest:       msgDigest,
-		NonSignersPubkeysG1: make([]*bls.G1Point, 0),
-		SignersApkG2:        bls.NewZeroG2Point(),
-		SignersAggSigG1:     bls.NewZeroSignature(),
+		MessageBlsAggregation: messages.MessageBlsAggregation{
+			MessageDigest:       msgDigest,
+			NonSignersPubkeysG1: make([]*bls.G1Point, 0),
+			SignersApkG2:        bls.NewZeroG2Point(),
+			SignersAggSigG1:     bls.NewZeroSignature(),
+		},
 	}
 
 	aggregator.operatorSetUpdates[msgDigest] = msg
 
 	mockMsgDb.EXPECT().StoreOperatorSetUpdate(msg)
-	mockMsgDb.EXPECT().StoreOperatorSetUpdateAggregation(msg, blsAggServiceResp)
+	mockMsgDb.EXPECT().StoreOperatorSetUpdateAggregation(msg, blsAggServiceResp.MessageBlsAggregation)
 
-	signatureInfo := core.FormatBlsAggregationRollup(&blsAggServiceResp)
+	signatureInfo := blsAggServiceResp.ExtractBindingRollup()
 	mockRollupBroadcaster.EXPECT().BroadcastOperatorSetUpdate(context.Background(), msg, signatureInfo)
 
 	assert.Contains(t, aggregator.operatorSetUpdates, msgDigest)
@@ -160,9 +162,9 @@ func createMockAggregator(
 		operatorSetUpdateBlsAggregationService: mockOperatorSetUpdateBlsAggregationService,
 		msgDb:                                  mockMsgDb,
 		tasks:                                  make(map[coretypes.TaskIndex]taskmanager.CheckpointTask),
-		taskResponses:                          make(map[coretypes.TaskIndex]map[sdktypes.TaskResponseDigest]taskmanager.CheckpointTaskResponse),
-		stateRootUpdates:                       make(map[coretypes.MessageDigest]servicemanager.StateRootUpdateMessage),
-		operatorSetUpdates:                     make(map[coretypes.MessageDigest]registryrollup.OperatorSetUpdateMessage),
+		taskResponses:                          make(map[coretypes.TaskIndex]map[sdktypes.TaskResponseDigest]messages.CheckpointTaskResponse),
+		stateRootUpdates:                       make(map[coretypes.MessageDigest]messages.StateRootUpdateMessage),
+		operatorSetUpdates:                     make(map[coretypes.MessageDigest]messages.OperatorSetUpdateMessage),
 		rollupBroadcaster:                      mockRollupBroadcaster,
 	}
 	return aggregator, mockAvsReader, mockAvsWriter, mockTaskBlsAggregationService, mockStateRootUpdateBlsAggregationService, mockOperatorSetUpdateBlsAggregationService, mockMsgDb, mockRollupBroadcaster, nil

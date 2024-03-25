@@ -2,7 +2,9 @@ package chainio
 
 import (
 	"context"
+
 	"github.com/NethermindEth/near-sffl/core/config"
+	"github.com/NethermindEth/near-sffl/core/types/messages"
 
 	gethcommon "github.com/ethereum/go-ethereum/common"
 	"github.com/ethereum/go-ethereum/core/types"
@@ -28,14 +30,14 @@ type AvsWriterer interface {
 	RaiseChallenge(
 		ctx context.Context,
 		task taskmanager.CheckpointTask,
-		taskResponse taskmanager.CheckpointTaskResponse,
+		taskResponse messages.CheckpointTaskResponse,
 		taskResponseMetadata taskmanager.CheckpointTaskResponseMetadata,
 		pubkeysOfNonSigningOperators []taskmanager.BN254G1Point,
 	) (*types.Receipt, error)
 	SendAggregatedResponse(ctx context.Context,
 		task taskmanager.CheckpointTask,
-		taskResponse taskmanager.CheckpointTaskResponse,
-		nonSignerStakesAndSignature taskmanager.IBLSSignatureCheckerNonSignerStakesAndSignature,
+		taskResponse messages.CheckpointTaskResponse,
+		aggregation messages.MessageBlsAggregation,
 	) (*types.Receipt, error)
 }
 
@@ -102,15 +104,15 @@ func (w *AvsWriter) SendNewCheckpointTask(ctx context.Context, fromTimestamp uin
 
 func (w *AvsWriter) SendAggregatedResponse(
 	ctx context.Context, task taskmanager.CheckpointTask,
-	taskResponse taskmanager.CheckpointTaskResponse,
-	nonSignerStakesAndSignature taskmanager.IBLSSignatureCheckerNonSignerStakesAndSignature,
+	taskResponse messages.CheckpointTaskResponse,
+	aggregation messages.MessageBlsAggregation,
 ) (*types.Receipt, error) {
 	txOpts, err := w.TxMgr.GetNoSendTxOpts()
 	if err != nil {
 		w.logger.Errorf("Error getting tx opts")
 		return nil, err
 	}
-	tx, err := w.AvsContractBindings.TaskManager.RespondToCheckpointTask(txOpts, task, taskResponse, nonSignerStakesAndSignature)
+	tx, err := w.AvsContractBindings.TaskManager.RespondToCheckpointTask(txOpts, task, taskResponse.ToBinding(), aggregation.ExtractBindingMainnet())
 	if err != nil {
 		w.logger.Error("Error submitting SubmitTaskResponse tx while calling respondToTask", "err", err)
 		return nil, err
@@ -126,7 +128,7 @@ func (w *AvsWriter) SendAggregatedResponse(
 func (w *AvsWriter) RaiseChallenge(
 	ctx context.Context,
 	task taskmanager.CheckpointTask,
-	taskResponse taskmanager.CheckpointTaskResponse,
+	taskResponse messages.CheckpointTaskResponse,
 	taskResponseMetadata taskmanager.CheckpointTaskResponseMetadata,
 	pubkeysOfNonSigningOperators []taskmanager.BN254G1Point,
 ) (*types.Receipt, error) {
@@ -135,7 +137,7 @@ func (w *AvsWriter) RaiseChallenge(
 		w.logger.Errorf("Error getting tx opts")
 		return nil, err
 	}
-	tx, err := w.AvsContractBindings.TaskManager.RaiseAndResolveCheckpointChallenge(txOpts, task, taskResponse, taskResponseMetadata, pubkeysOfNonSigningOperators)
+	tx, err := w.AvsContractBindings.TaskManager.RaiseAndResolveCheckpointChallenge(txOpts, task, taskResponse.ToBinding(), taskResponseMetadata, pubkeysOfNonSigningOperators)
 	if err != nil {
 		w.logger.Errorf("Error assembling RaiseChallenge tx")
 		return nil, err

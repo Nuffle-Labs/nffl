@@ -8,9 +8,7 @@ import (
 	"github.com/gorilla/mux"
 
 	aggtypes "github.com/NethermindEth/near-sffl/aggregator/types"
-	registryrollup "github.com/NethermindEth/near-sffl/contracts/bindings/SFFLRegistryRollup"
-	servicemanager "github.com/NethermindEth/near-sffl/contracts/bindings/SFFLServiceManager"
-	"github.com/NethermindEth/near-sffl/core/types"
+	"github.com/NethermindEth/near-sffl/core/types/messages"
 )
 
 func (agg *Aggregator) startRestServer() error {
@@ -27,11 +25,6 @@ func (agg *Aggregator) startRestServer() error {
 	return nil
 }
 
-type GetStateRootUpdateAggregationResponse struct {
-	Message     servicemanager.StateRootUpdateMessage
-	Aggregation aggtypes.MessageBlsAggregationServiceResponse
-}
-
 func (agg *Aggregator) handleGetStateRootUpdateAggregation(w http.ResponseWriter, r *http.Request) {
 	params := r.URL.Query()
 	rollupId, err := strconv.ParseUint(params.Get("rollupId"), 10, 32)
@@ -46,8 +39,8 @@ func (agg *Aggregator) handleGetStateRootUpdateAggregation(w http.ResponseWriter
 		return
 	}
 
-	var message servicemanager.StateRootUpdateMessage
-	var aggregation aggtypes.MessageBlsAggregationServiceResponse
+	var message messages.StateRootUpdateMessage
+	var aggregation messages.MessageBlsAggregation
 
 	err = agg.msgDb.FetchStateRootUpdate(uint32(rollupId), blockHeight, &message)
 	if err != nil {
@@ -63,15 +56,10 @@ func (agg *Aggregator) handleGetStateRootUpdateAggregation(w http.ResponseWriter
 
 	w.WriteHeader(http.StatusOK)
 	w.Header().Set("Content-Type", "application/json")
-	json.NewEncoder(w).Encode(GetStateRootUpdateAggregationResponse{
+	json.NewEncoder(w).Encode(aggtypes.GetStateRootUpdateAggregationResponse{
 		Message:     message,
 		Aggregation: aggregation,
 	})
-}
-
-type GetOperatorSetUpdateAggregationResponse struct {
-	Message     registryrollup.OperatorSetUpdateMessage
-	Aggregation aggtypes.MessageBlsAggregationServiceResponse
 }
 
 func (agg *Aggregator) handleGetOperatorSetUpdateAggregation(w http.ResponseWriter, r *http.Request) {
@@ -82,8 +70,8 @@ func (agg *Aggregator) handleGetOperatorSetUpdateAggregation(w http.ResponseWrit
 		return
 	}
 
-	var message registryrollup.OperatorSetUpdateMessage
-	var aggregation aggtypes.MessageBlsAggregationServiceResponse
+	var message messages.OperatorSetUpdateMessage
+	var aggregation messages.MessageBlsAggregation
 
 	err = agg.msgDb.FetchOperatorSetUpdate(id, &message)
 	if err != nil {
@@ -99,14 +87,10 @@ func (agg *Aggregator) handleGetOperatorSetUpdateAggregation(w http.ResponseWrit
 
 	w.WriteHeader(http.StatusOK)
 	w.Header().Set("Content-Type", "application/json")
-	json.NewEncoder(w).Encode(GetOperatorSetUpdateAggregationResponse{
+	json.NewEncoder(w).Encode(aggtypes.GetOperatorSetUpdateAggregationResponse{
 		Message:     message,
 		Aggregation: aggregation,
 	})
-}
-
-type GetCheckpointMessagesResponse struct {
-	CheckpointMessages types.CheckpointMessages
 }
 
 func (agg *Aggregator) handleGetCheckpointMessages(w http.ResponseWriter, r *http.Request) {
@@ -124,13 +108,13 @@ func (agg *Aggregator) handleGetCheckpointMessages(w http.ResponseWriter, r *htt
 		return
 	}
 
-	var checkpointMessages types.CheckpointMessages
+	var checkpointMessages messages.CheckpointMessages
 
 	agg.msgDb.FetchCheckpointMessages(fromTimestamp, toTimestamp, &checkpointMessages)
 
 	w.WriteHeader(http.StatusOK)
 	w.Header().Set("Content-Type", "application/json")
-	json.NewEncoder(w).Encode(GetCheckpointMessagesResponse{
+	json.NewEncoder(w).Encode(aggtypes.GetCheckpointMessagesResponse{
 		CheckpointMessages: checkpointMessages,
 	})
 }

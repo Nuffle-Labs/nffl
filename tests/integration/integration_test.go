@@ -24,7 +24,6 @@ import (
 	sdkEcdsa "github.com/Layr-Labs/eigensdk-go/crypto/ecdsa"
 	sdklogging "github.com/Layr-Labs/eigensdk-go/logging"
 	sdkutils "github.com/Layr-Labs/eigensdk-go/utils"
-	"github.com/NethermindEth/near-sffl/core"
 	"github.com/docker/go-connections/nat"
 	"github.com/ethereum/go-ethereum/accounts/abi/bind"
 	"github.com/ethereum/go-ethereum/common"
@@ -37,11 +36,13 @@ import (
 	"github.com/testcontainers/testcontainers-go/wait"
 
 	"github.com/NethermindEth/near-sffl/aggregator"
+	aggtypes "github.com/NethermindEth/near-sffl/aggregator/types"
 	registryrollup "github.com/NethermindEth/near-sffl/contracts/bindings/SFFLRegistryRollup"
 	"github.com/NethermindEth/near-sffl/core/chainio"
 	"github.com/NethermindEth/near-sffl/core/config"
+	"github.com/NethermindEth/near-sffl/core/types"
 	"github.com/NethermindEth/near-sffl/operator"
-	"github.com/NethermindEth/near-sffl/types"
+	optypes "github.com/NethermindEth/near-sffl/operator/types"
 )
 
 const TEST_DATA_DIR = "../../test_data"
@@ -83,7 +84,7 @@ func TestIntegration(t *testing.T) {
 	if err != nil {
 		t.Fatalf("Cannot get state root update: %s", err.Error())
 	}
-	_, err = setup.registryRollups[1].UpdateStateRoot(setup.registryRollupAuths[1], registryrollup.StateRootUpdateMessage(stateRootUpdate.Message), core.FormatBlsAggregationRollup(&stateRootUpdate.Aggregation))
+	_, err = setup.registryRollups[1].UpdateStateRoot(setup.registryRollupAuths[1], registryrollup.StateRootUpdateMessage(stateRootUpdate.Message), stateRootUpdate.Aggregation.ExtractBindingRollup())
 	if err != nil {
 		t.Fatalf("Error updating state root: %s", err.Error())
 	}
@@ -105,7 +106,16 @@ func TestIntegration(t *testing.T) {
 		}
 	}
 
-	// Check if operator set was updated on mainnets
+	stateRootHeight = uint64(16)
+	stateRootUpdate, err = getStateRootUpdateAggregation(setup.aggregatorRestUrl, uint32(setup.rollupAnvils[0].ChainID.Uint64()), stateRootHeight)
+	if err != nil {
+		t.Fatalf("Cannot get state root update: %s", err.Error())
+	}
+	_, err = setup.registryRollups[1].UpdateStateRoot(setup.registryRollupAuths[1], registryrollup.StateRootUpdateMessage(stateRootUpdate.Message), stateRootUpdate.Aggregation.ExtractBindingRollup())
+	if err != nil {
+		t.Fatalf("Error updating state root: %s", err.Error())
+	}
+
 	operatorSetUpdateCount, err := setup.avsReader.AvsServiceBindings.OperatorSetUpdateRegistry.GetOperatorSetUpdateCount(&bind.CallOpts{})
 	if err != nil {
 		t.Fatalf("Error getting operator set update count: %s", err.Error())
@@ -125,7 +135,7 @@ func TestIntegration(t *testing.T) {
 	}
 
 	// Check if operator sets are same on rollups
-	_, err = setup.registryRollups[1].UpdateStateRoot(setup.registryRollupAuths[1], registryrollup.StateRootUpdateMessage(stateRootUpdate.Message), core.FormatBlsAggregationRollup(&stateRootUpdate.Aggregation))
+	_, err = setup.registryRollups[1].UpdateStateRoot(setup.registryRollupAuths[1], registryrollup.StateRootUpdateMessage(stateRootUpdate.Message), stateRootUpdate.Aggregation.ExtractBindingRollup())
 	if err != nil {
 		t.Fatalf("Error updating state root: %s", err.Error())
 	}
@@ -135,12 +145,9 @@ func TestIntegration(t *testing.T) {
 		t.Fatalf("Error getting operator set update: %s", err.Error())
 	}
 
-	expectedUpdatedOperators := []registryrollup.OperatorsOperator{
+	expectedUpdatedOperators := []types.RollupOperator{
 		{
-			Pubkey: registryrollup.BN254G1Point{
-				X: newOperator.BlsPubkeyG1().X.BigInt(big.NewInt(0)),
-				Y: newOperator.BlsPubkeyG1().Y.BigInt(big.NewInt(0)),
-			},
+			Pubkey: newOperator.BlsPubkeyG1(),
 			Weight: big.NewInt(1000),
 		},
 	}
@@ -268,7 +275,7 @@ func setupTestEnv(t *testing.T, ctx context.Context) *testEnv {
 	}
 }
 
-func startOperator(t *testing.T, ctx context.Context, nodeConfig types.NodeConfig) *operator.Operator {
+func startOperator(t *testing.T, ctx context.Context, nodeConfig optypes.NodeConfig) *operator.Operator {
 	operator, err := operator.NewOperatorFromConfig(nodeConfig)
 	if err != nil {
 		t.Fatalf("Failed to create operator: %s", err.Error())
@@ -324,8 +331,8 @@ func readSfflDeploymentRaw() config.SFFLDeploymentRaw {
 	return sfflDeploymentRaw
 }
 
-func genOperatorConfig(t *testing.T, ctx context.Context, mainnetAnvil *AnvilInstance, rollupAnvils []*AnvilInstance, rabbitMq *rabbitmq.RabbitMQContainer) (types.NodeConfig, *bls.KeyPair, *ecdsa.PrivateKey) {
-	nodeConfig := types.NodeConfig{}
+func genOperatorConfig(t *testing.T, ctx context.Context, mainnetAnvil *AnvilInstance, rollupAnvils []*AnvilInstance, rabbitMq *rabbitmq.RabbitMQContainer) (optypes.NodeConfig, *bls.KeyPair, *ecdsa.PrivateKey) {
+	nodeConfig := optypes.NodeConfig{}
 	nodeConfigFilePath := "../../config-files/operator.anvil.yaml"
 	err := sdkutils.ReadYamlConfig(nodeConfigFilePath, &nodeConfig)
 	if err != nil {
@@ -762,7 +769,7 @@ func execCommand(t *testing.T, name string, arg, env []string, shouldLog bool) e
 	return err
 }
 
-func getStateRootUpdateAggregation(addr string, rollupID uint32, blockHeight uint64) (*aggregator.GetStateRootUpdateAggregationResponse, error) {
+func getStateRootUpdateAggregation(addr string, rollupID uint32, blockHeight uint64) (*aggtypes.GetStateRootUpdateAggregationResponse, error) {
 	url := fmt.Sprintf("%s/aggregation/state-root-update?rollupId=%d&blockHeight=%d", addr, rollupID, blockHeight)
 
 	resp, err := http.Get(url)
@@ -780,7 +787,7 @@ func getStateRootUpdateAggregation(addr string, rollupID uint32, blockHeight uin
 		return nil, fmt.Errorf("error: %s, message: %s", resp.Status, string(bodyBytes))
 	}
 
-	var response aggregator.GetStateRootUpdateAggregationResponse
+	var response aggtypes.GetStateRootUpdateAggregationResponse
 	if err := json.NewDecoder(resp.Body).Decode(&response); err != nil {
 		return nil, err
 	}
@@ -788,7 +795,7 @@ func getStateRootUpdateAggregation(addr string, rollupID uint32, blockHeight uin
 	return &response, nil
 }
 
-func getOperatorSetUpdateAggregation(addr string, id uint64) (*aggregator.GetOperatorSetUpdateAggregationResponse, error) {
+func getOperatorSetUpdateAggregation(addr string, id uint64) (*aggtypes.GetOperatorSetUpdateAggregationResponse, error) {
 	url := fmt.Sprintf("%s/aggregation/operator-set-update?id=%d", addr, id)
 
 	resp, err := http.Get(url)
@@ -806,7 +813,7 @@ func getOperatorSetUpdateAggregation(addr string, id uint64) (*aggregator.GetOpe
 		return nil, fmt.Errorf("error: %s", resp.Status)
 	}
 
-	var response aggregator.GetOperatorSetUpdateAggregationResponse
+	var response aggtypes.GetOperatorSetUpdateAggregationResponse
 	err = json.NewDecoder(resp.Body).Decode(&response)
 	if err != nil {
 		return nil, err

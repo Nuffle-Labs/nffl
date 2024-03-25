@@ -17,10 +17,11 @@ import (
 	"github.com/ethereum/go-ethereum/common"
 
 	opsetupdatereg "github.com/NethermindEth/near-sffl/contracts/bindings/SFFLOperatorSetUpdateRegistry"
-	registryrollup "github.com/NethermindEth/near-sffl/contracts/bindings/SFFLRegistryRollup"
 	taskmanager "github.com/NethermindEth/near-sffl/contracts/bindings/SFFLTaskManager"
 	"github.com/NethermindEth/near-sffl/core/chainio"
-	"github.com/NethermindEth/near-sffl/types"
+	coretypes "github.com/NethermindEth/near-sffl/core/types"
+	"github.com/NethermindEth/near-sffl/core/types/messages"
+	optypes "github.com/NethermindEth/near-sffl/operator/types"
 )
 
 type AvsManagerer interface {
@@ -32,11 +33,11 @@ type AvsManagerer interface {
 		operatorEcdsaKeyPair *ecdsa.PrivateKey,
 		blsKeyPair *bls.KeyPair,
 	) error
-	ProcessCheckpointTaskCreatedLog(checkpointTaskCreatedLog *taskmanager.ContractSFFLTaskManagerCheckpointTaskCreated) taskmanager.CheckpointTaskResponse
+	ProcessCheckpointTaskCreatedLog(checkpointTaskCreatedLog *taskmanager.ContractSFFLTaskManagerCheckpointTaskCreated) messages.CheckpointTaskResponse
 
 	GetOperatorId(options *bind.CallOpts, address common.Address) ([32]byte, error)
-	GetCheckpointTaskResponseChan() <-chan taskmanager.CheckpointTaskResponse
-	GetOperatorSetUpdateChan() <-chan registryrollup.OperatorSetUpdateMessage
+	GetCheckpointTaskResponseChan() <-chan messages.CheckpointTaskResponse
+	GetOperatorSetUpdateChan() <-chan messages.OperatorSetUpdateMessage
 }
 
 type AvsManager struct {
@@ -52,13 +53,13 @@ type AvsManager struct {
 	operatorSetUpdateChan chan *opsetupdatereg.ContractSFFLOperatorSetUpdateRegistryOperatorSetUpdatedAtBlock
 
 	// Sends message for operator to sign
-	checkpointTaskResponseCreatedChan chan taskmanager.CheckpointTaskResponse
-	operatorSetUpdateMessageChan      chan registryrollup.OperatorSetUpdateMessage
+	checkpointTaskResponseCreatedChan chan messages.CheckpointTaskResponse
+	operatorSetUpdateMessageChan      chan messages.OperatorSetUpdateMessage
 
 	logger sdklogging.Logger
 }
 
-func NewAvsManager(config *types.NodeConfig, ethRpcClient eth.EthClient, ethWsClient eth.EthClient, sdkClients *clients.Clients, txManager *txmgr.SimpleTxManager, logger sdklogging.Logger) (*AvsManager, error) {
+func NewAvsManager(config *optypes.NodeConfig, ethRpcClient eth.EthClient, ethWsClient eth.EthClient, sdkClients *clients.Clients, txManager *txmgr.SimpleTxManager, logger sdklogging.Logger) (*AvsManager, error) {
 	avsWriter, err := chainio.BuildAvsWriter(
 		txManager, common.HexToAddress(config.AVSRegistryCoordinatorAddress),
 		common.HexToAddress(config.OperatorStateRetrieverAddress), ethRpcClient, logger,
@@ -93,17 +94,17 @@ func NewAvsManager(config *types.NodeConfig, ethRpcClient eth.EthClient, ethWsCl
 		eigenlayerWriter:                  sdkClients.ElChainWriter,
 		checkpointTaskCreatedChan:         make(chan *taskmanager.ContractSFFLTaskManagerCheckpointTaskCreated),
 		operatorSetUpdateChan:             make(chan *opsetupdatereg.ContractSFFLOperatorSetUpdateRegistryOperatorSetUpdatedAtBlock),
-		checkpointTaskResponseCreatedChan: make(chan taskmanager.CheckpointTaskResponse),
-		operatorSetUpdateMessageChan:      make(chan registryrollup.OperatorSetUpdateMessage),
+		checkpointTaskResponseCreatedChan: make(chan messages.CheckpointTaskResponse),
+		operatorSetUpdateMessageChan:      make(chan messages.OperatorSetUpdateMessage),
 		logger:                            logger,
 	}, nil
 }
 
-func (avsManager *AvsManager) GetCheckpointTaskResponseChan() <-chan taskmanager.CheckpointTaskResponse {
+func (avsManager *AvsManager) GetCheckpointTaskResponseChan() <-chan messages.CheckpointTaskResponse {
 	return avsManager.checkpointTaskResponseCreatedChan
 }
 
-func (avsManager *AvsManager) GetOperatorSetUpdateChan() <-chan registryrollup.OperatorSetUpdateMessage {
+func (avsManager *AvsManager) GetOperatorSetUpdateChan() <-chan messages.OperatorSetUpdateMessage {
 	return avsManager.operatorSetUpdateMessageChan
 }
 
@@ -180,7 +181,7 @@ func (avsManager *AvsManager) Start(ctx context.Context, operatorAddr common.Add
 
 // Takes a CheckpointTaskCreatedLog struct as input and returns a TaskResponseHeader struct.
 // The TaskResponseHeader struct is the struct that is signed and sent to the contract as a task response.
-func (avsManager *AvsManager) ProcessCheckpointTaskCreatedLog(checkpointTaskCreatedLog *taskmanager.ContractSFFLTaskManagerCheckpointTaskCreated) taskmanager.CheckpointTaskResponse {
+func (avsManager *AvsManager) ProcessCheckpointTaskCreatedLog(checkpointTaskCreatedLog *taskmanager.ContractSFFLTaskManagerCheckpointTaskCreated) messages.CheckpointTaskResponse {
 	avsManager.logger.Debug("Received new task", "task", checkpointTaskCreatedLog)
 	avsManager.logger.Info("Received new task",
 		"fromTimestamp", checkpointTaskCreatedLog.Task.FromTimestamp,
@@ -193,7 +194,7 @@ func (avsManager *AvsManager) ProcessCheckpointTaskCreatedLog(checkpointTaskCrea
 
 	// TODO: build SMT based on stored message agreements and update the test
 
-	taskResponse := taskmanager.CheckpointTaskResponse{
+	taskResponse := messages.CheckpointTaskResponse{
 		ReferenceTaskIndex:     checkpointTaskCreatedLog.TaskIndex,
 		StateRootUpdatesRoot:   [32]byte{0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0},
 		OperatorSetUpdatesRoot: [32]byte{0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0},
@@ -208,18 +209,15 @@ func (avsManager *AvsManager) handleOperatorSetUpdate(ctx context.Context, data 
 		return err
 	}
 
-	operators := make([]registryrollup.OperatorsOperator, len(operatorSetDelta))
+	operators := make([]coretypes.RollupOperator, 0, len(operatorSetDelta))
 	for i := 0; i < len(operatorSetDelta); i++ {
-		operators[i] = registryrollup.OperatorsOperator{
-			Pubkey: registryrollup.BN254G1Point{
-				X: operatorSetDelta[i].Pubkey.X,
-				Y: operatorSetDelta[i].Pubkey.Y,
-			},
+		operators = append(operators, coretypes.RollupOperator{
+			Pubkey: bls.NewG1Point(operatorSetDelta[i].Pubkey.X, operatorSetDelta[i].Pubkey.Y),
 			Weight: operatorSetDelta[i].Weight,
-		}
+		})
 	}
 
-	message := registryrollup.OperatorSetUpdateMessage{
+	message := messages.OperatorSetUpdateMessage{
 		Id:        data.Id,
 		Timestamp: data.Timestamp,
 		Operators: operators,

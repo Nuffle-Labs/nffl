@@ -2,13 +2,14 @@ package actions
 
 import (
 	"encoding/json"
-	sdkutils "github.com/Layr-Labs/eigensdk-go/utils"
-	"github.com/NethermindEth/near-sffl/types"
 	"log"
+
+	sdkutils "github.com/Layr-Labs/eigensdk-go/utils"
+	optypes "github.com/NethermindEth/near-sffl/operator/types"
 )
 
-func readNodeConfig(configPath string) (*types.NodeConfig, error) {
-	nodeConfig := types.NodeConfig{}
+func readNodeConfig(configPath string) (*optypes.NodeConfig, error) {
+	nodeConfig := optypes.NodeConfig{}
 	err := sdkutils.ReadYamlConfig(configPath, &nodeConfig)
 	if err != nil {
 		return nil, err

@@ -9,9 +9,8 @@ import (
 	sdktypes "github.com/Layr-Labs/eigensdk-go/types"
 
 	"github.com/NethermindEth/near-sffl/aggregator/types"
-	taskmanager "github.com/NethermindEth/near-sffl/contracts/bindings/SFFLTaskManager"
-	"github.com/NethermindEth/near-sffl/core"
 	coretypes "github.com/NethermindEth/near-sffl/core/types"
+	"github.com/NethermindEth/near-sffl/core/types/messages"
 )
 
 var (
@@ -42,10 +41,10 @@ func (agg *Aggregator) startServer() error {
 // rpc endpoint which is called by operator
 // reply doesn't need to be checked. If there are no errors, the task response is accepted
 // rpc framework forces a reply type to exist, so we put bool as a placeholder
-func (agg *Aggregator) ProcessSignedCheckpointTaskResponse(signedCheckpointTaskResponse *coretypes.SignedCheckpointTaskResponse, reply *bool) error {
+func (agg *Aggregator) ProcessSignedCheckpointTaskResponse(signedCheckpointTaskResponse *messages.SignedCheckpointTaskResponse, reply *bool) error {
 	agg.logger.Infof("Received signed task response: %#v", signedCheckpointTaskResponse)
 	taskIndex := signedCheckpointTaskResponse.TaskResponse.ReferenceTaskIndex
-	taskResponseDigest, err := core.GetCheckpointTaskResponseDigest(&signedCheckpointTaskResponse.TaskResponse)
+	taskResponseDigest, err := signedCheckpointTaskResponse.TaskResponse.Digest()
 	if err != nil {
 		agg.logger.Error("Failed to get task response digest", "err", err)
 		return TaskResponseDigestNotFoundError500
@@ -61,7 +60,7 @@ func (agg *Aggregator) ProcessSignedCheckpointTaskResponse(signedCheckpointTaskR
 
 	agg.taskResponsesLock.Lock()
 	if _, ok := agg.taskResponses[taskIndex]; !ok {
-		agg.taskResponses[taskIndex] = make(map[sdktypes.TaskResponseDigest]taskmanager.CheckpointTaskResponse)
+		agg.taskResponses[taskIndex] = make(map[sdktypes.TaskResponseDigest]messages.CheckpointTaskResponse)
 	}
 	if _, ok := agg.taskResponses[taskIndex][taskResponseDigest]; !ok {
 		agg.taskResponses[taskIndex][taskResponseDigest] = signedCheckpointTaskResponse.TaskResponse
@@ -71,9 +70,9 @@ func (agg *Aggregator) ProcessSignedCheckpointTaskResponse(signedCheckpointTaskR
 	return nil
 }
 
-func (agg *Aggregator) ProcessSignedStateRootUpdateMessage(signedStateRootUpdateMessage *coretypes.SignedStateRootUpdateMessage, reply *bool) error {
+func (agg *Aggregator) ProcessSignedStateRootUpdateMessage(signedStateRootUpdateMessage *messages.SignedStateRootUpdateMessage, reply *bool) error {
 	agg.logger.Infof("Received signed state root update message: %#v", signedStateRootUpdateMessage)
-	messageDigest, err := core.GetStateRootUpdateMessageDigest(&signedStateRootUpdateMessage.Message)
+	messageDigest, err := signedStateRootUpdateMessage.Message.Digest()
 	if err != nil {
 		agg.logger.Error("Failed to get message digest", "err", err)
 		return TaskResponseDigestNotFoundError500
@@ -96,9 +95,9 @@ func (agg *Aggregator) ProcessSignedStateRootUpdateMessage(signedStateRootUpdate
 	return nil
 }
 
-func (agg *Aggregator) ProcessSignedOperatorSetUpdateMessage(signedOperatorSetUpdateMessage *coretypes.SignedOperatorSetUpdateMessage, reply *bool) error {
+func (agg *Aggregator) ProcessSignedOperatorSetUpdateMessage(signedOperatorSetUpdateMessage *messages.SignedOperatorSetUpdateMessage, reply *bool) error {
 	agg.logger.Infof("Received signed operator set update message: %#v", signedOperatorSetUpdateMessage)
-	messageDigest, err := core.GetOperatorSetUpdateMessageDigest(&signedOperatorSetUpdateMessage.Message)
+	messageDigest, err := signedOperatorSetUpdateMessage.Message.Digest()
 	if err != nil {
 		agg.logger.Error("Failed to get message digest", "err", err)
 		return TaskResponseDigestNotFoundError500

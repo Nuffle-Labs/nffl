@@ -3,8 +3,8 @@ package types
 import (
 	"time"
 
-	"github.com/Layr-Labs/eigensdk-go/crypto/bls"
 	sdktypes "github.com/Layr-Labs/eigensdk-go/types"
+	"github.com/NethermindEth/near-sffl/core/types/messages"
 	"github.com/ethereum/go-ethereum/common"
 )
 
@@ -23,15 +23,21 @@ type OperatorInfo struct {
 }
 
 type MessageBlsAggregationServiceResponse struct {
-	Err                          error
-	EthBlockNumber               uint64
-	MessageDigest                [32]byte // TODO: solve this when integrating canonical messages
-	NonSignersPubkeysG1          []*bls.G1Point
-	QuorumApksG1                 []*bls.G1Point
-	SignersApkG2                 *bls.G2Point
-	SignersAggSigG1              *bls.Signature
-	NonSignerQuorumBitmapIndices []uint32
-	QuorumApkIndices             []uint32
-	TotalStakeIndices            []uint32
-	NonSignerStakeIndices        [][]uint32
+	messages.MessageBlsAggregation
+
+	Err error
+}
+
+type GetStateRootUpdateAggregationResponse struct {
+	Message     messages.StateRootUpdateMessage
+	Aggregation messages.MessageBlsAggregation
+}
+
+type GetOperatorSetUpdateAggregationResponse struct {
+	Message     messages.OperatorSetUpdateMessage
+	Aggregation messages.MessageBlsAggregation
+}
+
+type GetCheckpointMessagesResponse struct {
+	CheckpointMessages messages.CheckpointMessages
 }

@@ -10,7 +10,7 @@ import (
 
 	"github.com/NethermindEth/near-sffl/core/config"
 	"github.com/NethermindEth/near-sffl/operator"
-	"github.com/NethermindEth/near-sffl/types"
+	optypes "github.com/NethermindEth/near-sffl/operator/types"
 
 	sdkutils "github.com/Layr-Labs/eigensdk-go/utils"
 )
@@ -33,7 +33,7 @@ func operatorMain(ctx *cli.Context) error {
 	log.Println("Initializing Operator")
 
 	configPath := ctx.GlobalString(config.ConfigFileFlag.Name)
-	nodeConfig := types.NodeConfig{}
+	nodeConfig := optypes.NodeConfig{}
 	err := sdkutils.ReadYamlConfig(configPath, &nodeConfig)
 	if err != nil {
 		return err

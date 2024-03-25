@@ -6,16 +6,16 @@ import (
 	"sync"
 	"time"
 
-	coretypes "github.com/NethermindEth/near-sffl/core/types"
+	"github.com/NethermindEth/near-sffl/core/types/messages"
 	"github.com/NethermindEth/near-sffl/metrics"
 
 	"github.com/Layr-Labs/eigensdk-go/logging"
 )
 
 type AggregatorRpcClienter interface {
-	SendSignedCheckpointTaskResponseToAggregator(signedCheckpointTaskResponse *coretypes.SignedCheckpointTaskResponse)
-	SendSignedStateRootUpdateToAggregator(signedStateRootUpdateMessage *coretypes.SignedStateRootUpdateMessage)
-	SendSignedOperatorSetUpdateToAggregator(signedOperatorSetUpdateMessage *coretypes.SignedOperatorSetUpdateMessage)
+	SendSignedCheckpointTaskResponseToAggregator(signedCheckpointTaskResponse *messages.SignedCheckpointTaskResponse)
+	SendSignedStateRootUpdateToAggregator(signedStateRootUpdateMessage *messages.SignedStateRootUpdateMessage)
+	SendSignedOperatorSetUpdateToAggregator(signedOperatorSetUpdateMessage *messages.SignedOperatorSetUpdateMessage)
 }
 
 const (
@@ -118,17 +118,17 @@ func (c *AggregatorRpcClient) tryResendFromDeque() {
 		var reply bool
 
 		switch message.(type) {
-		case *coretypes.SignedCheckpointTaskResponse:
-			signedCheckpointTaskResponse := message.(*coretypes.SignedCheckpointTaskResponse)
+		case *messages.SignedCheckpointTaskResponse:
+			signedCheckpointTaskResponse := message.(*messages.SignedCheckpointTaskResponse)
 			// TODO(edwin): handle error
 			err = c.rpcClient.Call("Aggregator.ProcessSignedCheckpointTaskResponse", signedCheckpointTaskResponse, &reply)
 
-		case *coretypes.SignedStateRootUpdateMessage:
-			signedStateRootUpdateMessage := message.(*coretypes.SignedStateRootUpdateMessage)
+		case *messages.SignedStateRootUpdateMessage:
+			signedStateRootUpdateMessage := message.(*messages.SignedStateRootUpdateMessage)
 			err = c.rpcClient.Call("Aggregator.ProcessSignedStateRootUpdateMessage", signedStateRootUpdateMessage, &reply)
 
-		case *coretypes.SignedOperatorSetUpdateMessage:
-			signedOperatorSetUpdateMessage := message.(*coretypes.SignedOperatorSetUpdateMessage)
+		case *messages.SignedOperatorSetUpdateMessage:
+			signedOperatorSetUpdateMessage := message.(*messages.SignedOperatorSetUpdateMessage)
 			err = c.rpcClient.Call("Aggregator.ProcessSignedOperatorSetUpdateMessage", signedOperatorSetUpdateMessage, &reply)
 
 		default:
@@ -169,7 +169,7 @@ func (c *AggregatorRpcClient) sendRequest(sendCb func() error, message RpcMessag
 	}
 }
 
-func (c *AggregatorRpcClient) SendSignedCheckpointTaskResponseToAggregator(signedCheckpointTaskResponse *coretypes.SignedCheckpointTaskResponse) {
+func (c *AggregatorRpcClient) SendSignedCheckpointTaskResponseToAggregator(signedCheckpointTaskResponse *messages.SignedCheckpointTaskResponse) {
 	c.logger.Info("Sending signed task response header to aggregator", "signedCheckpointTaskResponse", fmt.Sprintf("%#v", signedCheckpointTaskResponse))
 
 	c.sendRequest(func() error {
@@ -186,7 +186,7 @@ func (c *AggregatorRpcClient) SendSignedCheckpointTaskResponseToAggregator(signe
 	}, signedCheckpointTaskResponse)
 }
 
-func (c *AggregatorRpcClient) SendSignedStateRootUpdateToAggregator(signedStateRootUpdateMessage *coretypes.SignedStateRootUpdateMessage) {
+func (c *AggregatorRpcClient) SendSignedStateRootUpdateToAggregator(signedStateRootUpdateMessage *messages.SignedStateRootUpdateMessage) {
 	c.logger.Info("Sending signed state root update message to aggregator", "signedStateRootUpdateMessage", fmt.Sprintf("%#v", signedStateRootUpdateMessage))
 
 	c.sendRequest(func() error {
@@ -203,7 +203,7 @@ func (c *AggregatorRpcClient) SendSignedStateRootUpdateToAggregator(signedStateR
 	}, signedStateRootUpdateMessage)
 }
 
-func (c *AggregatorRpcClient) SendSignedOperatorSetUpdateToAggregator(signedOperatorSetUpdateMessage *coretypes.SignedOperatorSetUpdateMessage) {
+func (c *AggregatorRpcClient) SendSignedOperatorSetUpdateToAggregator(signedOperatorSetUpdateMessage *messages.SignedOperatorSetUpdateMessage) {
 	c.logger.Info("Sending operator set update message to aggregator", "signedOperatorSetUpdateMessage", fmt.Sprintf("%#v", signedOperatorSetUpdateMessage))
 
 	c.sendRequest(func() error {

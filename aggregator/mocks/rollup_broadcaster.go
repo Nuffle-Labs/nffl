@@ -13,6 +13,7 @@ import (
 	reflect "reflect"
 
 	contractSFFLRegistryRollup "github.com/NethermindEth/near-sffl/contracts/bindings/SFFLRegistryRollup"
+	messages "github.com/NethermindEth/near-sffl/core/types/messages"
 	gomock "go.uber.org/mock/gomock"
 )
 
@@ -40,7 +41,7 @@ func (m *MockRollupBroadcasterer) EXPECT() *MockRollupBroadcastererMockRecorder 
 }
 
 // BroadcastOperatorSetUpdate mocks base method.
-func (m *MockRollupBroadcasterer) BroadcastOperatorSetUpdate(arg0 context.Context, arg1 contractSFFLRegistryRollup.OperatorSetUpdateMessage, arg2 contractSFFLRegistryRollup.OperatorsSignatureInfo) {
+func (m *MockRollupBroadcasterer) BroadcastOperatorSetUpdate(arg0 context.Context, arg1 messages.OperatorSetUpdateMessage, arg2 contractSFFLRegistryRollup.OperatorsSignatureInfo) {
 	m.ctrl.T.Helper()
 	m.ctrl.Call(m, "BroadcastOperatorSetUpdate", arg0, arg1, arg2)
 }

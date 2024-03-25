@@ -18,13 +18,11 @@ import (
 
 	"github.com/NethermindEth/near-sffl/aggregator/database"
 	"github.com/NethermindEth/near-sffl/aggregator/types"
-	registryrollup "github.com/NethermindEth/near-sffl/contracts/bindings/SFFLRegistryRollup"
-	servicemanager "github.com/NethermindEth/near-sffl/contracts/bindings/SFFLServiceManager"
 	taskmanager "github.com/NethermindEth/near-sffl/contracts/bindings/SFFLTaskManager"
-	"github.com/NethermindEth/near-sffl/core"
 	"github.com/NethermindEth/near-sffl/core/chainio"
 	"github.com/NethermindEth/near-sffl/core/config"
 	coretypes "github.com/NethermindEth/near-sffl/core/types"
+	"github.com/NethermindEth/near-sffl/core/types/messages"
 )
 
 const (
@@ -83,12 +81,12 @@ type Aggregator struct {
 	operatorSetUpdateBlsAggregationService MessageBlsAggregationService
 	tasks                                  map[coretypes.TaskIndex]taskmanager.CheckpointTask
 	tasksLock                              sync.RWMutex
-	taskResponses                          map[coretypes.TaskIndex]map[sdktypes.TaskResponseDigest]taskmanager.CheckpointTaskResponse
+	taskResponses                          map[coretypes.TaskIndex]map[sdktypes.TaskResponseDigest]messages.CheckpointTaskResponse
 	taskResponsesLock                      sync.RWMutex
 	msgDb                                  database.Databaser
-	stateRootUpdates                       map[coretypes.MessageDigest]servicemanager.StateRootUpdateMessage
+	stateRootUpdates                       map[coretypes.MessageDigest]messages.StateRootUpdateMessage
 	stateRootUpdatesLock                   sync.RWMutex
-	operatorSetUpdates                     map[coretypes.MessageDigest]registryrollup.OperatorSetUpdateMessage
+	operatorSetUpdates                     map[coretypes.MessageDigest]messages.OperatorSetUpdateMessage
 	operatorSetUpdatesLock                 sync.RWMutex
 }
 
@@ -171,9 +169,9 @@ func NewAggregator(ctx context.Context, config *config.Config, logger logging.Lo
 		operatorSetUpdateBlsAggregationService: operatorSetUpdateBlsAggregationService,
 		msgDb:                                  msgDb,
 		tasks:                                  make(map[coretypes.TaskIndex]taskmanager.CheckpointTask),
-		taskResponses:                          make(map[coretypes.TaskIndex]map[sdktypes.TaskResponseDigest]taskmanager.CheckpointTaskResponse),
-		stateRootUpdates:                       make(map[coretypes.MessageDigest]servicemanager.StateRootUpdateMessage),
-		operatorSetUpdates:                     make(map[coretypes.MessageDigest]registryrollup.OperatorSetUpdateMessage),
+		taskResponses:                          make(map[coretypes.TaskIndex]map[sdktypes.TaskResponseDigest]messages.CheckpointTaskResponse),
+		stateRootUpdates:                       make(map[coretypes.MessageDigest]messages.StateRootUpdateMessage),
+		operatorSetUpdates:                     make(map[coretypes.MessageDigest]messages.OperatorSetUpdateMessage),
 	}, nil
 }
 
@@ -241,24 +239,6 @@ func (agg *Aggregator) sendAggregatedResponseToContract(blsAggServiceResp blsagg
 		// panicing to help with debugging (fail fast), but we shouldn't panic if we run this in production
 		panic(blsAggServiceResp.Err)
 	}
-	nonSignerPubkeys := []taskmanager.BN254G1Point{}
-	for _, nonSignerPubkey := range blsAggServiceResp.NonSignersPubkeysG1 {
-		nonSignerPubkeys = append(nonSignerPubkeys, core.ConvertToBN254G1Point(nonSignerPubkey))
-	}
-	quorumApks := []taskmanager.BN254G1Point{}
-	for _, quorumApk := range blsAggServiceResp.QuorumApksG1 {
-		quorumApks = append(quorumApks, core.ConvertToBN254G1Point(quorumApk))
-	}
-	nonSignerStakesAndSignature := taskmanager.IBLSSignatureCheckerNonSignerStakesAndSignature{
-		NonSignerPubkeys:             nonSignerPubkeys,
-		QuorumApks:                   quorumApks,
-		ApkG2:                        core.ConvertToBN254G2Point(blsAggServiceResp.SignersApkG2),
-		Sigma:                        core.ConvertToBN254G1Point(blsAggServiceResp.SignersAggSigG1.G1Point),
-		NonSignerQuorumBitmapIndices: blsAggServiceResp.NonSignerQuorumBitmapIndices,
-		QuorumApkIndices:             blsAggServiceResp.QuorumApkIndices,
-		TotalStakeIndices:            blsAggServiceResp.TotalStakeIndices,
-		NonSignerStakeIndices:        blsAggServiceResp.NonSignerStakeIndices,
-	}
 
 	agg.logger.Info("Threshold reached. Sending aggregated response onchain.",
 		"taskIndex", blsAggServiceResp.TaskIndex,
@@ -269,7 +249,21 @@ func (agg *Aggregator) sendAggregatedResponseToContract(blsAggServiceResp blsagg
 	agg.taskResponsesLock.RLock()
 	taskResponse := agg.taskResponses[blsAggServiceResp.TaskIndex][blsAggServiceResp.TaskResponseDigest]
 	agg.taskResponsesLock.RUnlock()
-	_, err := agg.avsWriter.SendAggregatedResponse(context.Background(), task, taskResponse, nonSignerStakesAndSignature)
+
+	aggregation := messages.MessageBlsAggregation{
+		EthBlockNumber:               uint64(task.TaskCreatedBlock),
+		MessageDigest:                blsAggServiceResp.TaskResponseDigest,
+		NonSignersPubkeysG1:          blsAggServiceResp.NonSignersPubkeysG1,
+		QuorumApksG1:                 blsAggServiceResp.QuorumApksG1,
+		SignersApkG2:                 blsAggServiceResp.SignersApkG2,
+		SignersAggSigG1:              blsAggServiceResp.SignersAggSigG1,
+		NonSignerQuorumBitmapIndices: blsAggServiceResp.NonSignerQuorumBitmapIndices,
+		QuorumApkIndices:             blsAggServiceResp.QuorumApkIndices,
+		TotalStakeIndices:            blsAggServiceResp.TotalStakeIndices,
+		NonSignerStakeIndices:        blsAggServiceResp.NonSignerStakeIndices,
+	}
+
+	_, err := agg.avsWriter.SendAggregatedResponse(context.Background(), task, taskResponse, aggregation)
 	if err != nil {
 		agg.logger.Error("Aggregator failed to respond to task", "err", err)
 	}
@@ -327,7 +321,7 @@ func (agg *Aggregator) handleStateRootUpdateReachedQuorum(blsAggServiceResp type
 		agg.logger.Error("Aggregator could not store message")
 		return
 	}
-	agg.msgDb.StoreStateRootUpdateAggregation(msg, blsAggServiceResp)
+	agg.msgDb.StoreStateRootUpdateAggregation(msg, blsAggServiceResp.MessageBlsAggregation)
 	if err != nil {
 		agg.logger.Error("Aggregator could not store message aggregation")
 		return
@@ -355,7 +349,7 @@ func (agg *Aggregator) handleOperatorSetUpdateReachedQuorum(ctx context.Context,
 		return
 	}
 
-	signatureInfo := core.FormatBlsAggregationRollup(&blsAggServiceResp)
+	signatureInfo := blsAggServiceResp.ExtractBindingRollup()
 	agg.rollupBroadcaster.BroadcastOperatorSetUpdate(ctx, msg, signatureInfo)
 
 	err := agg.msgDb.StoreOperatorSetUpdate(msg)
@@ -363,7 +357,7 @@ func (agg *Aggregator) handleOperatorSetUpdateReachedQuorum(ctx context.Context,
 		agg.logger.Error("Aggregator could not store message")
 		return
 	}
-	agg.msgDb.StoreOperatorSetUpdateAggregation(msg, blsAggServiceResp)
+	agg.msgDb.StoreOperatorSetUpdateAggregation(msg, blsAggServiceResp.MessageBlsAggregation)
 	if err != nil {
 		agg.logger.Error("Aggregator could not store message aggregation")
 		return
