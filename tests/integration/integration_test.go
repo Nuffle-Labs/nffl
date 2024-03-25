@@ -135,7 +135,7 @@ func TestIntegration(t *testing.T) {
 	}
 
 	// Check if operator sets are same on rollups
-	_, err = setup.registryRollups[1].UpdateStateRoot(setup.registryRollupAuths[1], registryrollup.StateRootUpdateMessage(stateRootUpdate.Message), stateRootUpdate.Aggregation.ToBindingRollup())
+	_, err = setup.registryRollups[1].UpdateStateRoot(setup.registryRollupAuths[1], registryrollup.StateRootUpdateMessage(stateRootUpdate.Message), stateRootUpdate.Aggregation.ExtractBindingRollup())
 	if err != nil {
 		t.Fatalf("Error updating state root: %s", err.Error())
 	}
