@@ -337,125 +337,127 @@ contract SFFLTaskManagerTest is TestUtils {
             rollupId: 10000,
             blockHeight: 10001,
             timestamp: 10002,
-            stateRoot: 0x0000000000000000000000000000000000000000000000000000000000002713,
+            stateRoot: bytes32(0),
             nearDaTransactionId: bytes32(0),
             nearDaCommitment: bytes32(0)
         });
 
-        bytes32[] memory sideNodes = new bytes32[](15);
-        sideNodes[0] = 0x474550ffb6524a237ac3ae24d5b0ecadb6db04874c5b739743c4375e3c1d1943;
-        sideNodes[1] = 0x2598ebecc5630334746e2311b6027f437e5b5728a1a167d0a7f84d63e7fdbed7;
-        sideNodes[2] = 0x9dafa61df46d509d9a8c93d6d0473de1873dfb607272fdc43ea86f75f3f50eda;
-        sideNodes[3] = 0x02b72cae3c96bcbed245c570987de81f424276ccc4a0d647cd3385500d6c0932;
-        sideNodes[4] = 0xba7af6f0fe8ebf34fc966de734693226e89319a74e9d6c8e5d6ee3946dedd0c8;
-        sideNodes[5] = 0xb8f94c9288071f2d6ab8b32adf1a191b11aa7f857093ce57422c1f9516cc03e0;
-        sideNodes[6] = 0xb4fec257df63bf2df8034878c97ed8e437014ae3030f455055b5f55534ac1e9b;
-        sideNodes[7] = 0x373e39cd9f6f0c4e2717d6e490e85231416dc85b5420f090712a0cfd9f5f5c10;
-        sideNodes[8] = 0x1449719c3107220af5a9d92c426f2902e3738f2660e49918803a65e92b551661;
-        sideNodes[9] = 0x5ae47b6581824b6010ffbeaa214d131f5f2403ab846ed9c0935849920157e1c2;
-        sideNodes[10] = 0x2603e1764c36b8906d7e114e9dac011545c86461fd732ebf0bf22a238463e0ec;
-        sideNodes[11] = 0x67fb187b5bd188e8154da98fe36d35baf979d3f69c211c27d14cd9a5be164551;
-        sideNodes[12] = 0x281d19520a3edb9394c97670e185e292d10d9d4b8c6bc98d8d01d69f4e0e9b16;
-        sideNodes[13] = 0x85034a982e82b4848e425e3ea947e1a99d92beca6feee13bef41c48c047a4de2;
-        sideNodes[14] = 0xdd800125d84e27106c229756b09fe761a3c69d2262028dc0c7e9ac2c0681acbd;
+        bytes32[] memory sideNodes = new bytes32[](14);
+        sideNodes[0] = 0xdf1be5ddc9e2322471da289fbabe89736c380cf6e7b43523662f682112c84122;
+        sideNodes[1] = 0xc52a4ff7f46a1a86455b3b2bb7200f9328ac27d77e3ed73910c49a61af28093f;
+        sideNodes[2] = 0xf3ee52fa31013a46900c15f0c2f7caf055585d1c82dc102e67c9e82437f14006;
+        sideNodes[3] = 0x0e71abd111484b7ffa57954f91fb6bb266052d768beb1da6ba3e9158ae237b9c;
+        sideNodes[4] = 0x50154a0e1869c92ed28b674c40a284def6803be6bbd788f302eabf6da6225d0e;
+        sideNodes[5] = 0x3d852be9a805d6e31b4d65dcb8661bb3b8ee7033217d385f5a09c57cb64e11a6;
+        sideNodes[6] = 0x46c274dfc5793fdd7f0325c513d39af05a2fa4f94878dfee5c369e355e073225;
+        sideNodes[7] = 0xb0f7d42d6b502dcad188430fc6bf76b5d6d25b9ab8cd0f3dcb483743224bf4f7;
+        sideNodes[8] = 0xfb52ca3c04c8357d5e0aa4f07929ac45aeeb92bd805dc711e6044671cc895a34;
+        sideNodes[9] = 0xe2b4750a57837a67019ff7117d4c8967735fa760c3ab3bde22ff78ee9150979f;
+        sideNodes[10] = 0xd62c445fc937037971e212e62ecb5a126bd9ce7c707c6f9753d59375d9c70054;
+        sideNodes[11] = 0x501c24e0fbf5a628107134b0c32ca165dd56b59eae552095e5a1be9c10b3c7d8;
+        sideNodes[12] = 0x86c2a8bbd4e626c2c25403b1ef4cbbe105e2e1fd924fb93171962dbd47a3f0c8;
+        sideNodes[13] = 0xb2ca769155e311bfab9526580c1de1cd2fcaf79fe2cab1833de9b9e3651459d3;
 
         SparseMerkleTree.Proof memory proof = SparseMerkleTree.Proof({
-            leaf: message.hash(),
-            index: 184467440737095516170001,
-            bitmask: 604444463063240877801472,
-            sideNodes: sideNodes
+            key: message.index(),
+            value: message.hash(),
+            bitMask: 2,
+            sideNodes: sideNodes,
+            numSideNodes: 15,
+            nonMembershipLeafPath: bytes32(0),
+            nonMembershipLeafValue: bytes32(0)
         });
 
         Checkpoint.TaskResponse memory taskResponse = Checkpoint.TaskResponse({
             referenceTaskIndex: 0,
-            stateRootUpdatesRoot: 0x8fe06abef3998ee2105da5947f0e99b222369915a375ae998990b2fd906009f9,
+            stateRootUpdatesRoot: 0x0f058469e9fdee877c111cb46f6fdfd81b39985679767a9fe02092c02f3164bc,
             operatorSetUpdatesRoot: keccak256(hex"f00d")
         });
 
         assertTrue(taskManager.verifyMessageInclusionState(message, taskResponse, proof));
     }
 
-    function test_verifyMessageInclusionState_stateRootUpdate_NonInclusionEmpty() public {
+    function test_verifyMessageInclusionState_stateRootUpdate_NonInclusionNoNonMembershipLeaf() public {
         StateRootUpdate.Message memory message = StateRootUpdate.Message({
             rollupId: 0,
-            blockHeight: 30000,
+            blockHeight: 0,
             timestamp: 10002,
-            stateRoot: 0x0000000000000000000000000000000000000000000000000000000000002713,
+            stateRoot: bytes32(0),
             nearDaTransactionId: bytes32(0),
             nearDaCommitment: bytes32(0)
         });
 
-        bytes32[] memory sideNodes = new bytes32[](16);
-        sideNodes[0] = 0xf9fb19737972ab5622c0018da44501af54e328fb3a9433e28b08d70afeffbd76;
-        sideNodes[1] = 0x8ea0aca0fafab9373052c20c6f8b38b13bb41c49e2e138fe5b9f579b1aa78f04;
-        sideNodes[2] = 0xbaa1704058f0ec498e78891ec8a84e9aba00268de9036db04efc7737810e2d11;
-        sideNodes[3] = 0x4d66a4980af8243168d2c33ae80b43ad10a5f30b3af1fb818a8454989afeac13;
-        sideNodes[4] = 0x1f3be5084d28d8b0438401329321a765d7771da8492661f4b1a3c57c9315893e;
-        sideNodes[5] = 0xf4a3ef32c74aa32df1187f0f19c1bcf1c163a8fed91b8a47ec3fc61c64e8aac7;
-        sideNodes[6] = 0x0eb0ac9d9df0318cc3e96cf49a38be3040304142a6efc242f5a7dc150ed185df;
-        sideNodes[7] = 0xfbb0d60e0e12a8236a700a82d86228c8e0c76e30bfc78d1490c73dfe2605f62a;
-        sideNodes[8] = 0x92c44762efffa650b2e33f3fabc83faccafafd32b6ecc2db882344692a81d6e9;
-        sideNodes[9] = 0x1fde9a628a319aa88671e30899d51081e603056d1d30bdbd693ddae3ccd41f38;
-        sideNodes[10] = 0x7054e7f6c1cc935ebfd8e00cf7825c2c48ef66fae4f39ea7ad50c1f6bc30dad0;
-        sideNodes[11] = 0xf3ce0bcbbf6444b015070efa61d42947b22b19399b670c7407e02b6b995b1926;
-        sideNodes[12] = 0x202f61f2e086e9153150ce8079e742b1432554b5910c1193ac6890758f56a683;
-        sideNodes[13] = 0xd9dafb0cb27bdc2801e3f20d45a53434907070dd3672d2c9c8494bad256c1262;
-        sideNodes[14] = 0xde7d1ff4e6fb2041ab1fc01019ee60c265337c8779714f87a831164627e0d6ba;
-        sideNodes[15] = 0xdd800125d84e27106c229756b09fe761a3c69d2262028dc0c7e9ac2c0681acbd;
+        bytes32[] memory sideNodes = new bytes32[](10);
+        sideNodes[0] = 0x43c81a41b2ce9123e3b291e092d97ae11d1273599519e58d596684bdcb898c3a;
+        sideNodes[1] = 0x735c88adb556f4e0549d49b9a020279b36337cb417324bc9129e52aab2ab90e5;
+        sideNodes[2] = 0x47801edc5270b178adff1c98e89429b78d457b9e760e88f2a3efe1e4f9a6d274;
+        sideNodes[3] = 0x62edd538c0da7fa36c334bb733cc4a0302ea05abcd7dea955e1cd53022441a19;
+        sideNodes[4] = 0x33a4903d523991a3bdadb3e081120f71c5a3bac5679dd3b5ae95e17b3f9fd125;
+        sideNodes[5] = 0x27c3b42bf9b3c283e1ecc8faa0c94c0e69d11948f6a70ea6f39485a0f4bffabe;
+        sideNodes[6] = 0x347230da829a61ac4433c06f8934593d2dacfc0e1e0edf7e2809068d3b06754d;
+        sideNodes[7] = 0x0fdcda7e7a21a1e669d9245dfa362220eacffd47798019731af58d3268dd96a2;
+        sideNodes[8] = 0x044cf3a89cc0efff4b92fcb698490fd99d1b82812040e69a5f2773bcdd7ac881;
+        sideNodes[9] = 0x9074354b3cb12c8ab1418d85b9c017fb7bf61e92eacccc8e107960612f7c045a;
 
         SparseMerkleTree.Proof memory proof = SparseMerkleTree.Proof({
-            leaf: bytes32(0),
-            index: 30000,
-            bitmask: 604444463063240877817856,
-            sideNodes: sideNodes
+            key: bytes32(0),
+            value: bytes32(0),
+            bitMask: 0,
+            sideNodes: sideNodes,
+            numSideNodes: 10,
+            nonMembershipLeafPath: bytes32(0),
+            nonMembershipLeafValue: bytes32(0)
         });
 
         Checkpoint.TaskResponse memory taskResponse = Checkpoint.TaskResponse({
             referenceTaskIndex: 0,
-            stateRootUpdatesRoot: 0x8fe06abef3998ee2105da5947f0e99b222369915a375ae998990b2fd906009f9,
+            stateRootUpdatesRoot: 0x3283f910d2a31269812cd739dfce43678d6f62a0e4dd5022dc840af321f94fcc,
             operatorSetUpdatesRoot: keccak256(hex"f00d")
         });
 
         assertFalse(taskManager.verifyMessageInclusionState(message, taskResponse, proof));
     }
 
-    function test_verifyMessageInclusionState_stateRootUpdate_NonInclusionNonEmpty() public {
+    function test_verifyMessageInclusionState_stateRootUpdate_NonInclusionWithNonMembershipLeaf() public {
         StateRootUpdate.Message memory message = StateRootUpdate.Message({
-            rollupId: 10000,
-            blockHeight: 10001,
+            rollupId: 0,
+            blockHeight: 0,
             timestamp: 10002,
-            stateRoot: 0x0000000000000000000000000000000000000000000000000000000000002713,
+            stateRoot: bytes32(0),
             nearDaTransactionId: bytes32(0),
             nearDaCommitment: bytes32(0)
         });
 
         bytes32[] memory sideNodes = new bytes32[](15);
-        sideNodes[0] = 0x474550ffb6524a237ac3ae24d5b0ecadb6db04874c5b739743c4375e3c1d1943;
-        sideNodes[1] = 0x2598ebecc5630334746e2311b6027f437e5b5728a1a167d0a7f84d63e7fdbed7;
-        sideNodes[2] = 0x9dafa61df46d509d9a8c93d6d0473de1873dfb607272fdc43ea86f75f3f50eda;
-        sideNodes[3] = 0x02b72cae3c96bcbed245c570987de81f424276ccc4a0d647cd3385500d6c0932;
-        sideNodes[4] = 0xba7af6f0fe8ebf34fc966de734693226e89319a74e9d6c8e5d6ee3946dedd0c8;
-        sideNodes[5] = 0xb8f94c9288071f2d6ab8b32adf1a191b11aa7f857093ce57422c1f9516cc03e0;
-        sideNodes[6] = 0xb4fec257df63bf2df8034878c97ed8e437014ae3030f455055b5f55534ac1e9b;
-        sideNodes[7] = 0x373e39cd9f6f0c4e2717d6e490e85231416dc85b5420f090712a0cfd9f5f5c10;
-        sideNodes[8] = 0x1449719c3107220af5a9d92c426f2902e3738f2660e49918803a65e92b551661;
-        sideNodes[9] = 0x5ae47b6581824b6010ffbeaa214d131f5f2403ab846ed9c0935849920157e1c2;
-        sideNodes[10] = 0x2603e1764c36b8906d7e114e9dac011545c86461fd732ebf0bf22a238463e0ec;
-        sideNodes[11] = 0x67fb187b5bd188e8154da98fe36d35baf979d3f69c211c27d14cd9a5be164551;
-        sideNodes[12] = 0x281d19520a3edb9394c97670e185e292d10d9d4b8c6bc98d8d01d69f4e0e9b16;
-        sideNodes[13] = 0x85034a982e82b4848e425e3ea947e1a99d92beca6feee13bef41c48c047a4de2;
-        sideNodes[14] = 0xdd800125d84e27106c229756b09fe761a3c69d2262028dc0c7e9ac2c0681acbd;
+        sideNodes[0] = 0x811fce2c8862fc71a76deadd6ccdda6ff1dbae08e11be8f708c1292629714f88;
+        sideNodes[1] = 0x8412dca5670ecf2eedce012496445cdca35867c74b254f0de2b7ad99cdc403db;
+        sideNodes[2] = 0x9f9cf49a8d6b94761955a78b46aa976d4e531741d952aeddf4876b547b3689ec;
+        sideNodes[3] = 0x496fa868f4a493be2dc3d409347f40e4acee6691a1a32f857da50461969601d1;
+        sideNodes[4] = 0x22766a4a7f36b97062c05723d02f2f6b09db8935441823488de88e8e33a7838c;
+        sideNodes[5] = 0x6278ddb1fa13ae47a2cca9c728909b56947eeca2eb4e5b1ea0bcf0015cf95236;
+        sideNodes[6] = 0xe4a84107eb0bc49f25da44376ff93d832093b3cc2c6ff71e730b8c7d78250b3f;
+        sideNodes[7] = 0xef55e9c94f8086ae8d6d3508c850c9ad9b54618d327a71fecbaf94f3707f2101;
+        sideNodes[8] = 0xbcba648cfc9cca705f1aebb03b9656ac5c172a23fda056b213668226a511151b;
+        sideNodes[9] = 0xbfe80503c44b7fdadfc1c4f70100a0fd6f5b94ac5c296f377cee55bb03e31ccc;
+        sideNodes[10] = 0x122a8956de8e032da9363d3afb912602872266d9f511dc57fa54a2fe3aef16f9;
+        sideNodes[11] = 0xf164f9b6db26d7a81cae0d4e1bfc00566d8dd9496597fc44e24153bac4fd374c;
+        sideNodes[12] = 0x815f24611c6ba6a13c5ccce4b2966f536e95d741f7f8dcb4617e673c2e3d18ba;
+        sideNodes[13] = 0x86c2a8bbd4e626c2c25403b1ef4cbbe105e2e1fd924fb93171962dbd47a3f0c8;
+        sideNodes[14] = 0xb2ca769155e311bfab9526580c1de1cd2fcaf79fe2cab1833de9b9e3651459d3;
 
         SparseMerkleTree.Proof memory proof = SparseMerkleTree.Proof({
-            leaf: 0xd67f20415d18ba4b38648a11b455c6321cdef24a672ba15186b44328783442bc,
-            index: 184467440737095516170001,
-            bitmask: 604444463063240877801472,
-            sideNodes: sideNodes
+            key: bytes32(0),
+            value: bytes32(0),
+            bitMask: 4,
+            sideNodes: sideNodes,
+            numSideNodes: 16,
+            nonMembershipLeafPath: 0x290d350a2bfae9decab45442177af93b8981e56f18311a6890dddf32fbb1c8ad,
+            nonMembershipLeafValue: 0x098a29e2af702154c25cb30ae1a74acabc279330db7ba3428a79f03d65a9104a
         });
 
         Checkpoint.TaskResponse memory taskResponse = Checkpoint.TaskResponse({
             referenceTaskIndex: 0,
-            stateRootUpdatesRoot: 0xe851c350c3f776ac66806602d053d356a5b9e4c2427e5f55791f7bb124cc1064,
+            stateRootUpdatesRoot: 0x0f058469e9fdee877c111cb46f6fdfd81b39985679767a9fe02092c02f3164bc,
             operatorSetUpdatesRoot: keccak256(hex"f00d")
         });
 
@@ -464,9 +466,9 @@ contract SFFLTaskManagerTest is TestUtils {
 
     function test_verifyMessageInclusionState_stateRootUpdate_RevertWhen_WrongMessageIndex() public {
         StateRootUpdate.Message memory message = StateRootUpdate.Message({
-            rollupId: 0,
-            blockHeight: 0,
-            timestamp: 0,
+            rollupId: 10000,
+            blockHeight: 10001,
+            timestamp: 10002,
             stateRoot: bytes32(0),
             nearDaTransactionId: bytes32(0),
             nearDaCommitment: bytes32(0)
@@ -475,10 +477,13 @@ contract SFFLTaskManagerTest is TestUtils {
         bytes32[] memory sideNodes = new bytes32[](0);
 
         SparseMerkleTree.Proof memory proof = SparseMerkleTree.Proof({
-            leaf: message.hash(),
-            index: 2 ** StateRootUpdate.INDEX_BITS - 1,
-            bitmask: 0,
-            sideNodes: sideNodes
+            key: bytes32(0),
+            value: bytes32(0),
+            bitMask: 0,
+            sideNodes: sideNodes,
+            numSideNodes: 0,
+            nonMembershipLeafPath: bytes32(0),
+            nonMembershipLeafValue: bytes32(0)
         });
 
         Checkpoint.TaskResponse memory taskResponse = Checkpoint.TaskResponse({
@@ -491,119 +496,26 @@ contract SFFLTaskManagerTest is TestUtils {
         taskManager.verifyMessageInclusionState(message, taskResponse, proof);
     }
 
-    function test_verifyMessageInclusionState_operatorSetUpdate_Inclusion() public {
-        RollupOperators.Operator[] memory operators = new RollupOperators.Operator[](1);
-        operators[0] = RollupOperators.Operator({pubkey: BN254.G1Point(10000, 10001), weight: 10002});
-
-        OperatorSetUpdate.Message memory message =
-            OperatorSetUpdate.Message({id: 10000, timestamp: 10002, operators: operators});
-
-        bytes32[] memory sideNodes = new bytes32[](15);
-        sideNodes[0] = 0xb4f8848d4f6982e914267533c521bf1fa66323605c4ddf05653087cdf9c41d58;
-        sideNodes[1] = 0x09883226deb72611516d14dc71310b3a6da8e59ac51fa50bcafafcae519f9bc0;
-        sideNodes[2] = 0xeef91f127dc17df9dc195ee5c2d5ea0f206cb58a2e419949a0b8ab5968d4a3b7;
-        sideNodes[3] = 0x3f3c39eee73293e976ced1466f1bb24e081a2cfd1874de46ccea716a467718e4;
-        sideNodes[4] = 0x4950446b03da6f8840925636df34f8f31226d7b98ff50349bf28a32cb8bd6b3c;
-        sideNodes[5] = 0x35da8ba25c395576c375c8a4375c51d64228e1ebd4e2d87d2e43ae0f00d8c788;
-        sideNodes[6] = 0x183d86828b9d5ba994fa5d39ca48477865504a4c82419294cd8a79057b5fc4f1;
-        sideNodes[7] = 0x71b232bf0bed2799ad3b762a1078155cb00b070b144a84fa4299861a2f1c2a62;
-        sideNodes[8] = 0xc63185af31075652379268bda21c25279805736ddea7918018a06c283314e0a2;
-        sideNodes[9] = 0xd71e0c794ca48c6c67ae2dbb8933efdc72a2e2c9767be7c7e6d6e6cf79e7957c;
-        sideNodes[10] = 0x38d45fdca22dd6507e378ca347a23d44586d3a2dec0946d76ba039f66348ff90;
-        sideNodes[11] = 0xa3e15660e52fc32f893ccd2c2acb692c92e608ba4e65d1cc8d4b8969dfd05100;
-        sideNodes[12] = 0x43de4287a40ead67e58637717884dd30e731cc925a45e9476465b4c4a691eea1;
-        sideNodes[13] = 0x562f534d190ffa53d939bab0d1f485a83845ba46a0a92b068d1dfeac6f57cf29;
-        sideNodes[14] = 0xcb9b3e5376a897e531e3ea237a34095e5fe172f8c31327499a595c6e14c8fd1a;
-
-        SparseMerkleTree.Proof memory proof =
-            SparseMerkleTree.Proof({leaf: message.hash(), index: 10000, bitmask: 32767, sideNodes: sideNodes});
-
-        Checkpoint.TaskResponse memory taskResponse = Checkpoint.TaskResponse({
-            referenceTaskIndex: 0,
-            stateRootUpdatesRoot: keccak256(hex"beef"),
-            operatorSetUpdatesRoot: 0x9f5e852559fea0683233b07bf43cc5a6df4f14238337b48aeb7decdbf62373f0
+    function test_verifyMessageInclusionState_stateRootUpdate_RevertWhen_SideNodesExceedDepth() public {
+        StateRootUpdate.Message memory message = StateRootUpdate.Message({
+            rollupId: 10000,
+            blockHeight: 10001,
+            timestamp: 10002,
+            stateRoot: bytes32(0),
+            nearDaTransactionId: bytes32(0),
+            nearDaCommitment: bytes32(0)
         });
 
-        assertTrue(taskManager.verifyMessageInclusionState(message, taskResponse, proof));
-    }
-
-    function test_verifyMessageInclusionState_operatorSetUpdate_NonInclusionEmpty() public {
-        RollupOperators.Operator[] memory operators = new RollupOperators.Operator[](1);
-        operators[0] = RollupOperators.Operator({pubkey: BN254.G1Point(10000, 10001), weight: 10002});
-
-        OperatorSetUpdate.Message memory message =
-            OperatorSetUpdate.Message({id: 30000, timestamp: 10002, operators: operators});
-
-        bytes32[] memory sideNodes = new bytes32[](2);
-        sideNodes[0] = 0x2a0b9d91bbd64c41e4266612a89c5e5f26ffef98660c655c683f565a4ebd08e2;
-        sideNodes[1] = 0xa4b5ec731e6e4bf75bed26caadf4d095139471da25536a3a6d736610ca4f7390;
-
-        SparseMerkleTree.Proof memory proof =
-            SparseMerkleTree.Proof({leaf: bytes32(0), index: 30000, bitmask: 24576, sideNodes: sideNodes});
-
-        Checkpoint.TaskResponse memory taskResponse = Checkpoint.TaskResponse({
-            referenceTaskIndex: 0,
-            stateRootUpdatesRoot: keccak256(hex"beef"),
-            operatorSetUpdatesRoot: 0x9f5e852559fea0683233b07bf43cc5a6df4f14238337b48aeb7decdbf62373f0
-        });
-
-        assertFalse(taskManager.verifyMessageInclusionState(message, taskResponse, proof));
-    }
-
-    function test_verifyMessageInclusionState_operatorSetUpdate_NonInclusionNonEmpty() public {
-        RollupOperators.Operator[] memory operators = new RollupOperators.Operator[](1);
-        operators[0] = RollupOperators.Operator({pubkey: BN254.G1Point(10000, 10001), weight: 10002});
-
-        OperatorSetUpdate.Message memory message =
-            OperatorSetUpdate.Message({id: 10000, timestamp: 10002, operators: operators});
-
-        bytes32[] memory sideNodes = new bytes32[](15);
-        sideNodes[0] = 0xb4f8848d4f6982e914267533c521bf1fa66323605c4ddf05653087cdf9c41d58;
-        sideNodes[1] = 0x09883226deb72611516d14dc71310b3a6da8e59ac51fa50bcafafcae519f9bc0;
-        sideNodes[2] = 0xeef91f127dc17df9dc195ee5c2d5ea0f206cb58a2e419949a0b8ab5968d4a3b7;
-        sideNodes[3] = 0x3f3c39eee73293e976ced1466f1bb24e081a2cfd1874de46ccea716a467718e4;
-        sideNodes[4] = 0x4950446b03da6f8840925636df34f8f31226d7b98ff50349bf28a32cb8bd6b3c;
-        sideNodes[5] = 0x35da8ba25c395576c375c8a4375c51d64228e1ebd4e2d87d2e43ae0f00d8c788;
-        sideNodes[6] = 0x183d86828b9d5ba994fa5d39ca48477865504a4c82419294cd8a79057b5fc4f1;
-        sideNodes[7] = 0x71b232bf0bed2799ad3b762a1078155cb00b070b144a84fa4299861a2f1c2a62;
-        sideNodes[8] = 0xc63185af31075652379268bda21c25279805736ddea7918018a06c283314e0a2;
-        sideNodes[9] = 0xd71e0c794ca48c6c67ae2dbb8933efdc72a2e2c9767be7c7e6d6e6cf79e7957c;
-        sideNodes[10] = 0x38d45fdca22dd6507e378ca347a23d44586d3a2dec0946d76ba039f66348ff90;
-        sideNodes[11] = 0xa3e15660e52fc32f893ccd2c2acb692c92e608ba4e65d1cc8d4b8969dfd05100;
-        sideNodes[12] = 0x43de4287a40ead67e58637717884dd30e731cc925a45e9476465b4c4a691eea1;
-        sideNodes[13] = 0x562f534d190ffa53d939bab0d1f485a83845ba46a0a92b068d1dfeac6f57cf29;
-        sideNodes[14] = 0xcb9b3e5376a897e531e3ea237a34095e5fe172f8c31327499a595c6e14c8fd1a;
+        bytes32[] memory emptySideNodes = new bytes32[](0);
 
         SparseMerkleTree.Proof memory proof = SparseMerkleTree.Proof({
-            leaf: 0xc6143d0203286e9dd52b20acd0dea3436f28e3dbbb082d8477799b0f4036e381,
-            index: 10000,
-            bitmask: 32767,
-            sideNodes: sideNodes
-        });
-
-        Checkpoint.TaskResponse memory taskResponse = Checkpoint.TaskResponse({
-            referenceTaskIndex: 0,
-            stateRootUpdatesRoot: keccak256(hex"beef"),
-            operatorSetUpdatesRoot: 0x776cb4def6c1452032ec2b6f800ec5804a233a35d1d537bec747369943d9ec93
-        });
-
-        assertFalse(taskManager.verifyMessageInclusionState(message, taskResponse, proof));
-    }
-
-    function test_verifyMessageInclusionState_operatorSetUpdate_RevertWhen_WrongMessageIndex() public {
-        RollupOperators.Operator[] memory operators = new RollupOperators.Operator[](1);
-        operators[0] = RollupOperators.Operator({pubkey: BN254.G1Point(10000, 10001), weight: 10002});
-
-        OperatorSetUpdate.Message memory message =
-            OperatorSetUpdate.Message({id: 10000, timestamp: 10002, operators: operators});
-
-        bytes32[] memory sideNodes = new bytes32[](0);
-
-        SparseMerkleTree.Proof memory proof = SparseMerkleTree.Proof({
-            leaf: message.hash(),
-            index: 2 ** OperatorSetUpdate.INDEX_BITS - 1,
-            bitmask: 0,
-            sideNodes: sideNodes
+            key: message.index(),
+            value: bytes32(0),
+            bitMask: 0,
+            sideNodes: emptySideNodes,
+            numSideNodes: 0,
+            nonMembershipLeafPath: bytes32(0),
+            nonMembershipLeafValue: bytes32(0)
         });
 
         Checkpoint.TaskResponse memory taskResponse = Checkpoint.TaskResponse({
@@ -612,7 +524,65 @@ contract SFFLTaskManagerTest is TestUtils {
             operatorSetUpdatesRoot: keccak256(hex"f00d")
         });
 
-        vm.expectRevert("Wrong message index");
+        proof.sideNodes = new bytes32[](256 + 1);
+        proof.numSideNodes = 0;
+
+        vm.expectRevert("Side nodes exceed depth");
+        taskManager.verifyMessageInclusionState(message, taskResponse, proof);
+
+        proof.sideNodes = emptySideNodes;
+        proof.numSideNodes = 256 + 1;
+
+        vm.expectRevert("Side nodes exceed depth");
+        taskManager.verifyMessageInclusionState(message, taskResponse, proof);
+
+        proof.sideNodes = new bytes32[](256 + 1);
+        proof.numSideNodes = 256 + 1;
+
+        vm.expectRevert("Side nodes exceed depth");
+        taskManager.verifyMessageInclusionState(message, taskResponse, proof);
+    }
+
+    function test_verifyMessageInclusionState_stateRootUpdate_RevertWhen_NonMembershipLeafNotUnrelated() public {
+        StateRootUpdate.Message memory message = StateRootUpdate.Message({
+            rollupId: 10000,
+            blockHeight: 10001,
+            timestamp: 10002,
+            stateRoot: bytes32(0),
+            nearDaTransactionId: bytes32(0),
+            nearDaCommitment: bytes32(0)
+        });
+
+        bytes32[] memory sideNodes = new bytes32[](11);
+        sideNodes[0] = 0xfdf501a0cf97579db87df6e0e0b9ede246571dfdc579bb3fa514c17f46586527;
+        sideNodes[1] = 0x6166de610f34ee31cf0f72ad14725b15a22758ac2994c398d5d01ea8d3bc0e5a;
+        sideNodes[2] = 0xe7e7e81f994f7e2fbac2d1b9577ff3ae7167bd2d3bf6628e817c60a71ec55175;
+        sideNodes[3] = 0xcde90eb3f7de9fbe2f6a2b9cd3ef5b8139ff4d45643162610b706b1e06f2e781;
+        sideNodes[4] = 0x608ec6badb2c15feb5898de65eca147d4b2bd99bdc092fa1f57567cfeeb75fad;
+        sideNodes[5] = 0x82d1d3b10a5dbd1e8eb423a7ad9da5582f0ab224115d5f200b0dd050c17e0193;
+        sideNodes[6] = 0x65e44a524e4a18d6c96e78a4ea839d1ce763ffb440ac2f1ea1170de6ee36edd6;
+        sideNodes[7] = 0x075b9d98445122e0dbb6ffbc59a096ce27a038bb2282491be45410d5c4f4207f;
+        sideNodes[8] = 0xee9fd597565b86dc7abafe775df22330cb1bf8cf5e07e83971464bcae3383c0d;
+        sideNodes[9] = 0x340dfa996eff61c7c552c28eaeb2cde88fe91227b39f9544fcb3df2eba3e41e5;
+        sideNodes[10] = 0xf73c04d9cba2ccd9fcead1c10ad7be89da6cbc7a6765adfc45416096737fbf88;
+
+        SparseMerkleTree.Proof memory proof = SparseMerkleTree.Proof({
+            key: message.index(),
+            value: bytes32(0),
+            bitMask: 12,
+            sideNodes: sideNodes,
+            numSideNodes: 13,
+            nonMembershipLeafPath: keccak256(abi.encodePacked(message.index())),
+            nonMembershipLeafValue: message.hash()
+        });
+
+        Checkpoint.TaskResponse memory taskResponse = Checkpoint.TaskResponse({
+            referenceTaskIndex: 0,
+            stateRootUpdatesRoot: 0x5a54de01aadcf24f5dc8383b1f5a5a45f1068b7cf3d386fc970eb28c1168087d,
+            operatorSetUpdatesRoot: keccak256(hex"f00d")
+        });
+
+        vm.expectRevert("nonMembershipLeaf not unrelated");
         taskManager.verifyMessageInclusionState(message, taskResponse, proof);
     }
 
