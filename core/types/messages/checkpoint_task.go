@@ -6,8 +6,8 @@ import (
 
 	taskmanager "github.com/NethermindEth/near-sffl/contracts/bindings/SFFLTaskManager"
 	"github.com/NethermindEth/near-sffl/core"
+	"github.com/NethermindEth/near-sffl/core/smt"
 	coretypes "github.com/NethermindEth/near-sffl/core/types"
-	"github.com/NethermindEth/near-sffl/core/types/smt"
 )
 
 type CheckpointTaskResponse struct {
