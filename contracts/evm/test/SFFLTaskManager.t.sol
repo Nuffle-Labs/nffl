@@ -621,6 +621,41 @@ contract SFFLTaskManagerTest is TestUtils {
         assertTrue(taskManager.verifyMessageInclusionState(message, taskResponse, proof));
     }
 
+    function test_verifyMessageInclusionState_operatorSetUpdate_NonInclusionWithNoNonMembershipLeaf() public {
+        RollupOperators.Operator[] memory operators = new RollupOperators.Operator[](0);
+        OperatorSetUpdate.Message memory message =
+            OperatorSetUpdate.Message({id: 0, timestamp: 10002, operators: operators});
+
+        bytes32[] memory sideNodes = new bytes32[](9);
+        sideNodes[0] = 0xf510adfab7caa42017d65af0b30cf7cabdf300cd0cd8a4965fed907e45822467;
+        sideNodes[1] = 0x4d1372e33c771bd742508f7bb2cda72b117731d830458888640f396e819118fa;
+        sideNodes[2] = 0x4917c17675660b03acfce867b7b5bfd4757da838063f3b9b8d1513fa03f05a2c;
+        sideNodes[3] = 0x8924b7e15a90131d7b13118e097fff745579566f9672127f2a600deb67ac44b3;
+        sideNodes[4] = 0x04f01685e756fa3c803023e48833637d8e6ad086c4dbf9e26f5016f728762f90;
+        sideNodes[5] = 0xd818a843bb67ab3ff9451e4a7bcff660a09d492bbc380760fef9528d48728737;
+        sideNodes[6] = 0x7bcc697d0b96c64d6388a067c69661e76034804d2091b003e4eb6e1dbfafcda5;
+        sideNodes[7] = 0xfb1f58ad0c60c69bd0b0ce360492fadce902b9e50e1fe5920be1684608c800fd;
+        sideNodes[8] = 0x4afd3c90e3a249ad697914f9f26d735f78bf7453b6c936b4f23ce562bf2f3074;
+
+        SparseMerkleTree.Proof memory proof = SparseMerkleTree.Proof({
+            key: message.index(),
+            value: bytes32(0),
+            bitMask: 0,
+            sideNodes: sideNodes,
+            numSideNodes: 9,
+            nonMembershipLeafPath: bytes32(0),
+            nonMembershipLeafValue: bytes32(0)
+        });
+
+        Checkpoint.TaskResponse memory taskResponse = Checkpoint.TaskResponse({
+            referenceTaskIndex: 0,
+            stateRootUpdatesRoot: keccak256(hex"beef"),
+            operatorSetUpdatesRoot: 0xc5d91313ef50b5c1c6bad1ebba70165c0098db1b3ce9b74881356fe41ee4ac33
+        });
+
+        assertFalse(taskManager.verifyMessageInclusionState(message, taskResponse, proof));
+    }
+
     function test_verifyMessageInclusionState_operatorSetUpdate_NonInclusionWithNonMembershipLeaf() public {
         RollupOperators.Operator[] memory operators = new RollupOperators.Operator[](0);
         OperatorSetUpdate.Message memory message =
@@ -657,41 +692,6 @@ contract SFFLTaskManagerTest is TestUtils {
             referenceTaskIndex: 0,
             stateRootUpdatesRoot: keccak256(hex"beef"),
             operatorSetUpdatesRoot: 0xb6d69792331f7c6a7be7ee721258f8529803b57c9da62900f2acee5279cbd420
-        });
-
-        assertFalse(taskManager.verifyMessageInclusionState(message, taskResponse, proof));
-    }
-
-    function test_verifyMessageInclusionState_operatorSetUpdate_NonInclusionWithNoNonMembershipLeaf() public {
-        RollupOperators.Operator[] memory operators = new RollupOperators.Operator[](0);
-        OperatorSetUpdate.Message memory message =
-            OperatorSetUpdate.Message({id: 0, timestamp: 10002, operators: operators});
-
-        bytes32[] memory sideNodes = new bytes32[](9);
-        sideNodes[0] = 0xf510adfab7caa42017d65af0b30cf7cabdf300cd0cd8a4965fed907e45822467;
-        sideNodes[1] = 0x4d1372e33c771bd742508f7bb2cda72b117731d830458888640f396e819118fa;
-        sideNodes[2] = 0x4917c17675660b03acfce867b7b5bfd4757da838063f3b9b8d1513fa03f05a2c;
-        sideNodes[3] = 0x8924b7e15a90131d7b13118e097fff745579566f9672127f2a600deb67ac44b3;
-        sideNodes[4] = 0x04f01685e756fa3c803023e48833637d8e6ad086c4dbf9e26f5016f728762f90;
-        sideNodes[5] = 0xd818a843bb67ab3ff9451e4a7bcff660a09d492bbc380760fef9528d48728737;
-        sideNodes[6] = 0x7bcc697d0b96c64d6388a067c69661e76034804d2091b003e4eb6e1dbfafcda5;
-        sideNodes[7] = 0xfb1f58ad0c60c69bd0b0ce360492fadce902b9e50e1fe5920be1684608c800fd;
-        sideNodes[8] = 0x4afd3c90e3a249ad697914f9f26d735f78bf7453b6c936b4f23ce562bf2f3074;
-
-        SparseMerkleTree.Proof memory proof = SparseMerkleTree.Proof({
-            key: message.index(),
-            value: bytes32(0),
-            bitMask: 0,
-            sideNodes: sideNodes,
-            numSideNodes: 9,
-            nonMembershipLeafPath: bytes32(0),
-            nonMembershipLeafValue: bytes32(0)
-        });
-
-        Checkpoint.TaskResponse memory taskResponse = Checkpoint.TaskResponse({
-            referenceTaskIndex: 0,
-            stateRootUpdatesRoot: keccak256(hex"beef"),
-            operatorSetUpdatesRoot: 0xc5d91313ef50b5c1c6bad1ebba70165c0098db1b3ce9b74881356fe41ee4ac33
         });
 
         assertFalse(taskManager.verifyMessageInclusionState(message, taskResponse, proof));
