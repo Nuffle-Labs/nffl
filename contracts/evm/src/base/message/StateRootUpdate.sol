@@ -24,13 +24,6 @@ library StateRootUpdate {
     }
 
     /**
-     * @notice Size, in bits, of the message index.
-     * @dev This is linked to the byte size of Message.blockHeight and
-     * Message.rollupId. This MUST be updated if any of those types is changed.
-     */
-    uint256 internal constant INDEX_BITS = 32 + 64;
-
-    /**
      * @notice Hashes a state root update message
      * @param message Message structured data
      * @return Message hash
@@ -55,8 +48,8 @@ library StateRootUpdate {
      * @param message Message structured data
      * @return Message index
      */
-    function indexCalldata(Message calldata message) internal pure returns (uint256) {
-        return uint256(message.blockHeight) | (uint256(message.rollupId) << 64);
+    function indexCalldata(Message calldata message) internal pure returns (bytes32) {
+        return bytes32(uint256(message.blockHeight) | (uint256(message.rollupId) << 64));
     }
 
     /**
@@ -66,7 +59,7 @@ library StateRootUpdate {
      * @param message Message structured data
      * @return Message index
      */
-    function index(Message memory message) internal pure returns (uint256) {
-        return uint256(message.blockHeight) | (uint256(message.rollupId) << 64);
+    function index(Message memory message) internal pure returns (bytes32) {
+        return bytes32(uint256(message.blockHeight) | (uint256(message.rollupId) << 64));
     }
 }
