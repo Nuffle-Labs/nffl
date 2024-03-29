@@ -107,7 +107,7 @@ func (msg OperatorSetUpdateMessage) Digest() ([32]byte, error) {
 func (msg OperatorSetUpdateMessage) Key() [32]byte {
 	key := [32]byte{}
 
-	binary.LittleEndian.PutUint64(key[24:32], msg.Id)
+	binary.BigEndian.PutUint64(key[24:32], msg.Id)
 
 	return key
 }
