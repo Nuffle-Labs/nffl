@@ -97,8 +97,8 @@ library SparseMerkleTree {
      * hash buffer previously allocated to avoiding unnecessary reallocation
      * through `abi.encodePacked` for serializing arguments.
      * The necessary allocation is 1 byte (prefix) + 32 bytes * 2 (left and
-     * right arguments). To keep the memory 32-byte aligned, this allocates 3
-     * slots (96 bytes).
+     * right arguments). Following Solidity's 32-byte memory alignment, this
+     * requires a 3 slot allocation (96 bytes).
      * Ideally this could also use free memory (in terms of free memory
      * pointer), but memory may not be properly cleaned afterwards and it could
      * be (wrongly) considered as clean memory when actually being allocated
