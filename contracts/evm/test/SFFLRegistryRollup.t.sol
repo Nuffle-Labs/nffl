@@ -218,7 +218,8 @@ contract SFFLRegistryRollupTest is TestUtils {
     }
 
     function test_updateStateRoot() public {
-        StateRootUpdate.Message memory message = StateRootUpdate.Message(0, 1, 0, keccak256(hex"f00d"));
+        StateRootUpdate.Message memory message =
+            StateRootUpdate.Message(0, 1, 0, keccak256(hex""), keccak256(hex""), keccak256(hex"f00d"));
 
         BN254.G1Point[] memory nonSignerPubkeys = new BN254.G1Point[](1);
         nonSignerPubkeys[0] = initialOperators[3].pubkey;
@@ -251,7 +252,8 @@ contract SFFLRegistryRollupTest is TestUtils {
     }
 
     function test_updateStateRoot_RevertWhen_QuorumNotMet() public {
-        StateRootUpdate.Message memory message = StateRootUpdate.Message(0, 1, 0, keccak256(hex"f00d"));
+        StateRootUpdate.Message memory message =
+            StateRootUpdate.Message(0, 1, 0, keccak256(hex""), keccak256(hex""), keccak256(hex"f00d"));
 
         BN254.G1Point[] memory nonSignerPubkeys = new BN254.G1Point[](2);
         nonSignerPubkeys[0] = initialOperators[3].pubkey;

@@ -61,6 +61,11 @@ abstract contract SFFLRegistryBase {
         ProofParams calldata proofParams,
         bytes calldata agreement
     ) external returns (bytes32) {
+        require(
+            message.nearDaTransactionId != bytes32(0) && message.nearDaCommitment != bytes32(0),
+            "Empty NEAR DA commitment"
+        );
+
         bytes32 stateRoot = _stateRootBuffers[message.rollupId][message.blockHeight];
 
         if (stateRoot == bytes32(0)) {

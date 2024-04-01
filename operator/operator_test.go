@@ -99,9 +99,9 @@ func TestOperator(t *testing.T) {
 		stateRoot, err := hex.DecodeString("04d855ea9fbfefca9069335296aaa5108fa16d36ecd200bf133a1f5b5a7f5fe2")
 		assert.Nil(t, err)
 
-		X, ok = big.NewInt(0).SetString("11290223320119541059506650081001398560835662629535951352639311217634399300639", 10)
+		X, ok = big.NewInt(0).SetString("21116328994885950554238991365696504336803036592749146303103711143274485566828", 10)
 		assert.True(t, ok)
-		Y, ok = big.NewInt(0).SetString("13733759189688049392641040177512184151496910984279779370238986310773365898082", 10)
+		Y, ok = big.NewInt(0).SetString("20497381518544159074554997034942551621756618995010334610971970630114874587485", 10)
 		assert.True(t, ok)
 		stateRootUpdateMessageSignature := bls.Signature{G1Point: bls.NewG1Point(X, Y)}
 
@@ -115,7 +115,10 @@ func TestOperator(t *testing.T) {
 				RollupId:    1,
 				BlockHeight: block.NumberU64(),
 				Timestamp:   block.Header().Time,
-				StateRoot:   [32]byte(stateRoot),
+				// TODO: update this once commitment data fetching is done
+				NearDaTransactionId: [32]byte{1},
+				NearDaCommitment:    [32]byte{2},
+				StateRoot:           [32]byte(stateRoot),
 			},
 			BlsSignature: stateRootUpdateMessageSignature,
 			OperatorId:   operator.operatorId,

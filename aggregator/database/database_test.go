@@ -35,10 +35,12 @@ func TestStoreAndFetchStateRootUpdate(t *testing.T) {
 	assert.Nil(t, err)
 
 	value := messages.StateRootUpdateMessage{
-		RollupId:    1,
-		BlockHeight: 2,
-		Timestamp:   3,
-		StateRoot:   tests.Keccak256(4),
+		RollupId:            1,
+		BlockHeight:         2,
+		Timestamp:           3,
+		NearDaTransactionId: tests.Keccak256(4),
+		NearDaCommitment:    tests.Keccak256(5),
+		StateRoot:           tests.Keccak256(6),
 	}
 
 	err = db.StoreStateRootUpdate(value)
@@ -73,10 +75,12 @@ func TestStoreAndFetchStateRootUpdateAggregation(t *testing.T) {
 	assert.Nil(t, err)
 
 	msg := messages.StateRootUpdateMessage{
-		RollupId:    1,
-		BlockHeight: 2,
-		Timestamp:   3,
-		StateRoot:   tests.Keccak256(4),
+		RollupId:            1,
+		BlockHeight:         2,
+		Timestamp:           3,
+		NearDaTransactionId: tests.Keccak256(4),
+		NearDaCommitment:    tests.Keccak256(5),
+		StateRoot:           tests.Keccak256(6),
 	}
 
 	err = db.StoreStateRootUpdate(msg)
@@ -196,10 +200,12 @@ func TestFetchCheckpointMessages(t *testing.T) {
 	assert.Nil(t, err)
 
 	msg1 := messages.StateRootUpdateMessage{
-		RollupId:    1,
-		BlockHeight: 1,
-		Timestamp:   0,
-		StateRoot:   tests.Keccak256(4),
+		RollupId:            1,
+		BlockHeight:         1,
+		Timestamp:           0,
+		NearDaTransactionId: tests.Keccak256(4),
+		NearDaCommitment:    tests.Keccak256(5),
+		StateRoot:           tests.Keccak256(6),
 	}
 
 	msgDigest1, err := msg1.Digest()
@@ -210,10 +216,12 @@ func TestFetchCheckpointMessages(t *testing.T) {
 	}
 
 	msg2 := messages.StateRootUpdateMessage{
-		RollupId:    1,
-		BlockHeight: 2,
-		Timestamp:   1,
-		StateRoot:   tests.Keccak256(4),
+		RollupId:            1,
+		BlockHeight:         2,
+		Timestamp:           1,
+		NearDaTransactionId: tests.Keccak256(4),
+		NearDaCommitment:    tests.Keccak256(5),
+		StateRoot:           tests.Keccak256(6),
 	}
 
 	msgDigest2, err := msg2.Digest()

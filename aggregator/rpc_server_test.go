@@ -56,10 +56,12 @@ func TestProcessSignedStateRootUpdateMessage(t *testing.T) {
 	assert.Nil(t, err)
 
 	message := messages.StateRootUpdateMessage{
-		RollupId:    1,
-		BlockHeight: 2,
-		Timestamp:   3,
-		StateRoot:   keccak256(4),
+		RollupId:            1,
+		BlockHeight:         2,
+		Timestamp:           3,
+		NearDaCommitment:    keccak256(4),
+		NearDaTransactionId: keccak256(5),
+		StateRoot:           keccak256(6),
 	}
 
 	signedMessage, err := createMockSignedStateRootUpdateMessage(message, *MOCK_OPERATOR_KEYPAIR)

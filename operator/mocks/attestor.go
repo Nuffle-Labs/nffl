@@ -38,6 +38,9 @@ func (mockAttestor *MockAttestor) Start(ctx context.Context) error {
 				BlockHeight: mqBlock.Block.Header().Number.Uint64(),
 				Timestamp:   mqBlock.Block.Header().Time,
 				StateRoot:   mqBlock.Block.Header().Root,
+				// TODO: get below fields from mqBlock
+				NearDaTransactionId: [32]byte{1},
+				NearDaCommitment:    [32]byte{2},
 			}
 			signature, err := attestor.SignStateRootUpdateMessage(mockAttestor.blsKeypair, &message)
 			if err != nil {

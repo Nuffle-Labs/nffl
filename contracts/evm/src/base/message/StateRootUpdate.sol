@@ -6,15 +6,20 @@ pragma solidity ^0.8.12;
  * @notice Represents the message passed to update state roots in various
  * chains and related utilities
  * @dev These messages include a rollup ID, which is a pre-defined ID for a
- * rollup, the rollup's block height and its state root. The hashes of these
- * messages should be signed by the SFFL operators through their BLS private
- * key
+ * rollup, the rollup's block height and its state root, as well as the NEAR
+ * DA transaction ID and commitment for the block submission. In case of
+ * messages that do not correspond to NEAR DA data, both these fields must be
+ * `bytes32(0)`.
+ * The hashes of these messages should be signed by the SFFL operators through
+ * their BLS private key
  */
 library StateRootUpdate {
     struct Message {
         uint32 rollupId;
         uint64 blockHeight;
         uint64 timestamp;
+        bytes32 nearDaTransactionId;
+        bytes32 nearDaCommitment;
         bytes32 stateRoot;
     }
 

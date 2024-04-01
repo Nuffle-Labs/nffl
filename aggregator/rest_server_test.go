@@ -26,10 +26,12 @@ func TestGetStateRootUpdateAggregation(t *testing.T) {
 	go aggregator.startRestServer()
 
 	msg := messages.StateRootUpdateMessage{
-		RollupId:    1,
-		BlockHeight: 2,
-		Timestamp:   3,
-		StateRoot:   keccak256(4),
+		RollupId:            1,
+		BlockHeight:         2,
+		Timestamp:           3,
+		NearDaCommitment:    keccak256(4),
+		NearDaTransactionId: keccak256(5),
+		StateRoot:           keccak256(6),
 	}
 	msgDigest, err := msg.Digest()
 	assert.Nil(t, err)
