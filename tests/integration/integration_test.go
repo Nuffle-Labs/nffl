@@ -6,7 +6,6 @@ import (
 	"encoding/base64"
 	"encoding/json"
 	"fmt"
-	"github.com/NethermindEth/near-sffl/relayer"
 	"io"
 	"io/fs"
 	"io/ioutil"
@@ -27,7 +26,6 @@ import (
 	sdklogging "github.com/Layr-Labs/eigensdk-go/logging"
 	sdkutils "github.com/Layr-Labs/eigensdk-go/utils"
 	"github.com/docker/go-connections/nat"
-	"github.com/ethereum/go-ethereum/accounts/abi/bind"
 	"github.com/ethereum/go-ethereum/common"
 	ethtypes "github.com/ethereum/go-ethereum/core/types"
 	"github.com/ethereum/go-ethereum/crypto"
@@ -46,6 +44,8 @@ import (
 	"github.com/NethermindEth/near-sffl/core/types"
 	"github.com/NethermindEth/near-sffl/operator"
 	optypes "github.com/NethermindEth/near-sffl/operator/types"
+	"github.com/NethermindEth/near-sffl/relayer"
+	"github.com/ethereum/go-ethereum/accounts/abi/bind"
 )
 
 const (
@@ -668,14 +668,6 @@ func startIndexer(t *testing.T, ctx context.Context, name string, rollupAnvils [
 		rollupArgs = append(rollupArgs, "--rollup-ids", rollupAnvil.ChainID.String())
 	}
 
-	//modifier := testcontainers.WithHostConfigModifier(func(hostConfig *container.HostConfig) {
-	//	t.Log("called")
-	//	hostConfig.PublishAllPorts = true
-	//	hostConfig.PortBindings = map[nat.Port][]nat.PortBinding{
-	//		"3030/tcp": {{HostIP: "localhost", HostPort: "3030"}},
-	//	}
-	//})
-
 	req := testcontainers.ContainerRequest{
 		Image:        "near-sffl-indexer",
 		Name:         name,
@@ -689,7 +681,6 @@ func startIndexer(t *testing.T, ctx context.Context, name string, rollupAnvils [
 		ContainerRequest: req,
 		Started:          true,
 	}
-	//modifier(&genericReq)
 
 	indexerContainer, err := testcontainers.GenericContainer(ctx, genericReq)
 
