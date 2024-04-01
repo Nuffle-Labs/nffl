@@ -9,6 +9,7 @@ import (
 	"github.com/Layr-Labs/eigensdk-go/logging"
 	"github.com/ethereum/go-ethereum/core/types"
 	"github.com/ethereum/go-ethereum/rlp"
+	"github.com/near/borsh-go"
 	rmq "github.com/rabbitmq/amqp091-go"
 )
 
@@ -19,6 +20,22 @@ var (
 type PublishPayload struct {
 	TransactionId [32]byte
 	Data          []byte
+}
+
+// Type reflactions of NEAR DA client submission format
+type ShareVersion = uint32
+type Namespace struct {
+	Version uint8
+	Id      uint32
+}
+type Blob struct {
+	Namespace    Namespace
+	ShareVersion ShareVersion
+	Commitment   [32]uint8
+	Data         []uint8
+}
+type SubmitRequest struct {
+	Blobs []Blob
 }
 
 type QueuesListener struct {
@@ -68,23 +85,25 @@ func (l *QueuesListener) listen(ctx context.Context, rollupId uint32, rollupData
 				l.Remove(rollupId)
 				return
 			}
-
 			l.logger.Info("New delivery", "rollupId", rollupId)
 
-			publishPayload := new(PublishPayload)
-			err := borsh.Deserialize(publishPayload, d.Body)
+			submitRequest := new(SubmitRequest)
+			err := borsh.Deserialize(submitRequest, d.Body)
 			if err != nil {
-				l.logger.Error("Error deserializing MQ payload")
+				l.logger.Fatal("Invalid blob", "d.Body", d.Body, "err", err)
 				continue
 			}
 
-			var block types.Block
-			if err := rlp.DecodeBytes(publishPayload.Data, &block); err != nil {
-				l.logger.Warn("Invalid block", "rollupId", rollupId, "err", err)
-				continue
+			for _, blob := range submitRequest.Blobs {
+				var block types.Block
+				if err := rlp.DecodeBytes(blob.Data, &block); err != nil {
+					l.logger.Warn("Invalid block", "rollupId", rollupId, "err", err)
+					continue
+				}
+
+				l.receivedBlocksC <- BlockData{RollupId: rollupId, Block: block}
 			}
 
-			l.receivedBlocksC <- BlockData{RollupId: rollupId, Block: block}
 			d.Ack(false)
 
 		case <-ctx.Done():

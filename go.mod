@@ -143,3 +143,5 @@ require (
 	gopkg.in/yaml.v3 v3.0.1 // indirect
 	rsc.io/tmplfunc v0.0.3 // indirect
 )
+
+replace github.com/near/rollup-data-availability v0.2.4-0.20240327150603-b004cd803551 => github.com/taco-paco/rollup-data-availability v0.0.0-20240401065023-9e4837835d63

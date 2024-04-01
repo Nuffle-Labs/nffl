@@ -7,7 +7,6 @@ import (
 	"encoding/json"
 	"fmt"
 	"github.com/NethermindEth/near-sffl/relayer"
-	"github.com/docker/docker/api/types/container"
 	"io"
 	"io/fs"
 	"io/ioutil"
@@ -51,7 +50,6 @@ import (
 
 const (
 	TEST_DATA_DIR = "../../test_data"
-	NETWORK       = "Localnet"
 )
 
 func TestIntegration(t *testing.T) {
@@ -670,13 +668,13 @@ func startIndexer(t *testing.T, ctx context.Context, name string, rollupAnvils [
 		rollupArgs = append(rollupArgs, "--rollup-ids", rollupAnvil.ChainID.String())
 	}
 
-	modifier := testcontainers.WithHostConfigModifier(func(hostConfig *container.HostConfig) {
-		t.Log("called")
-		hostConfig.PublishAllPorts = true
-		hostConfig.PortBindings = map[nat.Port][]nat.PortBinding{
-			"3030/tcp": {{HostIP: "localhost", HostPort: "3030"}},
-		}
-	})
+	//modifier := testcontainers.WithHostConfigModifier(func(hostConfig *container.HostConfig) {
+	//	t.Log("called")
+	//	hostConfig.PublishAllPorts = true
+	//	hostConfig.PortBindings = map[nat.Port][]nat.PortBinding{
+	//		"3030/tcp": {{HostIP: "localhost", HostPort: "3030"}},
+	//	}
+	//})
 
 	req := testcontainers.ContainerRequest{
 		Image:        "near-sffl-indexer",
@@ -691,19 +689,13 @@ func startIndexer(t *testing.T, ctx context.Context, name string, rollupAnvils [
 		ContainerRequest: req,
 		Started:          true,
 	}
-	modifier(&genericReq)
+	//modifier(&genericReq)
 
 	indexerContainer, err := testcontainers.GenericContainer(ctx, genericReq)
 
 	if err != nil {
 		t.Fatalf("Error starting indexer container: %s", err.Error())
 	}
-	url, err := indexerContainer.Endpoint(ctx, "http")
-	if err != nil {
-		t.Fatal(err.Error())
-	}
-
-	t.Log("indexerUrl:", url)
 
 	relayers := setupNearDa(t, ctx, indexerContainer, rollupAnvils)
 	return indexerContainer, relayers
@@ -715,10 +707,13 @@ func setupNearDa(t *testing.T, ctx context.Context, indexerContainer testcontain
 		panic(err)
 	}
 
-	indexerUrl, err := indexerContainer.Endpoint(ctx, "http")
+	indexerSocketAddr, err := indexerContainer.Endpoint(ctx, "")
 	if err != nil {
 		t.Fatalf("Error getting indexer endpoint: %s", err.Error())
 	}
+
+	indexerSocketAddr = strings.Replace(indexerSocketAddr, "localhost", "127.0.0.1", 1)
+	indexerUrl := "http://" + indexerSocketAddr
 
 	hostNearCfgPath := getNearCliConfigPath(t)
 	hostNearKeyPath := filepath.Join(hostNearCfgPath, "validator_key.json")
@@ -753,7 +748,7 @@ func setupNearDa(t *testing.T, ctx context.Context, indexerContainer testcontain
 			DaAccountId: accountId,
 			RpcUrl:      rollupAnvil.WsUrl,
 			KeyPath:     keyPath,
-			Network:     NETWORK,
+			Network:     indexerSocketAddr,
 			Production:  false,
 		})
 		if err != nil {
