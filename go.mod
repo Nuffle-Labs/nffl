@@ -33,6 +33,7 @@ require (
 	github.com/mattn/go-sqlite3 v1.14.22 // indirect
 	github.com/moby/sys/user v0.1.0 // indirect
 	github.com/near/borsh-go v0.3.1 // indirect
+	github.com/near/rollup-data-availability v0.2.4-0.20240327150603-b004cd803551 // indirect
 	github.com/pokt-network/smt v0.9.2 // indirect
 	go.opencensus.io v0.24.0 // indirect
 	go.opentelemetry.io/contrib/instrumentation/net/http/otelhttp v0.45.0 // indirect

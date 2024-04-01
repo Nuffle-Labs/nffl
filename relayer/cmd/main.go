@@ -7,7 +7,6 @@ import (
 	"os"
 
 	"github.com/NethermindEth/near-sffl/relayer"
-
 	"github.com/urfave/cli"
 )
 
@@ -21,12 +20,22 @@ func main() {
 		cli.StringFlag{
 			Name:     "rpc-url",
 			Required: true,
-			Usage:    "Connect to the indicated RPC`",
+			Usage:    "Connect to the indicated RPC",
 		},
 		cli.StringFlag{
 			Name:     "da-account-id",
 			Required: true,
 			Usage:    "Publish block data to the indicated NEAR account",
+		},
+		cli.StringFlag{
+			Name:     "key-path",
+			Required: true,
+			Usage:    "Path to NEAR account's key file",
+		},
+		cli.StringFlag{
+			Name:  "network",
+			Value: "Localnet",
+			Usage: "Network for NEAR client to use (options: Mainnet, Testnet, Localnet, default: Localnet)",
 		},
 	}
 	app.Name = "sffl-test-relayer"
@@ -47,6 +56,8 @@ func relayerMain(ctx *cli.Context) error {
 		Production:  ctx.GlobalBool("production"),
 		RpcUrl:      ctx.GlobalString("rpc-url"),
 		DaAccountId: ctx.GlobalString("da-account-id"),
+		KeyPath:     ctx.GlobalString("key-path"),
+		Network:     ctx.GlobalString("network"),
 	}
 
 	configJson, err := json.MarshalIndent(config, "", "  ")

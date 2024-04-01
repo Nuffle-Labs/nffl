@@ -6,6 +6,8 @@ import (
 	"encoding/base64"
 	"encoding/json"
 	"fmt"
+	"github.com/NethermindEth/near-sffl/relayer"
+	"github.com/docker/docker/api/types/container"
 	"io"
 	"io/fs"
 	"io/ioutil"
@@ -14,6 +16,7 @@ import (
 	"net/http"
 	"os"
 	"os/exec"
+	"os/user"
 	"path/filepath"
 	"strings"
 	"testing"
@@ -46,7 +49,10 @@ import (
 	optypes "github.com/NethermindEth/near-sffl/operator/types"
 )
 
-const TEST_DATA_DIR = "../../test_data"
+const (
+	TEST_DATA_DIR = "../../test_data"
+	NETWORK       = "Localnet"
+)
 
 func TestIntegration(t *testing.T) {
 	ctx, cancel := context.WithTimeout(context.Background(), 250*time.Second)
@@ -200,9 +206,9 @@ func setupTestEnv(t *testing.T, ctx context.Context) *testEnv {
 		startAnvilTestContainer(t, containersCtx, rollup1AnvilContainerName, "8547", "3", false, networkName),
 	}
 	rabbitMq := startRabbitMqContainer(t, containersCtx, rmqContainerName, networkName)
-	indexerContainer := startIndexer(t, containersCtx, indexerContainerName, rollupAnvils, rabbitMq, networkName)
+	indexerContainer, relayers := startIndexer(t, containersCtx, indexerContainerName, rollupAnvils, rabbitMq, networkName)
 
-	startRollupIndexing(t, ctx, rollupAnvils, indexerContainer)
+	startRollupIndexing(ctx, relayers)
 
 	sfflDeploymentRaw := readSfflDeploymentRaw()
 
@@ -637,70 +643,13 @@ func deployRegistryRollup(t *testing.T, initialOperatorSet []registryrollup.Roll
 	return proxyAddr, registry, ownerAuth, proxyAdminAuth
 }
 
-func startRollupIndexing(t *testing.T, ctx context.Context, rollupAnvils []*AnvilInstance, indexerContainer testcontainers.Container) {
-	headers := make(chan *ethtypes.Header)
-
-	indexerUrl, err := indexerContainer.Endpoint(ctx, "http")
-	if err != nil {
-		t.Fatalf("Error getting indexer endpoint: %s", err.Error())
-	}
-
-	for _, rollupAnvil := range rollupAnvils {
-		anvil := rollupAnvil
-
-		sub, err := anvil.WsClient.SubscribeNewHead(ctx, headers)
-		if err != nil {
-			t.Fatalf("Error subscribing to new rollup block headers: %s", err.Error())
-		}
-
-		go func() {
-			for {
-				select {
-				case <-ctx.Done():
-					return
-				case err := <-sub.Err():
-					t.Errorf("Error on rollup block subscription: %s", err.Error())
-					return
-				case header := <-headers:
-					t.Logf("Got rollup block header: #%s", header.Number.String())
-
-					var block *ethtypes.Block
-
-					for i := 0; i < 5; i++ {
-						select {
-						case <-ctx.Done():
-							return
-						default:
-						}
-
-						block, err = anvil.HttpClient.BlockByNumber(ctx, header.Number)
-
-						if err != nil {
-							t.Logf("Did not find rollup block: %s", err.Error())
-							time.Sleep(1 * time.Second)
-						} else {
-							break
-						}
-					}
-
-					if block == nil {
-						t.Error("Could not fetch rollup block")
-						return
-					}
-
-					submitBlock(t, ctx, getDaContractAccountId(anvil), block, indexerUrl)
-				}
-			}
-		}()
+func startRollupIndexing(ctx context.Context, relayers []*relayer.Relayer) {
+	for _, relayer := range relayers {
+		go relayer.Start(ctx)
 	}
 }
 
-func startIndexer(t *testing.T, ctx context.Context, name string, rollupAnvils []*AnvilInstance, rabbitMq *rabbitmq.RabbitMQContainer, networkName string) testcontainers.Container {
-	integrationDir, err := os.Getwd()
-	if err != nil {
-		panic(err)
-	}
-
+func startIndexer(t *testing.T, ctx context.Context, name string, rollupAnvils []*AnvilInstance, rabbitMq *rabbitmq.RabbitMQContainer, networkName string) (testcontainers.Container, []*relayer.Relayer) {
 	rmqName, err := rabbitMq.Name(ctx)
 	if err != nil {
 		t.Fatalf("Error getting RabbitMQ container name: %s", err.Error())
@@ -721,6 +670,14 @@ func startIndexer(t *testing.T, ctx context.Context, name string, rollupAnvils [
 		rollupArgs = append(rollupArgs, "--rollup-ids", rollupAnvil.ChainID.String())
 	}
 
+	modifier := testcontainers.WithHostConfigModifier(func(hostConfig *container.HostConfig) {
+		t.Log("called")
+		hostConfig.PublishAllPorts = true
+		hostConfig.PortBindings = map[nat.Port][]nat.PortBinding{
+			"3030/tcp": {{HostIP: "localhost", HostPort: "3030"}},
+		}
+	})
+
 	req := testcontainers.ContainerRequest{
 		Image:        "near-sffl-indexer",
 		Name:         name,
@@ -730,12 +687,32 @@ func startIndexer(t *testing.T, ctx context.Context, name string, rollupAnvils [
 		Networks:     []string{networkName},
 	}
 
-	indexerContainer, err := testcontainers.GenericContainer(ctx, testcontainers.GenericContainerRequest{
+	genericReq := testcontainers.GenericContainerRequest{
 		ContainerRequest: req,
 		Started:          true,
-	})
+	}
+	modifier(&genericReq)
+
+	indexerContainer, err := testcontainers.GenericContainer(ctx, genericReq)
+
 	if err != nil {
 		t.Fatalf("Error starting indexer container: %s", err.Error())
+	}
+	url, err := indexerContainer.Endpoint(ctx, "http")
+	if err != nil {
+		t.Fatal(err.Error())
+	}
+
+	t.Log("indexerUrl:", url)
+
+	relayers := setupNearDa(t, ctx, indexerContainer, rollupAnvils)
+	return indexerContainer, relayers
+}
+
+func setupNearDa(t *testing.T, ctx context.Context, indexerContainer testcontainers.Container, rollupAnvils []*AnvilInstance) []*relayer.Relayer {
+	integrationDir, err := os.Getwd()
+	if err != nil {
+		panic(err)
 	}
 
 	indexerUrl, err := indexerContainer.Endpoint(ctx, "http")
@@ -751,10 +728,11 @@ func startIndexer(t *testing.T, ctx context.Context, name string, rollupAnvils [
 
 	copyFileFromContainer(ctx, indexerContainer, filepath.Join(containerNearCfgPath, "validator_key.json"), hostNearKeyPath, 0770)
 
+	var relayers []*relayer.Relayer
 	for _, rollupAnvil := range rollupAnvils {
 		accountId := getDaContractAccountId(rollupAnvil)
 
-		err = execCommand(t, "near",
+		err := execCommand(t, "near",
 			[]string{"create-account", accountId, "--masterAccount", "test.near"},
 			append(os.Environ(), "NEAR_ENV=localnet", "NEAR_HELPER_ACCOUNT=near", "NEAR_CLI_LOCALNET_KEY_PATH="+hostNearKeyPath, "NEAR_NODE_URL="+indexerUrl),
 			true,
@@ -762,6 +740,26 @@ func startIndexer(t *testing.T, ctx context.Context, name string, rollupAnvils [
 		if err != nil {
 			t.Fatalf("Error creating NEAR DA account: %s", err.Error())
 		}
+
+		usr, err := user.Current()
+		if err != nil {
+			t.Fatalf("Couldn't get current user: #%s", err.Error())
+		}
+
+		keyFileName := accountId + ".json"
+		keyPath := filepath.Join(usr.HomeDir, ".near-credentials/local", keyFileName)
+
+		relayer, err := relayer.NewRelayerFromConfig(&relayer.RelayerConfig{
+			DaAccountId: accountId,
+			RpcUrl:      rollupAnvil.WsUrl,
+			KeyPath:     keyPath,
+			Network:     NETWORK,
+			Production:  false,
+		})
+		if err != nil {
+			t.Fatalf("Error creating realayer: #%s", err.Error())
+		}
+		relayers = append(relayers, relayer)
 
 		err = execCommand(t, "near",
 			[]string{"deploy", accountId, filepath.Join(integrationDir, "../near/near_da_blob_store.wasm"), "--initFunction", "new", "--initArgs", "{}", "--masterAccount", "test.near"},
@@ -773,7 +771,7 @@ func startIndexer(t *testing.T, ctx context.Context, name string, rollupAnvils [
 		}
 	}
 
-	return indexerContainer
+	return relayers
 }
 
 func getDaContractAccountId(anvil *AnvilInstance) string {

@@ -2,27 +2,34 @@ package relayer
 
 import (
 	"context"
-	"encoding/base64"
-	"os"
-	"os/exec"
+	"math/big"
 	"time"
 
 	"github.com/Layr-Labs/eigensdk-go/chainio/clients/eth"
 	sdklogging "github.com/Layr-Labs/eigensdk-go/logging"
 	ethtypes "github.com/ethereum/go-ethereum/core/types"
 	"github.com/ethereum/go-ethereum/rlp"
+	near "github.com/near/rollup-data-availability/gopkg/da-rpc"
+)
+
+const (
+	NAMESPACE_ID = 1
 )
 
 type Relayer struct {
 	logger      sdklogging.Logger
 	rpcClient   eth.EthClient
 	daAccountId string
+
+	nearClient *near.Config
 }
 
 type RelayerConfig struct {
 	Production  bool
 	RpcUrl      string
 	DaAccountId string
+	KeyPath     string
+	Network     string
 }
 
 func NewRelayerFromConfig(config *RelayerConfig) (*Relayer, error) {
@@ -43,10 +50,16 @@ func NewRelayerFromConfig(config *RelayerConfig) (*Relayer, error) {
 		return nil, err
 	}
 
+	nearClient, err := near.NewConfigFile(config.KeyPath, config.DaAccountId, config.Network, NAMESPACE_ID)
+	if err != nil {
+		return nil, err
+	}
+
 	return &Relayer{
 		logger:      logger,
 		rpcClient:   rpcClient,
 		daAccountId: config.DaAccountId,
+		nearClient:  nearClient,
 	}, nil
 }
 
@@ -62,29 +75,9 @@ func (r *Relayer) Start(ctx context.Context) error {
 		case err := <-sub.Err():
 			r.logger.Errorf("error on rollup block subscription: %s", err.Error())
 		case header := <-headers:
-			r.logger.Infof("Got rollup block: #%s", header.Number.String())
-
-			var block *ethtypes.Block
-
-			for i := 0; i < 5; i++ {
-				select {
-				case <-ctx.Done():
-					return nil
-				default:
-				}
-
-				block, err = r.rpcClient.BlockByNumber(ctx, header.Number)
-
-				if err != nil {
-					r.logger.Errorf("Error fetching rollup block: %s", err.Error())
-					time.Sleep(1 * time.Second)
-				} else {
-					break
-				}
-			}
-
+			block := r.getBlockByNumber(ctx, header.Number)
 			if block == nil {
-				panic("Could not fetch rollup block")
+				return nil
 			}
 
 			encodedBlock, err := rlp.EncodeToBytes(block)
@@ -93,17 +86,38 @@ func (r *Relayer) Start(ctx context.Context) error {
 				return err
 			}
 
-			cmd := exec.Command("near", "call", r.daAccountId, "submit", "--base64", base64.StdEncoding.EncodeToString(encodedBlock), "--accountId", r.daAccountId)
-			cmd.Env = os.Environ()
-			out, err := cmd.CombinedOutput()
-
-			r.logger.Info(string(out))
+			out, err := r.nearClient.ForceSubmit(encodedBlock)
 			if err != nil {
-				r.logger.Errorf("error calling NEAR account: %s", err.Error())
+				r.logger.Error("Error submitting block to NEAR", "err", err)
 				return err
 			}
+
+			r.logger.Info(string(out))
 		case <-ctx.Done():
 			return nil
 		}
 	}
+}
+
+func (r *Relayer) getBlockByNumber(ctx context.Context, number *big.Int) *ethtypes.Block {
+	r.logger.Infof("Got rollup block: #%s", number.String())
+
+	for i := 0; i < 5; i++ {
+		select {
+		case <-ctx.Done():
+			return nil
+		default:
+		}
+
+		block, err := r.rpcClient.BlockByNumber(ctx, number)
+		if err != nil {
+			r.logger.Errorf("Error fetching rollup block: %s", err.Error())
+			time.Sleep(1 * time.Second)
+			continue
+		}
+
+		return block
+	}
+
+	panic("Could not fetch rollup block")
 }
