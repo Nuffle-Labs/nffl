@@ -12,7 +12,7 @@ use crate::errors::Result;
 #[derive(Clone, Debug)]
 pub(crate) struct CandidateData {
     pub rollup_id: u32,
-    pub transaction_or_receipt_id: TransactionOrReceiptId,
+    pub transaction: near_indexer::IndexerTransactionWithOutcome,
     pub payloads: Vec<Vec<u8>>,
 }
 
@@ -22,10 +22,16 @@ pub(crate) struct BlockListener {
     addresses_to_rollup_ids: HashMap<AccountId, u32>,
 }
 
-#[derive(Clone, Debug, PartialEq, Eq, serde::Serialize, serde::Deserialize)]
-pub(crate) struct ReceiptViewWithRollupId {
+// #[derive(Clone, Debug, PartialEq, Eq, serde::Serialize, serde::Deserialize)]
+// pub(crate) struct ReceiptViewWithRollupId {
+//     pub(crate) rollup_id: u32,
+//     pub(crate) receipt_view: ReceiptView,
+// }
+
+#[derive(Clone, Debug, serde::Serialize, serde::Deserialize)]
+pub(crate) struct TransactionWithRollupId {
     pub(crate) rollup_id: u32,
-    pub(crate) receipt_view: ReceiptView,
+    pub(crate) transaction: near_indexer::IndexerTransactionWithOutcome,
 }
 
 impl BlockListener {
@@ -41,28 +47,17 @@ impl BlockListener {
         }
     }
 
-    fn receipt_filer_map(receipt: ReceiptViewWithRollupId) -> Option<CandidateData> {
-        let actions = if let ReceiptEnumView::Action { actions, .. } = receipt.receipt_view.receipt {
-            actions
-        } else {
-            return None;
-        };
-
-        let payloads = actions
-            .into_iter()
-            .filter_map(Self::extract_args)
-            .collect::<Vec<Vec<u8>>>();
+    fn transaction_filter_map(transaction: TransactionWithRollupId) -> Option<CandidateData> {
+        let actions = &transaction.transaction.transaction.actions;
+        let payloads: Vec<Vec<u8>> = actions.clone().into_iter().filter_map(Self::extract_args).collect();
 
         if payloads.is_empty() {
             return None;
         }
 
         Some(CandidateData {
-            rollup_id: receipt.rollup_id,
-            transaction_or_receipt_id: TransactionOrReceiptId::Receipt {
-                receipt_id: receipt.receipt_view.receipt_id,
-                receiver_id: receipt.receipt_view.receiver_id,
-            },
+            rollup_id: transaction.rollup_id,
+            transaction: transaction.transaction,
             payloads,
         })
     }
@@ -88,21 +83,18 @@ impl BlockListener {
                 .into_iter()
                 .flat_map(|shard| shard.chunk)
                 .flat_map(|chunk| {
-                    chunk
-                        .receipts
-                        .into_iter()
-                        .filter_map(|receipt| {
-                            if let Some(rollup_id) = addresses_to_rollup_ids.get(&receipt.receiver_id) {
-                                Some(ReceiptViewWithRollupId {
-                                    rollup_id: *rollup_id,
-                                    receipt_view: receipt,
-                                })
-                            } else {
-                                None
-                            }
-                        })
-                        .filter_map(Self::receipt_filer_map)
+                    chunk.transactions.into_iter().filter_map(|transaction| {
+                        if let Some(rollup_id) = addresses_to_rollup_ids.get(&transaction.transaction.receiver_id) {
+                            Some(TransactionWithRollupId {
+                                rollup_id: *rollup_id,
+                                transaction,
+                            })
+                        } else {
+                            None
+                        }
+                    })
                 })
+                .filter_map(Self::transaction_filter_map)
                 .collect();
 
             if candidates_data.is_empty() {
@@ -129,13 +121,13 @@ impl BlockListener {
 
 #[cfg(test)]
 mod tests {
-    use std::collections::HashMap;
     use crate::block_listener::{BlockListener, CandidateData, ReceiptViewWithRollupId};
     use near_crypto::{KeyType, PublicKey};
     use near_indexer::near_primitives::hash::CryptoHash;
     use near_indexer::near_primitives::types::{AccountId, TransactionOrReceiptId};
     use near_indexer::near_primitives::views::{ActionView, ReceiptEnumView, ReceiptView};
     use near_indexer::StreamerMessage;
+    use std::collections::HashMap;
     use std::path::PathBuf;
     use std::str::FromStr;
     use std::time::Duration;
@@ -144,7 +136,7 @@ mod tests {
 
     impl PartialEq for CandidateData {
         fn eq(&self, other: &Self) -> bool {
-            let res = match (&self.transaction_or_receipt_id, &other.transaction_or_receipt_id) {
+            let res = match (&self.transaction, &other.transaction) {
                 (
                     TransactionOrReceiptId::Receipt {
                         receiver_id,
@@ -221,7 +213,7 @@ mod tests {
             BlockListener::receipt_filer_map(valid_receipt.clone()),
             Some(CandidateData {
                 rollup_id,
-                transaction_or_receipt_id: TransactionOrReceiptId::Receipt {
+                transaction: TransactionOrReceiptId::Receipt {
                     receipt_id: valid_receipt.receipt_view.receipt_id.clone(),
                     receiver_id: valid_receipt.receipt_view.receiver_id.clone(),
                 },
@@ -285,7 +277,7 @@ mod tests {
             BlockListener::receipt_filer_map(valid_receipt.clone()),
             Some(CandidateData {
                 rollup_id,
-                transaction_or_receipt_id: TransactionOrReceiptId::Receipt {
+                transaction: TransactionOrReceiptId::Receipt {
                     receipt_id: valid_receipt.receipt_view.receipt_id.clone(),
                     receiver_id: valid_receipt.receipt_view.receiver_id.clone(),
                 },
@@ -386,7 +378,7 @@ mod tests {
 
     #[tokio::test]
     async fn test_shutdown() {
-        let rollup_id=5;
+        let rollup_id = 5;
         let da_contract_id = "da.test.near".parse().unwrap();
         let streamer_messages = StreamerMessagesLoader::load();
 

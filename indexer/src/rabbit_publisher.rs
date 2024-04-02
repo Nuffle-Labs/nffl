@@ -40,7 +40,6 @@ impl Default for PublishOptions {
 #[derive(Clone, Debug)]
 pub struct PublisherContext {
     pub block_hash: CryptoHash,
-    pub id: TransactionOrReceiptId,
 }
 
 #[derive(Clone, Debug)]
