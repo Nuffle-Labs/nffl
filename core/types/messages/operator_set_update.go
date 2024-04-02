@@ -1,6 +1,7 @@
 package messages
 
 import (
+	"encoding/binary"
 	"math/big"
 
 	"github.com/Layr-Labs/eigensdk-go/crypto/bls"
@@ -101,4 +102,12 @@ func (msg OperatorSetUpdateMessage) Digest() ([32]byte, error) {
 	}
 
 	return digest, nil
+}
+
+func (msg OperatorSetUpdateMessage) Key() [32]byte {
+	key := [32]byte{}
+
+	binary.BigEndian.PutUint64(key[24:32], msg.Id)
+
+	return key
 }

@@ -1,6 +1,8 @@
 package messages
 
 import (
+	"encoding/binary"
+
 	"github.com/Layr-Labs/eigensdk-go/crypto/bls"
 	"github.com/ethereum/go-ethereum/accounts/abi"
 
@@ -67,4 +69,13 @@ func (msg StateRootUpdateMessage) Digest() ([32]byte, error) {
 	}
 
 	return digest, nil
+}
+
+func (msg StateRootUpdateMessage) Key() [32]byte {
+	key := [32]byte{}
+
+	binary.BigEndian.PutUint32(key[20:24], msg.RollupId)
+	binary.BigEndian.PutUint64(key[24:32], msg.BlockHeight)
+
+	return key
 }
