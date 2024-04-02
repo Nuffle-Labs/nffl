@@ -78,11 +78,12 @@ library SparseMerkleTree {
         }
 
         uint256 sideNodeIndex = 0;
+        uint256 index = uint256(path) >> (256 - proof.numSideNodes);
+
         for (uint256 i = 0; i < proof.numSideNodes; i++) {
-            uint256 bit = proof.numSideNodes - i - 1;
             bytes32 sideNode = ((proof.bitMask & (1 << i)) != 0) ? DEFAULT_VALUE : proof.sideNodes[sideNodeIndex++];
 
-            if ((uint256(path) >> (255 - bit)) & 1 == 0) {
+            if (index & (1 << i) == 0) {
                 currentHash = _hashNode(hashBuffer, INNER_NODE_PREFIX, currentHash, sideNode);
             } else {
                 currentHash = _hashNode(hashBuffer, INNER_NODE_PREFIX, sideNode, currentHash);
