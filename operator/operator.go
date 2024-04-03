@@ -266,7 +266,7 @@ func (o *Operator) Start(ctx context.Context) error {
 
 	// TODO: decide who have a right to sign
 	signedRootsC := o.attestor.GetSignedRootC()
-	checkpointTaskResponseChan := o.avsManager.GetCheckpointTaskResponseChan()
+	checkpointTaskCreatedChan := o.avsManager.GetCheckpointTaskCreatedChan()
 	operatorSetUpdateChan := o.avsManager.GetOperatorSetUpdateChan()
 
 	for {
@@ -284,13 +284,35 @@ func (o *Operator) Start(ctx context.Context) error {
 			go o.aggregatorRpcClient.SendSignedStateRootUpdateToAggregator(&signedStateRootUpdateMessage)
 			continue
 
-		case checkpointTaskResponse, ok := <-checkpointTaskResponseChan:
+		case checkpointTaskCreatedEvent, ok := <-checkpointTaskCreatedChan:
 			if !ok {
 				o.logger.Info("Closing Operator")
 				return o.Close()
 			}
 
 			o.metrics.IncNumTasksReceived()
+
+			var checkpointMessages messages.CheckpointMessages
+
+			err := o.aggregatorRpcClient.GetAggregatedCheckpointMessages(
+				checkpointTaskCreatedEvent.Task.FromTimestamp,
+				checkpointTaskCreatedEvent.Task.ToTimestamp,
+				&checkpointMessages,
+			)
+			if err != nil {
+				o.logger.Error("Failed to get checkpoint messages", "err", err)
+				continue
+			}
+
+			checkpointTaskResponse, err := messages.NewCheckpointTaskResponseFromMessages(
+				checkpointTaskCreatedEvent.TaskIndex,
+				checkpointMessages,
+			)
+			if err != nil {
+				o.logger.Error("Failed to get create checkpoint response", "err", err)
+				continue
+			}
+
 			signedCheckpointTaskResponse, err := o.SignTaskResponse(&checkpointTaskResponse)
 			if err != nil {
 				o.logger.Error("Failed to sign checkpoint task response", "checkpointTaskResponse", checkpointTaskResponse)
