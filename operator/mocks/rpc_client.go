@@ -38,6 +38,20 @@ func (m *MockAggregatorRpcClienter) EXPECT() *MockAggregatorRpcClienterMockRecor
 	return m.recorder
 }
 
+// GetAggregatedCheckpointMessages mocks base method.
+func (m *MockAggregatorRpcClienter) GetAggregatedCheckpointMessages(arg0, arg1 uint64, arg2 *messages.CheckpointMessages) error {
+	m.ctrl.T.Helper()
+	ret := m.ctrl.Call(m, "GetAggregatedCheckpointMessages", arg0, arg1, arg2)
+	ret0, _ := ret[0].(error)
+	return ret0
+}
+
+// GetAggregatedCheckpointMessages indicates an expected call of GetAggregatedCheckpointMessages.
+func (mr *MockAggregatorRpcClienterMockRecorder) GetAggregatedCheckpointMessages(arg0, arg1, arg2 any) *gomock.Call {
+	mr.mock.ctrl.T.Helper()
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "GetAggregatedCheckpointMessages", reflect.TypeOf((*MockAggregatorRpcClienter)(nil).GetAggregatedCheckpointMessages), arg0, arg1, arg2)
+}
+
 // SendSignedCheckpointTaskResponseToAggregator mocks base method.
 func (m *MockAggregatorRpcClienter) SendSignedCheckpointTaskResponseToAggregator(arg0 *messages.SignedCheckpointTaskResponse) {
 	m.ctrl.T.Helper()
