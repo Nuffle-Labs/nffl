@@ -38,30 +38,6 @@ func TestOperator(t *testing.T) {
 	assert.Nil(t, err)
 	const taskIndex = 1
 
-	t.Run("ProcessNewTaskCreatedLog", func(t *testing.T) {
-		var fromTimestamp = uint64(3)
-		var toTimestamp = uint64(4)
-
-		newTaskCreatedLog := &taskmanager.ContractSFFLTaskManagerCheckpointTaskCreated{
-			TaskIndex: taskIndex,
-			Task: taskmanager.CheckpointTask{
-				FromTimestamp:    fromTimestamp,
-				ToTimestamp:      toTimestamp,
-				TaskCreatedBlock: 1000,
-				QuorumNumbers:    coretypes.QUORUM_NUMBERS,
-				QuorumThreshold:  aggtypes.QUORUM_THRESHOLD_NUMERATOR,
-			},
-			Raw: types.Log{},
-		}
-		got := avsManager.ProcessCheckpointTaskCreatedLog(newTaskCreatedLog)
-		want := messages.CheckpointTaskResponse{
-			ReferenceTaskIndex:     taskIndex,
-			StateRootUpdatesRoot:   [32]byte{0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0},
-			OperatorSetUpdatesRoot: [32]byte{0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0},
-		}
-		assert.Equal(t, got, want)
-	})
-
 	t.Run("Start", func(t *testing.T) {
 		var fromTimestamp = uint64(3)
 		var toTimestamp = uint64(4)
@@ -80,17 +56,23 @@ func TestOperator(t *testing.T) {
 		}
 		fmt.Println("newTaskCreatedEvent", newTaskCreatedEvent)
 
-		X, ok := big.NewInt(0).SetString("9996820285347616229516447695531482442433381089408864937966952807215923228881", 10)
+		X, ok := big.NewInt(0).SetString("16027015062938738578882736302236067956295942129658001187467262823130911146848", 10)
 		assert.True(t, ok)
-		Y, ok := big.NewInt(0).SetString("10403462274336311613113322623477208113332192454020049193133394900674966403334", 10)
+		Y, ok := big.NewInt(0).SetString("17647202624711407226560166949876419852295410380838239126346172357046468756471", 10)
 		assert.True(t, ok)
 		taskResponseSignature := bls.Signature{G1Point: bls.NewG1Point(X, Y)}
+
+		stateRootUpdatesRoot, err := hex.DecodeString("c3566ef4aad0610b0d273388480d8d21f7d07151bd62c428ec3c74f0ffbebf3c")
+		assert.Nil(t, err)
+
+		operatorSetUpdatesRoot, err := hex.DecodeString("5ae69791d810e0ec17aa2ec2f67e443f3f7d380079a7e51ff70009f0533aa61e")
+		assert.Nil(t, err)
 
 		signedTaskResponse := &messages.SignedCheckpointTaskResponse{
 			TaskResponse: messages.CheckpointTaskResponse{
 				ReferenceTaskIndex:     taskIndex,
-				StateRootUpdatesRoot:   [32]byte{0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0},
-				OperatorSetUpdatesRoot: [32]byte{0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0},
+				StateRootUpdatesRoot:   [32]byte(stateRootUpdatesRoot),
+				OperatorSetUpdatesRoot: [32]byte(operatorSetUpdatesRoot),
 			},
 			BlsSignature: taskResponseSignature,
 			OperatorId:   operator.operatorId,
@@ -143,6 +125,10 @@ func TestOperator(t *testing.T) {
 		mockAggregatorRpcClient.EXPECT().SendSignedCheckpointTaskResponseToAggregator(signedTaskResponse)
 		mockAggregatorRpcClient.EXPECT().SendSignedStateRootUpdateToAggregator(signedStateRootUpdateMessage)
 		mockAggregatorRpcClient.EXPECT().SendSignedOperatorSetUpdateToAggregator(signedOperatorSetUpdateMessage)
+		mockAggregatorRpcClient.EXPECT().GetAggregatedCheckpointMessages(newTaskCreatedEvent.Task.FromTimestamp, newTaskCreatedEvent.Task.ToTimestamp, gomock.Any()).SetArg(2, messages.CheckpointMessages{
+			StateRootUpdateMessages:   []messages.StateRootUpdateMessage{signedStateRootUpdateMessage.Message},
+			OperatorSetUpdateMessages: []messages.OperatorSetUpdateMessage{signedOperatorSetUpdateMessage.Message},
+		})
 
 		operator.aggregatorRpcClient = mockAggregatorRpcClient
 
@@ -197,11 +183,10 @@ func createMockOperator() (*Operator, *AvsManager, *mocks.MockConsumer, error) {
 
 	mockAttestor := mocks.NewMockAttestor(operatorKeypair, MOCK_OPERATOR_ID)
 	avsManager := &AvsManager{
-		logger:                            logger,
-		checkpointTaskCreatedChan:         make(chan *taskmanager.ContractSFFLTaskManagerCheckpointTaskCreated),
-		operatorSetUpdateChan:             make(chan *opsetupdatereg.ContractSFFLOperatorSetUpdateRegistryOperatorSetUpdatedAtBlock),
-		checkpointTaskResponseCreatedChan: make(chan messages.CheckpointTaskResponse),
-		operatorSetUpdateMessageChan:      make(chan messages.OperatorSetUpdateMessage),
+		logger:                       logger,
+		checkpointTaskCreatedChan:    make(chan *taskmanager.ContractSFFLTaskManagerCheckpointTaskCreated),
+		operatorSetUpdateChan:        make(chan *opsetupdatereg.ContractSFFLOperatorSetUpdateRegistryOperatorSetUpdatedAtBlock),
+		operatorSetUpdateMessageChan: make(chan messages.OperatorSetUpdateMessage),
 	}
 
 	operator := &Operator{
