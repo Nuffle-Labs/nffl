@@ -2,7 +2,6 @@ use deadpool_lapin::{Manager, Pool};
 use lapin::options::BasicPublishOptions;
 use lapin::{BasicProperties, ConnectionProperties};
 use near_indexer::near_primitives::hash::CryptoHash;
-use near_indexer::near_primitives::types::TransactionOrReceiptId;
 use tokio::sync::mpsc;
 use tracing::error;
 
