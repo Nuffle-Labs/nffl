@@ -127,9 +127,9 @@ func (agg *Aggregator) ProcessSignedOperatorSetUpdateMessage(signedOperatorSetUp
 }
 
 type GetAggregatedCheckpointMessagesArgs struct {
-	fromTimestamp, toTimestamp uint64
+	FromTimestamp, ToTimestamp uint64
 }
 
 func (agg *Aggregator) GetAggregatedCheckpointMessages(args *GetAggregatedCheckpointMessagesArgs, reply *messages.CheckpointMessages) error {
-	return agg.msgDb.FetchCheckpointMessages(args.fromTimestamp, args.toTimestamp, reply)
+	return agg.msgDb.FetchCheckpointMessages(args.FromTimestamp, args.ToTimestamp, reply)
 }

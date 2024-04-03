@@ -241,7 +241,7 @@ func (c *AggregatorRpcClient) GetAggregatedCheckpointMessages(fromTimestamp, toT
 	c.logger.Info("Getting checkpoint messages from aggregator")
 
 	type Args struct {
-		fromTimestamp, toTimestamp uint64
+		FromTimestamp, ToTimestamp uint64
 	}
 
 	return c.sendRequest(func() error {
