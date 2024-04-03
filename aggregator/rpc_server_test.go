@@ -115,7 +115,7 @@ func TestGetAggregatedCheckpointMessages(t *testing.T) {
 	var checkpointMessages messages.CheckpointMessages
 
 	mockDb.EXPECT().FetchCheckpointMessages(uint64(1), uint64(2), &checkpointMessages)
-	err = aggregator.GetAggregatedCheckpointMessages(1, 2, &checkpointMessages)
+	err = aggregator.GetAggregatedCheckpointMessages(&GetAggregatedCheckpointMessagesArgs{uint64(1), uint64(2)}, &checkpointMessages)
 	assert.Nil(t, err)
 }
 
