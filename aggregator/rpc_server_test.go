@@ -105,6 +105,20 @@ func TestProcessOperatorSetUpdateMessage(t *testing.T) {
 	assert.Nil(t, err)
 }
 
+func TestGetAggregatedCheckpointMessages(t *testing.T) {
+	mockCtrl := gomock.NewController(t)
+	defer mockCtrl.Finish()
+
+	aggregator, _, _, _, _, _, mockDb, _, err := createMockAggregator(mockCtrl, MOCK_OPERATOR_PUBKEY_DICT)
+	assert.Nil(t, err)
+
+	var checkpointMessages messages.CheckpointMessages
+
+	mockDb.EXPECT().FetchCheckpointMessages(uint64(1), uint64(2), &checkpointMessages)
+	err = aggregator.GetAggregatedCheckpointMessages(1, 2, &checkpointMessages)
+	assert.Nil(t, err)
+}
+
 func keccak256(num uint64) [32]byte {
 	var hash [32]byte
 	hasher := sha3.NewLegacyKeccak256()
