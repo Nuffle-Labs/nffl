@@ -26,6 +26,7 @@ import (
 	sdklogging "github.com/Layr-Labs/eigensdk-go/logging"
 	sdkutils "github.com/Layr-Labs/eigensdk-go/utils"
 	"github.com/docker/go-connections/nat"
+	"github.com/ethereum/go-ethereum/accounts/abi/bind"
 	"github.com/ethereum/go-ethereum/common"
 	ethtypes "github.com/ethereum/go-ethereum/core/types"
 	"github.com/ethereum/go-ethereum/crypto"
@@ -45,7 +46,6 @@ import (
 	"github.com/NethermindEth/near-sffl/operator"
 	optypes "github.com/NethermindEth/near-sffl/operator/types"
 	"github.com/NethermindEth/near-sffl/relayer"
-	"github.com/ethereum/go-ethereum/accounts/abi/bind"
 )
 
 const (
