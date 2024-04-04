@@ -74,14 +74,12 @@ impl BlockListener {
                 .flat_map(|shard| shard.chunk)
                 .flat_map(|chunk| {
                     chunk.transactions.into_iter().filter_map(|transaction| {
-                        if let Some(rollup_id) = addresses_to_rollup_ids.get(&transaction.transaction.receiver_id) {
-                            Some(TransactionWithRollupId {
+                        addresses_to_rollup_ids
+                            .get(&transaction.transaction.receiver_id)
+                            .map(|rollup_id| TransactionWithRollupId {
                                 rollup_id: *rollup_id,
                                 transaction,
                             })
-                        } else {
-                            None
-                        }
                     })
                 })
                 .filter_map(Self::transaction_filter_map)

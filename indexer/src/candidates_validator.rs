@@ -1,6 +1,4 @@
-use near_indexer::near_primitives;
-use near_indexer::near_primitives::views::ExecutionOutcomeWithIdView;
-use near_indexer::near_primitives::{types::TransactionOrReceiptId, views::ExecutionStatusView};
+use near_indexer::near_primitives::views::{ExecutionStatusView, FinalExecutionStatus};
 use near_o11y::WithSpanContextExt;
 use std::{collections::VecDeque, sync, time::Duration};
 use tokio::{
@@ -9,9 +7,12 @@ use tokio::{
 };
 use tracing::info;
 
-use crate::block_listener::CandidateData;
-use crate::rabbit_publisher::{get_routing_key, PublishData, PublishOptions, PublisherContext};
-use crate::{errors::Result, rabbit_publisher::RabbitPublisher};
+use crate::{
+    block_listener::CandidateData,
+    errors::Result,
+    rabbit_publisher::RabbitPublisher,
+    rabbit_publisher::{get_routing_key, PublishData, PublishOptions, PublishPayload, PublisherContext},
+};
 
 type ProtectedQueue = sync::Arc<Mutex<VecDeque<CandidateData>>>;
 type ProtectedPublisher = sync::Arc<Mutex<RabbitPublisher>>;
@@ -49,6 +50,7 @@ impl CandidatesValidator {
                     info!(target: "ticker", "trying to flush");
                     let mut queue = queue_protected.lock().await;
                     let _ = Self::flush(&mut queue, publisher_protected.clone(), &view_client).await;
+                    interval.reset();
                 },
                 _ = done.recv() => {
                     return
@@ -64,14 +66,14 @@ impl CandidatesValidator {
         view_client: &actix::Addr<near_client::ViewClientActor>,
     ) -> Result<bool> {
         while let Some(candidate_data) = queue.front() {
-            let execution_outcome = Self::fetch_execution_outcome(view_client, candidate_data).await?;
-            match execution_outcome.outcome.status {
-                ExecutionStatusView::Unknown | ExecutionStatusView::SuccessReceiptId(_) => return Ok(false),
-                ExecutionStatusView::SuccessValue(_) => {
-                    Self::send(candidate_data, publisher_protected.clone(), execution_outcome).await?;
+            let final_status = Self::fetch_execution_outcome(view_client, candidate_data).await?;
+            match final_status {
+                FinalExecutionStatus::NotStarted | FinalExecutionStatus::Started => return Ok(false),
+                FinalExecutionStatus::SuccessValue(_) => {
+                    Self::send(candidate_data, publisher_protected.clone()).await?;
                     queue.pop_front();
                 }
-                ExecutionStatusView::Failure(_) => {
+                FinalExecutionStatus::Failure(_) => {
                     queue.pop_front();
                 }
             };
@@ -83,29 +85,26 @@ impl CandidatesValidator {
     async fn fetch_execution_outcome(
         view_client: &actix::Addr<near_client::ViewClientActor>,
         candidate_data: &CandidateData,
-    ) -> Result<ExecutionOutcomeWithIdView> {
+    ) -> Result<FinalExecutionStatus> {
         Ok(view_client
             .send(
-                near_client::GetExecutionOutcome {
-                    id: TransactionOrReceiptId::Transaction {
-                        transaction_hash: candidate_data.transaction.transaction.hash,
-                        sender_id: candidate_data.clone().transaction.transaction.signer_id,
-                    },
+                near_client::TxStatus {
+                    tx_hash: candidate_data.transaction.transaction.hash,
+                    signer_account_id: candidate_data.transaction.transaction.signer_id.clone(),
+                    fetch_receipt: true,
                 }
                 .with_span_context(),
             )
             .await??
-            .outcome_proof)
+            .execution_outcome
+            .map(|x| x.into_outcome().status)
+            .unwrap_or(FinalExecutionStatus::NotStarted))
     }
 
-    async fn send(
-        candidate_data: &CandidateData,
-        publisher_protected: ProtectedPublisher,
-        execution_outcome: near_primitives::views::ExecutionOutcomeWithIdView,
-    ) -> Result<()> {
+    async fn send(candidate_data: &CandidateData, publisher_protected: ProtectedPublisher) -> Result<()> {
         // TODO: is sequential order important here?
         let mut rabbit_publisher = publisher_protected.lock().await;
-        for payload in candidate_data.clone().payloads {
+        for data in candidate_data.clone().payloads {
             rabbit_publisher
                 .publish(PublishData {
                     publish_options: PublishOptions {
@@ -113,9 +112,12 @@ impl CandidatesValidator {
                         ..PublishOptions::default()
                     },
                     cx: PublisherContext {
-                        block_hash: execution_outcome.block_hash,
+                        block_hash: candidate_data.transaction.outcome.execution_outcome.block_hash,
                     },
-                    payload,
+                    payload: PublishPayload {
+                        transaction_id: candidate_data.transaction.transaction.hash,
+                        data,
+                    },
                 })
                 .await?;
         }
@@ -134,12 +136,12 @@ impl CandidatesValidator {
         let publisher_protected = sync::Arc::new(Mutex::new(rabbit_publisher));
 
         let (done_sender, done_receiver) = mpsc::channel(1);
-        let _ = Self::ticker(
+        tokio::spawn(Self::ticker(
             done_receiver,
             queue_protected.clone(),
             publisher_protected.clone(),
             view_client.clone(),
-        );
+        ));
 
         while let Some(candidate_data) = receiver.recv().await {
             {
@@ -153,25 +155,20 @@ impl CandidatesValidator {
                 }
             }
 
-            let execution_outcome = candidate_data.transaction.outcome.execution_outcome.clone();
-            let current_execution_outcome = match execution_outcome.outcome.status {
-                ExecutionStatusView::SuccessValue(_) => {
-                    Self::send(&candidate_data, publisher_protected.clone(), execution_outcome).await?;
-                    continue;
-                }
+            let final_status = match candidate_data.transaction.outcome.execution_outcome.outcome.status {
                 ExecutionStatusView::Failure(_) => continue,
                 _ => Self::fetch_execution_outcome(&view_client, &candidate_data).await?,
             };
 
-            match current_execution_outcome.outcome.status {
-                ExecutionStatusView::Unknown | ExecutionStatusView::SuccessReceiptId(_) => {
+            match final_status {
+                FinalExecutionStatus::NotStarted | FinalExecutionStatus::Started => {
                     let mut queue = queue_protected.lock().await;
                     queue.push_back(candidate_data);
                 }
-                ExecutionStatusView::SuccessValue(_) => {
-                    Self::send(&candidate_data, publisher_protected.clone(), current_execution_outcome).await?;
+                FinalExecutionStatus::SuccessValue(_) => {
+                    Self::send(&candidate_data, publisher_protected.clone()).await?;
                 }
-                ExecutionStatusView::Failure(_) => {}
+                FinalExecutionStatus::Failure(_) => {}
             }
         }
 

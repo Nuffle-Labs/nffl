@@ -44,9 +44,10 @@ setup-near-da:
 bindings: ## generates contract bindings
 	cd contracts && ./generate-go-bindings.sh
 
-___DOCKER___: ## 
-docker-build-images: ## builds and publishes indexer, operator and aggregator docker images
+___DOCKER___: ##
+docker-build-indexer:
 	docker build -t near-sffl-indexer -f ./indexer/Dockerfile .
+docker-build-images: docker-build-indexer ## builds and publishes indexer, operator and aggregator docker images
 	docker build -t near-sffl-test-relayer -f ./relayer/Dockerfile .
 	ko build aggregator/cmd/main.go --preserve-import-paths -L
 	ko build operator/cmd/main.go --preserve-import-paths -L

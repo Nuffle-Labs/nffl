@@ -1,9 +1,9 @@
+use borsh::{BorshDeserialize, BorshSerialize};
 use deadpool_lapin::{Manager, Pool};
-use lapin::options::BasicPublishOptions;
-use lapin::{BasicProperties, ConnectionProperties};
+use lapin::{options::BasicPublishOptions, BasicProperties, ConnectionProperties};
 use near_indexer::near_primitives::hash::CryptoHash;
 use tokio::sync::mpsc;
-use tracing::error;
+use tracing::{error, info};
 
 use crate::errors::{Error, Result};
 
@@ -41,10 +41,16 @@ pub struct PublisherContext {
     pub block_hash: CryptoHash,
 }
 
+#[derive(Clone, Debug, BorshDeserialize, BorshSerialize)]
+pub struct PublishPayload {
+    pub transaction_id: CryptoHash,
+    pub data: Vec<u8>,
+}
+
 #[derive(Clone, Debug)]
 pub struct PublishData {
     pub publish_options: PublishOptions,
-    pub payload: Vec<u8>,
+    pub payload: PublishPayload,
     pub cx: PublisherContext,
 }
 
@@ -109,16 +115,20 @@ impl RabbitPublisher {
                 basic_properties,
             } = publish_data.publish_options.clone();
 
+            let mut payload: Vec<u8> = Vec::new();
+            publish_data.payload.serialize(&mut payload)?;
+
             channel
                 .basic_publish(
                     &exchange,
                     &routing_key,
                     basic_publish_options,
-                    &publish_data.payload,
+                    &payload,
                     basic_properties,
                 )
                 .await?;
 
+            info!(target: "rabbit_publisher", "published tx");
             Ok::<_, Error>(connection)
         };
 
