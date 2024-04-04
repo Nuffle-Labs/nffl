@@ -59,6 +59,15 @@ library SparseMerkleTree {
     function verifyProof(bytes32 root, Proof calldata proof) internal pure returns (bool) {
         require(proof.sideNodes.length <= MAX_DEPTH && proof.numSideNodes <= MAX_DEPTH, "Side nodes exceed depth");
 
+        return root == _computeProofRoot(proof);
+    }
+
+    /**
+     * @dev Computes the SMT root based on a proof.
+     * @param proof SMT proof
+     * @return Resulting SMT root
+     */
+    function _computeProofRoot(Proof calldata proof) private pure returns (bytes32) {
         bytes32[3] memory hashBuffer;
         bytes32 path = keccak256(abi.encodePacked(proof.key));
 
@@ -77,7 +86,7 @@ library SparseMerkleTree {
             }
         }
 
-        return root == currentHash;
+        return currentHash;
     }
 
     /**
