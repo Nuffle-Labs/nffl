@@ -3,7 +3,6 @@ package consumer
 import (
 	"context"
 	"errors"
-	"github.com/near/borsh-go"
 	"sync"
 
 	"github.com/Layr-Labs/eigensdk-go/logging"
@@ -87,8 +86,15 @@ func (l *QueuesListener) listen(ctx context.Context, rollupId uint32, rollupData
 			}
 			l.logger.Info("New delivery", "rollupId", rollupId)
 
+			publishPayload := new(PublishPayload)
+			err := borsh.Deserialize(publishPayload, d.Body)
+			if err != nil {
+				l.logger.Fatal("Error deserializing payload")
+				continue
+			}
+
 			submitRequest := new(SubmitRequest)
-			err := borsh.Deserialize(submitRequest, d.Body)
+			err = borsh.Deserialize(submitRequest, publishPayload.Data)
 			if err != nil {
 				l.logger.Fatal("Invalid blob", "d.Body", d.Body, "err", err)
 				continue
