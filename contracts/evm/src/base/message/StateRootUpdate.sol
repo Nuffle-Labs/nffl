@@ -40,4 +40,26 @@ library StateRootUpdate {
     function hash(Message memory message) internal pure returns (bytes32) {
         return keccak256(abi.encode(message));
     }
+
+    /**
+     * @notice Gets a state root update index
+     * @dev This is linked to the byte size of Message.blockHeight and
+     * Message.rollupId. This MUST be updated if any of those types is changed.
+     * @param message Message structured data
+     * @return Message index
+     */
+    function indexCalldata(Message calldata message) internal pure returns (bytes32) {
+        return bytes32(uint256(message.blockHeight) | (uint256(message.rollupId) << 64));
+    }
+
+    /**
+     * @notice Gets a state root update index
+     * @dev This is linked to the byte size of Message.blockHeight and
+     * Message.rollupId. This MUST be updated if any of those types is changed.
+     * @param message Message structured data
+     * @return Message index
+     */
+    function index(Message memory message) internal pure returns (bytes32) {
+        return bytes32(uint256(message.blockHeight) | (uint256(message.rollupId) << 64));
+    }
 }

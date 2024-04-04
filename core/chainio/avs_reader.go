@@ -26,7 +26,7 @@ type AvsReaderer interface {
 		ctx context.Context, quorumNumbers []byte, aggregation messages.MessageBlsAggregation,
 	) (taskmanager.IBLSSignatureCheckerQuorumStakeTotals, error)
 	GetErc20Mock(ctx context.Context, tokenAddr gethcommon.Address) (*erc20mock.ContractERC20Mock, error)
-	GetOperatorSetUpdateDelta(ctx context.Context, id uint64) ([]opsetupdatereg.OperatorsOperator, error)
+	GetOperatorSetUpdateDelta(ctx context.Context, id uint64) ([]opsetupdatereg.RollupOperatorsOperator, error)
 	GetOperatorSetUpdateBlock(ctx context.Context, id uint64) (uint32, error)
 }
 
@@ -83,7 +83,7 @@ func (r *AvsReader) GetErc20Mock(ctx context.Context, tokenAddr gethcommon.Addre
 	return erc20Mock, nil
 }
 
-func (r *AvsReader) GetOperatorSetUpdateDelta(ctx context.Context, id uint64) ([]opsetupdatereg.OperatorsOperator, error) {
+func (r *AvsReader) GetOperatorSetUpdateDelta(ctx context.Context, id uint64) ([]opsetupdatereg.RollupOperatorsOperator, error) {
 	result, err := r.AvsServiceBindings.OperatorSetUpdateRegistry.GetOperatorSetUpdate(&bind.CallOpts{}, id)
 	if err != nil {
 		return nil, err
@@ -115,11 +115,11 @@ func (r *AvsReader) GetOperatorSetUpdateDelta(ctx context.Context, id uint64) ([
 		operators[operatorKey] = weights
 	}
 
-	var delta []opsetupdatereg.OperatorsOperator
+	var delta []opsetupdatereg.RollupOperatorsOperator
 
 	for _, operatorUpdate := range operators {
 		if operatorUpdate.previousWeight.Cmp(operatorUpdate.newWeight) != 0 {
-			delta = append(delta, opsetupdatereg.OperatorsOperator{Pubkey: operatorUpdate.pubkey, Weight: operatorUpdate.newWeight})
+			delta = append(delta, opsetupdatereg.RollupOperatorsOperator{Pubkey: operatorUpdate.pubkey, Weight: operatorUpdate.newWeight})
 		}
 	}
 

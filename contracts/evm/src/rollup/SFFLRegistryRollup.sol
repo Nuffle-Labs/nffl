@@ -7,8 +7,8 @@ import {BN254} from "eigenlayer-middleware/src/libraries/BN254.sol";
 
 import {SFFLRegistryBase} from "../base/SFFLRegistryBase.sol";
 import {StateRootUpdate} from "../base/message/StateRootUpdate.sol";
-import {Operators} from "./utils/Operators.sol";
-import {OperatorSetUpdate} from "./message/OperatorSetUpdate.sol";
+import {OperatorSetUpdate} from "../base/message/OperatorSetUpdate.sol";
+import {RollupOperators} from "../base/utils/RollupOperators.sol";
 
 /**
  * @title SFFL registry for rollups / external networks
@@ -20,14 +20,14 @@ import {OperatorSetUpdate} from "./message/OperatorSetUpdate.sol";
  */
 contract SFFLRegistryRollup is SFFLRegistryBase, Ownable {
     using BN254 for BN254.G1Point;
-    using Operators for Operators.OperatorSet;
+    using RollupOperators for RollupOperators.OperatorSet;
     using OperatorSetUpdate for OperatorSetUpdate.Message;
     using StateRootUpdate for StateRootUpdate.Message;
 
     /**
      * @dev Operator set used for agreements
      */
-    Operators.OperatorSet internal _operatorSet;
+    RollupOperators.OperatorSet internal _operatorSet;
 
     /**
      * @notice Next operator set update message ID
@@ -40,7 +40,7 @@ contract SFFLRegistryRollup is SFFLRegistryBase, Ownable {
      * @param quorumThreshold Quorum threshold, based on THRESHOLD_DENOMINATOR
      * @param operatorUpdateId Starting next operator update message ID
      */
-    constructor(Operators.Operator[] memory operators, uint128 quorumThreshold, uint64 operatorUpdateId) {
+    constructor(RollupOperators.Operator[] memory operators, uint128 quorumThreshold, uint64 operatorUpdateId) {
         _operatorSet.initialize(operators, quorumThreshold);
 
         nextOperatorUpdateId = operatorUpdateId;
@@ -53,7 +53,7 @@ contract SFFLRegistryRollup is SFFLRegistryBase, Ownable {
      */
     function updateOperatorSet(
         OperatorSetUpdate.Message calldata message,
-        Operators.SignatureInfo calldata signatureInfo
+        RollupOperators.SignatureInfo calldata signatureInfo
     ) external {
         require(message.id == nextOperatorUpdateId, "Wrong message ID");
         require(_operatorSet.verifyCalldata(message.hashCalldata(), signatureInfo), "Quorum not met");
@@ -69,9 +69,10 @@ contract SFFLRegistryRollup is SFFLRegistryBase, Ownable {
      * @param message State root update message
      * @param signatureInfo BLS aggregated signature info
      */
-    function updateStateRoot(StateRootUpdate.Message calldata message, Operators.SignatureInfo calldata signatureInfo)
-        public
-    {
+    function updateStateRoot(
+        StateRootUpdate.Message calldata message,
+        RollupOperators.SignatureInfo calldata signatureInfo
+    ) public {
         require(_operatorSet.verifyCalldata(message.hashCalldata(), signatureInfo), "Quorum not met");
 
         _pushStateRoot(message.rollupId, message.blockHeight, message.stateRoot);
@@ -86,7 +87,7 @@ contract SFFLRegistryRollup is SFFLRegistryBase, Ownable {
         internal
         override
     {
-        Operators.SignatureInfo calldata signatureInfo;
+        RollupOperators.SignatureInfo calldata signatureInfo;
 
         assembly {
             signatureInfo := encodedSignatureInfo.offset
@@ -142,6 +143,6 @@ contract SFFLRegistryRollup is SFFLRegistryBase, Ownable {
      * @return Operator set weight threshold denominator
      */
     function THRESHOLD_DENOMINATOR() external pure returns (uint128) {
-        return Operators.THRESHOLD_DENOMINATOR;
+        return RollupOperators.THRESHOLD_DENOMINATOR;
     }
 }

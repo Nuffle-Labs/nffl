@@ -46,14 +46,14 @@ func (msg MessageBlsAggregation) ExtractBindingMainnet() taskmanager.IBLSSignatu
 	}
 }
 
-func (msg MessageBlsAggregation) ExtractBindingRollup() registryrollup.OperatorsSignatureInfo {
+func (msg MessageBlsAggregation) ExtractBindingRollup() registryrollup.RollupOperatorsSignatureInfo {
 	nonSignersPubkeys := make([]registryrollup.BN254G1Point, 0, len(msg.NonSignersPubkeysG1))
 
 	for _, pubkey := range msg.NonSignersPubkeysG1 {
 		nonSignersPubkeys = append(nonSignersPubkeys, registryrollup.BN254G1Point(core.ConvertToBN254G1Point(pubkey)))
 	}
 
-	return registryrollup.OperatorsSignatureInfo{
+	return registryrollup.RollupOperatorsSignatureInfo{
 		NonSignerPubkeys: nonSignersPubkeys,
 		ApkG2:            registryrollup.BN254G2Point(core.ConvertToBN254G2Point(msg.SignersApkG2)),
 		Sigma:            registryrollup.BN254G1Point(core.ConvertToBN254G1Point(msg.SignersAggSigG1.G1Point)),

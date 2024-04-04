@@ -161,7 +161,7 @@ func TestOperator(t *testing.T) {
 
 		mockReader := chainiomocks.NewMockAvsReaderer(mockCtrl)
 		mockReader.EXPECT().IsOperatorRegistered(gomock.Any(), operator.operatorAddr).Return(true, nil)
-		mockReader.EXPECT().GetOperatorSetUpdateDelta(gomock.Any(), operatorSetUpdate.Id).Return(make([]opsetupdatereg.OperatorsOperator, 0), nil)
+		mockReader.EXPECT().GetOperatorSetUpdateDelta(gomock.Any(), operatorSetUpdate.Id).Return(make([]opsetupdatereg.RollupOperatorsOperator, 0), nil)
 
 		avsManager.avsReader = mockReader
 

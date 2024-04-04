@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: MIT
 pragma solidity ^0.8.12;
 
-import {Operators} from "../utils/Operators.sol";
+import {RollupOperators} from "../utils/RollupOperators.sol";
 
 /**
  * @title SFFL operator set update message library
@@ -15,7 +15,7 @@ library OperatorSetUpdate {
     struct Message {
         uint64 id;
         uint64 timestamp;
-        Operators.Operator[] operators;
+        RollupOperators.Operator[] operators;
     }
 
     /**
@@ -34,5 +34,26 @@ library OperatorSetUpdate {
      */
     function hash(Message memory message) internal pure returns (bytes32) {
         return keccak256(abi.encode(message));
+    }
+
+    /**
+     * @notice Gets a state root update index
+     * @dev This is linked to the byte size of Message.id. This MUST be updated
+     * if the Message.id type is changed.
+     * @param message Message structured data
+     * @return Message index
+     */
+    function indexCalldata(Message calldata message) internal pure returns (bytes32) {
+        return bytes32(uint256(message.id));
+    }
+
+    /**
+     * @notice Gets a state root update index
+     * @dev This is linked to the byte size of Message.id. This MUST be updated
+     * if the Message.id type is changed.
+     * @return Message index
+     */
+    function index(Message memory message) internal pure returns (bytes32) {
+        return bytes32(uint256(message.id));
     }
 }

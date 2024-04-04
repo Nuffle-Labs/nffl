@@ -11,7 +11,7 @@ import {BN254} from "eigenlayer-middleware/src/libraries/BN254.sol";
  * @dev The operator set is an alternative representation of the AVS' original
  * operator set, as it assumes a one-quorum one-weight based voting
  */
-library Operators {
+library RollupOperators {
     using BN254 for BN254.G1Point;
 
     /**

@@ -153,10 +153,10 @@ func (mr *MockAvsReadererMockRecorder) GetOperatorSetUpdateBlock(arg0, arg1 any)
 }
 
 // GetOperatorSetUpdateDelta mocks base method.
-func (m *MockAvsReaderer) GetOperatorSetUpdateDelta(arg0 context.Context, arg1 uint64) ([]contractSFFLOperatorSetUpdateRegistry.OperatorsOperator, error) {
+func (m *MockAvsReaderer) GetOperatorSetUpdateDelta(arg0 context.Context, arg1 uint64) ([]contractSFFLOperatorSetUpdateRegistry.RollupOperatorsOperator, error) {
 	m.ctrl.T.Helper()
 	ret := m.ctrl.Call(m, "GetOperatorSetUpdateDelta", arg0, arg1)
-	ret0, _ := ret[0].([]contractSFFLOperatorSetUpdateRegistry.OperatorsOperator)
+	ret0, _ := ret[0].([]contractSFFLOperatorSetUpdateRegistry.RollupOperatorsOperator)
 	ret1, _ := ret[1].(error)
 	return ret0, ret1
 }

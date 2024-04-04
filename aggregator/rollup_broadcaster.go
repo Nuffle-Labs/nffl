@@ -57,7 +57,7 @@ func NewRollupWriter(ctx context.Context, rollupInfo config.RollupInfo, signerCo
 	}, nil
 }
 
-func (w *RollupWriter) UpdateOperatorSet(ctx context.Context, message messages.OperatorSetUpdateMessage, signatureInfo registryrollup.OperatorsSignatureInfo) error {
+func (w *RollupWriter) UpdateOperatorSet(ctx context.Context, message messages.OperatorSetUpdateMessage, signatureInfo registryrollup.RollupOperatorsSignatureInfo) error {
 	operation := func() error {
 		txOpts, err := w.txMgr.GetNoSendTxOpts()
 		if err != nil {
@@ -117,7 +117,7 @@ func (w *RollupWriter) UpdateOperatorSet(ctx context.Context, message messages.O
 }
 
 type RollupBroadcasterer interface {
-	BroadcastOperatorSetUpdate(ctx context.Context, message messages.OperatorSetUpdateMessage, signatureInfo registryrollup.OperatorsSignatureInfo)
+	BroadcastOperatorSetUpdate(ctx context.Context, message messages.OperatorSetUpdateMessage, signatureInfo registryrollup.RollupOperatorsSignatureInfo)
 	GetErrorChan() <-chan error
 }
 
@@ -144,7 +144,7 @@ func NewRollupBroadcaster(ctx context.Context, rollupsInfo map[uint32]config.Rol
 	}, nil
 }
 
-func (b *RollupBroadcaster) BroadcastOperatorSetUpdate(ctx context.Context, message messages.OperatorSetUpdateMessage, signatureInfo registryrollup.OperatorsSignatureInfo) {
+func (b *RollupBroadcaster) BroadcastOperatorSetUpdate(ctx context.Context, message messages.OperatorSetUpdateMessage, signatureInfo registryrollup.RollupOperatorsSignatureInfo) {
 	go func() {
 		for _, writer := range b.writers {
 			select {
