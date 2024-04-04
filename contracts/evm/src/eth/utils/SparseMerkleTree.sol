@@ -59,26 +59,13 @@ library SparseMerkleTree {
     function verifyProof(bytes32 root, Proof calldata proof) internal pure returns (bool) {
         require(proof.sideNodes.length <= MAX_DEPTH && proof.numSideNodes <= MAX_DEPTH, "Side nodes exceed depth");
 
-        bytes32 path = keccak256(abi.encodePacked(proof.key));
         bytes32[3] memory hashBuffer;
+        bytes32 path = keccak256(abi.encodePacked(proof.key));
 
-        bytes32 currentHash;
+        bytes32 currentHash = _computeProofLeaf(hashBuffer, path, proof);
 
-        if (proof.value == DEFAULT_VALUE) {
-            if (proof.nonMembershipLeafPath == bytes32(0)) {
-                currentHash = DEFAULT_VALUE;
-            } else {
-                require(proof.nonMembershipLeafPath != path, "nonMembershipLeaf not unrelated");
-
-                currentHash =
-                    _hashNode(hashBuffer, LEAF_NODE_PREFIX, proof.nonMembershipLeafPath, proof.nonMembershipLeafValue);
-            }
-        } else {
-            currentHash = _hashNode(hashBuffer, LEAF_NODE_PREFIX, path, proof.value);
-        }
-
-        uint256 sideNodeIndex = 0;
         uint256 index = uint256(path) >> (256 - proof.numSideNodes);
+        uint256 sideNodeIndex = 0;
 
         for (uint256 i = 0; i < proof.numSideNodes; i++) {
             bytes32 sideNode = ((proof.bitMask & (1 << i)) != 0) ? DEFAULT_VALUE : proof.sideNodes[sideNodeIndex++];
@@ -91,6 +78,33 @@ library SparseMerkleTree {
         }
 
         return root == currentHash;
+    }
+
+    /**
+     * @dev Computes the leaf to be proved based on the value to be proved and
+     * the provided non-membership leaf data.
+     * @param hashBuffer Memory area to be used for serialization
+     * @param path Proof key path
+     * @param proof SMT proof
+     * @return leaf Leaf to be proved
+     */
+    function _computeProofLeaf(bytes32[3] memory hashBuffer, bytes32 path, Proof calldata proof)
+        private
+        pure
+        returns (bytes32 leaf)
+    {
+        if (proof.value == DEFAULT_VALUE) {
+            if (proof.nonMembershipLeafPath == bytes32(0)) {
+                leaf = DEFAULT_VALUE;
+            } else {
+                require(proof.nonMembershipLeafPath != path, "nonMembershipLeaf not unrelated");
+
+                leaf =
+                    _hashNode(hashBuffer, LEAF_NODE_PREFIX, proof.nonMembershipLeafPath, proof.nonMembershipLeafValue);
+            }
+        } else {
+            leaf = _hashNode(hashBuffer, LEAF_NODE_PREFIX, path, proof.value);
+        }
     }
 
     /**
