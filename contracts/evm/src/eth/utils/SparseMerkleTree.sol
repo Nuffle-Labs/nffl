@@ -15,7 +15,8 @@ pragma solidity ^0.8.12;
  * side nodes are not always 256 in its decompacted form, though it also means
  * inner nodes and leaves hash functions are different - leaves are hashed
  * with `keccak256(abi.encodePacked(uint8(0), path, value))` and inner nodes
- * are hashed with `keccak256(abi.encodePacked(uint8(0), left, right))`
+ * are hashed with `keccak256(abi.encodePacked(uint8(0), left, right))`. Also,
+ * paths are defined as `keccak256(abi.encodePacked(key))`.
  */
 library SparseMerkleTree {
     struct Proof {
