@@ -3,6 +3,7 @@ package consumer
 import (
 	"context"
 	"errors"
+	"github.com/near/borsh-go"
 	"sync"
 
 	"github.com/Layr-Labs/eigensdk-go/logging"
@@ -14,6 +15,11 @@ import (
 var (
 	QueueExistsError = errors.New("Queue already exists")
 )
+
+type PublishPayload struct {
+	TransactionId [32]byte
+	Data          []byte
+}
 
 type QueuesListener struct {
 	receivedBlocksC    chan<- BlockData
@@ -65,8 +71,15 @@ func (l *QueuesListener) listen(ctx context.Context, rollupId uint32, rollupData
 
 			l.logger.Info("New delivery", "rollupId", rollupId)
 
+			publishPayload := new(PublishPayload)
+			err := borsh.Deserialize(publishPayload, d.Body)
+			if err != nil {
+				l.logger.Error("Error deserializing MQ payload")
+				continue
+			}
+
 			var block types.Block
-			if err := rlp.DecodeBytes(d.Body, &block); err != nil {
+			if err := rlp.DecodeBytes(publishPayload.Data, &block); err != nil {
 				l.logger.Warn("Invalid block", "rollupId", rollupId, "err", err)
 				continue
 			}
