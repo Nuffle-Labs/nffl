@@ -16,13 +16,11 @@ var (
 	QueueExistsError = errors.New("Queue already exists")
 )
 
-type PublishPayload struct {
-	TransactionId [32]byte
-	Data          []byte
-}
-
 // Type reflactions of NEAR DA client submission format
 type ShareVersion = uint32
+type Commitment = [32]byte
+type TransactionId = [32]byte
+
 type Namespace struct {
 	Version uint8
 	Id      uint32
@@ -30,11 +28,17 @@ type Namespace struct {
 type Blob struct {
 	Namespace    Namespace
 	ShareVersion ShareVersion
-	Commitment   [32]uint8
-	Data         []uint8
+	Commitment   Commitment
+	Data         []byte
 }
 type SubmitRequest struct {
 	Blobs []Blob
+}
+
+// Type reflection of MQ format
+type PublishPayload struct {
+	TransactionId TransactionId
+	Data          []byte
 }
 
 type QueuesListener struct {
@@ -107,7 +111,12 @@ func (l *QueuesListener) listen(ctx context.Context, rollupId uint32, rollupData
 					continue
 				}
 
-				l.receivedBlocksC <- BlockData{RollupId: rollupId, Block: block}
+				l.receivedBlocksC <- BlockData{
+					RollupId:      rollupId,
+					TransactionId: publishPayload.TransactionId,
+					Commitment:    blob.Commitment,
+					Block:         block,
+				}
 			}
 
 			d.Ack(false)

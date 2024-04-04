@@ -221,6 +221,9 @@ func (attestor *Attestor) processHeader(rollupId uint32, rollupHeader *ethtypes.
 	mqBlocksC, id := attestor.notifier.Subscribe(rollupId)
 	defer attestor.notifier.Unsubscribe(rollupId, id)
 
+	transactionId := [32]byte{1}
+	daCommitment := [32]byte{1}
+
 loop:
 	for {
 		select {
@@ -243,6 +246,9 @@ loop:
 				attestor.logger.Warnf("StateRoot from MQ doesn't match one from Node")
 			}
 
+			daCommitment = mqBlock.Commitment
+			transactionId = mqBlock.TransactionId
+
 			break loop
 
 		case <-ctx.Done():
@@ -251,13 +257,12 @@ loop:
 	}
 
 	message := messages.StateRootUpdateMessage{
-		RollupId:    rollupId,
-		BlockHeight: rollupHeader.Number.Uint64(),
-		Timestamp:   rollupHeader.Time,
-		StateRoot:   rollupHeader.Root,
-		// TODO: get below fields from mqBlock
-		NearDaTransactionId: [32]byte{1},
-		NearDaCommitment:    [32]byte{2},
+		RollupId:            rollupId,
+		BlockHeight:         rollupHeader.Number.Uint64(),
+		Timestamp:           rollupHeader.Time,
+		StateRoot:           rollupHeader.Root,
+		NearDaTransactionId: transactionId,
+		NearDaCommitment:    daCommitment,
 	}
 	signature, err := SignStateRootUpdateMessage(attestor.blsKeypair, &message)
 	if err != nil {

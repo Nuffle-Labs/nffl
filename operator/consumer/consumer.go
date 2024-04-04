@@ -35,8 +35,10 @@ type ConsumerConfig struct {
 }
 
 type BlockData struct {
-	RollupId uint32
-	Block    types.Block
+	RollupId      uint32
+	Commitment    Commitment
+	TransactionId TransactionId
+	Block         types.Block
 }
 
 type Consumerer interface {
