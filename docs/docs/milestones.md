@@ -9,13 +9,13 @@ work ahead and can be changed depending on the progress.
 
 We have already reached [Milestone 3](#3-node-development)!
 
-## #1: Initial Design
+## #1: Initial Design - 02/2024
 
 * Overall network design.
 * Cross-network messaging mechanism.
 * Smart contract architecture.
 
-## #2: Smart Contracts and Indexer
+## #2: Smart Contracts and Indexer - 03/2024
 
 * Ethereum smart contracts implementation.
   * AVS Middleware.
@@ -34,7 +34,7 @@ We have already reached [Milestone 3](#3-node-development)!
   * Managing MQ messaging for consumer integration.
   * Unit testing.
 
-## #3: Node Development
+## #3: Node Development - 03/2024
 
 * Implement AVS node.
   * Indexer MQ consuming.
