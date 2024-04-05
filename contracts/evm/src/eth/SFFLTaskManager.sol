@@ -111,6 +111,8 @@ contract SFFLTaskManager is Initializable, OwnableUpgradeable, Pausable, BLSSign
         BLSSignatureChecker(registryCoordinator)
     {
         TASK_RESPONSE_WINDOW_BLOCK = taskResponseWindowBlock;
+
+        _disableInitializers();
     }
 
     /**
