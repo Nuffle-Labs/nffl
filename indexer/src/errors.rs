@@ -18,8 +18,8 @@ pub enum Error {
     ParseAccountError(#[from] near_indexer::near_primitives::account::id::ParseAccountError),
     #[error(transparent)]
     MailboxError(#[from] actix::MailboxError),
-    #[error(transparent)]
-    GetExecutionOutcomeError(#[from] near_client_primitives::types::GetExecutionOutcomeError),
+    #[error("tx status error: {0}")]
+    TxStatusError(String),
     #[error("Number of da_contract_ids shall match rollup_ids")]
     IDsAndContractAddressesError,
 }
@@ -27,6 +27,19 @@ pub enum Error {
 impl<T> From<SendError<T>> for Error {
     fn from(_: SendError<T>) -> Self {
         Error::SendError
+    }
+}
+
+impl From<near_client_primitives::types::TxStatusError> for Error {
+    fn from(value: near_client_primitives::types::TxStatusError) -> Self {
+        match value {
+            near_client_primitives::types::TxStatusError::ChainError(err) => Self::TxStatusError(err.to_string()),
+            near_client_primitives::types::TxStatusError::MissingTransaction(hash) => {
+                Self::TxStatusError(format!("Missing transaction: {}", hash.to_string()))
+            }
+            near_client_primitives::types::TxStatusError::InternalError(err) => Self::TxStatusError(err),
+            near_client_primitives::types::TxStatusError::TimeoutError => Self::TxStatusError("Timeout".into()),
+        }
     }
 }
 

@@ -1,9 +1,5 @@
 use futures::future::join_all;
-use near_indexer::near_primitives::views::ReceiptView;
-use near_indexer::near_primitives::{
-    types::{AccountId, TransactionOrReceiptId},
-    views::{ActionView, ReceiptEnumView},
-};
+use near_indexer::near_primitives::{types::AccountId, views::ActionView};
 use std::collections::HashMap;
 use tokio::sync::mpsc;
 
@@ -12,7 +8,7 @@ use crate::errors::Result;
 #[derive(Clone, Debug)]
 pub(crate) struct CandidateData {
     pub rollup_id: u32,
-    pub transaction_or_receipt_id: TransactionOrReceiptId,
+    pub transaction: near_indexer::IndexerTransactionWithOutcome,
     pub payloads: Vec<Vec<u8>>,
 }
 
@@ -22,10 +18,10 @@ pub(crate) struct BlockListener {
     addresses_to_rollup_ids: HashMap<AccountId, u32>,
 }
 
-#[derive(Clone, Debug, PartialEq, Eq, serde::Serialize, serde::Deserialize)]
-pub(crate) struct ReceiptViewWithRollupId {
+#[derive(Clone, Debug, serde::Serialize, serde::Deserialize)]
+pub(crate) struct TransactionWithRollupId {
     pub(crate) rollup_id: u32,
-    pub(crate) receipt_view: ReceiptView,
+    pub(crate) transaction: near_indexer::IndexerTransactionWithOutcome,
 }
 
 impl BlockListener {
@@ -41,28 +37,17 @@ impl BlockListener {
         }
     }
 
-    fn receipt_filer_map(receipt: ReceiptViewWithRollupId) -> Option<CandidateData> {
-        let actions = if let ReceiptEnumView::Action { actions, .. } = receipt.receipt_view.receipt {
-            actions
-        } else {
-            return None;
-        };
-
-        let payloads = actions
-            .into_iter()
-            .filter_map(Self::extract_args)
-            .collect::<Vec<Vec<u8>>>();
+    fn transaction_filter_map(transaction: TransactionWithRollupId) -> Option<CandidateData> {
+        let actions = &transaction.transaction.transaction.actions;
+        let payloads: Vec<Vec<u8>> = actions.clone().into_iter().filter_map(Self::extract_args).collect();
 
         if payloads.is_empty() {
             return None;
         }
 
         Some(CandidateData {
-            rollup_id: receipt.rollup_id,
-            transaction_or_receipt_id: TransactionOrReceiptId::Receipt {
-                receipt_id: receipt.receipt_view.receipt_id,
-                receiver_id: receipt.receipt_view.receiver_id,
-            },
+            rollup_id: transaction.rollup_id,
+            transaction: transaction.transaction,
             payloads,
         })
     }
@@ -88,21 +73,16 @@ impl BlockListener {
                 .into_iter()
                 .flat_map(|shard| shard.chunk)
                 .flat_map(|chunk| {
-                    chunk
-                        .receipts
-                        .into_iter()
-                        .filter_map(|receipt| {
-                            if let Some(rollup_id) = addresses_to_rollup_ids.get(&receipt.receiver_id) {
-                                Some(ReceiptViewWithRollupId {
-                                    rollup_id: *rollup_id,
-                                    receipt_view: receipt,
-                                })
-                            } else {
-                                None
-                            }
-                        })
-                        .filter_map(Self::receipt_filer_map)
+                    chunk.transactions.into_iter().filter_map(|transaction| {
+                        addresses_to_rollup_ids
+                            .get(&transaction.transaction.receiver_id)
+                            .map(|rollup_id| TransactionWithRollupId {
+                                rollup_id: *rollup_id,
+                                transaction,
+                            })
+                    })
                 })
+                .filter_map(Self::transaction_filter_map)
                 .collect();
 
             if candidates_data.is_empty() {
@@ -129,13 +109,16 @@ impl BlockListener {
 
 #[cfg(test)]
 mod tests {
-    use std::collections::HashMap;
-    use crate::block_listener::{BlockListener, CandidateData, ReceiptViewWithRollupId};
-    use near_crypto::{KeyType, PublicKey};
+    use crate::block_listener::{BlockListener, CandidateData, TransactionWithRollupId};
+    use near_crypto::{KeyType, PublicKey, Signature};
     use near_indexer::near_primitives::hash::CryptoHash;
-    use near_indexer::near_primitives::types::{AccountId, TransactionOrReceiptId};
-    use near_indexer::near_primitives::views::{ActionView, ReceiptEnumView, ReceiptView};
-    use near_indexer::StreamerMessage;
+    use near_indexer::near_primitives::types::AccountId;
+    use near_indexer::near_primitives::views::{
+        ActionView, ExecutionMetadataView, ExecutionOutcomeView, ExecutionOutcomeWithIdView, ExecutionStatusView,
+        SignedTransactionView,
+    };
+    use near_indexer::{IndexerExecutionOutcomeWithOptionalReceipt, IndexerTransactionWithOutcome, StreamerMessage};
+    use std::collections::HashMap;
     use std::path::PathBuf;
     use std::str::FromStr;
     use std::time::Duration;
@@ -144,31 +127,31 @@ mod tests {
 
     impl PartialEq for CandidateData {
         fn eq(&self, other: &Self) -> bool {
-            let res = match (&self.transaction_or_receipt_id, &other.transaction_or_receipt_id) {
-                (
-                    TransactionOrReceiptId::Receipt {
-                        receiver_id,
-                        receipt_id,
-                    },
-                    TransactionOrReceiptId::Receipt {
-                        receipt_id: other_receipt_id,
-                        receiver_id: other_receiver_id,
-                    },
-                ) => receipt_id == other_receipt_id && receiver_id == other_receiver_id,
-                (
-                    TransactionOrReceiptId::Transaction {
-                        transaction_hash,
-                        sender_id,
-                    },
-                    TransactionOrReceiptId::Transaction {
-                        transaction_hash: other_hash,
-                        sender_id: other_id,
-                    },
-                ) => transaction_hash == other_hash && sender_id == other_id,
-                _ => false,
-            };
+            let outcome_eq = (self.transaction.outcome.execution_outcome
+                == other.transaction.outcome.execution_outcome)
+                && (self.transaction.outcome.receipt == other.transaction.outcome.receipt);
+            let transaction_eq = (self.transaction.transaction == other.transaction.transaction) && outcome_eq;
+            self.payloads == other.payloads && transaction_eq
+        }
+    }
 
-            self.payloads == other.payloads && res
+    fn get_default_execution_outcome() -> IndexerExecutionOutcomeWithOptionalReceipt {
+        IndexerExecutionOutcomeWithOptionalReceipt {
+            execution_outcome: ExecutionOutcomeWithIdView {
+                proof: vec![],
+                block_hash: CryptoHash::default(),
+                id: CryptoHash::default(),
+                outcome: ExecutionOutcomeView {
+                    logs: vec![],
+                    receipt_ids: vec![],
+                    gas_burnt: 0,
+                    tokens_burnt: 0,
+                    executor_id: AccountId::from_str("test_signer").unwrap(),
+                    status: ExecutionStatusView::SuccessValue(vec![]),
+                    metadata: ExecutionMetadataView::default(),
+                },
+            },
+            receipt: None,
         }
     }
 
@@ -178,117 +161,114 @@ mod tests {
         let da_contract_id = AccountId::from_str("a.test").unwrap();
 
         let test_predecessor_id = AccountId::from_str("test_predecessor").unwrap();
-        let valid_receipt = ReceiptView {
-            predecessor_id: test_predecessor_id.clone(),
-            receiver_id: da_contract_id.clone(),
-            receipt_id: CryptoHash::hash_bytes(b"test_receipt_id"),
-            receipt: ReceiptEnumView::Action {
-                signer_id: AccountId::from_str("test_signer").unwrap(),
-                signer_public_key: PublicKey::empty(KeyType::ED25519),
-                gas_price: 100,
-                output_data_receivers: vec![],
-                input_data_ids: vec![CryptoHash::hash_bytes(b"test_input_data_id")],
+
+        let default_outcome = get_default_execution_outcome();
+
+        let valid_transaction = IndexerTransactionWithOutcome {
+            transaction: SignedTransactionView {
+                signer_id: test_predecessor_id.clone(),
+                public_key: PublicKey::empty(KeyType::ED25519),
+                nonce: 0,
+                receiver_id: da_contract_id.clone(),
                 actions: vec![ActionView::FunctionCall {
                     method_name: "submit".into(),
                     args: vec![1, 2, 3].into(),
                     gas: 100,
                     deposit: 100,
                 }],
+                signature: Signature::default(),
+                hash: CryptoHash::default(),
             },
+            outcome: default_outcome.clone(),
         };
-        let valid_receipt = ReceiptViewWithRollupId {
+        let valid_transaction = TransactionWithRollupId {
             rollup_id,
-            receipt_view: valid_receipt,
+            transaction: valid_transaction,
         };
 
-        let invalid_action_receipt = ReceiptView {
-            predecessor_id: test_predecessor_id.clone(),
-            receiver_id: da_contract_id.clone(),
-            receipt_id: CryptoHash::hash_bytes(b"test_receipt_id"),
-            receipt: ReceiptEnumView::Data {
-                data_id: CryptoHash::hash_bytes(b"test_data_id"),
-                data: Some(vec![1, 2, 3]),
+        let invalid_transaction = IndexerTransactionWithOutcome {
+            transaction: SignedTransactionView {
+                signer_id: test_predecessor_id.clone(),
+                public_key: PublicKey::empty(KeyType::ED25519),
+                nonce: 0,
+                receiver_id: da_contract_id,
+                actions: vec![ActionView::CreateAccount],
+                signature: Signature::default(),
+                hash: CryptoHash::default(),
             },
+            outcome: default_outcome,
         };
 
-        let invalid_action_receipt = ReceiptViewWithRollupId {
+        let invalid_transaction = TransactionWithRollupId {
             rollup_id,
-            receipt_view: invalid_action_receipt,
+            transaction: invalid_transaction,
         };
 
         // Test valid receipt
         assert_eq!(
-            BlockListener::receipt_filer_map(valid_receipt.clone()),
+            BlockListener::transaction_filter_map(valid_transaction.clone()),
             Some(CandidateData {
                 rollup_id,
-                transaction_or_receipt_id: TransactionOrReceiptId::Receipt {
-                    receipt_id: valid_receipt.receipt_view.receipt_id.clone(),
-                    receiver_id: valid_receipt.receipt_view.receiver_id.clone(),
-                },
+                transaction: valid_transaction.transaction,
                 payloads: vec![vec![1, 2, 3]],
             })
         );
 
         // Test invalid action receipt
-        assert_eq!(BlockListener::receipt_filer_map(invalid_action_receipt), None);
+        assert_eq!(BlockListener::transaction_filter_map(invalid_transaction), None);
     }
 
     #[test]
     fn test_multiple_submit_actions() {
         let rollup_id = 10;
         let da_contract_id = AccountId::from_str("a.test").unwrap();
-        let common_action_receipt = ReceiptEnumView::Action {
-            signer_id: AccountId::from_str("test_signer").unwrap(),
-            signer_public_key: PublicKey::empty(KeyType::ED25519),
-            gas_price: 100,
-            output_data_receivers: vec![],
-            input_data_ids: vec![CryptoHash::hash_bytes(b"test_input_data_id")],
-            actions: vec![
-                ActionView::FunctionCall {
-                    method_name: "submit".into(),
-                    args: vec![1, 2, 3].into(),
-                    gas: 100,
-                    deposit: 100,
-                },
-                ActionView::FunctionCall {
-                    method_name: "submit".into(),
-                    args: vec![4, 4, 4].into(),
-                    gas: 100,
-                    deposit: 100,
-                },
-                ActionView::FunctionCall {
-                    method_name: "random".into(),
-                    args: vec![1, 2, 3].into(),
-                    gas: 100,
-                    deposit: 100,
-                },
-                ActionView::DeleteAccount {
-                    beneficiary_id: da_contract_id.clone(),
-                },
-            ],
-        };
+        let actions = vec![
+            ActionView::FunctionCall {
+                method_name: "submit".into(),
+                args: vec![1, 2, 3].into(),
+                gas: 100,
+                deposit: 100,
+            },
+            ActionView::FunctionCall {
+                method_name: "submit".into(),
+                args: vec![4, 4, 4].into(),
+                gas: 100,
+                deposit: 100,
+            },
+            ActionView::FunctionCall {
+                method_name: "random".into(),
+                args: vec![1, 2, 3].into(),
+                gas: 100,
+                deposit: 100,
+            },
+            ActionView::DeleteAccount {
+                beneficiary_id: da_contract_id.clone(),
+            },
+        ];
 
-        let test_predecessor_id = AccountId::from_str("test_predecessor").unwrap();
-        let valid_receipt = ReceiptView {
-            predecessor_id: test_predecessor_id.clone(),
-            receiver_id: da_contract_id.clone(),
-            receipt_id: CryptoHash::hash_bytes(b"test_receipt_id"),
-            receipt: common_action_receipt.clone(),
+        let valid_transaction = IndexerTransactionWithOutcome {
+            transaction: SignedTransactionView {
+                signer_id: AccountId::from_str("test_signer").unwrap(),
+                public_key: PublicKey::empty(KeyType::ED25519),
+                nonce: 0,
+                receiver_id: da_contract_id.clone(),
+                actions,
+                signature: Signature::default(),
+                hash: CryptoHash::hash_bytes(b"test_tx_id"),
+            },
+            outcome: get_default_execution_outcome(),
         };
-        let valid_receipt = ReceiptViewWithRollupId {
+        let valid_transaction = TransactionWithRollupId {
             rollup_id,
-            receipt_view: valid_receipt,
+            transaction: valid_transaction,
         };
 
         // Test valid receipt
         assert_eq!(
-            BlockListener::receipt_filer_map(valid_receipt.clone()),
+            BlockListener::transaction_filter_map(valid_transaction.clone()),
             Some(CandidateData {
                 rollup_id,
-                transaction_or_receipt_id: TransactionOrReceiptId::Receipt {
-                    receipt_id: valid_receipt.receipt_view.receipt_id.clone(),
-                    receiver_id: valid_receipt.receipt_view.receiver_id.clone(),
-                },
+                transaction: valid_transaction.transaction,
                 payloads: vec![vec![1, 2, 3], vec![4, 4, 4]],
             })
         );
@@ -386,7 +366,7 @@ mod tests {
 
     #[tokio::test]
     async fn test_shutdown() {
-        let rollup_id=5;
+        let rollup_id = 5;
         let da_contract_id = "da.test.near".parse().unwrap();
         let streamer_messages = StreamerMessagesLoader::load();
 
