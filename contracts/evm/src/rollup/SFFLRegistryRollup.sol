@@ -1,7 +1,8 @@
 // SPDX-License-Identifier: MIT
 pragma solidity ^0.8.12;
 
-import {Ownable} from "@openzeppelin/contracts/access/Ownable.sol";
+import {Initializable} from "@openzeppelin-upgrades/contracts/proxy/utils/Initializable.sol";
+import {OwnableUpgradeable} from "@openzeppelin-upgrades/contracts/access/OwnableUpgradeable.sol";
 
 import {BN254} from "eigenlayer-middleware/src/libraries/BN254.sol";
 
@@ -18,7 +19,7 @@ import {RollupOperators} from "../base/utils/RollupOperators.sol";
  * the rollup contract heavily assumes a one-quorum operator set and can only
  * prove agreements based on the current operator set state
  */
-contract SFFLRegistryRollup is SFFLRegistryBase, Ownable {
+contract SFFLRegistryRollup is Initializable, OwnableUpgradeable, SFFLRegistryBase {
     using BN254 for BN254.G1Point;
     using RollupOperators for RollupOperators.OperatorSet;
     using OperatorSetUpdate for OperatorSetUpdate.Message;
@@ -34,13 +35,25 @@ contract SFFLRegistryRollup is SFFLRegistryBase, Ownable {
      */
     uint64 public nextOperatorUpdateId;
 
+    constructor() {
+        _disableInitializers();
+    }
+
     /**
      * @notice Initializes the contract
      * @param operators Initial operator list
      * @param quorumThreshold Quorum threshold, based on THRESHOLD_DENOMINATOR
      * @param operatorUpdateId Starting next operator update message ID
+     * @param initialOwner Owner address
      */
-    constructor(RollupOperators.Operator[] memory operators, uint128 quorumThreshold, uint64 operatorUpdateId) {
+    function initialize(
+        RollupOperators.Operator[] memory operators,
+        uint128 quorumThreshold,
+        uint64 operatorUpdateId,
+        address initialOwner
+    ) public initializer {
+        _transferOwnership(initialOwner);
+
         _operatorSet.initialize(operators, quorumThreshold);
 
         nextOperatorUpdateId = operatorUpdateId;

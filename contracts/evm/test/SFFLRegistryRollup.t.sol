@@ -76,8 +76,15 @@ contract SFFLRegistryRollupTest is TestUtils {
             )
         );
 
-        vm.prank(addr("owner"));
-        registry = new SFFLRegistryRollup(initialOperators, QUORUM_THRESHOLD, 0);
+        registry = SFFLRegistryRollup(
+            deployProxy(
+                address(new SFFLRegistryRollup()),
+                addr("proxyAdmin"),
+                abi.encodeWithSelector(
+                    registry.initialize.selector, initialOperators, QUORUM_THRESHOLD, uint64(0), addr("owner")
+                )
+            )
+        );
     }
 
     function test_setUp() public {
