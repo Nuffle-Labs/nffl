@@ -86,7 +86,12 @@ services:
     command:
       - -c
       - |
-        forge create src/rollup/SFFLRegistryRollup.sol:SFFLRegistryRollup --constructor-args '[((643552363890320897587044283125191574906281609959531590546948318138132520777,7028377728703212953187883551402495866059211864756496641401904395458852281995),1000)]' 66 1 --private-key 0x2a871d0798f97d79848a013d4936a73bf4cc922c825d33c1cf7073dff6d409c6
+        deployer='0xa0Ee7A142d267C1f36714E4a8F75612F20a79720'
+        deployerpk='0x2a871d0798f97d79848a013d4936a73bf4cc922c825d33c1cf7073dff6d409c6'
+        impladdr=$(forge create src/rollup/SFFLRegistryRollup.sol:SFFLRegistryRollup --private-key $deployerpk --json | jq -r '.deployedTo')
+        initcall=$(cast calldata 'initialize(((uint256,uint256),uint128)[],uint128,uint64,address)' '[((643552363890320897587044283125191574906281609959531590546948318138132520777,7028377728703212953187883551402495866059211864756496641401904395458852281995),1000)]' 66 1 $deployer)
+
+        forge create lib/eigenlayer-middleware/lib/eigenlayer-contracts/lib/openzeppelin-contracts/contracts/proxy/transparent/TransparentUpgradeableProxy.sol:TransparentUpgradeableProxy --constructor-args $impladdr $deployer $initcall --private-key $deployerpk
     environment:
       - ETH_RPC_URL=http://rollup0-anvil:8546
     networks:
@@ -144,7 +149,12 @@ services:
     command:
       - -c
       - |
-        forge create src/rollup/SFFLRegistryRollup.sol:SFFLRegistryRollup --constructor-args '[((643552363890320897587044283125191574906281609959531590546948318138132520777,7028377728703212953187883551402495866059211864756496641401904395458852281995),1000)]' 66 1 --private-key 0x2a871d0798f97d79848a013d4936a73bf4cc922c825d33c1cf7073dff6d409c6
+        deployer='0xa0Ee7A142d267C1f36714E4a8F75612F20a79720'
+        deployerpk='0x2a871d0798f97d79848a013d4936a73bf4cc922c825d33c1cf7073dff6d409c6'
+        impladdr=$(forge create src/rollup/SFFLRegistryRollup.sol:SFFLRegistryRollup --private-key $deployerpk --json | jq -r '.deployedTo')
+        initcall=$(cast calldata 'initialize(((uint256,uint256),uint128)[],uint128,uint64,address)' '[((643552363890320897587044283125191574906281609959531590546948318138132520777,7028377728703212953187883551402495866059211864756496641401904395458852281995),1000)]' 66 1 $deployer)
+
+        forge create lib/eigenlayer-middleware/lib/eigenlayer-contracts/lib/openzeppelin-contracts/contracts/proxy/transparent/TransparentUpgradeableProxy.sol:TransparentUpgradeableProxy --constructor-args $impladdr $deployer $initcall --private-key $deployerpk
     environment:
       - ETH_RPC_URL=http://rollup1-anvil:8547
     networks:

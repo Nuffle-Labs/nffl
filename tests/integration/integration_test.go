@@ -38,6 +38,7 @@ import (
 	"github.com/NethermindEth/near-sffl/aggregator"
 	aggtypes "github.com/NethermindEth/near-sffl/aggregator/types"
 	registryrollup "github.com/NethermindEth/near-sffl/contracts/bindings/SFFLRegistryRollup"
+	transparentproxy "github.com/NethermindEth/near-sffl/contracts/bindings/TransparentUpgradeableProxy"
 	"github.com/NethermindEth/near-sffl/core/chainio"
 	"github.com/NethermindEth/near-sffl/core/config"
 	"github.com/NethermindEth/near-sffl/core/types"
@@ -570,12 +571,14 @@ func deployRegistryRollup(t *testing.T, initialOperatorSet []registryrollup.Roll
 	t.Logf("Deploying RegistryRollup to chain %s", anvil.ChainID.String())
 
 	privateKeyString := "ac0974bec39a17e36ba4a6b4d238ff944bacb478cbed5efcae784d7bf4f2ff80"
-	privateKey, err := crypto.HexToECDSA(privateKeyString)
+	keyPair, err := crypto.HexToECDSA(privateKeyString)
 	if err != nil {
 		t.Fatalf("Error generating private key: %s", err.Error())
 	}
 
-	auth, err := bind.NewKeyedTransactorWithChainID(privateKey, anvil.ChainID)
+	deployerAddr := crypto.PubkeyToAddress(keyPair.PublicKey)
+
+	auth, err := bind.NewKeyedTransactorWithChainID(keyPair, anvil.ChainID)
 	if err != nil {
 		t.Fatalf("Error generating transactor: %s", err.Error())
 	}
@@ -586,12 +589,38 @@ func deployRegistryRollup(t *testing.T, initialOperatorSet []registryrollup.Roll
 
 	t.Logf("RegistryRollup deployed with operators: %v", initialOperatorSet)
 
-	addr, _, registryRollup, err := registryrollup.DeployContractSFFLRegistryRollup(auth, anvil.WsClient, initialOperatorSet, big.NewInt(66), nextOperatorSetUpdateId)
+	implAddr, _, _, err := registryrollup.DeployContractSFFLRegistryRollup(auth, anvil.WsClient)
 	if err != nil {
 		t.Fatalf("Error deploying RegistryRollup: %s", err.Error())
 	}
 
-	return addr, registryRollup, auth
+	abi, err := registryrollup.ContractSFFLRegistryRollupMetaData.GetAbi()
+	if err != nil {
+		t.Fatalf("Error getting RegistryRollup ABI: %s", err.Error())
+	}
+
+	initCall, err := abi.Pack("initialize", initialOperatorSet, big.NewInt(66), nextOperatorSetUpdateId, deployerAddr)
+	if err != nil {
+		t.Fatalf("Error encoding RegistryRollup initialize call: %s", err.Error())
+	}
+
+	proxyAddr, _, _, err := transparentproxy.DeployContractTransparentUpgradeableProxy(
+		auth,
+		anvil.WsClient,
+		implAddr,
+		deployerAddr,
+		initCall,
+	)
+	if err != nil {
+		t.Fatalf("Error deploying RegistryRollup proxy: %s", err.Error())
+	}
+
+	registry, err := registryrollup.NewContractSFFLRegistryRollup(proxyAddr, anvil.WsClient)
+	if err != nil {
+		t.Fatalf("Error creating RegistryRollup instance: %s", err.Error())
+	}
+
+	return proxyAddr, registry, auth
 }
 
 func startRollupIndexing(t *testing.T, ctx context.Context, rollupAnvils []*AnvilInstance, indexerContainer testcontainers.Container) {
