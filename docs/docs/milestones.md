@@ -53,7 +53,7 @@ We have already reached [Milestone 3](#3-node-development)!
   * Integration test.
   * E2E test.
 
-## #4: Slashing
+## #4: Challenging protocol - 04/2024
 
 * Set up checkpoint tasks.
   * Determine time ranges.
@@ -69,29 +69,34 @@ We have already reached [Milestone 3](#3-node-development)!
   * Implement on-chain messaging indexing.
   * Include SMT and proof generation.
   * Implement challenge sumbmission.
-* Implement slashing (only applies if slashing is implemented in EL core).
-  * Determine slashing parameters.
-  * Determine slashing process for each fault.
 * Explore other possible pitfalls.
 
-## #5: Operator Set Handling
+## #5: Operator Set Handling - 05/2024
 
 * Implement operator set entry/exit queue.
   * Discussions with EigenLayer.
   * AVS middleware.
   * Previous operator set storage on rollups.
-* Consider moving to ECDSA signatures.
+* Evaluate operator set using ECDSA signatures.
 
-## #6: Network Management
+## #6: Network Management - 05/2024
 
 - Design and implement dynamic network set changes.
 - Investigate heterogenous network support.
   - If viable, implement heterogenous network support.
 - Add support for other DA layers, such as [EigenDA](https://eigenda.xyz/).
 
-## #7: Incentives
+## #7: Incentives & Penalties - Q4 2024
+:::note
+
+EigenLayer needs to implement payments and slashing before we start this.
+
+:::
 
 - Design and implement mechanism for incentivizing operator set updates.
 - Design and implement payment system for message attestations.
+- Implement slashing (only applies if slashing is implemented in EigenLayer core).
+  - Determine slashing parameters.
+  - Determine slashing process for each fault.
 
 To be continued!
