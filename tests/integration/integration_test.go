@@ -6,6 +6,7 @@ import (
 	"encoding/base64"
 	"encoding/json"
 	"fmt"
+	"github.com/NethermindEth/near-sffl/tests/integration/utils"
 	"io"
 	"io/fs"
 	"io/ioutil"
@@ -206,7 +207,7 @@ func setupTestEnv(t *testing.T, ctx context.Context) *testEnv {
 	rabbitMq := startRabbitMqContainer(t, containersCtx, rmqContainerName, networkName)
 	indexerContainer, relayers := startIndexer(t, containersCtx, indexerContainerName, rollupAnvils, rabbitMq, networkName)
 
-	startRollupIndexing(ctx, relayers)
+	//startRollupIndexing(ctx, relayers)
 
 	sfflDeploymentRaw := readSfflDeploymentRaw()
 
@@ -252,12 +253,19 @@ func setupTestEnv(t *testing.T, ctx context.Context) *testEnv {
 				t.Fatalf("Error terminating container: %s", err.Error())
 			}
 		}
+
 		if err := rabbitMq.Terminate(containersCtx); err != nil {
 			t.Fatalf("Error terminating container: %s", err.Error())
 		}
 		if err := indexerContainer.Terminate(containersCtx); err != nil {
 			t.Fatalf("Error terminating container: %s", err.Error())
 		}
+		for _, relayer := range relayers {
+			if err := relayer.Terminate(containersCtx); err != nil {
+				t.Fatalf("Error terminating container: %s", err.Error())
+			}
+		}
+
 		if err := net.Remove(containersCtx); err != nil {
 			t.Fatalf("Error removing network: %s", err.Error())
 		}
@@ -647,7 +655,7 @@ func startRollupIndexing(ctx context.Context, relayers []*relayer.Relayer) {
 	}
 }
 
-func startIndexer(t *testing.T, ctx context.Context, name string, rollupAnvils []*AnvilInstance, rabbitMq *rabbitmq.RabbitMQContainer, networkName string) (testcontainers.Container, []*relayer.Relayer) {
+func startIndexer(t *testing.T, ctx context.Context, name string, rollupAnvils []*AnvilInstance, rabbitMq *rabbitmq.RabbitMQContainer, networkName string) (testcontainers.Container, []testcontainers.Container) {
 	rmqName, err := rabbitMq.Name(ctx)
 	if err != nil {
 		t.Fatalf("Error getting RabbitMQ container name: %s", err.Error())
@@ -692,7 +700,7 @@ func startIndexer(t *testing.T, ctx context.Context, name string, rollupAnvils [
 	return indexerContainer, relayers
 }
 
-func setupNearDa(t *testing.T, ctx context.Context, indexerContainer testcontainers.Container, rollupAnvils []*AnvilInstance) []*relayer.Relayer {
+func setupNearDa(t *testing.T, ctx context.Context, indexerContainer testcontainers.Container, rollupAnvils []*AnvilInstance) []testcontainers.Container {
 	integrationDir, err := os.Getwd()
 	if err != nil {
 		panic(err)
@@ -714,7 +722,7 @@ func setupNearDa(t *testing.T, ctx context.Context, indexerContainer testcontain
 
 	copyFileFromContainer(ctx, indexerContainer, filepath.Join(containerNearCfgPath, "validator_key.json"), hostNearKeyPath, 0770)
 
-	var relayers []*relayer.Relayer
+	var relayers []testcontainers.Container
 	for _, rollupAnvil := range rollupAnvils {
 		accountId := getDaContractAccountId(rollupAnvil)
 
@@ -734,8 +742,7 @@ func setupNearDa(t *testing.T, ctx context.Context, indexerContainer testcontain
 
 		keyFileName := accountId + ".json"
 		keyPath := filepath.Join(usr.HomeDir, ".near-credentials/local", keyFileName)
-
-		relayer, err := relayer.NewRelayerFromConfig(&relayer.RelayerConfig{
+		relayer, err := utils.StartRelayer(ctx, relayer.RelayerConfig{
 			DaAccountId: accountId,
 			RpcUrl:      rollupAnvil.WsUrl,
 			KeyPath:     keyPath,
@@ -745,6 +752,7 @@ func setupNearDa(t *testing.T, ctx context.Context, indexerContainer testcontain
 		if err != nil {
 			t.Fatalf("Error creating realayer: #%s", err.Error())
 		}
+
 		relayers = append(relayers, relayer)
 
 		err = execCommand(t, "near",

@@ -98,7 +98,7 @@ services:
       - near-sffl
 
   rollup0-relayer:
-    image: near-sffl-test-relayer:latest
+    image: near-sffl-relayer:latest
     container_name: rollup0-relayer
     depends_on:
       rollup0-anvil:
@@ -113,6 +113,8 @@ services:
       - ws://rollup0-anvil:8546
       - --da-account-id
       - da2.test.near
+      - --key-path
+      - /root/.near-credentials/local/da2.test.near.json
     environment:
       - NEAR_ENV=localnet
       - NEAR_HELPER_ACCOUNT=near
@@ -162,7 +164,7 @@ services:
 
   rollup1-relayer:
     image: near-sffl-test-relayer:latest
-    container_name: rollup1-relayer
+    container_name: rollup1-relay
     depends_on:
       rollup1-anvil:
         condition: service_healthy
@@ -175,7 +177,9 @@ services:
       - --rpc-url
       - ws://rollup1-anvil:8547
       - --da-account-id
-      - da2.test.near
+      - da3.test.near
+      - --key-path
+      - /root/.near-credentials/local/da3.test.near.json
     environment:
       - NEAR_ENV=localnet
       - NEAR_HELPER_ACCOUNT=near
