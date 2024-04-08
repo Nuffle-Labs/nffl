@@ -32,7 +32,7 @@ type Database struct {
 
 func NewDatabase(dbPath string) (*Database, error) {
 	if dbPath == "" {
-		dbPath = ":memory:"
+		dbPath = "file::memory:?cache=shared"
 	}
 
 	db, err := gorm.Open(sqlite.Open(dbPath), &gorm.Config{})
