@@ -13,6 +13,7 @@ import (
 	"net/http"
 	"os"
 	"os/exec"
+	"os/user"
 	"path/filepath"
 	"strings"
 	"testing"
@@ -706,6 +707,18 @@ func setupNearDa(t *testing.T, ctx context.Context, indexerContainer testcontain
 	time.Sleep(5 * time.Second)
 
 	copyFileFromContainer(ctx, indexerContainer, filepath.Join(containerNearCfgPath, "validator_key.json"), hostNearKeyPath, 0770)
+
+	{
+		usr, err := user.Current()
+		if err != nil {
+			t.Fatalf("Couldn't get current user: #%s", err.Error())
+		}
+
+		execCommand(t, "ls", []string{"-a", usr.HomeDir}, os.Environ(), true)
+		execCommand(t, "ls", []string{"-a", filepath.Join(usr.HomeDir, ".near")}, os.Environ(), true)
+		execCommand(t, "ls", []string{"-a", filepath.Join(usr.HomeDir, ".near-credentials")}, os.Environ(), true)
+		execCommand(t, "ls", []string{"-a", filepath.Join(usr.HomeDir, ".near-credentials/localnet")}, os.Environ(), true)
+	}
 
 	var relayers []testcontainers.Container
 	for _, rollupAnvil := range rollupAnvils {
