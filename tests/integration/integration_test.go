@@ -708,18 +708,6 @@ func setupNearDa(t *testing.T, ctx context.Context, indexerContainer testcontain
 
 	copyFileFromContainer(ctx, indexerContainer, filepath.Join(containerNearCfgPath, "validator_key.json"), hostNearKeyPath, 0770)
 
-	{
-		usr, err := user.Current()
-		if err != nil {
-			t.Fatalf("Couldn't get current user: #%s", err.Error())
-		}
-
-		execCommand(t, "ls", []string{"-a", usr.HomeDir}, os.Environ(), true)
-		execCommand(t, "ls", []string{"-a", filepath.Join(usr.HomeDir, ".near")}, os.Environ(), true)
-		execCommand(t, "ls", []string{"-a", filepath.Join(usr.HomeDir, ".near-credentials")}, os.Environ(), true)
-		execCommand(t, "ls", []string{"-a", filepath.Join(usr.HomeDir, ".near-credentials/localnet")}, os.Environ(), true)
-	}
-
 	var relayers []testcontainers.Container
 	for _, rollupAnvil := range rollupAnvils {
 		accountId := utils.GetDaContractAccountId(rollupAnvil)
@@ -731,6 +719,18 @@ func setupNearDa(t *testing.T, ctx context.Context, indexerContainer testcontain
 		)
 		if err != nil {
 			t.Fatalf("Error creating NEAR DA account: %s", err.Error())
+		}
+
+		{
+			usr, err := user.Current()
+			if err != nil {
+				t.Fatalf("Couldn't get current user: #%s", err.Error())
+			}
+
+			execCommand(t, "ls", []string{"-a", usr.HomeDir}, os.Environ(), true)
+			execCommand(t, "ls", []string{"-a", filepath.Join(usr.HomeDir, ".near")}, os.Environ(), true)
+			execCommand(t, "ls", []string{"-a", filepath.Join(usr.HomeDir, ".near-credentials")}, os.Environ(), true)
+			execCommand(t, "ls", []string{"-a", filepath.Join(usr.HomeDir, ".near-credentials/localnet")}, os.Environ(), true)
 		}
 
 		relayer, err := utils.StartRelayer(t, ctx, accountId, indexerContainerIp, rollupAnvil)
