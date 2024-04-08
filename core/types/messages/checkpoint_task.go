@@ -29,7 +29,7 @@ type CheckpointMessages struct {
 	OperatorSetUpdateMessageAggregations []MessageBlsAggregation
 }
 
-func NewCheckpointTaskResponseFromMessages(taskIndex coretypes.TaskIndex, checkpointMessages CheckpointMessages) (CheckpointTaskResponse, error) {
+func NewCheckpointTaskResponseFromMessages(taskIndex coretypes.TaskIndex, checkpointMessages *CheckpointMessages) (CheckpointTaskResponse, error) {
 	stateRootUpdatesSmt := smt.NewSMT()
 	operatorSetUpdatesSmt := smt.NewSMT()
 
