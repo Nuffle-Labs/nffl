@@ -18,7 +18,7 @@ func TestFetchUnknownStateRootUpdate(t *testing.T) {
 	mockCtrl := gomock.NewController(t)
 	defer mockCtrl.Finish()
 
-	db, err := database.NewDatabase("")
+	db, err := database.NewDatabase(":memory:")
 	assert.Nil(t, err)
 
 	entry, err := db.FetchStateRootUpdate(1, 2)
@@ -30,7 +30,7 @@ func TestStoreAndFetchStateRootUpdate(t *testing.T) {
 	mockCtrl := gomock.NewController(t)
 	defer mockCtrl.Finish()
 
-	db, err := database.NewDatabase("")
+	db, err := database.NewDatabase(":memory:")
 	assert.Nil(t, err)
 
 	value := messages.StateRootUpdateMessage{
@@ -56,7 +56,7 @@ func TestFetchUnknownStateRootUpdateAggregation(t *testing.T) {
 	mockCtrl := gomock.NewController(t)
 	defer mockCtrl.Finish()
 
-	db, err := database.NewDatabase("")
+	db, err := database.NewDatabase(":memory:")
 	assert.Nil(t, err)
 
 	entry, err := db.FetchStateRootUpdateAggregation(1, 2)
@@ -68,7 +68,7 @@ func TestStoreAndFetchStateRootUpdateAggregation(t *testing.T) {
 	mockCtrl := gomock.NewController(t)
 	defer mockCtrl.Finish()
 
-	db, err := database.NewDatabase("")
+	db, err := database.NewDatabase(":memory:")
 	assert.Nil(t, err)
 
 	msg := messages.StateRootUpdateMessage{
@@ -104,7 +104,7 @@ func TestFetchUnknownOperatorSetUpdate(t *testing.T) {
 	mockCtrl := gomock.NewController(t)
 	defer mockCtrl.Finish()
 
-	db, err := database.NewDatabase("")
+	db, err := database.NewDatabase(":memory:")
 	assert.Nil(t, err)
 
 	entry, err := db.FetchOperatorSetUpdate(1)
@@ -116,7 +116,7 @@ func TestStoreAndFetchOperatorSetUpdate(t *testing.T) {
 	mockCtrl := gomock.NewController(t)
 	defer mockCtrl.Finish()
 
-	db, err := database.NewDatabase("")
+	db, err := database.NewDatabase(":memory:")
 	assert.Nil(t, err)
 
 	value := messages.OperatorSetUpdateMessage{
@@ -141,7 +141,7 @@ func TestFetchUnknownOperatorSetUpdateAggregation(t *testing.T) {
 	mockCtrl := gomock.NewController(t)
 	defer mockCtrl.Finish()
 
-	db, err := database.NewDatabase("")
+	db, err := database.NewDatabase(":memory:")
 	assert.Nil(t, err)
 
 	entry, err := db.FetchOperatorSetUpdateAggregation(1)
@@ -153,7 +153,7 @@ func TestStoreAndFetchOperatorSetUpdateAggregation(t *testing.T) {
 	mockCtrl := gomock.NewController(t)
 	defer mockCtrl.Finish()
 
-	db, err := database.NewDatabase("")
+	db, err := database.NewDatabase(":memory:")
 	assert.Nil(t, err)
 
 	msg := messages.OperatorSetUpdateMessage{
@@ -188,7 +188,7 @@ func TestFetchCheckpointMessages(t *testing.T) {
 	mockCtrl := gomock.NewController(t)
 	defer mockCtrl.Finish()
 
-	db, err := database.NewDatabase("")
+	db, err := database.NewDatabase(":memory:")
 	assert.Nil(t, err)
 
 	msg1 := messages.StateRootUpdateMessage{
