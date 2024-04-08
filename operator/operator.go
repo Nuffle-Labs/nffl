@@ -292,12 +292,9 @@ func (o *Operator) Start(ctx context.Context) error {
 
 			o.metrics.IncNumTasksReceived()
 
-			var checkpointMessages messages.CheckpointMessages
-
-			err := o.aggregatorRpcClient.GetAggregatedCheckpointMessages(
+			checkpointMessages, err := o.aggregatorRpcClient.GetAggregatedCheckpointMessages(
 				checkpointTaskCreatedEvent.Task.FromTimestamp,
 				checkpointTaskCreatedEvent.Task.ToTimestamp,
-				&checkpointMessages,
 			)
 			if err != nil {
 				o.logger.Error("Failed to get checkpoint messages", "err", err)
