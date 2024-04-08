@@ -125,10 +125,10 @@ func TestOperator(t *testing.T) {
 		mockAggregatorRpcClient.EXPECT().SendSignedCheckpointTaskResponseToAggregator(signedTaskResponse)
 		mockAggregatorRpcClient.EXPECT().SendSignedStateRootUpdateToAggregator(signedStateRootUpdateMessage)
 		mockAggregatorRpcClient.EXPECT().SendSignedOperatorSetUpdateToAggregator(signedOperatorSetUpdateMessage)
-		mockAggregatorRpcClient.EXPECT().GetAggregatedCheckpointMessages(newTaskCreatedEvent.Task.FromTimestamp, newTaskCreatedEvent.Task.ToTimestamp, gomock.Any()).SetArg(2, messages.CheckpointMessages{
+		mockAggregatorRpcClient.EXPECT().GetAggregatedCheckpointMessages(newTaskCreatedEvent.Task.FromTimestamp, newTaskCreatedEvent.Task.ToTimestamp).Return(&messages.CheckpointMessages{
 			StateRootUpdateMessages:   []messages.StateRootUpdateMessage{signedStateRootUpdateMessage.Message},
 			OperatorSetUpdateMessages: []messages.OperatorSetUpdateMessage{signedOperatorSetUpdateMessage.Message},
-		})
+		}, nil)
 
 		operator.aggregatorRpcClient = mockAggregatorRpcClient
 

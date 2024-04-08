@@ -131,5 +131,12 @@ type GetAggregatedCheckpointMessagesArgs struct {
 }
 
 func (agg *Aggregator) GetAggregatedCheckpointMessages(args *GetAggregatedCheckpointMessagesArgs, reply *messages.CheckpointMessages) error {
-	return agg.msgDb.FetchCheckpointMessages(args.FromTimestamp, args.ToTimestamp, reply)
+	checkpointMessages, err := agg.msgDb.FetchCheckpointMessages(args.FromTimestamp, args.ToTimestamp)
+	if err != nil {
+		return err
+	}
+
+	*reply = *checkpointMessages
+
+	return nil
 }

@@ -21,10 +21,9 @@ func TestFetchUnknownStateRootUpdate(t *testing.T) {
 	db, err := database.NewDatabase("")
 	assert.Nil(t, err)
 
-	var entry messages.StateRootUpdateMessage
-
-	err = db.FetchStateRootUpdate(1, 2, &entry)
+	entry, err := db.FetchStateRootUpdate(1, 2)
 	assert.NotNil(t, err)
+	assert.Nil(t, entry)
 }
 
 func TestStoreAndFetchStateRootUpdate(t *testing.T) {
@@ -46,12 +45,11 @@ func TestStoreAndFetchStateRootUpdate(t *testing.T) {
 	err = db.StoreStateRootUpdate(value)
 	assert.Nil(t, err)
 
-	var entry messages.StateRootUpdateMessage
-
-	err = db.FetchStateRootUpdate(value.RollupId, value.BlockHeight, &entry)
+	entry, err := db.FetchStateRootUpdate(value.RollupId, value.BlockHeight)
 	assert.Nil(t, err)
+	assert.NotNil(t, entry)
 
-	assert.Equal(t, entry, entry)
+	assert.Equal(t, *entry, value)
 }
 
 func TestFetchUnknownStateRootUpdateAggregation(t *testing.T) {
@@ -61,10 +59,9 @@ func TestFetchUnknownStateRootUpdateAggregation(t *testing.T) {
 	db, err := database.NewDatabase("")
 	assert.Nil(t, err)
 
-	var entry messages.MessageBlsAggregation
-
-	err = db.FetchStateRootUpdateAggregation(1, 2, &entry)
+	entry, err := db.FetchStateRootUpdateAggregation(1, 2)
 	assert.NotNil(t, err)
+	assert.Nil(t, entry)
 }
 
 func TestStoreAndFetchStateRootUpdateAggregation(t *testing.T) {
@@ -96,12 +93,11 @@ func TestStoreAndFetchStateRootUpdateAggregation(t *testing.T) {
 	err = db.StoreStateRootUpdateAggregation(msg, value)
 	assert.Nil(t, err)
 
-	var entry messages.MessageBlsAggregation
-
-	err = db.FetchStateRootUpdateAggregation(msg.RollupId, msg.BlockHeight, &entry)
+	entry, err := db.FetchStateRootUpdateAggregation(msg.RollupId, msg.BlockHeight)
 	assert.Nil(t, err)
+	assert.NotNil(t, entry)
 
-	assert.Equal(t, entry, entry)
+	assert.Equal(t, *entry, value)
 }
 
 func TestFetchUnknownOperatorSetUpdate(t *testing.T) {
@@ -111,10 +107,9 @@ func TestFetchUnknownOperatorSetUpdate(t *testing.T) {
 	db, err := database.NewDatabase("")
 	assert.Nil(t, err)
 
-	var entry messages.OperatorSetUpdateMessage
-
-	err = db.FetchOperatorSetUpdate(1, &entry)
+	entry, err := db.FetchOperatorSetUpdate(1)
 	assert.NotNil(t, err)
+	assert.Nil(t, entry)
 }
 
 func TestStoreAndFetchOperatorSetUpdate(t *testing.T) {
@@ -135,12 +130,11 @@ func TestStoreAndFetchOperatorSetUpdate(t *testing.T) {
 	err = db.StoreOperatorSetUpdate(value)
 	assert.Nil(t, err)
 
-	var entry messages.OperatorSetUpdateMessage
-
-	err = db.FetchOperatorSetUpdate(value.Id, &entry)
+	entry, err := db.FetchOperatorSetUpdate(value.Id)
 	assert.Nil(t, err)
+	assert.NotNil(t, entry)
 
-	assert.Equal(t, entry, entry)
+	assert.Equal(t, *entry, value)
 }
 
 func TestFetchUnknownOperatorSetUpdateAggregation(t *testing.T) {
@@ -150,10 +144,9 @@ func TestFetchUnknownOperatorSetUpdateAggregation(t *testing.T) {
 	db, err := database.NewDatabase("")
 	assert.Nil(t, err)
 
-	var entry messages.MessageBlsAggregation
-
-	err = db.FetchOperatorSetUpdateAggregation(1, &entry)
+	entry, err := db.FetchOperatorSetUpdateAggregation(1)
 	assert.NotNil(t, err)
+	assert.Nil(t, entry)
 }
 
 func TestStoreAndFetchOperatorSetUpdateAggregation(t *testing.T) {
@@ -184,12 +177,11 @@ func TestStoreAndFetchOperatorSetUpdateAggregation(t *testing.T) {
 	err = db.StoreOperatorSetUpdateAggregation(msg, value)
 	assert.Nil(t, err)
 
-	var entry messages.MessageBlsAggregation
-
-	err = db.FetchOperatorSetUpdateAggregation(msg.Id, &entry)
+	entry, err := db.FetchOperatorSetUpdateAggregation(msg.Id)
 	assert.Nil(t, err)
+	assert.NotNil(t, entry)
 
-	assert.Equal(t, entry, entry)
+	assert.Equal(t, *entry, value)
 }
 
 func TestFetchCheckpointMessages(t *testing.T) {
@@ -285,38 +277,36 @@ func TestFetchCheckpointMessages(t *testing.T) {
 	err = db.StoreOperatorSetUpdateAggregation(msg4, aggregation4)
 	assert.Nil(t, err)
 
-	var result messages.CheckpointMessages
-
-	err = db.FetchCheckpointMessages(0, 3, &result)
+	result, err := db.FetchCheckpointMessages(0, 3)
 	assert.Nil(t, err)
-	assert.Equal(t, result, messages.CheckpointMessages{
+	assert.Equal(t, *result, messages.CheckpointMessages{
 		StateRootUpdateMessages:              []messages.StateRootUpdateMessage{msg1, msg2},
 		StateRootUpdateMessageAggregations:   []messages.MessageBlsAggregation{aggregation1, aggregation2},
 		OperatorSetUpdateMessages:            []messages.OperatorSetUpdateMessage{msg3, msg4},
 		OperatorSetUpdateMessageAggregations: []messages.MessageBlsAggregation{aggregation3, aggregation4},
 	})
 
-	err = db.FetchCheckpointMessages(1, 3, &result)
+	result, err = db.FetchCheckpointMessages(1, 3)
 	assert.Nil(t, err)
-	assert.Equal(t, result, messages.CheckpointMessages{
+	assert.Equal(t, *result, messages.CheckpointMessages{
 		StateRootUpdateMessages:              []messages.StateRootUpdateMessage{msg2},
 		StateRootUpdateMessageAggregations:   []messages.MessageBlsAggregation{aggregation2},
 		OperatorSetUpdateMessages:            []messages.OperatorSetUpdateMessage{msg3, msg4},
 		OperatorSetUpdateMessageAggregations: []messages.MessageBlsAggregation{aggregation3, aggregation4},
 	})
 
-	err = db.FetchCheckpointMessages(1, 2, &result)
+	result, err = db.FetchCheckpointMessages(1, 2)
 	assert.Nil(t, err)
-	assert.Equal(t, result, messages.CheckpointMessages{
+	assert.Equal(t, *result, messages.CheckpointMessages{
 		StateRootUpdateMessages:              []messages.StateRootUpdateMessage{msg2},
 		StateRootUpdateMessageAggregations:   []messages.MessageBlsAggregation{aggregation2},
 		OperatorSetUpdateMessages:            []messages.OperatorSetUpdateMessage{msg3},
 		OperatorSetUpdateMessageAggregations: []messages.MessageBlsAggregation{aggregation3},
 	})
 
-	err = db.FetchCheckpointMessages(4, 10, &result)
+	result, err = db.FetchCheckpointMessages(4, 10)
 	assert.Nil(t, err)
-	assert.Equal(t, result, messages.CheckpointMessages{
+	assert.Equal(t, *result, messages.CheckpointMessages{
 		StateRootUpdateMessages:              []messages.StateRootUpdateMessage{},
 		StateRootUpdateMessageAggregations:   []messages.MessageBlsAggregation{},
 		OperatorSetUpdateMessages:            []messages.OperatorSetUpdateMessage{},

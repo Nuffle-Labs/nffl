@@ -8,7 +8,6 @@ import (
 	"github.com/gorilla/mux"
 
 	aggtypes "github.com/NethermindEth/near-sffl/aggregator/types"
-	"github.com/NethermindEth/near-sffl/core/types/messages"
 )
 
 func (agg *Aggregator) startRestServer() error {
@@ -39,16 +38,13 @@ func (agg *Aggregator) handleGetStateRootUpdateAggregation(w http.ResponseWriter
 		return
 	}
 
-	var message messages.StateRootUpdateMessage
-	var aggregation messages.MessageBlsAggregation
-
-	err = agg.msgDb.FetchStateRootUpdate(uint32(rollupId), blockHeight, &message)
+	message, err := agg.msgDb.FetchStateRootUpdate(uint32(rollupId), blockHeight)
 	if err != nil {
 		http.Error(w, "StateRootUpdate not found", http.StatusNotFound)
 		return
 	}
 
-	err = agg.msgDb.FetchStateRootUpdateAggregation(uint32(rollupId), blockHeight, &aggregation)
+	aggregation, err := agg.msgDb.FetchStateRootUpdateAggregation(uint32(rollupId), blockHeight)
 	if err != nil {
 		http.Error(w, "StateRootUpdate aggregation not found", http.StatusNotFound)
 		return
@@ -57,8 +53,8 @@ func (agg *Aggregator) handleGetStateRootUpdateAggregation(w http.ResponseWriter
 	w.WriteHeader(http.StatusOK)
 	w.Header().Set("Content-Type", "application/json")
 	json.NewEncoder(w).Encode(aggtypes.GetStateRootUpdateAggregationResponse{
-		Message:     message,
-		Aggregation: aggregation,
+		Message:     *message,
+		Aggregation: *aggregation,
 	})
 }
 
@@ -70,16 +66,13 @@ func (agg *Aggregator) handleGetOperatorSetUpdateAggregation(w http.ResponseWrit
 		return
 	}
 
-	var message messages.OperatorSetUpdateMessage
-	var aggregation messages.MessageBlsAggregation
-
-	err = agg.msgDb.FetchOperatorSetUpdate(id, &message)
+	message, err := agg.msgDb.FetchOperatorSetUpdate(id)
 	if err != nil {
 		http.Error(w, "OperatorSetUpdate not found", http.StatusNotFound)
 		return
 	}
 
-	err = agg.msgDb.FetchOperatorSetUpdateAggregation(id, &aggregation)
+	aggregation, err := agg.msgDb.FetchOperatorSetUpdateAggregation(id)
 	if err != nil {
 		http.Error(w, "OperatorSetUpdate aggregation not found", http.StatusNotFound)
 		return
@@ -88,8 +81,8 @@ func (agg *Aggregator) handleGetOperatorSetUpdateAggregation(w http.ResponseWrit
 	w.WriteHeader(http.StatusOK)
 	w.Header().Set("Content-Type", "application/json")
 	json.NewEncoder(w).Encode(aggtypes.GetOperatorSetUpdateAggregationResponse{
-		Message:     message,
-		Aggregation: aggregation,
+		Message:     *message,
+		Aggregation: *aggregation,
 	})
 }
 
@@ -108,13 +101,15 @@ func (agg *Aggregator) handleGetCheckpointMessages(w http.ResponseWriter, r *htt
 		return
 	}
 
-	var checkpointMessages messages.CheckpointMessages
-
-	agg.msgDb.FetchCheckpointMessages(fromTimestamp, toTimestamp, &checkpointMessages)
+	checkpointMessages, err := agg.msgDb.FetchCheckpointMessages(fromTimestamp, toTimestamp)
+	if err != nil {
+		http.Error(w, "CheckpointMessages not found", http.StatusNotFound)
+		return
+	}
 
 	w.WriteHeader(http.StatusOK)
 	w.Header().Set("Content-Type", "application/json")
 	json.NewEncoder(w).Encode(aggtypes.GetCheckpointMessagesResponse{
-		CheckpointMessages: checkpointMessages,
+		CheckpointMessages: *checkpointMessages,
 	})
 }

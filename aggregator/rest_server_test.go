@@ -2,7 +2,6 @@ package aggregator
 
 import (
 	"encoding/json"
-	"errors"
 	"fmt"
 	"net/http"
 	"net/http/httptest"
@@ -12,7 +11,6 @@ import (
 	"go.uber.org/mock/gomock"
 
 	aggtypes "github.com/NethermindEth/near-sffl/aggregator/types"
-	coretypes "github.com/NethermindEth/near-sffl/core/types"
 	"github.com/NethermindEth/near-sffl/core/types/messages"
 )
 
@@ -42,29 +40,9 @@ func TestGetStateRootUpdateAggregation(t *testing.T) {
 		},
 	}
 
-	mockDb.EXPECT().FetchStateRootUpdate(msg.RollupId, msg.BlockHeight, gomock.Any()).DoAndReturn(
-		func(rollupId coretypes.RollupId, blockHeight uint64, msgPtr *messages.StateRootUpdateMessage) error {
-			if rollupId != msg.RollupId || blockHeight != msg.BlockHeight {
-				return errors.New("Unexpected args")
-			}
+	mockDb.EXPECT().FetchStateRootUpdate(msg.RollupId, msg.BlockHeight).Return(&msg, nil)
 
-			*msgPtr = msg
-
-			return nil
-		},
-	)
-
-	mockDb.EXPECT().FetchStateRootUpdateAggregation(msg.RollupId, msg.BlockHeight, gomock.Any()).DoAndReturn(
-		func(rollupId coretypes.RollupId, blockHeight uint64, aggPtr *messages.MessageBlsAggregation) error {
-			if rollupId != msg.RollupId || blockHeight != msg.BlockHeight {
-				return errors.New("Unexpected args")
-			}
-
-			*aggPtr = aggregation.MessageBlsAggregation
-
-			return nil
-		},
-	)
+	mockDb.EXPECT().FetchStateRootUpdateAggregation(msg.RollupId, msg.BlockHeight).Return(&aggregation.MessageBlsAggregation, nil)
 
 	req, err := http.NewRequest(
 		"GET",
@@ -115,29 +93,9 @@ func TestGetOperatorSetUpdateAggregation(t *testing.T) {
 		MessageDigest: msgDigest,
 	}
 
-	mockDb.EXPECT().FetchOperatorSetUpdate(msg.Id, gomock.Any()).DoAndReturn(
-		func(id uint64, msgPtr *messages.OperatorSetUpdateMessage) error {
-			if id != msg.Id {
-				return errors.New("Unexpected args")
-			}
+	mockDb.EXPECT().FetchOperatorSetUpdate(msg.Id).Return(&msg, nil)
 
-			*msgPtr = msg
-
-			return nil
-		},
-	)
-
-	mockDb.EXPECT().FetchOperatorSetUpdateAggregation(msg.Id, gomock.Any()).DoAndReturn(
-		func(id uint64, aggPtr *messages.MessageBlsAggregation) error {
-			if id != msg.Id {
-				return errors.New("Unexpected args")
-			}
-
-			*aggPtr = aggregation
-
-			return nil
-		},
-	)
+	mockDb.EXPECT().FetchOperatorSetUpdateAggregation(msg.Id).Return(&aggregation, nil)
 
 	req, err := http.NewRequest(
 		"GET",
@@ -200,18 +158,12 @@ func TestGetCheckpointMessages(t *testing.T) {
 		MessageDigest: msgDigest2,
 	}
 
-	mockDb.EXPECT().FetchCheckpointMessages(uint64(0), uint64(3), gomock.Any()).DoAndReturn(
-		func(fromTimestamp uint64, toTimestamp uint64, result *messages.CheckpointMessages) error {
-			*result = messages.CheckpointMessages{
-				StateRootUpdateMessages:              []messages.StateRootUpdateMessage{msg},
-				StateRootUpdateMessageAggregations:   []messages.MessageBlsAggregation{aggregation},
-				OperatorSetUpdateMessages:            []messages.OperatorSetUpdateMessage{msg2},
-				OperatorSetUpdateMessageAggregations: []messages.MessageBlsAggregation{aggregation2},
-			}
-
-			return nil
-		},
-	)
+	mockDb.EXPECT().FetchCheckpointMessages(uint64(0), uint64(3)).Return(&messages.CheckpointMessages{
+		StateRootUpdateMessages:              []messages.StateRootUpdateMessage{msg},
+		StateRootUpdateMessageAggregations:   []messages.MessageBlsAggregation{aggregation},
+		OperatorSetUpdateMessages:            []messages.OperatorSetUpdateMessage{msg2},
+		OperatorSetUpdateMessageAggregations: []messages.MessageBlsAggregation{aggregation2},
+	}, nil)
 
 	req, err := http.NewRequest(
 		"GET",
