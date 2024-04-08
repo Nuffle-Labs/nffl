@@ -15,7 +15,7 @@ import (
 	"github.com/testcontainers/testcontainers-go"
 	"github.com/testcontainers/testcontainers-go/wait"
 
-	"github.com/NethermindEth/near-sffl/relayer"
+	"github.com/NethermindEth/near-sffl/core/relayer-config"
 )
 
 const (
@@ -64,7 +64,7 @@ func getContainerRootKeyPath(keyPath string) (string, error) {
 	return filepath.Join("/root", strings.TrimPrefix(keyPath, usr.HomeDir)), nil
 }
 
-func compileContainerConfig(ctx context.Context, daAccountId, keyPath, indexerIp string, anvil *AnvilInstance) (*relayer.RelayerConfig, error) {
+func compileContainerConfig(ctx context.Context, daAccountId, keyPath, indexerIp string, anvil *AnvilInstance) (*relayer_config.RelayerConfig, error) {
 	ports, err := anvil.Container.Ports(ctx)
 	if err != nil {
 		return nil, err
@@ -87,7 +87,7 @@ func compileContainerConfig(ctx context.Context, daAccountId, keyPath, indexerIp
 		return nil, err
 	}
 
-	return &relayer.RelayerConfig{
+	return &relayer_config.RelayerConfig{
 		DaAccountId: daAccountId,
 		KeyPath:     containerKeyPath,
 		RpcUrl:      "ws://" + containerIp + ":" + port.Port(),

@@ -41,7 +41,6 @@ import (
 	"github.com/NethermindEth/near-sffl/core/types"
 	"github.com/NethermindEth/near-sffl/operator"
 	optypes "github.com/NethermindEth/near-sffl/operator/types"
-	"github.com/NethermindEth/near-sffl/relayer"
 	"github.com/NethermindEth/near-sffl/tests/integration/utils"
 )
 
@@ -634,12 +633,6 @@ func deployRegistryRollup(t *testing.T, initialOperatorSet []registryrollup.Roll
 	}
 
 	return proxyAddr, registry, ownerAuth, proxyAdminAuth
-}
-
-func startRollupIndexing(ctx context.Context, relayers []*relayer.Relayer) {
-	for _, relayer := range relayers {
-		go relayer.Start(ctx)
-	}
 }
 
 func startIndexer(t *testing.T, ctx context.Context, name string, rollupAnvils []*utils.AnvilInstance, rabbitMq *rabbitmq.RabbitMQContainer, networkName string) (testcontainers.Container, []testcontainers.Container) {

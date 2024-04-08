@@ -8,7 +8,8 @@ import (
 
 	sdklogging "github.com/Layr-Labs/eigensdk-go/logging"
 	"github.com/urfave/cli"
-	
+
+	"github.com/NethermindEth/near-sffl/core/relayer-config"
 	"github.com/NethermindEth/near-sffl/relayer"
 )
 
@@ -52,7 +53,7 @@ func main() {
 }
 
 func relayerMain(ctx *cli.Context) error {
-	config := &relayer.RelayerConfig{
+	config := &relayer_config.RelayerConfig{
 		Production:  ctx.GlobalBool("production"),
 		RpcUrl:      ctx.GlobalString("rpc-url"),
 		DaAccountId: ctx.GlobalString("da-account-id"),

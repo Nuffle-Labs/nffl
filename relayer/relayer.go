@@ -10,6 +10,8 @@ import (
 	ethtypes "github.com/ethereum/go-ethereum/core/types"
 	"github.com/ethereum/go-ethereum/rlp"
 	near "github.com/near/rollup-data-availability/gopkg/da-rpc"
+
+	"github.com/NethermindEth/near-sffl/core/relayer-config"
 )
 
 const (
@@ -24,28 +26,7 @@ type Relayer struct {
 	nearClient *near.Config
 }
 
-type RelayerConfig struct {
-	Production  bool
-	RpcUrl      string
-	DaAccountId string
-	KeyPath     string
-	Network     string
-}
-
-func (c RelayerConfig) CompileCMD() []string {
-	var cmd []string
-	if c.Production {
-		cmd = append(cmd, "--production")
-	}
-
-	cmd = append(cmd, "--key-path", c.KeyPath)
-	cmd = append(cmd, "--rpc-url", c.RpcUrl)
-	cmd = append(cmd, "--da-account-id", c.DaAccountId)
-	cmd = append(cmd, "--network", c.Network)
-	return cmd
-}
-
-func NewRelayerFromConfig(config *RelayerConfig, logger sdklogging.Logger) (*Relayer, error) {
+func NewRelayerFromConfig(config *relayer_config.RelayerConfig, logger sdklogging.Logger) (*Relayer, error) {
 	rpcClient, err := eth.NewClient(config.RpcUrl)
 	if err != nil {
 		return nil, err
