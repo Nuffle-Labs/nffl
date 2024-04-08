@@ -91,7 +91,7 @@ func compileContainerConfig(ctx context.Context, daAccountId, keyPath, indexerIp
 		DaAccountId: daAccountId,
 		KeyPath:     containerKeyPath,
 		RpcUrl:      "ws://" + containerIp + ":" + port.Port(),
-		Network:     "127.0.0.1" + ":" + IndexerPort,
+		Network:     indexerIp + ":" + IndexerPort,
 		Production:  false,
 	}, nil
 }

@@ -7,7 +7,7 @@ WORKDIR /near-da
 RUN git clone https://github.com/taco-paco/rollup-data-availability.git
 
 WORKDIR /near-da/rollup-data-availability
-RUN git checkout 9e4837835d638b966cd5cd48be9acf227eb4bafc
+RUN git checkout f32f0e7546315751e19a34d07090bd8bbfadfc70
 
 # Build & copy libnear_da_rpc_sys static library for relayer compilation
 RUN make da-rpc-sys
