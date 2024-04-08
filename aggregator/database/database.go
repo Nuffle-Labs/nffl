@@ -122,6 +122,10 @@ func (d *Database) FetchStateRootUpdateAggregation(rollupId uint32, blockHeight 
 		return nil, tx.Error
 	}
 
+	if model.Aggregation == nil {
+		return nil, errors.New("aggregation not found")
+	}
+
 	aggregation := model.Aggregation.ToMessage()
 
 	return &aggregation, nil
@@ -179,6 +183,10 @@ func (d *Database) FetchOperatorSetUpdateAggregation(id uint64) (*messages.Messa
 		First(&model)
 	if tx.Error != nil {
 		return nil, tx.Error
+	}
+
+	if model.Aggregation == nil {
+		return nil, errors.New("aggregation not found")
 	}
 
 	aggregation := model.Aggregation.ToMessage()
