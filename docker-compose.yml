@@ -98,7 +98,7 @@ services:
       - near-sffl
 
   rollup0-relayer:
-    image: near-sffl-relayer:latest
+    image: near-sffl-test-relayer:latest
     container_name: rollup0-relayer
     depends_on:
       rollup0-anvil:
