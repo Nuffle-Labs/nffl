@@ -8,12 +8,17 @@ require (
 	github.com/Layr-Labs/eigensdk-go v0.1.1-0.20240207213853-8a666597e0f1
 	github.com/ethereum/go-ethereum v1.13.8
 	github.com/gorilla/mux v1.8.1
+	github.com/near/borsh-go v0.3.1
+	github.com/near/rollup-data-availability v0.2.4-0.20240327150603-b004cd803551
+	github.com/pokt-network/smt v0.9.2
 	github.com/prometheus/client_golang v1.18.0
 	github.com/stretchr/testify v1.8.4
 	github.com/testcontainers/testcontainers-go v0.26.0
 	github.com/urfave/cli v1.22.14
 	go.uber.org/mock v0.3.0
 	golang.org/x/crypto v0.18.0
+	gorm.io/driver/sqlite v1.5.5
+	gorm.io/gorm v1.25.7
 )
 
 require (
@@ -32,16 +37,11 @@ require (
 	github.com/jinzhu/now v1.1.5 // indirect
 	github.com/mattn/go-sqlite3 v1.14.22 // indirect
 	github.com/moby/sys/user v0.1.0 // indirect
-	github.com/near/borsh-go v0.3.1 // indirect
-	github.com/near/rollup-data-availability v0.2.4-0.20240327150603-b004cd803551 // indirect
-	github.com/pokt-network/smt v0.9.2 // indirect
 	go.opencensus.io v0.24.0 // indirect
 	go.opentelemetry.io/contrib/instrumentation/net/http/otelhttp v0.45.0 // indirect
 	go.opentelemetry.io/otel v1.19.0 // indirect
 	go.opentelemetry.io/otel/metric v1.19.0 // indirect
 	go.opentelemetry.io/otel/trace v1.19.0 // indirect
-	gorm.io/driver/sqlite v1.5.5 // indirect
-	gorm.io/gorm v1.25.7 // indirect
 )
 
 require (

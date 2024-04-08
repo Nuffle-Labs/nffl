@@ -2,11 +2,7 @@ package relayer
 
 import (
 	"context"
-	"fmt"
 	"math/big"
-	"os/user"
-	"path/filepath"
-	"strings"
 	"time"
 
 	"github.com/Layr-Labs/eigensdk-go/chainio/clients/eth"
@@ -36,68 +32,20 @@ type RelayerConfig struct {
 	Network     string
 }
 
-func (c RelayerConfig) GetHostKeyPath() string {
-	return c.KeyPath
-}
-
-func (c RelayerConfig) GetContainerRootKeyPath() (string, error) {
-	usr, err := user.Current()
-	if err != nil {
-		return "", err
-	}
-
-	if !strings.HasPrefix(c.KeyPath, usr.HomeDir) {
-		return "", fmt.Errorf("key path shall be within: %s", usr.HomeDir)
-	}
-
-	return filepath.Join("/root", strings.TrimPrefix(c.KeyPath, usr.HomeDir)), nil
-}
-
-func (c RelayerConfig) compileCMD(isHost bool) ([]string, error) {
+func (c RelayerConfig) CompileCMD() []string {
 	var cmd []string
 	if c.Production {
 		cmd = append(cmd, "--production")
 	}
 
-	if isHost {
-		cmd = append(cmd, "--key-path", c.GetHostKeyPath())
-	} else {
-		keyPath, err := c.GetContainerRootKeyPath()
-		if err != nil {
-			return nil, err
-		}
-
-		cmd = append(cmd, "--key-path", keyPath)
-	}
-
+	cmd = append(cmd, "--key-path", c.KeyPath)
 	cmd = append(cmd, "--rpc-url", c.RpcUrl)
 	cmd = append(cmd, "--da-account-id", c.DaAccountId)
 	cmd = append(cmd, "--network", c.Network)
-	return cmd, nil
-}
-
-func (c RelayerConfig) CompileHostCMD() []string {
-	cmd, _ := c.compileCMD(true)
 	return cmd
 }
 
-func (c RelayerConfig) CompileContainerCmd() ([]string, error) {
-	return c.compileCMD(false)
-}
-
-func NewRelayerFromConfig(config *RelayerConfig) (*Relayer, error) {
-	var logLevel sdklogging.LogLevel
-	if config.Production {
-		logLevel = sdklogging.Production
-	} else {
-		logLevel = sdklogging.Development
-	}
-
-	logger, err := sdklogging.NewZapLogger(logLevel)
-	if err != nil {
-		return nil, err
-	}
-
+func NewRelayerFromConfig(config *RelayerConfig, logger sdklogging.Logger) (*Relayer, error) {
 	rpcClient, err := eth.NewClient(config.RpcUrl)
 	if err != nil {
 		return nil, err

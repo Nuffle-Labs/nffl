@@ -3,10 +3,8 @@ package integration_test
 import (
 	"context"
 	"crypto/ecdsa"
-	"encoding/base64"
 	"encoding/json"
 	"fmt"
-	"github.com/NethermindEth/near-sffl/tests/integration/utils"
 	"io"
 	"io/fs"
 	"io/ioutil"
@@ -15,7 +13,6 @@ import (
 	"net/http"
 	"os"
 	"os/exec"
-	"os/user"
 	"path/filepath"
 	"strings"
 	"testing"
@@ -29,9 +26,7 @@ import (
 	"github.com/docker/go-connections/nat"
 	"github.com/ethereum/go-ethereum/accounts/abi/bind"
 	"github.com/ethereum/go-ethereum/common"
-	ethtypes "github.com/ethereum/go-ethereum/core/types"
 	"github.com/ethereum/go-ethereum/crypto"
-	"github.com/ethereum/go-ethereum/rlp"
 	"github.com/stretchr/testify/assert"
 	"github.com/testcontainers/testcontainers-go"
 	"github.com/testcontainers/testcontainers-go/modules/rabbitmq"
@@ -47,6 +42,7 @@ import (
 	"github.com/NethermindEth/near-sffl/operator"
 	optypes "github.com/NethermindEth/near-sffl/operator/types"
 	"github.com/NethermindEth/near-sffl/relayer"
+	"github.com/NethermindEth/near-sffl/tests/integration/utils"
 )
 
 const (
@@ -164,8 +160,8 @@ func TestIntegration(t *testing.T) {
 }
 
 type testEnv struct {
-	mainnetAnvil        *AnvilInstance
-	rollupAnvils        []*AnvilInstance
+	mainnetAnvil        *utils.AnvilInstance
+	rollupAnvils        []*utils.AnvilInstance
 	rabbitMq            *rabbitmq.RabbitMQContainer
 	indexerContainer    testcontainers.Container
 	operator            *operator.Operator
@@ -200,7 +196,7 @@ func setupTestEnv(t *testing.T, ctx context.Context) *testEnv {
 	rmqContainerName := "rmq"
 
 	mainnetAnvil := startAnvilTestContainer(t, containersCtx, mainnetAnvilContainerName, "8545", "1", true, networkName)
-	rollupAnvils := []*AnvilInstance{
+	rollupAnvils := []*utils.AnvilInstance{
 		startAnvilTestContainer(t, containersCtx, rollup0AnvilContainerName, "8546", "2", false, networkName),
 		startAnvilTestContainer(t, containersCtx, rollup1AnvilContainerName, "8547", "3", false, networkName),
 	}
@@ -344,7 +340,7 @@ func readSfflDeploymentRaw() config.SFFLDeploymentRaw {
 	return sfflDeploymentRaw
 }
 
-func genOperatorConfig(t *testing.T, ctx context.Context, mainnetAnvil *AnvilInstance, rollupAnvils []*AnvilInstance, rabbitMq *rabbitmq.RabbitMQContainer) (optypes.NodeConfig, *bls.KeyPair, *ecdsa.PrivateKey) {
+func genOperatorConfig(t *testing.T, ctx context.Context, mainnetAnvil *utils.AnvilInstance, rollupAnvils []*utils.AnvilInstance, rabbitMq *rabbitmq.RabbitMQContainer) (optypes.NodeConfig, *bls.KeyPair, *ecdsa.PrivateKey) {
 	nodeConfig := optypes.NodeConfig{}
 	nodeConfigFilePath := "../../config-files/operator.anvil.yaml"
 	err := sdkutils.ReadYamlConfig(nodeConfigFilePath, &nodeConfig)
@@ -415,12 +411,12 @@ func genOperatorConfig(t *testing.T, ctx context.Context, mainnetAnvil *AnvilIns
 		t.Fatalf("Error getting AMQP URL: %s", err.Error())
 	}
 
-	mainnetAnvil.setBalance(address, big.NewInt(1e18))
+	mainnetAnvil.SetBalance(address, big.NewInt(1e18))
 
 	return nodeConfig, keyPair, ecdsaKey
 }
 
-func buildConfigRaw(mainnetAnvil *AnvilInstance, rollupAnvils []*AnvilInstance) config.ConfigRaw {
+func buildConfigRaw(mainnetAnvil *utils.AnvilInstance, rollupAnvils []*utils.AnvilInstance) config.ConfigRaw {
 	var configRaw config.ConfigRaw
 	aggConfigFilePath := "../../config-files/aggregator.yaml"
 	sdkutils.ReadYamlConfig(aggConfigFilePath, &configRaw)
@@ -437,7 +433,7 @@ func buildConfigRaw(mainnetAnvil *AnvilInstance, rollupAnvils []*AnvilInstance) 
 	return configRaw
 }
 
-func buildConfig(t *testing.T, sfflDeploymentRaw config.SFFLDeploymentRaw, addresses []common.Address, rollupAnvils []*AnvilInstance, aggConfigRaw config.ConfigRaw) *config.Config {
+func buildConfig(t *testing.T, sfflDeploymentRaw config.SFFLDeploymentRaw, addresses []common.Address, rollupAnvils []*utils.AnvilInstance, aggConfigRaw config.ConfigRaw) *config.Config {
 	aggregatorEcdsaPrivateKeyString := "0x2a871d0798f97d79848a013d4936a73bf4cc922c825d33c1cf7073dff6d409c6"
 	if aggregatorEcdsaPrivateKeyString[:2] == "0x" {
 		aggregatorEcdsaPrivateKeyString = aggregatorEcdsaPrivateKeyString[2:]
@@ -471,16 +467,7 @@ func buildConfig(t *testing.T, sfflDeploymentRaw config.SFFLDeploymentRaw, addre
 	}
 }
 
-type AnvilInstance struct {
-	Container  testcontainers.Container
-	HttpClient *eth.Client
-	HttpUrl    string
-	WsClient   *eth.Client
-	WsUrl      string
-	ChainID    *big.Int
-}
-
-func startAnvilTestContainer(t *testing.T, ctx context.Context, name, exposedPort, chainId string, isMainnet bool, networkName string) *AnvilInstance {
+func startAnvilTestContainer(t *testing.T, ctx context.Context, name, exposedPort, chainId string, isMainnet bool, networkName string) *utils.AnvilInstance {
 	integrationDir, err := os.Getwd()
 	if err != nil {
 		panic(err)
@@ -547,7 +534,7 @@ func startAnvilTestContainer(t *testing.T, ctx context.Context, name, exposedPor
 		t.Fatalf("Anvil chainId is not the expected: expected %s, got %s", expectedChainId.String(), fetchedChainId.String())
 	}
 
-	anvil := &AnvilInstance{
+	anvil := &utils.AnvilInstance{
 		Container:  anvilC,
 		HttpClient: httpClient,
 		HttpUrl:    httpUrl,
@@ -557,13 +544,13 @@ func startAnvilTestContainer(t *testing.T, ctx context.Context, name, exposedPor
 	}
 
 	if isMainnet {
-		anvil.mine(big.NewInt(100), big.NewInt(1))
+		anvil.Mine(big.NewInt(100), big.NewInt(1))
 	}
 
 	return anvil
 }
 
-func deployRegistryRollups(t *testing.T, initialOperatorSet []registryrollup.RollupOperatorsOperator, nextOperatorSetUpdateId uint64, anvils []*AnvilInstance) ([]common.Address, []*registryrollup.ContractSFFLRegistryRollup, []*bind.TransactOpts, []*bind.TransactOpts) {
+func deployRegistryRollups(t *testing.T, initialOperatorSet []registryrollup.RollupOperatorsOperator, nextOperatorSetUpdateId uint64, anvils []*utils.AnvilInstance) ([]common.Address, []*registryrollup.ContractSFFLRegistryRollup, []*bind.TransactOpts, []*bind.TransactOpts) {
 	var registryRollups []*registryrollup.ContractSFFLRegistryRollup
 	var ownerAuths []*bind.TransactOpts
 	var proxyAdminAuths []*bind.TransactOpts
@@ -581,7 +568,7 @@ func deployRegistryRollups(t *testing.T, initialOperatorSet []registryrollup.Rol
 	return addresses, registryRollups, ownerAuths, proxyAdminAuths
 }
 
-func deployRegistryRollup(t *testing.T, initialOperatorSet []registryrollup.RollupOperatorsOperator, nextOperatorSetUpdateId uint64, anvil *AnvilInstance) (common.Address, *registryrollup.ContractSFFLRegistryRollup, *bind.TransactOpts, *bind.TransactOpts) {
+func deployRegistryRollup(t *testing.T, initialOperatorSet []registryrollup.RollupOperatorsOperator, nextOperatorSetUpdateId uint64, anvil *utils.AnvilInstance) (common.Address, *registryrollup.ContractSFFLRegistryRollup, *bind.TransactOpts, *bind.TransactOpts) {
 	t.Logf("Deploying RegistryRollup to chain %s", anvil.ChainID.String())
 
 	ownerPrivateKeyString := "ac0974bec39a17e36ba4a6b4d238ff944bacb478cbed5efcae784d7bf4f2ff80"
@@ -655,7 +642,7 @@ func startRollupIndexing(ctx context.Context, relayers []*relayer.Relayer) {
 	}
 }
 
-func startIndexer(t *testing.T, ctx context.Context, name string, rollupAnvils []*AnvilInstance, rabbitMq *rabbitmq.RabbitMQContainer, networkName string) (testcontainers.Container, []testcontainers.Container) {
+func startIndexer(t *testing.T, ctx context.Context, name string, rollupAnvils []*utils.AnvilInstance, rabbitMq *rabbitmq.RabbitMQContainer, networkName string) (testcontainers.Container, []testcontainers.Container) {
 	rmqName, err := rabbitMq.Name(ctx)
 	if err != nil {
 		t.Fatalf("Error getting RabbitMQ container name: %s", err.Error())
@@ -670,7 +657,7 @@ func startIndexer(t *testing.T, ctx context.Context, name string, rollupAnvils [
 
 	var rollupArgs []string
 	for _, rollupAnvil := range rollupAnvils {
-		rollupArgs = append(rollupArgs, "--da-contract-ids", getDaContractAccountId(rollupAnvil))
+		rollupArgs = append(rollupArgs, "--da-contract-ids", utils.GetDaContractAccountId(rollupAnvil))
 	}
 	for _, rollupAnvil := range rollupAnvils {
 		rollupArgs = append(rollupArgs, "--rollup-ids", rollupAnvil.ChainID.String())
@@ -700,7 +687,7 @@ func startIndexer(t *testing.T, ctx context.Context, name string, rollupAnvils [
 	return indexerContainer, relayers
 }
 
-func setupNearDa(t *testing.T, ctx context.Context, indexerContainer testcontainers.Container, rollupAnvils []*AnvilInstance) []testcontainers.Container {
+func setupNearDa(t *testing.T, ctx context.Context, indexerContainer testcontainers.Container, rollupAnvils []*utils.AnvilInstance) []testcontainers.Container {
 	integrationDir, err := os.Getwd()
 	if err != nil {
 		panic(err)
@@ -714,6 +701,11 @@ func setupNearDa(t *testing.T, ctx context.Context, indexerContainer testcontain
 	indexerSocketAddr = strings.Replace(indexerSocketAddr, "localhost", "127.0.0.1", 1)
 	indexerUrl := "http://" + indexerSocketAddr
 
+	indexerContainerIp, err := indexerContainer.ContainerIP(ctx)
+	if err != nil {
+		t.Fatalf("Error getting indxer container IP: %s", err.Error())
+	}
+
 	hostNearCfgPath := getNearCliConfigPath(t)
 	hostNearKeyPath := filepath.Join(hostNearCfgPath, "validator_key.json")
 	containerNearCfgPath := "/root/.near"
@@ -724,7 +716,7 @@ func setupNearDa(t *testing.T, ctx context.Context, indexerContainer testcontain
 
 	var relayers []testcontainers.Container
 	for _, rollupAnvil := range rollupAnvils {
-		accountId := getDaContractAccountId(rollupAnvil)
+		accountId := utils.GetDaContractAccountId(rollupAnvil)
 
 		err := execCommand(t, "near",
 			[]string{"create-account", accountId, "--masterAccount", "test.near"},
@@ -735,24 +727,10 @@ func setupNearDa(t *testing.T, ctx context.Context, indexerContainer testcontain
 			t.Fatalf("Error creating NEAR DA account: %s", err.Error())
 		}
 
-		usr, err := user.Current()
-		if err != nil {
-			t.Fatalf("Couldn't get current user: #%s", err.Error())
-		}
-
-		keyFileName := accountId + ".json"
-		keyPath := filepath.Join(usr.HomeDir, ".near-credentials/local", keyFileName)
-		relayer, err := utils.StartRelayer(ctx, relayer.RelayerConfig{
-			DaAccountId: accountId,
-			RpcUrl:      rollupAnvil.WsUrl,
-			KeyPath:     keyPath,
-			Network:     indexerSocketAddr,
-			Production:  false,
-		})
+		relayer, err := utils.StartRelayer(t, ctx, accountId, indexerContainerIp, rollupAnvil)
 		if err != nil {
 			t.Fatalf("Error creating realayer: #%s", err.Error())
 		}
-
 		relayers = append(relayers, relayer)
 
 		err = execCommand(t, "near",
@@ -766,32 +744,6 @@ func setupNearDa(t *testing.T, ctx context.Context, indexerContainer testcontain
 	}
 
 	return relayers
-}
-
-func getDaContractAccountId(anvil *AnvilInstance) string {
-	return fmt.Sprintf("da%s.test.near", anvil.ChainID.String())
-}
-
-func submitBlock(t *testing.T, ctx context.Context, accountId string, block *ethtypes.Block, indexerUrl string) error {
-	t.Log("Submitting block to NEAR DA")
-
-	encodedBlock, err := rlp.EncodeToBytes(block)
-	if err != nil {
-		return err
-	}
-
-	keyPath := filepath.Join(getNearCliConfigPath(t), "validator_key.json")
-
-	err = execCommand(t, "near",
-		[]string{"call", accountId, "submit", "--base64", base64.StdEncoding.EncodeToString(encodedBlock), "--accountId", accountId},
-		append(os.Environ(), "NEAR_ENV=localnet", "NEAR_HELPER_ACCOUNT=near", "NEAR_CLI_LOCALNET_KEY_PATH="+keyPath, "NEAR_NODE_URL="+indexerUrl),
-		false,
-	)
-	if err != nil {
-		return err
-	}
-
-	return nil
 }
 
 func execCommand(t *testing.T, name string, arg, env []string, shouldLog bool) error {
@@ -897,12 +849,4 @@ func getOperatorKeysPathPrefix(t *testing.T) string {
 		t.Fatalf("Error getting operator keys path prefix: %s", err.Error())
 	}
 	return path
-}
-
-func (ai *AnvilInstance) setBalance(address common.Address, balance *big.Int) error {
-	return ai.WsClient.Client.Client().Call(nil, "anvil_setBalance", address.Hex(), "0x"+balance.Text(16))
-}
-
-func (ai *AnvilInstance) mine(blockCount, timestampInterval *big.Int) error {
-	return ai.WsClient.Client.Client().Call(nil, "anvil_mine", "0x"+blockCount.Text(16), "0x"+timestampInterval.Text(16))
 }
