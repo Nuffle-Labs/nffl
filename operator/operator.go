@@ -24,6 +24,7 @@ import (
 	"github.com/ethereum/go-ethereum/common"
 	"github.com/prometheus/client_golang/prometheus"
 
+	taskmanager "github.com/NethermindEth/near-sffl/contracts/bindings/SFFLTaskManager"
 	"github.com/NethermindEth/near-sffl/core/types/messages"
 	"github.com/NethermindEth/near-sffl/metrics"
 	"github.com/NethermindEth/near-sffl/operator/attestor"
@@ -290,33 +291,7 @@ func (o *Operator) Start(ctx context.Context) error {
 				return o.Close()
 			}
 
-			o.metrics.IncNumTasksReceived()
-
-			checkpointMessages, err := o.aggregatorRpcClient.GetAggregatedCheckpointMessages(
-				checkpointTaskCreatedEvent.Task.FromTimestamp,
-				checkpointTaskCreatedEvent.Task.ToTimestamp,
-			)
-			if err != nil {
-				o.logger.Error("Failed to get checkpoint messages", "err", err)
-				continue
-			}
-
-			checkpointTaskResponse, err := messages.NewCheckpointTaskResponseFromMessages(
-				checkpointTaskCreatedEvent.TaskIndex,
-				checkpointMessages,
-			)
-			if err != nil {
-				o.logger.Error("Failed to get create checkpoint response", "err", err)
-				continue
-			}
-
-			signedCheckpointTaskResponse, err := o.SignTaskResponse(&checkpointTaskResponse)
-			if err != nil {
-				o.logger.Error("Failed to sign checkpoint task response", "checkpointTaskResponse", checkpointTaskResponse)
-				continue
-			}
-
-			go o.aggregatorRpcClient.SendSignedCheckpointTaskResponseToAggregator(signedCheckpointTaskResponse)
+			go o.ProcessCheckpointTask(checkpointTaskCreatedEvent)
 			continue
 
 		case operatorSetUpdate, ok := <-operatorSetUpdateChan:
@@ -376,6 +351,36 @@ func SignOperatorSetUpdate(message messages.OperatorSetUpdateMessage, blsKeyPair
 	}
 
 	return &signedOperatorSetUpdate, nil
+}
+
+func (o *Operator) ProcessCheckpointTask(event *taskmanager.ContractSFFLTaskManagerCheckpointTaskCreated) {
+	o.metrics.IncNumTasksReceived()
+
+	checkpointMessages, err := o.aggregatorRpcClient.GetAggregatedCheckpointMessages(
+		event.Task.FromTimestamp,
+		event.Task.ToTimestamp,
+	)
+	if err != nil {
+		o.logger.Error("Failed to get checkpoint messages", "err", err)
+		return
+	}
+
+	checkpointTaskResponse, err := messages.NewCheckpointTaskResponseFromMessages(
+		event.TaskIndex,
+		checkpointMessages,
+	)
+	if err != nil {
+		o.logger.Error("Failed to get create checkpoint response", "err", err)
+		return
+	}
+
+	signedCheckpointTaskResponse, err := o.SignTaskResponse(&checkpointTaskResponse)
+	if err != nil {
+		o.logger.Error("Failed to sign checkpoint task response", "checkpointTaskResponse", checkpointTaskResponse)
+		return
+	}
+
+	go o.aggregatorRpcClient.SendSignedCheckpointTaskResponseToAggregator(signedCheckpointTaskResponse)
 }
 
 func (o *Operator) RegisterOperatorWithAvs(
