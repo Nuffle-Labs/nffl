@@ -39,11 +39,6 @@ contract SFFLOperatorSetUpdateRegistry is Initializable {
     uint32[] public operatorSetUpdateIdToBlockNumber;
 
     /**
-     * @dev Storage gap for upgradeability
-     */
-    uint256[50] private __GAP;
-
-    /**
      * @notice Emitted when an operator set update is registered
      * @param id Operator set update ID
      */

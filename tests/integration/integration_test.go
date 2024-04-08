@@ -38,6 +38,7 @@ import (
 	"github.com/NethermindEth/near-sffl/aggregator"
 	aggtypes "github.com/NethermindEth/near-sffl/aggregator/types"
 	registryrollup "github.com/NethermindEth/near-sffl/contracts/bindings/SFFLRegistryRollup"
+	transparentproxy "github.com/NethermindEth/near-sffl/contracts/bindings/TransparentUpgradeableProxy"
 	"github.com/NethermindEth/near-sffl/core/chainio"
 	"github.com/NethermindEth/near-sffl/core/config"
 	"github.com/NethermindEth/near-sffl/core/types"
@@ -221,7 +222,7 @@ func setupTestEnv(t *testing.T, ctx context.Context) *testEnv {
 			Weight: big.NewInt(1000),
 		},
 	}
-	addresses, registryRollups, registryRollupAuths := deployRegistryRollups(t, rollupInitialOperatorSet, 1, rollupAnvils)
+	addresses, registryRollups, registryRollupAuths, _ := deployRegistryRollups(t, rollupInitialOperatorSet, 1, rollupAnvils)
 	operator := startOperator(t, ctx, nodeConfig)
 
 	config := buildConfig(t, sfflDeploymentRaw, addresses, rollupAnvils, configRaw)
@@ -550,32 +551,35 @@ func startAnvilTestContainer(t *testing.T, ctx context.Context, name, exposedPor
 	return anvil
 }
 
-func deployRegistryRollups(t *testing.T, initialOperatorSet []registryrollup.RollupOperatorsOperator, nextOperatorSetUpdateId uint64, anvils []*AnvilInstance) ([]common.Address, []*registryrollup.ContractSFFLRegistryRollup, []*bind.TransactOpts) {
+func deployRegistryRollups(t *testing.T, initialOperatorSet []registryrollup.RollupOperatorsOperator, nextOperatorSetUpdateId uint64, anvils []*AnvilInstance) ([]common.Address, []*registryrollup.ContractSFFLRegistryRollup, []*bind.TransactOpts, []*bind.TransactOpts) {
 	var registryRollups []*registryrollup.ContractSFFLRegistryRollup
-	var auths []*bind.TransactOpts
+	var ownerAuths []*bind.TransactOpts
+	var proxyAdminAuths []*bind.TransactOpts
 	var addresses []common.Address
 
 	for _, anvil := range anvils {
-		addr, registryRollup, auth := deployRegistryRollup(t, initialOperatorSet, nextOperatorSetUpdateId, anvil)
+		addr, registryRollup, ownerAuth, proxyAdminAuth := deployRegistryRollup(t, initialOperatorSet, nextOperatorSetUpdateId, anvil)
 
-		registryRollups = append(registryRollups, registryRollup)
-		auths = append(auths, auth)
 		addresses = append(addresses, addr)
+		registryRollups = append(registryRollups, registryRollup)
+		ownerAuths = append(ownerAuths, ownerAuth)
+		proxyAdminAuths = append(proxyAdminAuths, proxyAdminAuth)
 	}
 
-	return addresses, registryRollups, auths
+	return addresses, registryRollups, ownerAuths, proxyAdminAuths
 }
 
-func deployRegistryRollup(t *testing.T, initialOperatorSet []registryrollup.RollupOperatorsOperator, nextOperatorSetUpdateId uint64, anvil *AnvilInstance) (common.Address, *registryrollup.ContractSFFLRegistryRollup, *bind.TransactOpts) {
+func deployRegistryRollup(t *testing.T, initialOperatorSet []registryrollup.RollupOperatorsOperator, nextOperatorSetUpdateId uint64, anvil *AnvilInstance) (common.Address, *registryrollup.ContractSFFLRegistryRollup, *bind.TransactOpts, *bind.TransactOpts) {
 	t.Logf("Deploying RegistryRollup to chain %s", anvil.ChainID.String())
 
-	privateKeyString := "ac0974bec39a17e36ba4a6b4d238ff944bacb478cbed5efcae784d7bf4f2ff80"
-	privateKey, err := crypto.HexToECDSA(privateKeyString)
+	ownerPrivateKeyString := "ac0974bec39a17e36ba4a6b4d238ff944bacb478cbed5efcae784d7bf4f2ff80"
+	ownerKeyPair, err := crypto.HexToECDSA(ownerPrivateKeyString)
 	if err != nil {
 		t.Fatalf("Error generating private key: %s", err.Error())
 	}
+	ownerAddr := crypto.PubkeyToAddress(ownerKeyPair.PublicKey)
 
-	auth, err := bind.NewKeyedTransactorWithChainID(privateKey, anvil.ChainID)
+	ownerAuth, err := bind.NewKeyedTransactorWithChainID(ownerKeyPair, anvil.ChainID)
 	if err != nil {
 		t.Fatalf("Error generating transactor: %s", err.Error())
 	}
@@ -586,12 +590,51 @@ func deployRegistryRollup(t *testing.T, initialOperatorSet []registryrollup.Roll
 
 	t.Logf("RegistryRollup deployed with operators: %v", initialOperatorSet)
 
-	addr, _, registryRollup, err := registryrollup.DeployContractSFFLRegistryRollup(auth, anvil.WsClient, initialOperatorSet, big.NewInt(66), nextOperatorSetUpdateId)
+	implAddr, _, _, err := registryrollup.DeployContractSFFLRegistryRollup(ownerAuth, anvil.WsClient)
 	if err != nil {
 		t.Fatalf("Error deploying RegistryRollup: %s", err.Error())
 	}
 
-	return addr, registryRollup, auth
+	abi, err := registryrollup.ContractSFFLRegistryRollupMetaData.GetAbi()
+	if err != nil {
+		t.Fatalf("Error getting RegistryRollup ABI: %s", err.Error())
+	}
+
+	initCall, err := abi.Pack("initialize", initialOperatorSet, big.NewInt(66), nextOperatorSetUpdateId, ownerAddr)
+	if err != nil {
+		t.Fatalf("Error encoding RegistryRollup initialize call: %s", err.Error())
+	}
+
+	// using a separate account as proxy admin since it cannot access the fallback
+	proxyAdminPrivateKeyString := "59c6995e998f97a5a0044966f0945389dc9e86dae88c7a8412f4603b6b78690d"
+	proxyAdminKeyPair, err := crypto.HexToECDSA(proxyAdminPrivateKeyString)
+	if err != nil {
+		t.Fatalf("Error generating private key: %s", err.Error())
+	}
+	proxyAdminAddr := crypto.PubkeyToAddress(proxyAdminKeyPair.PublicKey)
+
+	proxyAdminAuth, err := bind.NewKeyedTransactorWithChainID(proxyAdminKeyPair, anvil.ChainID)
+	if err != nil {
+		t.Fatalf("Error generating transactor: %s", err.Error())
+	}
+
+	proxyAddr, _, _, err := transparentproxy.DeployContractTransparentUpgradeableProxy(
+		proxyAdminAuth,
+		anvil.WsClient,
+		implAddr,
+		proxyAdminAddr,
+		initCall,
+	)
+	if err != nil {
+		t.Fatalf("Error deploying RegistryRollup proxy: %s", err.Error())
+	}
+
+	registry, err := registryrollup.NewContractSFFLRegistryRollup(proxyAddr, anvil.WsClient)
+	if err != nil {
+		t.Fatalf("Error creating RegistryRollup instance: %s", err.Error())
+	}
+
+	return proxyAddr, registry, ownerAuth, proxyAdminAuth
 }
 
 func startRollupIndexing(t *testing.T, ctx context.Context, rollupAnvils []*AnvilInstance, indexerContainer testcontainers.Container) {
