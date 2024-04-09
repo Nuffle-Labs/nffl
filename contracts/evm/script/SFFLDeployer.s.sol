@@ -258,7 +258,7 @@ contract SFFLDeployer is Script, Utils {
         sfflProxyAdmin.upgradeAndCall(
             TransparentUpgradeableProxy(payable(address(sfflServiceManager))),
             address(sfflServiceManagerImplementation),
-            abi.encodeWithSelector(sfflServiceManager.initialize.selector, sfflCommunityMultisig)
+            abi.encodeWithSignature("initialize(address,address)", sfflCommunityMultisig, sfflPauserReg)
         );
 
         sfflTaskManagerImplementation = new SFFLTaskManager(registryCoordinator, TASK_RESPONSE_WINDOW_BLOCK);

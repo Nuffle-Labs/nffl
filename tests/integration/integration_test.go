@@ -600,7 +600,7 @@ func deployRegistryRollup(t *testing.T, initialOperatorSet []registryrollup.Roll
 		t.Fatalf("Error getting RegistryRollup ABI: %s", err.Error())
 	}
 
-	initCall, err := abi.Pack("initialize", initialOperatorSet, big.NewInt(66), nextOperatorSetUpdateId, ownerAddr)
+	initCall, err := abi.Pack("initialize", initialOperatorSet, big.NewInt(66), nextOperatorSetUpdateId, ownerAddr, common.Address{})
 	if err != nil {
 		t.Fatalf("Error encoding RegistryRollup initialize call: %s", err.Error())
 	}

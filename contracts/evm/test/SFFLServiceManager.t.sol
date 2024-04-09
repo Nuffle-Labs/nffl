@@ -13,6 +13,7 @@ import {IBLSSignatureChecker} from "eigenlayer-middleware/src/interfaces/IBLSSig
 import {IDelegationManager} from "@eigenlayer/contracts/interfaces/IDelegationManager.sol";
 import {IRegistryCoordinator} from "eigenlayer-middleware/src/interfaces/IRegistryCoordinator.sol";
 import {IStakeRegistry} from "eigenlayer-middleware/src/interfaces/IStakeRegistry.sol";
+import {IPauserRegistry} from "@eigenlayer/contracts/interfaces/IPauserRegistry.sol";
 
 import {SFFLTaskManager} from "../src/eth/SFFLTaskManager.sol";
 import {SFFLServiceManager} from "../src/eth/SFFLServiceManager.sol";
@@ -21,6 +22,20 @@ import {StateRootUpdate} from "../src/base/message/StateRootUpdate.sol";
 
 import {TestUtils} from "./utils/TestUtils.sol";
 
+contract SFFLServiceManagerHarness is SFFLServiceManager {
+    constructor(
+        IDelegationManager _delegationManager,
+        IRegistryCoordinator _registryCoordinator,
+        IStakeRegistry _stakeRegistry,
+        SFFLTaskManager _taskManager
+    ) SFFLServiceManager(_delegationManager, _registryCoordinator, _stakeRegistry, _taskManager) {}
+
+    function forceInitialize(address initialOwner, IPauserRegistry _pauserRegistry) public {
+        _transferOwnership(initialOwner);
+        _initializePauser(_pauserRegistry, UNPAUSE_ALL);
+    }
+}
+
 contract SFFLServiceManagerTest is TestUtils {
     using StateRootUpdate for StateRootUpdate.Message;
 
@@ -28,6 +43,8 @@ contract SFFLServiceManagerTest is TestUtils {
 
     SFFLServiceManager public sfflServiceManager;
     SFFLTaskManager public taskManager;
+
+    address public serviceManagerOwner = address(uint160(uint256(keccak256("serviceManagerOwner"))));
 
     uint32 public constant TASK_RESPONSE_WINDOW_BLOCK = 30;
     address public aggregator;
@@ -56,12 +73,16 @@ contract SFFLServiceManagerTest is TestUtils {
         vm.label(address(taskManager), "taskManagerProxy");
 
         address sfflServiceManagerImplementation = address(
-            new SFFLServiceManager(IDelegationManager(delegationMock), registryCoordinator, stakeRegistry, taskManager)
+            new SFFLServiceManagerHarness(
+                IDelegationManager(delegationMock), registryCoordinator, stakeRegistry, taskManager
+            )
         );
 
         vm.prank(proxyAdminOwner);
-        proxyAdmin.upgrade(
-            TransparentUpgradeableProxy(payable(address(serviceManager))), sfflServiceManagerImplementation
+        proxyAdmin.upgradeAndCall(
+            TransparentUpgradeableProxy(payable(address(serviceManager))),
+            sfflServiceManagerImplementation,
+            abi.encodeWithSignature("forceInitialize(address,address)", serviceManagerOwner, address(pauserRegistry))
         );
 
         sfflServiceManager = SFFLServiceManager(address(serviceManager));
