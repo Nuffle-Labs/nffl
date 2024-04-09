@@ -16,7 +16,7 @@ var (
 	QueueExistsError = errors.New("Queue already exists")
 )
 
-// Type reflactions of NEAR DA client submission format
+// Type reflections of NEAR DA client submission format
 type ShareVersion = uint32
 type Commitment = [32]byte
 type TransactionId = [32]byte
@@ -25,12 +25,14 @@ type Namespace struct {
 	Version uint8
 	Id      uint32
 }
+
 type Blob struct {
 	Namespace    Namespace
 	ShareVersion ShareVersion
 	Commitment   Commitment
 	Data         []byte
 }
+
 type SubmitRequest struct {
 	Blobs []Blob
 }
@@ -93,14 +95,14 @@ func (l *QueuesListener) listen(ctx context.Context, rollupId uint32, rollupData
 			publishPayload := new(PublishPayload)
 			err := borsh.Deserialize(publishPayload, d.Body)
 			if err != nil {
-				l.logger.Fatal("Error deserializing payload")
+				l.logger.Error("Error deserializing payload")
 				continue
 			}
 
 			submitRequest := new(SubmitRequest)
 			err = borsh.Deserialize(submitRequest, publishPayload.Data)
 			if err != nil {
-				l.logger.Fatal("Invalid blob", "d.Body", d.Body, "err", err)
+				l.logger.Error("Invalid blob", "d.Body", d.Body, "err", err)
 				continue
 			}
 
