@@ -31,7 +31,6 @@ RUN go build -v -o /usr/local/bin/relayer ./...
 FROM debian:bookworm
 
 RUN apt-get update && apt-get install -y npm
-RUN npm install -g near-cli@3.0.0
 
 COPY --from=relayer-builder /usr/local/bin/relayer /usr/local/bin/relayer
 ENTRYPOINT [ "relayer"]

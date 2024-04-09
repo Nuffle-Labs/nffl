@@ -114,7 +114,9 @@ services:
       - --da-account-id
       - da2.test.near
       - --key-path
-      - /root/.near-credentials/local/da2.test.near.json
+      - /root/.near-credentials/localnet/da2.test.near.json
+      - --network
+      - near-sffl-indexer:3030
     environment:
       - NEAR_ENV=localnet
       - NEAR_HELPER_ACCOUNT=near
@@ -179,7 +181,9 @@ services:
       - --da-account-id
       - da3.test.near
       - --key-path
-      - /root/.near-credentials/local/da3.test.near.json
+      - /root/.near-credentials/localnet/da3.test.near.json
+      - --network
+      - near-sffl-indexer:3030
     environment:
       - NEAR_ENV=localnet
       - NEAR_HELPER_ACCOUNT=near

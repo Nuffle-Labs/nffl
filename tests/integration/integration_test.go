@@ -13,7 +13,6 @@ import (
 	"net/http"
 	"os"
 	"os/exec"
-	"os/user"
 	"path/filepath"
 	"strings"
 	"testing"
@@ -709,28 +708,17 @@ func setupNearDa(t *testing.T, ctx context.Context, indexerContainer testcontain
 	copyFileFromContainer(ctx, indexerContainer, filepath.Join(containerNearCfgPath, "validator_key.json"), hostNearKeyPath, 0770)
 
 	var relayers []testcontainers.Container
+	nearCliEnv := []string{"NEAR_ENV=" + utils.NearNetworkId, "NEAR_CLI_LOCALNET_NETWORK_ID=" + utils.NearNetworkId, "NEAR_HELPER_ACCOUNT=near", "NEAR_CLI_LOCALNET_KEY_PATH=" + hostNearKeyPath, "NEAR_NODE_URL=" + indexerUrl}
 	for _, rollupAnvil := range rollupAnvils {
 		accountId := utils.GetDaContractAccountId(rollupAnvil)
 
 		err := execCommand(t, "near",
 			[]string{"create-account", accountId, "--masterAccount", "test.near"},
-			append(os.Environ(), "NEAR_ENV=localnet", "NEAR_HELPER_ACCOUNT=near", "NEAR_CLI_LOCALNET_KEY_PATH="+hostNearKeyPath, "NEAR_NODE_URL="+indexerUrl),
+			append(os.Environ(), nearCliEnv...),
 			true,
 		)
 		if err != nil {
 			t.Fatalf("Error creating NEAR DA account: %s", err.Error())
-		}
-
-		{
-			usr, err := user.Current()
-			if err != nil {
-				t.Fatalf("Couldn't get current user: #%s", err.Error())
-			}
-
-			execCommand(t, "ls", []string{"-a", usr.HomeDir}, os.Environ(), true)
-			execCommand(t, "ls", []string{"-a", filepath.Join(usr.HomeDir, ".near")}, os.Environ(), true)
-			execCommand(t, "ls", []string{"-a", filepath.Join(usr.HomeDir, ".near-credentials")}, os.Environ(), true)
-			execCommand(t, "ls", []string{"-a", filepath.Join(usr.HomeDir, ".near-credentials/localnet")}, os.Environ(), true)
 		}
 
 		relayer, err := utils.StartRelayer(t, ctx, accountId, indexerContainerIp, rollupAnvil)
@@ -741,7 +729,7 @@ func setupNearDa(t *testing.T, ctx context.Context, indexerContainer testcontain
 
 		err = execCommand(t, "near",
 			[]string{"deploy", accountId, filepath.Join(integrationDir, "../near/near_da_blob_store.wasm"), "--initFunction", "new", "--initArgs", "{}", "--masterAccount", "test.near"},
-			append(os.Environ(), "NEAR_ENV=localnet", "NEAR_HELPER_ACCOUNT=near", "NEAR_CLI_LOCALNET_KEY_PATH="+hostNearKeyPath, "NEAR_NODE_URL="+indexerUrl),
+			append(os.Environ(), nearCliEnv...),
 			true,
 		)
 		if err != nil {

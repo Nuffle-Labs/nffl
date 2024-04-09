@@ -52,8 +52,7 @@ docker-build-relayer:
 docker-build-images: docker-build-indexer docker-build-relayer ## builds and publishes indexer, operator and aggregator docker images
 	ko build aggregator/cmd/main.go --preserve-import-paths -L
 	ko build operator/cmd/main.go --preserve-import-paths -L
-docker-start-everything: ## starts aggregator and operator docker containers
-	docker-build-images
+docker-start-everything: docker-build-images ## starts aggregator and operator docker containers
 	docker compose up
 
 __CLI__: ## 

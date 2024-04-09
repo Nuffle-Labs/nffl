@@ -19,7 +19,8 @@ import (
 )
 
 const (
-	NetworkName = "near-sffl"
+	NearNetworkId = "localnet"
+	NetworkName   = "near-sffl"
 	// TODO(edwin): near-sffl-test-relayer -> near-sffl-relayer?
 	RelayerImageName     = "near-sffl-test-relayer"
 	RelayerContainerName = "relayer"
@@ -103,7 +104,7 @@ func StartRelayer(t *testing.T, ctx context.Context, daAccountId, indexerContain
 	}
 
 	keyFileName := daAccountId + ".json"
-	keyPath := filepath.Join(usr.HomeDir, ".near-credentials/local", keyFileName)
+	keyPath := filepath.Join(usr.HomeDir, ".near-credentials", NearNetworkId, keyFileName)
 
 	config, err := compileContainerConfig(ctx, daAccountId, keyPath, indexerContainerIp, anvil)
 	if err != nil {
