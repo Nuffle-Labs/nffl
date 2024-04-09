@@ -2,6 +2,8 @@
 pragma solidity ^0.8.12;
 
 import {BN254} from "eigenlayer-middleware/src/libraries/BN254.sol";
+import {PauserRegistry} from "@eigenlayer/contracts/permissions/PauserRegistry.sol";
+import {IPauserRegistry} from "@eigenlayer/contracts/interfaces/IPauserRegistry.sol";
 
 import {SFFLRegistryRollup} from "../src/rollup/SFFLRegistryRollup.sol";
 import {StateRootUpdate} from "../src/base/message/StateRootUpdate.sol";
@@ -28,6 +30,14 @@ contract SFFLRegistryRollupTest is TestUtils {
     event QuorumThresholdUpdated(uint128 indexed newQuorumThreshold);
 
     function setUp() public {
+        pauser = addr("pauser");
+        unpauser = addr("unpauser");
+
+        address[] memory pausers = new address[](1);
+        pausers[0] = pauser;
+
+        pauserRegistry = new PauserRegistry(pausers, unpauser);
+
         // BLSUtilsFFI.keygen(4, 100)
         initialOperators.push(
             RollupOperators.Operator(
@@ -81,7 +91,12 @@ contract SFFLRegistryRollupTest is TestUtils {
                 address(new SFFLRegistryRollup()),
                 addr("proxyAdmin"),
                 abi.encodeWithSelector(
-                    registry.initialize.selector, initialOperators, QUORUM_THRESHOLD, uint64(0), addr("owner")
+                    registry.initialize.selector,
+                    initialOperators,
+                    QUORUM_THRESHOLD,
+                    uint64(0),
+                    addr("owner"),
+                    pauserRegistry
                 )
             )
         );
@@ -315,5 +330,75 @@ contract SFFLRegistryRollupTest is TestUtils {
 
         vm.prank(addr("owner"));
         registry.setQuorumThreshold(denominator + 1);
+    }
+
+    function test_updateOperatorSet_RevertWhen_Paused() public {
+        uint8 flag = registry.PAUSED_UPDATE_OPERATOR_SET();
+
+        vm.prank(pauser);
+        registry.pause(2 ** flag);
+
+        RollupOperators.Operator[] memory operators = new RollupOperators.Operator[](0);
+
+        OperatorSetUpdate.Message memory message =
+            OperatorSetUpdate.Message(registry.nextOperatorUpdateId() + 1, 0, operators);
+
+        BN254.G1Point[] memory nonSignerPubkeys = new BN254.G1Point[](1);
+        nonSignerPubkeys[0] = initialOperators[1].pubkey;
+
+        RollupOperators.SignatureInfo memory signatureInfo = RollupOperators.SignatureInfo({
+            nonSignerPubkeys: nonSignerPubkeys,
+            apkG2: BN254.G2Point(
+                [
+                    21774854595736935906777183372431491423672246101465086449723107940773462536091,
+                    11859388993407979358677113204795514610964422675159446451278647734574620707784
+                ],
+                [
+                    3453374196609277266042659107600871924832557088868662992636101033001416801985,
+                    2630500117064331827715800222355515273572786883080373379723474133051328147838
+                ]
+                ),
+            sigma: BN254.hashToG1(message.hash()).scalar_mul(
+                6305737925830641523797682626723526790077499630761662964405387941160208990354
+                )
+        });
+
+        vm.expectRevert("Pausable: index is paused");
+
+        registry.updateOperatorSet(message, signatureInfo);
+    }
+
+    function test_updateStateRoot_RevertWhen_Paused() public {
+        uint8 flag = registry.PAUSED_UPDATE_STATE_ROOT();
+
+        vm.prank(pauser);
+        registry.pause(2 ** flag);
+
+        StateRootUpdate.Message memory message =
+            StateRootUpdate.Message(0, 1, 0, keccak256(hex""), keccak256(hex""), keccak256(hex"f00d"));
+
+        BN254.G1Point[] memory nonSignerPubkeys = new BN254.G1Point[](1);
+        nonSignerPubkeys[0] = initialOperators[3].pubkey;
+
+        RollupOperators.SignatureInfo memory signatureInfo = RollupOperators.SignatureInfo({
+            nonSignerPubkeys: nonSignerPubkeys,
+            apkG2: BN254.G2Point(
+                [
+                    21774854595736935906777183372431491423672246101465086449723107940773462536091,
+                    11859388993407979358677113204795514610964422675159446451278647734574620707784
+                ],
+                [
+                    3453374196609277266042659107600871924832557088868662992636101033001416801985,
+                    2630500117064331827715800222355515273572786883080373379723474133051328147838
+                ]
+                ),
+            sigma: BN254.hashToG1(message.hash()).scalar_mul(
+                6305737925830641523797682626723526790077499630761662964405387941160208990354
+                )
+        });
+
+        vm.expectRevert("Pausable: index is paused");
+
+        registry.updateStateRoot(message, signatureInfo);
     }
 }
