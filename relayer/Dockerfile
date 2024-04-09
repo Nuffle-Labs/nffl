@@ -7,7 +7,7 @@ WORKDIR /near-da
 RUN git clone https://github.com/taco-paco/rollup-data-availability.git
 
 WORKDIR /near-da/rollup-data-availability
-RUN git checkout f32f0e7546315751e19a34d07090bd8bbfadfc70
+RUN git checkout c9ec12924b27e37b8c40e7ab1a051a64b363cfd6
 
 # Build & copy libnear_da_rpc_sys static library for relayer compilation
 RUN make da-rpc-sys
@@ -29,8 +29,6 @@ WORKDIR /app/relayer/cmd
 RUN go build -v -o /usr/local/bin/relayer ./...
 
 FROM debian:bookworm
-
-RUN apt-get update && apt-get install -y npm
 
 COPY --from=relayer-builder /usr/local/bin/relayer /usr/local/bin/relayer
 ENTRYPOINT [ "relayer"]

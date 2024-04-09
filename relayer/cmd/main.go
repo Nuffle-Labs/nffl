@@ -37,8 +37,8 @@ func main() {
 		},
 		cli.StringFlag{
 			Name:  "network",
-			Value: "127.0.0.1:3030",
-			Usage: "Network for NEAR client to use (options: Mainnet, Testnet, [ip]:[port], default: 127.0.0.1:3030)",
+			Value: "http://127.0.0.1:3030",
+			Usage: "Network for NEAR client to use (options: Mainnet, Testnet, Custom url, default: http://127.0.0.1:3030)",
 		},
 	}
 	app.Name = "sffl-test-relayer"

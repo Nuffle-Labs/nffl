@@ -453,6 +453,8 @@ github.com/taco-paco/rollup-data-availability v0.0.0-20240401065023-9e4837835d63
 github.com/taco-paco/rollup-data-availability v0.0.0-20240401065023-9e4837835d63/go.mod h1:kzQi3/MdPKkid8rxflyA9oEBlaLAewXJMqCBXStBxQo=
 github.com/taco-paco/rollup-data-availability v0.0.0-20240408082621-f32f0e754631 h1:n23nMPUbzvQNIBkRRs1gvUqU8X0+gBL2AGvdGJEDCLU=
 github.com/taco-paco/rollup-data-availability v0.0.0-20240408082621-f32f0e754631/go.mod h1:kzQi3/MdPKkid8rxflyA9oEBlaLAewXJMqCBXStBxQo=
+github.com/taco-paco/rollup-data-availability v0.0.0-20240409111524-c9ec12924b27 h1:FhztHW0tqkO1CHKOgyp90jabPJJ2e2/IBMmvuoH76Qs=
+github.com/taco-paco/rollup-data-availability v0.0.0-20240409111524-c9ec12924b27/go.mod h1:kzQi3/MdPKkid8rxflyA9oEBlaLAewXJMqCBXStBxQo=
 github.com/testcontainers/testcontainers-go v0.26.0 h1:uqcYdoOHBy1ca7gKODfBd9uTHVK3a7UL848z09MVZ0c=
 github.com/testcontainers/testcontainers-go v0.26.0/go.mod h1:ICriE9bLX5CLxL9OFQ2N+2N+f+803LNJ1utJb1+Inx0=
 github.com/testcontainers/testcontainers-go v0.28.0 h1:1HLm9qm+J5VikzFDYhOd+Zw12NtOl+8drH2E8nTY1r8=
