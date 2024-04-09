@@ -51,7 +51,7 @@ contract SFFLTaskManager is Initializable, OwnableUpgradeable, Pausable, BLSSign
     /**
      * @notice Index for flag that pauses checkpoint responding
      */
-    uint8 public constant PAUSED_RESPOND_CHECKPOINT_TASK = 1;
+    uint8 public constant PAUSED_RESPOND_TO_CHECKPOINT_TASK = 1;
     /**
      * @notice Index for flag pausing operator stake updates
      */
@@ -186,7 +186,7 @@ contract SFFLTaskManager is Initializable, OwnableUpgradeable, Pausable, BLSSign
         Checkpoint.Task calldata task,
         Checkpoint.TaskResponse calldata taskResponse,
         NonSignerStakesAndSignature memory nonSignerStakesAndSignature
-    ) external onlyAggregator onlyWhenNotPaused(PAUSED_RESPOND_CHECKPOINT_TASK) {
+    ) external onlyAggregator onlyWhenNotPaused(PAUSED_RESPOND_TO_CHECKPOINT_TASK) {
         uint32 taskCreatedBlock = task.taskCreatedBlock;
         bytes calldata quorumNumbers = task.quorumNumbers;
         uint32 quorumThreshold = task.quorumThreshold;
