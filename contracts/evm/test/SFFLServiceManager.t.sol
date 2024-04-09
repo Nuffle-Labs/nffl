@@ -41,7 +41,7 @@ contract SFFLServiceManagerTest is TestUtils {
 
     event StateRootUpdated(uint32 indexed rollupId, uint64 indexed blockHeight, bytes32 stateRoot);
 
-    SFFLServiceManager public sfflServiceManager;
+    SFFLServiceManagerHarness public sfflServiceManager;
     SFFLTaskManager public taskManager;
 
     address public serviceManagerOwner = address(uint160(uint256(keccak256("serviceManagerOwner"))));
@@ -85,7 +85,7 @@ contract SFFLServiceManagerTest is TestUtils {
             abi.encodeWithSignature("forceInitialize(address,address)", serviceManagerOwner, address(pauserRegistry))
         );
 
-        sfflServiceManager = SFFLServiceManager(address(serviceManager));
+        sfflServiceManager = SFFLServiceManagerHarness(address(serviceManager));
 
         vm.label(sfflServiceManagerImplementation, "serviceManagerImpl");
         vm.label(address(serviceManager), "serviceManagerProxy");
@@ -130,6 +130,29 @@ contract SFFLServiceManagerTest is TestUtils {
             setUpOperators(message.hash(), 1000, 100, maxOperatorsToRegister / 2);
 
         vm.expectRevert("Quorum not met");
+
+        sfflServiceManager.updateStateRoot(message, nonSignerStakesAndSignature);
+    }
+
+    function test_updateStateRoot_RevertWhen_Paused() public {
+        uint8 flag = sfflServiceManager.PAUSED_UPDATE_STATE_ROOT();
+
+        vm.prank(pauser);
+        sfflServiceManager.pause(2 ** flag);
+
+        StateRootUpdate.Message memory message = StateRootUpdate.Message({
+            rollupId: 0,
+            blockHeight: 1,
+            timestamp: 2,
+            nearDaTransactionId: keccak256(hex"03"),
+            nearDaCommitment: keccak256(hex"04"),
+            stateRoot: keccak256(hex"f00d")
+        });
+
+        (, IBLSSignatureChecker.NonSignerStakesAndSignature memory nonSignerStakesAndSignature) =
+            setUpOperators(message.hash(), 1000, 100, 1);
+
+        vm.expectRevert("Pausable: index is paused");
 
         sfflServiceManager.updateStateRoot(message, nonSignerStakesAndSignature);
     }
