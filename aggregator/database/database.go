@@ -15,14 +15,14 @@ import (
 type Databaser interface {
 	Close() error
 	StoreStateRootUpdate(stateRootUpdateMessage messages.StateRootUpdateMessage) error
-	FetchStateRootUpdate(rollupId uint32, blockHeight uint64, stateRootUpdateMessage *messages.StateRootUpdateMessage) error
+	FetchStateRootUpdate(rollupId uint32, blockHeight uint64) (*messages.StateRootUpdateMessage, error)
 	StoreStateRootUpdateAggregation(stateRootUpdateMessage messages.StateRootUpdateMessage, aggregation messages.MessageBlsAggregation) error
-	FetchStateRootUpdateAggregation(rollupId uint32, blockHeight uint64, aggregation *messages.MessageBlsAggregation) error
+	FetchStateRootUpdateAggregation(rollupId uint32, blockHeight uint64) (*messages.MessageBlsAggregation, error)
 	StoreOperatorSetUpdate(operatorSetUpdateMessage messages.OperatorSetUpdateMessage) error
-	FetchOperatorSetUpdate(id uint64, operatorSetUpdateMessage *messages.OperatorSetUpdateMessage) error
+	FetchOperatorSetUpdate(id uint64) (*messages.OperatorSetUpdateMessage, error)
 	StoreOperatorSetUpdateAggregation(operatorSetUpdateMessage messages.OperatorSetUpdateMessage, aggregation messages.MessageBlsAggregation) error
-	FetchOperatorSetUpdateAggregation(id uint64, aggregation *messages.MessageBlsAggregation) error
-	FetchCheckpointMessages(fromTimestamp uint64, toTimestamp uint64, result *messages.CheckpointMessages) error
+	FetchOperatorSetUpdateAggregation(id uint64) (*messages.MessageBlsAggregation, error)
+	FetchCheckpointMessages(fromTimestamp uint64, toTimestamp uint64) (*messages.CheckpointMessages, error)
 }
 
 type Database struct {
@@ -32,7 +32,7 @@ type Database struct {
 
 func NewDatabase(dbPath string) (*Database, error) {
 	if dbPath == "" {
-		dbPath = ":memory:"
+		dbPath = "file::memory:?cache=shared"
 	}
 
 	db, err := gorm.Open(sqlite.Open(dbPath), &gorm.Config{})
@@ -76,7 +76,7 @@ func (d *Database) StoreStateRootUpdate(stateRootUpdateMessage messages.StateRoo
 	return tx.Error
 }
 
-func (d *Database) FetchStateRootUpdate(rollupId uint32, blockHeight uint64, stateRootUpdateMessage *messages.StateRootUpdateMessage) error {
+func (d *Database) FetchStateRootUpdate(rollupId uint32, blockHeight uint64) (*messages.StateRootUpdateMessage, error) {
 	var model models.StateRootUpdateMessage
 
 	tx := d.db.
@@ -84,12 +84,12 @@ func (d *Database) FetchStateRootUpdate(rollupId uint32, blockHeight uint64, sta
 		Where("block_height = ?", blockHeight).
 		First(&model)
 	if tx.Error != nil {
-		return tx.Error
+		return nil, tx.Error
 	}
 
-	*stateRootUpdateMessage = model.ToMessage()
+	stateRootUpdateMessage := model.ToMessage()
 
-	return nil
+	return &stateRootUpdateMessage, nil
 }
 
 func (d *Database) StoreStateRootUpdateAggregation(stateRootUpdateMessage messages.StateRootUpdateMessage, aggregation messages.MessageBlsAggregation) error {
@@ -109,7 +109,7 @@ func (d *Database) StoreStateRootUpdateAggregation(stateRootUpdateMessage messag
 	return nil
 }
 
-func (d *Database) FetchStateRootUpdateAggregation(rollupId uint32, blockHeight uint64, aggregation *messages.MessageBlsAggregation) error {
+func (d *Database) FetchStateRootUpdateAggregation(rollupId uint32, blockHeight uint64) (*messages.MessageBlsAggregation, error) {
 	var model models.StateRootUpdateMessage
 
 	tx := d.db.
@@ -119,12 +119,16 @@ func (d *Database) FetchStateRootUpdateAggregation(rollupId uint32, blockHeight 
 		Where("block_height = ?", blockHeight).
 		First(&model)
 	if tx.Error != nil {
-		return tx.Error
+		return nil, tx.Error
 	}
 
-	*aggregation = model.Aggregation.ToMessage()
+	if model.Aggregation == nil {
+		return nil, errors.New("aggregation not found")
+	}
 
-	return nil
+	aggregation := model.Aggregation.ToMessage()
+
+	return &aggregation, nil
 }
 
 func (d *Database) StoreOperatorSetUpdate(operatorSetUpdateMessage messages.OperatorSetUpdateMessage) error {
@@ -139,22 +143,18 @@ func (d *Database) StoreOperatorSetUpdate(operatorSetUpdateMessage messages.Oper
 	return tx.Error
 }
 
-func (d *Database) FetchOperatorSetUpdate(id uint64, operatorSetUpdateMessage *messages.OperatorSetUpdateMessage) error {
+func (d *Database) FetchOperatorSetUpdate(id uint64) (*messages.OperatorSetUpdateMessage, error) {
 	var model models.OperatorSetUpdateMessage
 
 	tx := d.db.
 		Where("update_id = ?", id).
 		First(&model)
 	if tx.Error != nil {
-		return tx.Error
+		return nil, tx.Error
 	}
-	*operatorSetUpdateMessage = model.ToMessage()
+	operatorSetUpdateMessage := model.ToMessage()
 
-	if tx.Error != nil {
-		return tx.Error
-	}
-
-	return nil
+	return &operatorSetUpdateMessage, nil
 }
 
 func (d *Database) StoreOperatorSetUpdateAggregation(operatorSetUpdateMessage messages.OperatorSetUpdateMessage, aggregation messages.MessageBlsAggregation) error {
@@ -173,7 +173,7 @@ func (d *Database) StoreOperatorSetUpdateAggregation(operatorSetUpdateMessage me
 	return nil
 }
 
-func (d *Database) FetchOperatorSetUpdateAggregation(id uint64, aggregation *messages.MessageBlsAggregation) error {
+func (d *Database) FetchOperatorSetUpdateAggregation(id uint64) (*messages.MessageBlsAggregation, error) {
 	var model models.OperatorSetUpdateMessage
 
 	tx := d.db.
@@ -182,17 +182,21 @@ func (d *Database) FetchOperatorSetUpdateAggregation(id uint64, aggregation *mes
 		Where("update_id = ?", id).
 		First(&model)
 	if tx.Error != nil {
-		return tx.Error
+		return nil, tx.Error
 	}
 
-	*aggregation = model.Aggregation.ToMessage()
+	if model.Aggregation == nil {
+		return nil, errors.New("aggregation not found")
+	}
 
-	return nil
+	aggregation := model.Aggregation.ToMessage()
+
+	return &aggregation, nil
 }
 
-func (d *Database) FetchCheckpointMessages(fromTimestamp uint64, toTimestamp uint64, result *messages.CheckpointMessages) error {
+func (d *Database) FetchCheckpointMessages(fromTimestamp uint64, toTimestamp uint64) (*messages.CheckpointMessages, error) {
 	if fromTimestamp > math.MaxInt64 || toTimestamp > math.MaxInt64 {
-		return errors.New("timestamp does not fit in int64")
+		return nil, errors.New("timestamp does not fit in int64")
 	}
 
 	var stateRootUpdates []models.StateRootUpdateMessage
@@ -204,7 +208,7 @@ func (d *Database) FetchCheckpointMessages(fromTimestamp uint64, toTimestamp uin
 		Where("timestamp <= ?", toTimestamp).
 		Find(&stateRootUpdates)
 	if tx.Error != nil {
-		return tx.Error
+		return nil, tx.Error
 	}
 
 	var operatorSetUpdates []models.OperatorSetUpdateMessage
@@ -216,7 +220,7 @@ func (d *Database) FetchCheckpointMessages(fromTimestamp uint64, toTimestamp uin
 		Where("timestamp <= ?", toTimestamp).
 		Find(&operatorSetUpdates)
 	if tx.Error != nil {
-		return tx.Error
+		return nil, tx.Error
 	}
 
 	stateRootUpdateMessages := make([]messages.StateRootUpdateMessage, 0, len(stateRootUpdates))
@@ -238,12 +242,12 @@ func (d *Database) FetchCheckpointMessages(fromTimestamp uint64, toTimestamp uin
 		operatorSetUpdateMessageAggregations = append(operatorSetUpdateMessageAggregations, agg.ToMessage())
 	}
 
-	*result = messages.CheckpointMessages{
+	result := &messages.CheckpointMessages{
 		StateRootUpdateMessages:              stateRootUpdateMessages,
 		StateRootUpdateMessageAggregations:   stateRootUpdateMessageAggregations,
 		OperatorSetUpdateMessages:            operatorSetUpdateMessages,
 		OperatorSetUpdateMessageAggregations: operatorSetUpdateMessageAggregations,
 	}
 
-	return nil
+	return result, nil
 }

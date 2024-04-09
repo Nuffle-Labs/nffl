@@ -33,10 +33,9 @@ type AvsManagerer interface {
 		operatorEcdsaKeyPair *ecdsa.PrivateKey,
 		blsKeyPair *bls.KeyPair,
 	) error
-	ProcessCheckpointTaskCreatedLog(checkpointTaskCreatedLog *taskmanager.ContractSFFLTaskManagerCheckpointTaskCreated) messages.CheckpointTaskResponse
 
 	GetOperatorId(options *bind.CallOpts, address common.Address) ([32]byte, error)
-	GetCheckpointTaskResponseChan() <-chan messages.CheckpointTaskResponse
+	GetCheckpointTaskCreatedChan() <-chan *taskmanager.ContractSFFLTaskManagerCheckpointTaskCreated
 	GetOperatorSetUpdateChan() <-chan messages.OperatorSetUpdateMessage
 }
 
@@ -52,9 +51,7 @@ type AvsManager struct {
 	// receive operator set updates in this chan
 	operatorSetUpdateChan chan *opsetupdatereg.ContractSFFLOperatorSetUpdateRegistryOperatorSetUpdatedAtBlock
 
-	// Sends message for operator to sign
-	checkpointTaskResponseCreatedChan chan messages.CheckpointTaskResponse
-	operatorSetUpdateMessageChan      chan messages.OperatorSetUpdateMessage
+	operatorSetUpdateMessageChan chan messages.OperatorSetUpdateMessage
 
 	logger sdklogging.Logger
 }
@@ -87,21 +84,20 @@ func NewAvsManager(config *optypes.NodeConfig, ethRpcClient eth.EthClient, ethWs
 	}
 
 	return &AvsManager{
-		avsReader:                         avsReader,
-		avsWriter:                         avsWriter,
-		avsSubscriber:                     avsSubscriber,
-		eigenlayerReader:                  sdkClients.ElChainReader,
-		eigenlayerWriter:                  sdkClients.ElChainWriter,
-		checkpointTaskCreatedChan:         make(chan *taskmanager.ContractSFFLTaskManagerCheckpointTaskCreated),
-		operatorSetUpdateChan:             make(chan *opsetupdatereg.ContractSFFLOperatorSetUpdateRegistryOperatorSetUpdatedAtBlock),
-		checkpointTaskResponseCreatedChan: make(chan messages.CheckpointTaskResponse),
-		operatorSetUpdateMessageChan:      make(chan messages.OperatorSetUpdateMessage),
-		logger:                            logger,
+		avsReader:                    avsReader,
+		avsWriter:                    avsWriter,
+		avsSubscriber:                avsSubscriber,
+		eigenlayerReader:             sdkClients.ElChainReader,
+		eigenlayerWriter:             sdkClients.ElChainWriter,
+		checkpointTaskCreatedChan:    make(chan *taskmanager.ContractSFFLTaskManagerCheckpointTaskCreated),
+		operatorSetUpdateChan:        make(chan *opsetupdatereg.ContractSFFLOperatorSetUpdateRegistryOperatorSetUpdatedAtBlock),
+		operatorSetUpdateMessageChan: make(chan messages.OperatorSetUpdateMessage),
+		logger:                       logger,
 	}, nil
 }
 
-func (avsManager *AvsManager) GetCheckpointTaskResponseChan() <-chan messages.CheckpointTaskResponse {
-	return avsManager.checkpointTaskResponseCreatedChan
+func (avsManager *AvsManager) GetCheckpointTaskCreatedChan() <-chan *taskmanager.ContractSFFLTaskManagerCheckpointTaskCreated {
+	return avsManager.checkpointTaskCreatedChan
 }
 
 func (avsManager *AvsManager) GetOperatorSetUpdateChan() <-chan messages.OperatorSetUpdateMessage {
@@ -147,15 +143,11 @@ func (avsManager *AvsManager) Start(ctx context.Context, operatorAddr common.Add
 				newTasksSub, err = avsManager.avsSubscriber.SubscribeToNewTasks(avsManager.checkpointTaskCreatedChan)
 				if err != nil {
 					avsManager.logger.Error("Error re-subscribing to new tasks", "err", err)
-					close(avsManager.checkpointTaskResponseCreatedChan)
+					close(avsManager.checkpointTaskCreatedChan)
 					return
 				}
 
 				continue
-
-			case checkpointTaskCreatedLog := <-avsManager.checkpointTaskCreatedChan:
-				taskResponse := avsManager.ProcessCheckpointTaskCreatedLog(checkpointTaskCreatedLog)
-				avsManager.checkpointTaskResponseCreatedChan <- taskResponse
 
 			case err := <-operatorSetUpdateSub.Err():
 				avsManager.logger.Error("Error in websocket subscription", "err", err)
@@ -163,7 +155,7 @@ func (avsManager *AvsManager) Start(ctx context.Context, operatorAddr common.Add
 				operatorSetUpdateSub, err = avsManager.avsSubscriber.SubscribeToOperatorSetUpdates(avsManager.operatorSetUpdateChan)
 				if err != nil {
 					avsManager.logger.Error("Error re-subscribing to operator set updates", "err", err)
-					close(avsManager.checkpointTaskResponseCreatedChan)
+					close(avsManager.checkpointTaskCreatedChan)
 					return
 				}
 
@@ -177,29 +169,6 @@ func (avsManager *AvsManager) Start(ctx context.Context, operatorAddr common.Add
 	}()
 
 	return nil
-}
-
-// Takes a CheckpointTaskCreatedLog struct as input and returns a TaskResponseHeader struct.
-// The TaskResponseHeader struct is the struct that is signed and sent to the contract as a task response.
-func (avsManager *AvsManager) ProcessCheckpointTaskCreatedLog(checkpointTaskCreatedLog *taskmanager.ContractSFFLTaskManagerCheckpointTaskCreated) messages.CheckpointTaskResponse {
-	avsManager.logger.Debug("Received new task", "task", checkpointTaskCreatedLog)
-	avsManager.logger.Info("Received new task",
-		"fromTimestamp", checkpointTaskCreatedLog.Task.FromTimestamp,
-		"toTimestamp", checkpointTaskCreatedLog.Task.ToTimestamp,
-		"taskIndex", checkpointTaskCreatedLog.TaskIndex,
-		"taskCreatedBlock", checkpointTaskCreatedLog.Task.TaskCreatedBlock,
-		"quorumNumbers", checkpointTaskCreatedLog.Task.QuorumNumbers,
-		"quorumThreshold", checkpointTaskCreatedLog.Task.QuorumThreshold,
-	)
-
-	// TODO: build SMT based on stored message agreements and update the test
-
-	taskResponse := messages.CheckpointTaskResponse{
-		ReferenceTaskIndex:     checkpointTaskCreatedLog.TaskIndex,
-		StateRootUpdatesRoot:   [32]byte{0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0},
-		OperatorSetUpdatesRoot: [32]byte{0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0},
-	}
-	return taskResponse
 }
 
 func (avsManager *AvsManager) handleOperatorSetUpdate(ctx context.Context, data *opsetupdatereg.ContractSFFLOperatorSetUpdateRegistryOperatorSetUpdatedAtBlock) error {

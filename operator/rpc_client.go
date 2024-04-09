@@ -16,6 +16,7 @@ type AggregatorRpcClienter interface {
 	SendSignedCheckpointTaskResponseToAggregator(signedCheckpointTaskResponse *messages.SignedCheckpointTaskResponse)
 	SendSignedStateRootUpdateToAggregator(signedStateRootUpdateMessage *messages.SignedStateRootUpdateMessage)
 	SendSignedOperatorSetUpdateToAggregator(signedOperatorSetUpdateMessage *messages.SignedOperatorSetUpdateMessage)
+	GetAggregatedCheckpointMessages(fromTimestamp, toTimestamp uint64) (*messages.CheckpointMessages, error)
 }
 
 const (
@@ -143,7 +144,7 @@ func (c *AggregatorRpcClient) tryResendFromDeque() {
 	c.unsentMessages = c.unsentMessages[:errorPos]
 }
 
-func (c *AggregatorRpcClient) sendRequest(sendCb func() error, message RpcMessage) {
+func (c *AggregatorRpcClient) sendOperatorMessage(sendCb func() error, message RpcMessage) {
 	appendProtected := func() {
 		c.unsentMessagesLock.Lock()
 		c.unsentMessages = append(c.unsentMessages, message)
@@ -158,7 +159,7 @@ func (c *AggregatorRpcClient) sendRequest(sendCb func() error, message RpcMessag
 
 	c.tryResendFromDeque()
 
-	c.logger.Info("Sending data to aggregator")
+	c.logger.Info("Sending request to aggregator")
 	err = sendCb()
 	if err != nil {
 		appendProtected()
@@ -166,10 +167,29 @@ func (c *AggregatorRpcClient) sendRequest(sendCb func() error, message RpcMessag
 	}
 }
 
+func (c *AggregatorRpcClient) sendRequest(sendCb func() error) error {
+	err := c.InitializeClientIfNotExist()
+	if err != nil {
+		c.logger.Error("Could not reinitialize RPC client")
+		return err
+	}
+
+	c.logger.Info("Sending request to aggregator")
+
+	err = sendCb()
+	if err != nil {
+		return err
+	}
+
+	c.logger.Info("Request successfully sent to aggregator")
+
+	return nil
+}
+
 func (c *AggregatorRpcClient) SendSignedCheckpointTaskResponseToAggregator(signedCheckpointTaskResponse *messages.SignedCheckpointTaskResponse) {
 	c.logger.Info("Sending signed task response header to aggregator", "signedCheckpointTaskResponse", fmt.Sprintf("%#v", signedCheckpointTaskResponse))
 
-	c.sendRequest(func() error {
+	c.sendOperatorMessage(func() error {
 		var reply bool
 		err := c.rpcClient.Call("Aggregator.ProcessSignedCheckpointTaskResponse", signedCheckpointTaskResponse, &reply)
 		if err != nil {
@@ -186,7 +206,7 @@ func (c *AggregatorRpcClient) SendSignedCheckpointTaskResponseToAggregator(signe
 func (c *AggregatorRpcClient) SendSignedStateRootUpdateToAggregator(signedStateRootUpdateMessage *messages.SignedStateRootUpdateMessage) {
 	c.logger.Info("Sending signed state root update message to aggregator", "signedStateRootUpdateMessage", fmt.Sprintf("%#v", signedStateRootUpdateMessage))
 
-	c.sendRequest(func() error {
+	c.sendOperatorMessage(func() error {
 		var reply bool
 		err := c.rpcClient.Call("Aggregator.ProcessSignedStateRootUpdateMessage", signedStateRootUpdateMessage, &reply)
 		if err != nil {
@@ -203,7 +223,7 @@ func (c *AggregatorRpcClient) SendSignedStateRootUpdateToAggregator(signedStateR
 func (c *AggregatorRpcClient) SendSignedOperatorSetUpdateToAggregator(signedOperatorSetUpdateMessage *messages.SignedOperatorSetUpdateMessage) {
 	c.logger.Info("Sending operator set update message to aggregator", "signedOperatorSetUpdateMessage", fmt.Sprintf("%#v", signedOperatorSetUpdateMessage))
 
-	c.sendRequest(func() error {
+	c.sendOperatorMessage(func() error {
 		var reply bool
 		err := c.rpcClient.Call("Aggregator.ProcessSignedOperatorSetUpdateMessage", signedOperatorSetUpdateMessage, &reply)
 		if err != nil {
@@ -215,4 +235,30 @@ func (c *AggregatorRpcClient) SendSignedOperatorSetUpdateToAggregator(signedOper
 		c.metrics.IncNumMessagesAcceptedByAggregator()
 		return nil
 	}, signedOperatorSetUpdateMessage)
+}
+
+func (c *AggregatorRpcClient) GetAggregatedCheckpointMessages(fromTimestamp, toTimestamp uint64) (*messages.CheckpointMessages, error) {
+	c.logger.Info("Getting checkpoint messages from aggregator")
+
+	var checkpointMessages messages.CheckpointMessages
+
+	type Args struct {
+		FromTimestamp, ToTimestamp uint64
+	}
+
+	err := c.sendRequest(func() error {
+		err := c.rpcClient.Call("Aggregator.GetAggregatedCheckpointMessages", &Args{fromTimestamp, toTimestamp}, &checkpointMessages)
+		if err != nil {
+			c.logger.Info("Received error from aggregator", "err", err)
+			return err
+		}
+
+		c.logger.Info("Checkpoint messages fetched from aggregator")
+		return nil
+	})
+	if err != nil {
+		return nil, err
+	}
+
+	return &checkpointMessages, nil
 }

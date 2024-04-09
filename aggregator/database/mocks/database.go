@@ -53,73 +53,78 @@ func (mr *MockDatabaserMockRecorder) Close() *gomock.Call {
 }
 
 // FetchCheckpointMessages mocks base method.
-func (m *MockDatabaser) FetchCheckpointMessages(arg0, arg1 uint64, arg2 *messages.CheckpointMessages) error {
+func (m *MockDatabaser) FetchCheckpointMessages(arg0, arg1 uint64) (*messages.CheckpointMessages, error) {
 	m.ctrl.T.Helper()
-	ret := m.ctrl.Call(m, "FetchCheckpointMessages", arg0, arg1, arg2)
-	ret0, _ := ret[0].(error)
-	return ret0
+	ret := m.ctrl.Call(m, "FetchCheckpointMessages", arg0, arg1)
+	ret0, _ := ret[0].(*messages.CheckpointMessages)
+	ret1, _ := ret[1].(error)
+	return ret0, ret1
 }
 
 // FetchCheckpointMessages indicates an expected call of FetchCheckpointMessages.
-func (mr *MockDatabaserMockRecorder) FetchCheckpointMessages(arg0, arg1, arg2 any) *gomock.Call {
+func (mr *MockDatabaserMockRecorder) FetchCheckpointMessages(arg0, arg1 any) *gomock.Call {
 	mr.mock.ctrl.T.Helper()
-	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "FetchCheckpointMessages", reflect.TypeOf((*MockDatabaser)(nil).FetchCheckpointMessages), arg0, arg1, arg2)
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "FetchCheckpointMessages", reflect.TypeOf((*MockDatabaser)(nil).FetchCheckpointMessages), arg0, arg1)
 }
 
 // FetchOperatorSetUpdate mocks base method.
-func (m *MockDatabaser) FetchOperatorSetUpdate(arg0 uint64, arg1 *messages.OperatorSetUpdateMessage) error {
+func (m *MockDatabaser) FetchOperatorSetUpdate(arg0 uint64) (*messages.OperatorSetUpdateMessage, error) {
 	m.ctrl.T.Helper()
-	ret := m.ctrl.Call(m, "FetchOperatorSetUpdate", arg0, arg1)
-	ret0, _ := ret[0].(error)
-	return ret0
+	ret := m.ctrl.Call(m, "FetchOperatorSetUpdate", arg0)
+	ret0, _ := ret[0].(*messages.OperatorSetUpdateMessage)
+	ret1, _ := ret[1].(error)
+	return ret0, ret1
 }
 
 // FetchOperatorSetUpdate indicates an expected call of FetchOperatorSetUpdate.
-func (mr *MockDatabaserMockRecorder) FetchOperatorSetUpdate(arg0, arg1 any) *gomock.Call {
+func (mr *MockDatabaserMockRecorder) FetchOperatorSetUpdate(arg0 any) *gomock.Call {
 	mr.mock.ctrl.T.Helper()
-	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "FetchOperatorSetUpdate", reflect.TypeOf((*MockDatabaser)(nil).FetchOperatorSetUpdate), arg0, arg1)
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "FetchOperatorSetUpdate", reflect.TypeOf((*MockDatabaser)(nil).FetchOperatorSetUpdate), arg0)
 }
 
 // FetchOperatorSetUpdateAggregation mocks base method.
-func (m *MockDatabaser) FetchOperatorSetUpdateAggregation(arg0 uint64, arg1 *messages.MessageBlsAggregation) error {
+func (m *MockDatabaser) FetchOperatorSetUpdateAggregation(arg0 uint64) (*messages.MessageBlsAggregation, error) {
 	m.ctrl.T.Helper()
-	ret := m.ctrl.Call(m, "FetchOperatorSetUpdateAggregation", arg0, arg1)
-	ret0, _ := ret[0].(error)
-	return ret0
+	ret := m.ctrl.Call(m, "FetchOperatorSetUpdateAggregation", arg0)
+	ret0, _ := ret[0].(*messages.MessageBlsAggregation)
+	ret1, _ := ret[1].(error)
+	return ret0, ret1
 }
 
 // FetchOperatorSetUpdateAggregation indicates an expected call of FetchOperatorSetUpdateAggregation.
-func (mr *MockDatabaserMockRecorder) FetchOperatorSetUpdateAggregation(arg0, arg1 any) *gomock.Call {
+func (mr *MockDatabaserMockRecorder) FetchOperatorSetUpdateAggregation(arg0 any) *gomock.Call {
 	mr.mock.ctrl.T.Helper()
-	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "FetchOperatorSetUpdateAggregation", reflect.TypeOf((*MockDatabaser)(nil).FetchOperatorSetUpdateAggregation), arg0, arg1)
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "FetchOperatorSetUpdateAggregation", reflect.TypeOf((*MockDatabaser)(nil).FetchOperatorSetUpdateAggregation), arg0)
 }
 
 // FetchStateRootUpdate mocks base method.
-func (m *MockDatabaser) FetchStateRootUpdate(arg0 uint32, arg1 uint64, arg2 *messages.StateRootUpdateMessage) error {
+func (m *MockDatabaser) FetchStateRootUpdate(arg0 uint32, arg1 uint64) (*messages.StateRootUpdateMessage, error) {
 	m.ctrl.T.Helper()
-	ret := m.ctrl.Call(m, "FetchStateRootUpdate", arg0, arg1, arg2)
-	ret0, _ := ret[0].(error)
-	return ret0
+	ret := m.ctrl.Call(m, "FetchStateRootUpdate", arg0, arg1)
+	ret0, _ := ret[0].(*messages.StateRootUpdateMessage)
+	ret1, _ := ret[1].(error)
+	return ret0, ret1
 }
 
 // FetchStateRootUpdate indicates an expected call of FetchStateRootUpdate.
-func (mr *MockDatabaserMockRecorder) FetchStateRootUpdate(arg0, arg1, arg2 any) *gomock.Call {
+func (mr *MockDatabaserMockRecorder) FetchStateRootUpdate(arg0, arg1 any) *gomock.Call {
 	mr.mock.ctrl.T.Helper()
-	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "FetchStateRootUpdate", reflect.TypeOf((*MockDatabaser)(nil).FetchStateRootUpdate), arg0, arg1, arg2)
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "FetchStateRootUpdate", reflect.TypeOf((*MockDatabaser)(nil).FetchStateRootUpdate), arg0, arg1)
 }
 
 // FetchStateRootUpdateAggregation mocks base method.
-func (m *MockDatabaser) FetchStateRootUpdateAggregation(arg0 uint32, arg1 uint64, arg2 *messages.MessageBlsAggregation) error {
+func (m *MockDatabaser) FetchStateRootUpdateAggregation(arg0 uint32, arg1 uint64) (*messages.MessageBlsAggregation, error) {
 	m.ctrl.T.Helper()
-	ret := m.ctrl.Call(m, "FetchStateRootUpdateAggregation", arg0, arg1, arg2)
-	ret0, _ := ret[0].(error)
-	return ret0
+	ret := m.ctrl.Call(m, "FetchStateRootUpdateAggregation", arg0, arg1)
+	ret0, _ := ret[0].(*messages.MessageBlsAggregation)
+	ret1, _ := ret[1].(error)
+	return ret0, ret1
 }
 
 // FetchStateRootUpdateAggregation indicates an expected call of FetchStateRootUpdateAggregation.
-func (mr *MockDatabaserMockRecorder) FetchStateRootUpdateAggregation(arg0, arg1, arg2 any) *gomock.Call {
+func (mr *MockDatabaserMockRecorder) FetchStateRootUpdateAggregation(arg0, arg1 any) *gomock.Call {
 	mr.mock.ctrl.T.Helper()
-	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "FetchStateRootUpdateAggregation", reflect.TypeOf((*MockDatabaser)(nil).FetchStateRootUpdateAggregation), arg0, arg1, arg2)
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "FetchStateRootUpdateAggregation", reflect.TypeOf((*MockDatabaser)(nil).FetchStateRootUpdateAggregation), arg0, arg1)
 }
 
 // StoreOperatorSetUpdate mocks base method.
