@@ -28,7 +28,7 @@ contract SFFLServiceManager is SFFLRegistryBase, ServiceManagerBase, Pausable {
     /**
      * @notice Index for flag pausing state root updates
      */
-    uint8 internal constant PAUSED_UPDATE_STATE_ROOT = 0;
+    uint8 public constant PAUSED_UPDATE_STATE_ROOT = 0;
 
     modifier onlyTaskManager() {
         require(msg.sender == address(taskManager), "Task manager must be the caller");

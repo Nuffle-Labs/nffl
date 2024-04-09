@@ -30,11 +30,11 @@ contract SFFLRegistryRollup is Initializable, OwnableUpgradeable, Pausable, SFFL
     /**
      * @notice Index for flag that pauses operator set updates
      */
-    uint8 internal constant PAUSED_UPDATE_OPERATOR_SET = 0;
+    uint8 public constant PAUSED_UPDATE_OPERATOR_SET = 0;
     /**
      * @notice Index for flag that pauses state root updates
      */
-    uint8 internal constant PAUSED_UPDATE_STATE_ROOT = 1;
+    uint8 public constant PAUSED_UPDATE_STATE_ROOT = 1;
 
     /**
      * @dev Operator set used for agreements

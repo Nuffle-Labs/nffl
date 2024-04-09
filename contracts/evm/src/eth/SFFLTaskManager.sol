@@ -47,15 +47,15 @@ contract SFFLTaskManager is Initializable, OwnableUpgradeable, Pausable, BLSSign
     /**
      * @notice Index for flag that pauses checkpoint task creation
      */
-    uint8 internal constant PAUSED_CREATE_CHECKPOINT_TASK = 0;
+    uint8 public constant PAUSED_CREATE_CHECKPOINT_TASK = 0;
     /**
      * @notice Index for flag that pauses checkpoint responding
      */
-    uint8 internal constant PAUSED_RESPOND_CHECKPOINT_TASK = 1;
+    uint8 public constant PAUSED_RESPOND_CHECKPOINT_TASK = 1;
     /**
      * @notice Index for flag pausing operator stake updates
      */
-    uint8 internal constant PAUSED_CHALLENGE_CHECKPOINT_TASK = 2;
+    uint8 public constant PAUSED_CHALLENGE_CHECKPOINT_TASK = 2;
 
     /**
      * @notice Next checkpoint task number
