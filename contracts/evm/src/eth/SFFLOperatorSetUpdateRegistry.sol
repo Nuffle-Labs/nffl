@@ -7,6 +7,7 @@ import {IBLSApkRegistry} from "eigenlayer-middleware/src/interfaces/IBLSApkRegis
 import {IStakeRegistry} from "eigenlayer-middleware/src/interfaces/IStakeRegistry.sol";
 import {IIndexRegistry} from "eigenlayer-middleware/src/interfaces/IIndexRegistry.sol";
 import {IServiceManager} from "eigenlayer-middleware/src/interfaces/IServiceManager.sol";
+import {IRegistryCoordinator} from "eigenlayer-middleware/src/interfaces/IRegistryCoordinator.sol";
 import {BN254} from "eigenlayer-middleware/src/libraries/BN254.sol";
 
 import {SFFLRegistryCoordinator} from "./SFFLRegistryCoordinator.sol";
@@ -39,10 +40,30 @@ contract SFFLOperatorSetUpdateRegistry is Initializable {
     uint32[] public operatorSetUpdateIdToBlockNumber;
 
     /**
+     * @notice Whitelisted operators
+     */
+    mapping(address => bool) public isOperatorWhitelisted;
+
+    /**
      * @notice Emitted when an operator set update is registered
      * @param id Operator set update ID
      */
     event OperatorSetUpdatedAtBlock(uint64 indexed id, uint64 indexed timestamp);
+
+    /**
+     * @notice Emitted when an operator whitelisting status is updated
+     * @param operator Operator address
+     * @param isWhitelisted Whether the operator is whitelisted
+     */
+    event OperatorWhitelistingUpdated(address indexed operator, bool isWhitelisted);
+
+    modifier onlyCoordinatorOwner() {
+        require(
+            msg.sender == IRegistryCoordinator(registryCoordinator).owner(),
+            "SFFLOperatorSetUpdateRegistry.onlyCoordinatorOwner: caller is not the owner of the registryCoordinator"
+        );
+        _;
+    }
 
     /**
      * @dev Reverts if the caller is not the RegistryCoordinator contract
@@ -50,7 +71,7 @@ contract SFFLOperatorSetUpdateRegistry is Initializable {
     modifier onlyRegistryCoordinator() {
         require(
             msg.sender == address(registryCoordinator),
-            "BLSApkRegistry.onlyRegistryCoordinator: caller is not the registry coordinator"
+            "SFFLOperatorSetUpdateRegistry.onlyRegistryCoordinator: caller is not the registry coordinator"
         );
         _;
     }
@@ -124,6 +145,16 @@ contract SFFLOperatorSetUpdateRegistry is Initializable {
         newOperatorSet = _getOperatorSetAtBlock(
             operatorSetUpdateIdToBlockNumber[operatorSetUpdateId], _stakeRegistry, _indexRegistry, _blsApkRegistry
         );
+    }
+
+    /**
+     * @notice Sets an operator whitelisting status
+     * @param operator Operator address
+     * @param isWhitelisted New operator whitelisting status
+     */
+    function setOperatorWhitelisting(address operator, bool isWhitelisted) external onlyCoordinatorOwner {
+        isOperatorWhitelisted[operator] = isWhitelisted;
+        emit OperatorWhitelistingUpdated(operator, isWhitelisted);
     }
 
     /**
