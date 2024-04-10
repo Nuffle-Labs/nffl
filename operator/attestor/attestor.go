@@ -221,8 +221,8 @@ func (attestor *Attestor) processHeader(rollupId uint32, rollupHeader *ethtypes.
 	mqBlocksC, id := attestor.notifier.Subscribe(rollupId)
 	defer attestor.notifier.Unsubscribe(rollupId, id)
 
-	transactionId := [32]byte{1}
-	daCommitment := [32]byte{1}
+	transactionId := [32]byte{0}
+	daCommitment := [32]byte{0}
 
 loop:
 	for {
