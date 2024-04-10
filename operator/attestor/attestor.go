@@ -19,7 +19,7 @@ import (
 )
 
 const (
-	MQ_WAIT_TIMEOUT       = time.Second
+	MQ_WAIT_TIMEOUT       = 5 * time.Second
 	MQ_REBROADCAST_DELAY  = 10 * time.Second
 	RECONNECTION_ATTEMPTS = 5
 	RECONNECTION_DELAY    = time.Second
@@ -224,10 +224,11 @@ func (attestor *Attestor) processHeader(rollupId uint32, rollupHeader *ethtypes.
 	transactionId := [32]byte{0}
 	daCommitment := [32]byte{0}
 
+	timer := time.After(MQ_WAIT_TIMEOUT)
 loop:
 	for {
 		select {
-		case <-time.After(MQ_WAIT_TIMEOUT):
+		case <-timer:
 			break loop
 
 		case mqBlock := <-mqBlocksC:
