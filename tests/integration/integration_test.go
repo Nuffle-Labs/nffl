@@ -684,13 +684,10 @@ func setupNearDa(t *testing.T, ctx context.Context, indexerContainer testcontain
 		panic(err)
 	}
 
-	indexerSocketAddr, err := indexerContainer.Endpoint(ctx, "")
+	indexerUrl, err := indexerContainer.Endpoint(ctx, "http")
 	if err != nil {
 		t.Fatalf("Error getting indexer endpoint: %s", err.Error())
 	}
-
-	indexerSocketAddr = strings.Replace(indexerSocketAddr, "localhost", "127.0.0.1", 1)
-	indexerUrl := "http://" + indexerSocketAddr
 
 	indexerContainerIp, err := indexerContainer.ContainerIP(ctx)
 	if err != nil {

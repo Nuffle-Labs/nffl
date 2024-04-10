@@ -106,7 +106,6 @@ services:
       indexer-setup:
         condition: service_completed_successfully
     volumes:
-      - near_cli_data:/near-cli
       - near_cli_keys:/root/.near-credentials
     command:
       - --rpc-url
@@ -168,7 +167,6 @@ services:
       indexer-setup:
         condition: service_completed_successfully
     volumes:
-      - near_cli_data:/near-cli
       - near_cli_keys:/root/.near-credentials
     command:
       - --rpc-url
