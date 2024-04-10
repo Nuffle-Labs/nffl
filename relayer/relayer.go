@@ -11,7 +11,7 @@ import (
 	"github.com/ethereum/go-ethereum/rlp"
 	near "github.com/near/rollup-data-availability/gopkg/da-rpc"
 
-	"github.com/NethermindEth/near-sffl/core/relayer-config"
+	"github.com/NethermindEth/near-sffl/core/config/relayer-config"
 )
 
 const (

@@ -15,7 +15,7 @@ import (
 	"github.com/testcontainers/testcontainers-go"
 	"github.com/testcontainers/testcontainers-go/wait"
 
-	"github.com/NethermindEth/near-sffl/core/relayer-config"
+	"github.com/NethermindEth/near-sffl/core/config/relayer-config"
 )
 
 const (

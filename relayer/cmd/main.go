@@ -9,7 +9,7 @@ import (
 	sdklogging "github.com/Layr-Labs/eigensdk-go/logging"
 	"github.com/urfave/cli"
 
-	"github.com/NethermindEth/near-sffl/core/relayer-config"
+	"github.com/NethermindEth/near-sffl/core/config/relayer-config"
 	"github.com/NethermindEth/near-sffl/relayer"
 )
 
