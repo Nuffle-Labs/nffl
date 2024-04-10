@@ -3,6 +3,8 @@ use std::collections::HashMap;
 
 use crate::errors::{Error, Result};
 
+use serde::Deserialize;
+
 #[derive(clap::Parser, Debug)]
 #[clap(version = "0.0.1")]
 #[clap(subcommand_required = true, arg_required_else_help = true)]
@@ -10,6 +12,8 @@ pub(crate) struct Opts {
     /// Sets a custom config dir. Defaults to ~/.near/
     #[clap(long)]
     pub home_dir: Option<std::path::PathBuf>,
+    #[clap(long)]
+    pub config: Option<std::path::PathBuf>,
     #[clap(subcommand)]
     pub subcmd: SubCommand,
 }
@@ -22,7 +26,7 @@ pub(crate) enum SubCommand {
     Init(InitConfigArgs),
 }
 
-#[derive(clap::Parser, Debug)]
+#[derive(clap::Parser, Deserialize, Debug)]
 pub(crate) struct RunConfigArgs {
     /// Rabbit mq address
     #[clap(long)]
@@ -57,7 +61,7 @@ impl RunConfigArgs {
     }
 }
 
-#[derive(clap::Parser, Debug)]
+#[derive(clap::Parser, Deserialize, Debug)]
 pub(crate) struct InitConfigArgs {
     /// chain/network id (localnet, testnet, devnet, betanet)
     #[clap(short, long)]

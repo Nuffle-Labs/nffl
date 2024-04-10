@@ -18,6 +18,8 @@ pub enum Error {
     ParseAccountError(#[from] near_indexer::near_primitives::account::id::ParseAccountError),
     #[error(transparent)]
     MailboxError(#[from] actix::MailboxError),
+    #[error(transparent)]
+    DeserializeError(#[from] serde_yaml::Error),
     #[error("tx status error: {0}")]
     TxStatusError(String),
     #[error("Number of da_contract_ids shall match rollup_ids")]

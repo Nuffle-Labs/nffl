@@ -59,6 +59,15 @@ fn run(home_dir: std::path::PathBuf, config: RunConfigArgs) -> Result<()> {
     })
 }
 
+fn read_config<T: serde::de::DeserializeOwned>(config_args: T, config_path: Option<std::path::PathBuf>) -> Result<T> {
+    if let Some(config_path) = config_path {
+        let config_str = std::fs::read_to_string(config_path)?;
+        serde_yaml::from_str(&config_str).map_err(Into::into)
+    } else {
+        Ok(config_args)
+    }
+}
+
 fn main() -> Result<()> {
     // We use it to automatically search the for root certificates to perform HTTPS calls
     // (sending telemetry and downloading genesis)
@@ -72,8 +81,10 @@ fn main() -> Result<()> {
 
     let home_dir = opts.home_dir.unwrap_or(near_indexer::get_default_home());
     match opts.subcmd {
-        SubCommand::Init(config) => near_indexer::indexer_init_configs(&home_dir, config.into())?,
-        SubCommand::Run(config) => run(home_dir, config)?,
+        SubCommand::Init(config) => {
+            near_indexer::indexer_init_configs(&home_dir, read_config(config, opts.config)?.into())?
+        }
+        SubCommand::Run(config) => run(home_dir, read_config(config, opts.config)?)?,
     }
 
     Ok(())
