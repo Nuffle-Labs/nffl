@@ -17,7 +17,8 @@ import {RollupOperators} from "../base/utils/RollupOperators.sol";
 /**
  * @title SFFL AVS Operator Set Update Registry
  * @notice This registry keeps track of operator set changes in order to
- * trigger the SFFL AVS to update the rollups' operator set copies.
+ * trigger the SFFL AVS to update the rollups' operator set copies and also
+ * keeps an operator whitelist for joining the AVS.
  * @dev Operator set updates are block-based changes in the operator set which
  * are used by the AVS operators in order to update rollups' operator sets
  * (see {SFFLRegistryRollup}) through an {OperatorSetUpdate.Message}
