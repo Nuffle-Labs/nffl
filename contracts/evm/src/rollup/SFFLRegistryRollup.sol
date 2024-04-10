@@ -46,31 +46,53 @@ contract SFFLRegistryRollup is Initializable, OwnableUpgradeable, Pausable, SFFL
      */
     uint64 public nextOperatorUpdateId;
 
+    /**
+     * @notice Aggregator address, used for the initial operator set setup
+     */
+    address public aggregator;
+
+    modifier onlyAggregator() {
+        require(msg.sender == aggregator, "Sender is not aggregator");
+        _;
+    }
+
     constructor() {
         _disableInitializers();
     }
 
     /**
      * @notice Initializes the contract
-     * @param operators Initial operator list
      * @param quorumThreshold Quorum threshold, based on THRESHOLD_DENOMINATOR
-     * @param operatorUpdateId Starting next operator update message ID
      * @param initialOwner Owner address
+     * @param _aggregator Aggregator address
      * @param _pauserRegistry Pauser registry address
      */
     function initialize(
-        RollupOperators.Operator[] memory operators,
         uint128 quorumThreshold,
-        uint64 operatorUpdateId,
         address initialOwner,
+        address _aggregator,
         IPauserRegistry _pauserRegistry
     ) public initializer {
         _initializePauser(_pauserRegistry, UNPAUSE_ALL);
         _transferOwnership(initialOwner);
+        _operatorSet.setQuorumThreshold(quorumThreshold);
 
-        _operatorSet.initialize(operators, quorumThreshold);
+        aggregator = _aggregator;
+    }
 
-        nextOperatorUpdateId = operatorUpdateId;
+    /**
+     * @notice Sets the initial operator set
+     * @param operators Initial operator list
+     * @param _nextOperatorUpdateId Starting next operator update message ID
+     */
+    function setInitialOperatorSet(RollupOperators.Operator[] memory operators, uint64 _nextOperatorUpdateId)
+        external
+        onlyAggregator
+    {
+        require(_operatorSet.totalWeight == 0, "Operator set already initialized");
+
+        _operatorSet.update(operators);
+        nextOperatorUpdateId = _nextOperatorUpdateId;
     }
 
     /**

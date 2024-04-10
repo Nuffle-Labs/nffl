@@ -91,15 +91,13 @@ contract SFFLRegistryRollupTest is TestUtils {
                 address(new SFFLRegistryRollup()),
                 addr("proxyAdmin"),
                 abi.encodeWithSelector(
-                    registry.initialize.selector,
-                    initialOperators,
-                    QUORUM_THRESHOLD,
-                    uint64(0),
-                    addr("owner"),
-                    pauserRegistry
+                    registry.initialize.selector, QUORUM_THRESHOLD, addr("owner"), addr("aggregator"), pauserRegistry
                 )
             )
         );
+
+        vm.prank(addr("aggregator"));
+        registry.setInitialOperatorSet(initialOperators, 1);
     }
 
     function test_setUp() public {
