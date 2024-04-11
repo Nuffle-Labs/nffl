@@ -2,6 +2,7 @@ package aggregator
 
 import (
 	"context"
+	"sync"
 	"time"
 
 	"github.com/Layr-Labs/eigensdk-go/chainio/clients/eth"
@@ -11,7 +12,9 @@ import (
 	"github.com/ethereum/go-ethereum/accounts/abi/bind"
 	"github.com/ethereum/go-ethereum/common"
 
+	opsetupdatereg "github.com/NethermindEth/near-sffl/contracts/bindings/SFFLOperatorSetUpdateRegistry"
 	registryrollup "github.com/NethermindEth/near-sffl/contracts/bindings/SFFLRegistryRollup"
+	"github.com/NethermindEth/near-sffl/core/chainio"
 	"github.com/NethermindEth/near-sffl/core/config"
 	"github.com/NethermindEth/near-sffl/core/types/messages"
 )
@@ -20,14 +23,17 @@ const NUM_OF_RETRIES = 5
 const TX_RETRY_INTERVAL = time.Millisecond * 200
 
 type RollupWriter struct {
-	txMgr              txmgr.TxManager
-	client             eth.EthClient
-	sfflRegistryRollup *registryrollup.ContractSFFLRegistryRollup
+	txMgr                 txmgr.TxManager
+	client                eth.EthClient
+	sfflRegistryRollup    *registryrollup.ContractSFFLRegistryRollup
+	avsReader             chainio.AvsReaderer
+	avsSubscriber         chainio.AvsSubscriberer
+	operatorSetUpdateLock sync.Mutex
 
 	logger logging.Logger
 }
 
-func NewRollupWriter(ctx context.Context, rollupInfo config.RollupInfo, signerConfig signerv2.Config, address common.Address, logger logging.Logger) (*RollupWriter, error) {
+func NewRollupWriter(ctx context.Context, avsReader chainio.AvsReaderer, avsSubscriber chainio.AvsSubscriberer, rollupInfo config.RollupInfo, signerConfig signerv2.Config, address common.Address, logger logging.Logger) (*RollupWriter, error) {
 	client, err := eth.NewClient(rollupInfo.RpcUrl)
 	if err != nil {
 		return nil, err
@@ -49,15 +55,111 @@ func NewRollupWriter(ctx context.Context, rollupInfo config.RollupInfo, signerCo
 		return nil, err
 	}
 
-	return &RollupWriter{
+	writer := &RollupWriter{
 		txMgr:              txMgr,
 		client:             client,
 		sfflRegistryRollup: sfflRegistryRollup,
+		avsReader:          avsReader,
+		avsSubscriber:      avsSubscriber,
 		logger:             logger,
-	}, nil
+	}
+
+	nextOperatorUpdateId, err := sfflRegistryRollup.NextOperatorUpdateId(&bind.CallOpts{})
+	if err != nil {
+		logger.Error("Error fetching NextOperatorUpdateId", "err", err)
+		return nil, err
+	}
+
+	if nextOperatorUpdateId == 0 {
+		go writer.initializeOperatorSet(ctx)
+	}
+
+	return writer, nil
+}
+
+func (w *RollupWriter) initializeOperatorSet(ctx context.Context) {
+	mainnetNextOperatorSetUpdateId, err := w.avsReader.GetNextOperatorSetUpdateId(ctx)
+	if err != nil {
+		w.logger.Error("Error fetching operator set update id", "err", err)
+		return
+	}
+
+	var operatorSetUpdatedChan chan *opsetupdatereg.ContractSFFLOperatorSetUpdateRegistryOperatorSetUpdatedAtBlock
+
+	if mainnetNextOperatorSetUpdateId == 0 {
+		w.logger.Info("Subscribing to operator set updates")
+		subscription, err := w.avsSubscriber.SubscribeToOperatorSetUpdates(operatorSetUpdatedChan)
+		if err != nil {
+			w.logger.Error("Error subscribing to operator set updates", "err", err)
+			return
+		}
+
+		for {
+			select {
+			case <-ctx.Done():
+				return
+			case <-subscription.Err():
+				w.logger.Error("Subscription error", "err", subscription.Err())
+				return
+			case _ = <-operatorSetUpdatedChan:
+				w.logger.Info("Received operator set update")
+				w.updateOperatorSet(ctx)
+				return
+			}
+		}
+	} else {
+		w.updateOperatorSet(ctx)
+	}
+}
+
+func (w *RollupWriter) updateOperatorSet(ctx context.Context) {
+	w.operatorSetUpdateLock.Lock()
+	defer w.operatorSetUpdateLock.Unlock()
+
+	mainnetNextOperatorSetUpdateId, err := w.avsReader.GetNextOperatorSetUpdateId(ctx)
+	if err != nil {
+		w.logger.Error("Error fetching operator set update id", "err", err)
+		return
+	}
+
+	operators, err := w.avsReader.GetOperatorSetUpdateDelta(ctx, mainnetNextOperatorSetUpdateId-1)
+	if err != nil {
+		w.logger.Error("Error fetching operator set update delta", "err", err)
+		return
+	}
+
+	w.logger.Info("Updating operator set")
+	convertedOperators := make([]registryrollup.RollupOperatorsOperator, len(operators))
+	for i, op := range operators {
+		convertedOperators[i] = registryrollup.RollupOperatorsOperator{
+			Pubkey: registryrollup.BN254G1Point{X: op.Pubkey.X, Y: op.Pubkey.Y},
+			Weight: op.Weight,
+		}
+	}
+
+	txOpts, err := w.txMgr.GetNoSendTxOpts()
+	if err != nil {
+		w.logger.Error("Error getting tx opts", "err", err)
+		return
+	}
+
+	tx, err := w.sfflRegistryRollup.SetInitialOperatorSet(txOpts, convertedOperators, mainnetNextOperatorSetUpdateId)
+	if err != nil {
+		w.logger.Error("Error assembling SetInitialOperatorSet tx", "err", err)
+		return
+	}
+
+	_, err = w.txMgr.Send(ctx, tx)
+	if err != nil {
+		w.logger.Error("Error sending SetInitialOperatorSet tx", "err", err)
+		return
+	}
 }
 
 func (w *RollupWriter) UpdateOperatorSet(ctx context.Context, message messages.OperatorSetUpdateMessage, signatureInfo registryrollup.RollupOperatorsSignatureInfo) error {
+	w.operatorSetUpdateLock.Lock()
+	defer w.operatorSetUpdateLock.Unlock()
+
 	operation := func() error {
 		txOpts, err := w.txMgr.GetNoSendTxOpts()
 		if err != nil {
@@ -126,10 +228,11 @@ type RollupBroadcaster struct {
 	errorChan chan error
 }
 
-func NewRollupBroadcaster(ctx context.Context, rollupsInfo map[uint32]config.RollupInfo, signerConfig signerv2.Config, address common.Address, logger logging.Logger) (*RollupBroadcaster, error) {
+func NewRollupBroadcaster(ctx context.Context, avsReader chainio.AvsReaderer, avsSubscriber chainio.AvsSubscriberer, rollupsInfo map[uint32]config.RollupInfo, signerConfig signerv2.Config, address common.Address, logger logging.Logger) (*RollupBroadcaster, error) {
 	writers := make([]*RollupWriter, 0, len(rollupsInfo))
+
 	for id, info := range rollupsInfo {
-		writer, err := NewRollupWriter(ctx, info, signerConfig, address, logger)
+		writer, err := NewRollupWriter(ctx, avsReader, avsSubscriber, info, signerConfig, address, logger)
 		if err != nil {
 			logger.Error("Couldn't create RollupWriter", "chainId", id, "err", err)
 			return nil, err

@@ -125,6 +125,12 @@ func NewAggregator(ctx context.Context, config *config.Config, logger logging.Lo
 		return nil, err
 	}
 
+	avsSubscriber, err := chainio.BuildAvsSubscriber(config.SFFLRegistryCoordinatorAddr, config.OperatorStateRetrieverAddr, ethHttpClient, logger)
+	if err != nil {
+		logger.Error("Cannot create AvsSubscriber", "err", err)
+		return nil, err
+	}
+
 	chainioConfig := sdkclients.BuildAllConfig{
 		EthHttpUrl:                 config.EthHttpRpcUrl,
 		EthWsUrl:                   config.EthWsRpcUrl,
@@ -145,7 +151,7 @@ func NewAggregator(ctx context.Context, config *config.Config, logger logging.Lo
 		return nil, err
 	}
 
-	rollupBroadcaster, err := NewRollupBroadcaster(ctx, config.RollupsInfo, signerConfig, config.AggregatorAddress, logger)
+	rollupBroadcaster, err := NewRollupBroadcaster(ctx, avsReader, avsSubscriber, config.RollupsInfo, signerConfig, config.AggregatorAddress, logger)
 	if err != nil {
 		logger.Error("Cannot create rollup broadcaster", "err", err)
 		return nil, err
