@@ -20,7 +20,6 @@ function create_binding {
 }
 
 rm -rf bindings/*
-forge clean --root ./evm
 forge build --root ./evm
 
 avs_service_contracts="SFFLServiceManager SFFLTaskManager SFFLRegistryRollup SFFLRegistryCoordinator SFFLOperatorSetUpdateRegistry"
