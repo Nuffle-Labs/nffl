@@ -43,8 +43,8 @@ type RollupOperatorsOperator struct {
 
 // ContractSFFLOperatorSetUpdateRegistryMetaData contains all meta data concerning the ContractSFFLOperatorSetUpdateRegistry contract.
 var ContractSFFLOperatorSetUpdateRegistryMetaData = &bind.MetaData{
-	ABI: "[{\"type\":\"constructor\",\"inputs\":[{\"name\":\"_registryCoordinator\",\"type\":\"address\",\"internalType\":\"contractSFFLRegistryCoordinator\"}],\"stateMutability\":\"nonpayable\"},{\"type\":\"function\",\"name\":\"getOperatorSetUpdate\",\"inputs\":[{\"name\":\"operatorSetUpdateId\",\"type\":\"uint64\",\"internalType\":\"uint64\"}],\"outputs\":[{\"name\":\"previousOperatorSet\",\"type\":\"tuple[]\",\"internalType\":\"structRollupOperators.Operator[]\",\"components\":[{\"name\":\"pubkey\",\"type\":\"tuple\",\"internalType\":\"structBN254.G1Point\",\"components\":[{\"name\":\"X\",\"type\":\"uint256\",\"internalType\":\"uint256\"},{\"name\":\"Y\",\"type\":\"uint256\",\"internalType\":\"uint256\"}]},{\"name\":\"weight\",\"type\":\"uint128\",\"internalType\":\"uint128\"}]},{\"name\":\"newOperatorSet\",\"type\":\"tuple[]\",\"internalType\":\"structRollupOperators.Operator[]\",\"components\":[{\"name\":\"pubkey\",\"type\":\"tuple\",\"internalType\":\"structBN254.G1Point\",\"components\":[{\"name\":\"X\",\"type\":\"uint256\",\"internalType\":\"uint256\"},{\"name\":\"Y\",\"type\":\"uint256\",\"internalType\":\"uint256\"}]},{\"name\":\"weight\",\"type\":\"uint128\",\"internalType\":\"uint128\"}]}],\"stateMutability\":\"view\"},{\"type\":\"function\",\"name\":\"getOperatorSetUpdateCount\",\"inputs\":[],\"outputs\":[{\"name\":\"\",\"type\":\"uint64\",\"internalType\":\"uint64\"}],\"stateMutability\":\"view\"},{\"type\":\"function\",\"name\":\"operatorSetUpdateIdToBlockNumber\",\"inputs\":[{\"name\":\"\",\"type\":\"uint256\",\"internalType\":\"uint256\"}],\"outputs\":[{\"name\":\"\",\"type\":\"uint32\",\"internalType\":\"uint32\"}],\"stateMutability\":\"view\"},{\"type\":\"function\",\"name\":\"recordOperatorSetUpdate\",\"inputs\":[],\"outputs\":[],\"stateMutability\":\"nonpayable\"},{\"type\":\"function\",\"name\":\"registryCoordinator\",\"inputs\":[],\"outputs\":[{\"name\":\"\",\"type\":\"address\",\"internalType\":\"contractSFFLRegistryCoordinator\"}],\"stateMutability\":\"view\"},{\"type\":\"event\",\"name\":\"Initialized\",\"inputs\":[{\"name\":\"version\",\"type\":\"uint8\",\"indexed\":false,\"internalType\":\"uint8\"}],\"anonymous\":false},{\"type\":\"event\",\"name\":\"OperatorSetUpdatedAtBlock\",\"inputs\":[{\"name\":\"id\",\"type\":\"uint64\",\"indexed\":true,\"internalType\":\"uint64\"},{\"name\":\"timestamp\",\"type\":\"uint64\",\"indexed\":true,\"internalType\":\"uint64\"}],\"anonymous\":false}]",
-	Bin: "0x60a060405234801561001057600080fd5b50604051610cb7380380610cb783398101604081905261002f9161010a565b6001600160a01b03811660805261004461004a565b5061013a565b600054610100900460ff16156100b65760405162461bcd60e51b815260206004820152602760248201527f496e697469616c697a61626c653a20636f6e747261637420697320696e697469604482015266616c697a696e6760c81b606482015260840160405180910390fd5b60005460ff9081161015610108576000805460ff191660ff9081179091556040519081527f7f26b83ff96e1f2b6a682f133852f6798a09c465da95921460cefb38474024989060200160405180910390a15b565b60006020828403121561011c57600080fd5b81516001600160a01b038116811461013357600080fd5b9392505050565b608051610b4761017060003960008181608b015281816101190152818161019f01528181610225015261037d0152610b476000f3fe608060405234801561001057600080fd5b50600436106100575760003560e01c8063046a06541461005c5780636d14a9871461008657806389a652ce146100c5578063af99fa0e146100e0578063bfe1073814610108575b600080fd5b61006f61006a36600461081e565b610112565b60405161007d9291906108a7565b60405180910390f35b6100ad7f000000000000000000000000000000000000000000000000000000000000000081565b6040516001600160a01b03909116815260200161007d565b6001546040516001600160401b03909116815260200161007d565b6100f36100ee3660046108d5565b610338565b60405163ffffffff909116815260200161007d565b610110610372565b005b60608060007f00000000000000000000000000000000000000000000000000000000000000006001600160a01b031663683048356040518163ffffffff1660e01b8152600401602060405180830381865afa158015610175573d6000803e3d6000fd5b505050506040513d601f19601f820116820180604052508101906101999190610906565b905060007f00000000000000000000000000000000000000000000000000000000000000006001600160a01b0316639e9923c26040518163ffffffff1660e01b8152600401602060405180830381865afa1580156101fb573d6000803e3d6000fd5b505050506040513d601f19601f8201168201806040525081019061021f9190610906565b905060007f00000000000000000000000000000000000000000000000000000000000000006001600160a01b0316635df459466040518163ffffffff1660e01b8152600401602060405180830381865afa158015610281573d6000803e3d6000fd5b505050506040513d601f19601f820116820180604052508101906102a59190610906565b90506001600160401b0386161561030f5761030c60016102c58189610939565b6001600160401b0316815481106102de576102de610961565b90600052602060002090600891828204019190066004029054906101000a900463ffffffff16848484610532565b94505b61032e6001876001600160401b0316815481106102de576102de610961565b9350505050915091565b6001818154811061034857600080fd5b9060005260206000209060089182820401919006600402915054906101000a900463ffffffff1681565b336001600160a01b037f0000000000000000000000000000000000000000000000000000000000000000161461042b5760405162461bcd60e51b815260206004820152604e60248201527f424c5341706b52656769737472792e6f6e6c795265676973747279436f6f726460448201527f696e61746f723a2063616c6c6572206973206e6f74207468652072656769737460648201526d393c9031b7b7b93234b730ba37b960911b608482015260a40160405180910390fd5b6001546001600160401b0381161580159061048d575043600161044e8184610939565b6001600160401b03168154811061046757610467610961565b6000918252602090912060088204015460079091166004026101000a900463ffffffff16145b156104955750565b426001600160401b0316816001600160401b03167fc48e61b12810d368042f781cfb732d0abb725377d90b600f78e0cec7dbd0c28d60405160405180910390a3506001805480820182556000919091527fb10e2d527612073b26eecdfd717e6a320cf44b4afac2b0732d9fcbe2b7fa0cf66008820401805460079092166004026101000a63ffffffff818102199093164390931602919091179055565b604051638902624560e01b815260006004820181905263ffffffff861660248301526060916001600160a01b03851690638902624590604401600060405180830381865afa158015610588573d6000803e3d6000fd5b505050506040513d6000823e601f3d908101601f191682016040526105b091908101906109bd565b9050600081516001600160401b038111156105cd576105cd610977565b60405190808252806020026020018201604052801561062157816020015b60408051608081018252600091810182815260608201839052815260208101919091528152602001906001900390816105eb5790505b50905060005b825181101561081357600083828151811061064457610644610961565b602002602001015190506000866001600160a01b03166347b314e8836040518263ffffffff1660e01b815260040161067e91815260200190565b602060405180830381865afa15801561069b573d6000803e3d6000fd5b505050506040513d601f19601f820116820180604052508101906106bf9190610906565b604051637ff81a8760e01b81526001600160a01b038083166004830152919250600091891690637ff81a8790602401606060405180830381865afa15801561070b573d6000803e3d6000fd5b505050506040513d601f19601f8201168201806040525081019061072f9190610a62565b5060405163fa28c62760e01b81526004810185905260006024820181905263ffffffff8e1660448301529192506001600160a01b038c169063fa28c62790606401602060405180830381865afa15801561078d573d6000803e3d6000fd5b505050506040513d601f19601f820116820180604052508101906107b19190610ac8565b90506040518060400160405280838152602001826bffffffffffffffffffffffff166001600160801b03168152508686815181106107f1576107f1610961565b602002602001018190525050505050808061080b90610af6565b915050610627565b509695505050505050565b60006020828403121561083057600080fd5b81356001600160401b038116811461084757600080fd5b9392505050565b600081518084526020808501945080840160005b8381101561089c578151805180518952840151848901528301516001600160801b0316604088015260609096019590820190600101610862565b509495945050505050565b6040815260006108ba604083018561084e565b82810360208401526108cc818561084e565b95945050505050565b6000602082840312156108e757600080fd5b5035919050565b6001600160a01b038116811461090357600080fd5b50565b60006020828403121561091857600080fd5b8151610847816108ee565b634e487b7160e01b600052601160045260246000fd5b60006001600160401b038381169083168181101561095957610959610923565b039392505050565b634e487b7160e01b600052603260045260246000fd5b634e487b7160e01b600052604160045260246000fd5b604051601f8201601f191681016001600160401b03811182821017156109b5576109b5610977565b604052919050565b600060208083850312156109d057600080fd5b82516001600160401b03808211156109e757600080fd5b818501915085601f8301126109fb57600080fd5b815181811115610a0d57610a0d610977565b8060051b9150610a1e84830161098d565b8181529183018401918481019088841115610a3857600080fd5b938501935b83851015610a5657845182529385019390850190610a3d565b98975050505050505050565b6000808284036060811215610a7657600080fd5b6040811215610a8457600080fd5b50604051604081018181106001600160401b0382111715610aa757610aa7610977565b60409081528451825260208086015190830152939093015192949293505050565b600060208284031215610ada57600080fd5b81516bffffffffffffffffffffffff8116811461084757600080fd5b6000600019821415610b0a57610b0a610923565b506001019056fea2646970667358221220ef06f9cde9d188969e76e89e6f94fcd8dd8c84235c5615b598eb5131b739b6ad64736f6c634300080c0033",
+	ABI: "[{\"type\":\"constructor\",\"inputs\":[{\"name\":\"_registryCoordinator\",\"type\":\"address\",\"internalType\":\"contractSFFLRegistryCoordinator\"}],\"stateMutability\":\"nonpayable\"},{\"type\":\"function\",\"name\":\"getOperatorSetUpdate\",\"inputs\":[{\"name\":\"operatorSetUpdateId\",\"type\":\"uint64\",\"internalType\":\"uint64\"}],\"outputs\":[{\"name\":\"previousOperatorSet\",\"type\":\"tuple[]\",\"internalType\":\"structRollupOperators.Operator[]\",\"components\":[{\"name\":\"pubkey\",\"type\":\"tuple\",\"internalType\":\"structBN254.G1Point\",\"components\":[{\"name\":\"X\",\"type\":\"uint256\",\"internalType\":\"uint256\"},{\"name\":\"Y\",\"type\":\"uint256\",\"internalType\":\"uint256\"}]},{\"name\":\"weight\",\"type\":\"uint128\",\"internalType\":\"uint128\"}]},{\"name\":\"newOperatorSet\",\"type\":\"tuple[]\",\"internalType\":\"structRollupOperators.Operator[]\",\"components\":[{\"name\":\"pubkey\",\"type\":\"tuple\",\"internalType\":\"structBN254.G1Point\",\"components\":[{\"name\":\"X\",\"type\":\"uint256\",\"internalType\":\"uint256\"},{\"name\":\"Y\",\"type\":\"uint256\",\"internalType\":\"uint256\"}]},{\"name\":\"weight\",\"type\":\"uint128\",\"internalType\":\"uint128\"}]}],\"stateMutability\":\"view\"},{\"type\":\"function\",\"name\":\"getOperatorSetUpdateCount\",\"inputs\":[],\"outputs\":[{\"name\":\"\",\"type\":\"uint64\",\"internalType\":\"uint64\"}],\"stateMutability\":\"view\"},{\"type\":\"function\",\"name\":\"isOperatorWhitelisted\",\"inputs\":[{\"name\":\"\",\"type\":\"address\",\"internalType\":\"address\"}],\"outputs\":[{\"name\":\"\",\"type\":\"bool\",\"internalType\":\"bool\"}],\"stateMutability\":\"view\"},{\"type\":\"function\",\"name\":\"operatorSetUpdateIdToBlockNumber\",\"inputs\":[{\"name\":\"\",\"type\":\"uint256\",\"internalType\":\"uint256\"}],\"outputs\":[{\"name\":\"\",\"type\":\"uint32\",\"internalType\":\"uint32\"}],\"stateMutability\":\"view\"},{\"type\":\"function\",\"name\":\"recordOperatorSetUpdate\",\"inputs\":[],\"outputs\":[],\"stateMutability\":\"nonpayable\"},{\"type\":\"function\",\"name\":\"registryCoordinator\",\"inputs\":[],\"outputs\":[{\"name\":\"\",\"type\":\"address\",\"internalType\":\"contractSFFLRegistryCoordinator\"}],\"stateMutability\":\"view\"},{\"type\":\"function\",\"name\":\"setOperatorWhitelisting\",\"inputs\":[{\"name\":\"operator\",\"type\":\"address\",\"internalType\":\"address\"},{\"name\":\"isWhitelisted\",\"type\":\"bool\",\"internalType\":\"bool\"}],\"outputs\":[],\"stateMutability\":\"nonpayable\"},{\"type\":\"event\",\"name\":\"Initialized\",\"inputs\":[{\"name\":\"version\",\"type\":\"uint8\",\"indexed\":false,\"internalType\":\"uint8\"}],\"anonymous\":false},{\"type\":\"event\",\"name\":\"OperatorSetUpdatedAtBlock\",\"inputs\":[{\"name\":\"id\",\"type\":\"uint64\",\"indexed\":true,\"internalType\":\"uint64\"},{\"name\":\"timestamp\",\"type\":\"uint64\",\"indexed\":true,\"internalType\":\"uint64\"}],\"anonymous\":false},{\"type\":\"event\",\"name\":\"OperatorWhitelistingUpdated\",\"inputs\":[{\"name\":\"operator\",\"type\":\"address\",\"indexed\":true,\"internalType\":\"address\"},{\"name\":\"isWhitelisted\",\"type\":\"bool\",\"indexed\":false,\"internalType\":\"bool\"}],\"anonymous\":false}]",
+	Bin: "0x60a060405234801561001057600080fd5b50604051610f31380380610f3183398101604081905261002f9161010a565b6001600160a01b03811660805261004461004a565b5061013a565b600054610100900460ff16156100b65760405162461bcd60e51b815260206004820152602760248201527f496e697469616c697a61626c653a20636f6e747261637420697320696e697469604482015266616c697a696e6760c81b606482015260840160405180910390fd5b60005460ff9081161015610108576000805460ff191660ff9081179091556040519081527f7f26b83ff96e1f2b6a682f133852f6798a09c465da95921460cefb38474024989060200160405180910390a15b565b60006020828403121561011c57600080fd5b81516001600160a01b038116811461013357600080fd5b9392505050565b608051610dba6101776000396000818160f9015281816101850152818161020b01528181610291015281816103a6015261058a0152610dba6000f3fe608060405234801561001057600080fd5b506004361061007d5760003560e01c80636d14a9871161005b5780636d14a987146100f457806389a652ce14610133578063af99fa0e1461014e578063bfe107381461017657600080fd5b8063046a0654146100825780630ca192c7146100ac5780632e8da829146100c1575b600080fd5b610095610090366004610a36565b61017e565b6040516100a3929190610abf565b60405180910390f35b6100bf6100ba366004610b05565b6103a4565b005b6100e46100cf366004610b43565b60026020526000908152604090205460ff1681565b60405190151581526020016100a3565b61011b7f000000000000000000000000000000000000000000000000000000000000000081565b6040516001600160a01b0390911681526020016100a3565b6001546040516001600160401b0390911681526020016100a3565b61016161015c366004610b60565b610545565b60405163ffffffff90911681526020016100a3565b6100bf61057f565b60608060007f00000000000000000000000000000000000000000000000000000000000000006001600160a01b031663683048356040518163ffffffff1660e01b8152600401602060405180830381865afa1580156101e1573d6000803e3d6000fd5b505050506040513d601f19601f820116820180604052508101906102059190610b79565b905060007f00000000000000000000000000000000000000000000000000000000000000006001600160a01b0316639e9923c26040518163ffffffff1660e01b8152600401602060405180830381865afa158015610267573d6000803e3d6000fd5b505050506040513d601f19601f8201168201806040525081019061028b9190610b79565b905060007f00000000000000000000000000000000000000000000000000000000000000006001600160a01b0316635df459466040518163ffffffff1660e01b8152600401602060405180830381865afa1580156102ed573d6000803e3d6000fd5b505050506040513d601f19601f820116820180604052508101906103119190610b79565b90506001600160401b0386161561037b5761037860016103318189610bac565b6001600160401b03168154811061034a5761034a610bd4565b90600052602060002090600891828204019190066004029054906101000a900463ffffffff1684848461074a565b94505b61039a6001876001600160401b03168154811061034a5761034a610bd4565b9350505050915091565b7f00000000000000000000000000000000000000000000000000000000000000006001600160a01b0316638da5cb5b6040518163ffffffff1660e01b8152600401602060405180830381865afa158015610402573d6000803e3d6000fd5b505050506040513d601f19601f820116820180604052508101906104269190610b79565b6001600160a01b0316336001600160a01b0316146104e65760405162461bcd60e51b815260206004820152606660248201527f5346464c4f70657261746f7253657455706461746552656769737472792e6f6e60448201527f6c79436f6f7264696e61746f724f776e65723a2063616c6c6572206973206e6f60648201527f7420746865206f776e6572206f6620746865207265676973747279436f6f726460848201526534b730ba37b960d11b60a482015260c4015b60405180910390fd5b6001600160a01b038216600081815260026020908152604091829020805460ff191685151590811790915591519182527f2b83db0a8941bdf64ef44d95a1a397fdbcb6fd1b93ed421b73d00ddcecf5c793910160405180910390a25050565b6001818154811061055557600080fd5b9060005260206000209060089182820401919006600402915054906101000a900463ffffffff1681565b336001600160a01b037f000000000000000000000000000000000000000000000000000000000000000016146106435760405162461bcd60e51b815260206004820152605d60248201527f5346464c4f70657261746f7253657455706461746552656769737472792e6f6e60448201527f6c795265676973747279436f6f7264696e61746f723a2063616c6c657220697360648201527f206e6f742074686520726567697374727920636f6f7264696e61746f72000000608482015260a4016104dd565b6001546001600160401b038116158015906106a557504360016106668184610bac565b6001600160401b03168154811061067f5761067f610bd4565b6000918252602090912060088204015460079091166004026101000a900463ffffffff16145b156106ad5750565b426001600160401b0316816001600160401b03167fc48e61b12810d368042f781cfb732d0abb725377d90b600f78e0cec7dbd0c28d60405160405180910390a3506001805480820182556000919091527fb10e2d527612073b26eecdfd717e6a320cf44b4afac2b0732d9fcbe2b7fa0cf66008820401805460079092166004026101000a63ffffffff818102199093164390931602919091179055565b604051638902624560e01b815260006004820181905263ffffffff861660248301526060916001600160a01b03851690638902624590604401600060405180830381865afa1580156107a0573d6000803e3d6000fd5b505050506040513d6000823e601f3d908101601f191682016040526107c89190810190610c30565b9050600081516001600160401b038111156107e5576107e5610bea565b60405190808252806020026020018201604052801561083957816020015b60408051608081018252600091810182815260608201839052815260208101919091528152602001906001900390816108035790505b50905060005b8251811015610a2b57600083828151811061085c5761085c610bd4565b602002602001015190506000866001600160a01b03166347b314e8836040518263ffffffff1660e01b815260040161089691815260200190565b602060405180830381865afa1580156108b3573d6000803e3d6000fd5b505050506040513d601f19601f820116820180604052508101906108d79190610b79565b604051637ff81a8760e01b81526001600160a01b038083166004830152919250600091891690637ff81a8790602401606060405180830381865afa158015610923573d6000803e3d6000fd5b505050506040513d601f19601f820116820180604052508101906109479190610cd5565b5060405163fa28c62760e01b81526004810185905260006024820181905263ffffffff8e1660448301529192506001600160a01b038c169063fa28c62790606401602060405180830381865afa1580156109a5573d6000803e3d6000fd5b505050506040513d601f19601f820116820180604052508101906109c99190610d3b565b90506040518060400160405280838152602001826bffffffffffffffffffffffff166001600160801b0316815250868681518110610a0957610a09610bd4565b6020026020010181905250505050508080610a2390610d69565b91505061083f565b509695505050505050565b600060208284031215610a4857600080fd5b81356001600160401b0381168114610a5f57600080fd5b9392505050565b600081518084526020808501945080840160005b83811015610ab4578151805180518952840151848901528301516001600160801b0316604088015260609096019590820190600101610a7a565b509495945050505050565b604081526000610ad26040830185610a66565b8281036020840152610ae48185610a66565b95945050505050565b6001600160a01b0381168114610b0257600080fd5b50565b60008060408385031215610b1857600080fd5b8235610b2381610aed565b915060208301358015158114610b3857600080fd5b809150509250929050565b600060208284031215610b5557600080fd5b8135610a5f81610aed565b600060208284031215610b7257600080fd5b5035919050565b600060208284031215610b8b57600080fd5b8151610a5f81610aed565b634e487b7160e01b600052601160045260246000fd5b60006001600160401b0383811690831681811015610bcc57610bcc610b96565b039392505050565b634e487b7160e01b600052603260045260246000fd5b634e487b7160e01b600052604160045260246000fd5b604051601f8201601f191681016001600160401b0381118282101715610c2857610c28610bea565b604052919050565b60006020808385031215610c4357600080fd5b82516001600160401b0380821115610c5a57600080fd5b818501915085601f830112610c6e57600080fd5b815181811115610c8057610c80610bea565b8060051b9150610c91848301610c00565b8181529183018401918481019088841115610cab57600080fd5b938501935b83851015610cc957845182529385019390850190610cb0565b98975050505050505050565b6000808284036060811215610ce957600080fd5b6040811215610cf757600080fd5b50604051604081018181106001600160401b0382111715610d1a57610d1a610bea565b60409081528451825260208086015190830152939093015192949293505050565b600060208284031215610d4d57600080fd5b81516bffffffffffffffffffffffff81168114610a5f57600080fd5b6000600019821415610d7d57610d7d610b96565b506001019056fea2646970667358221220b21901333d143007fe80a6454e8e0f1c14d5ed4b072e53530177b2099c4362ff64736f6c634300080c0033",
 }
 
 // ContractSFFLOperatorSetUpdateRegistryABI is the input ABI used to generate the binding from.
@@ -290,6 +290,37 @@ func (_ContractSFFLOperatorSetUpdateRegistry *ContractSFFLOperatorSetUpdateRegis
 	return _ContractSFFLOperatorSetUpdateRegistry.Contract.GetOperatorSetUpdateCount(&_ContractSFFLOperatorSetUpdateRegistry.CallOpts)
 }
 
+// IsOperatorWhitelisted is a free data retrieval call binding the contract method 0x2e8da829.
+//
+// Solidity: function isOperatorWhitelisted(address ) view returns(bool)
+func (_ContractSFFLOperatorSetUpdateRegistry *ContractSFFLOperatorSetUpdateRegistryCaller) IsOperatorWhitelisted(opts *bind.CallOpts, arg0 common.Address) (bool, error) {
+	var out []interface{}
+	err := _ContractSFFLOperatorSetUpdateRegistry.contract.Call(opts, &out, "isOperatorWhitelisted", arg0)
+
+	if err != nil {
+		return *new(bool), err
+	}
+
+	out0 := *abi.ConvertType(out[0], new(bool)).(*bool)
+
+	return out0, err
+
+}
+
+// IsOperatorWhitelisted is a free data retrieval call binding the contract method 0x2e8da829.
+//
+// Solidity: function isOperatorWhitelisted(address ) view returns(bool)
+func (_ContractSFFLOperatorSetUpdateRegistry *ContractSFFLOperatorSetUpdateRegistrySession) IsOperatorWhitelisted(arg0 common.Address) (bool, error) {
+	return _ContractSFFLOperatorSetUpdateRegistry.Contract.IsOperatorWhitelisted(&_ContractSFFLOperatorSetUpdateRegistry.CallOpts, arg0)
+}
+
+// IsOperatorWhitelisted is a free data retrieval call binding the contract method 0x2e8da829.
+//
+// Solidity: function isOperatorWhitelisted(address ) view returns(bool)
+func (_ContractSFFLOperatorSetUpdateRegistry *ContractSFFLOperatorSetUpdateRegistryCallerSession) IsOperatorWhitelisted(arg0 common.Address) (bool, error) {
+	return _ContractSFFLOperatorSetUpdateRegistry.Contract.IsOperatorWhitelisted(&_ContractSFFLOperatorSetUpdateRegistry.CallOpts, arg0)
+}
+
 // OperatorSetUpdateIdToBlockNumber is a free data retrieval call binding the contract method 0xaf99fa0e.
 //
 // Solidity: function operatorSetUpdateIdToBlockNumber(uint256 ) view returns(uint32)
@@ -371,6 +402,27 @@ func (_ContractSFFLOperatorSetUpdateRegistry *ContractSFFLOperatorSetUpdateRegis
 // Solidity: function recordOperatorSetUpdate() returns()
 func (_ContractSFFLOperatorSetUpdateRegistry *ContractSFFLOperatorSetUpdateRegistryTransactorSession) RecordOperatorSetUpdate() (*types.Transaction, error) {
 	return _ContractSFFLOperatorSetUpdateRegistry.Contract.RecordOperatorSetUpdate(&_ContractSFFLOperatorSetUpdateRegistry.TransactOpts)
+}
+
+// SetOperatorWhitelisting is a paid mutator transaction binding the contract method 0x0ca192c7.
+//
+// Solidity: function setOperatorWhitelisting(address operator, bool isWhitelisted) returns()
+func (_ContractSFFLOperatorSetUpdateRegistry *ContractSFFLOperatorSetUpdateRegistryTransactor) SetOperatorWhitelisting(opts *bind.TransactOpts, operator common.Address, isWhitelisted bool) (*types.Transaction, error) {
+	return _ContractSFFLOperatorSetUpdateRegistry.contract.Transact(opts, "setOperatorWhitelisting", operator, isWhitelisted)
+}
+
+// SetOperatorWhitelisting is a paid mutator transaction binding the contract method 0x0ca192c7.
+//
+// Solidity: function setOperatorWhitelisting(address operator, bool isWhitelisted) returns()
+func (_ContractSFFLOperatorSetUpdateRegistry *ContractSFFLOperatorSetUpdateRegistrySession) SetOperatorWhitelisting(operator common.Address, isWhitelisted bool) (*types.Transaction, error) {
+	return _ContractSFFLOperatorSetUpdateRegistry.Contract.SetOperatorWhitelisting(&_ContractSFFLOperatorSetUpdateRegistry.TransactOpts, operator, isWhitelisted)
+}
+
+// SetOperatorWhitelisting is a paid mutator transaction binding the contract method 0x0ca192c7.
+//
+// Solidity: function setOperatorWhitelisting(address operator, bool isWhitelisted) returns()
+func (_ContractSFFLOperatorSetUpdateRegistry *ContractSFFLOperatorSetUpdateRegistryTransactorSession) SetOperatorWhitelisting(operator common.Address, isWhitelisted bool) (*types.Transaction, error) {
+	return _ContractSFFLOperatorSetUpdateRegistry.Contract.SetOperatorWhitelisting(&_ContractSFFLOperatorSetUpdateRegistry.TransactOpts, operator, isWhitelisted)
 }
 
 // ContractSFFLOperatorSetUpdateRegistryInitializedIterator is returned from FilterInitialized and is used to iterate over the raw logs and unpacked data for Initialized events raised by the ContractSFFLOperatorSetUpdateRegistry contract.
@@ -654,6 +706,151 @@ func (_ContractSFFLOperatorSetUpdateRegistry *ContractSFFLOperatorSetUpdateRegis
 func (_ContractSFFLOperatorSetUpdateRegistry *ContractSFFLOperatorSetUpdateRegistryFilterer) ParseOperatorSetUpdatedAtBlock(log types.Log) (*ContractSFFLOperatorSetUpdateRegistryOperatorSetUpdatedAtBlock, error) {
 	event := new(ContractSFFLOperatorSetUpdateRegistryOperatorSetUpdatedAtBlock)
 	if err := _ContractSFFLOperatorSetUpdateRegistry.contract.UnpackLog(event, "OperatorSetUpdatedAtBlock", log); err != nil {
+		return nil, err
+	}
+	event.Raw = log
+	return event, nil
+}
+
+// ContractSFFLOperatorSetUpdateRegistryOperatorWhitelistingUpdatedIterator is returned from FilterOperatorWhitelistingUpdated and is used to iterate over the raw logs and unpacked data for OperatorWhitelistingUpdated events raised by the ContractSFFLOperatorSetUpdateRegistry contract.
+type ContractSFFLOperatorSetUpdateRegistryOperatorWhitelistingUpdatedIterator struct {
+	Event *ContractSFFLOperatorSetUpdateRegistryOperatorWhitelistingUpdated // Event containing the contract specifics and raw log
+
+	contract *bind.BoundContract // Generic contract to use for unpacking event data
+	event    string              // Event name to use for unpacking event data
+
+	logs chan types.Log        // Log channel receiving the found contract events
+	sub  ethereum.Subscription // Subscription for errors, completion and termination
+	done bool                  // Whether the subscription completed delivering logs
+	fail error                 // Occurred error to stop iteration
+}
+
+// Next advances the iterator to the subsequent event, returning whether there
+// are any more events found. In case of a retrieval or parsing error, false is
+// returned and Error() can be queried for the exact failure.
+func (it *ContractSFFLOperatorSetUpdateRegistryOperatorWhitelistingUpdatedIterator) Next() bool {
+	// If the iterator failed, stop iterating
+	if it.fail != nil {
+		return false
+	}
+	// If the iterator completed, deliver directly whatever's available
+	if it.done {
+		select {
+		case log := <-it.logs:
+			it.Event = new(ContractSFFLOperatorSetUpdateRegistryOperatorWhitelistingUpdated)
+			if err := it.contract.UnpackLog(it.Event, it.event, log); err != nil {
+				it.fail = err
+				return false
+			}
+			it.Event.Raw = log
+			return true
+
+		default:
+			return false
+		}
+	}
+	// Iterator still in progress, wait for either a data or an error event
+	select {
+	case log := <-it.logs:
+		it.Event = new(ContractSFFLOperatorSetUpdateRegistryOperatorWhitelistingUpdated)
+		if err := it.contract.UnpackLog(it.Event, it.event, log); err != nil {
+			it.fail = err
+			return false
+		}
+		it.Event.Raw = log
+		return true
+
+	case err := <-it.sub.Err():
+		it.done = true
+		it.fail = err
+		return it.Next()
+	}
+}
+
+// Error returns any retrieval or parsing error occurred during filtering.
+func (it *ContractSFFLOperatorSetUpdateRegistryOperatorWhitelistingUpdatedIterator) Error() error {
+	return it.fail
+}
+
+// Close terminates the iteration process, releasing any pending underlying
+// resources.
+func (it *ContractSFFLOperatorSetUpdateRegistryOperatorWhitelistingUpdatedIterator) Close() error {
+	it.sub.Unsubscribe()
+	return nil
+}
+
+// ContractSFFLOperatorSetUpdateRegistryOperatorWhitelistingUpdated represents a OperatorWhitelistingUpdated event raised by the ContractSFFLOperatorSetUpdateRegistry contract.
+type ContractSFFLOperatorSetUpdateRegistryOperatorWhitelistingUpdated struct {
+	Operator      common.Address
+	IsWhitelisted bool
+	Raw           types.Log // Blockchain specific contextual infos
+}
+
+// FilterOperatorWhitelistingUpdated is a free log retrieval operation binding the contract event 0x2b83db0a8941bdf64ef44d95a1a397fdbcb6fd1b93ed421b73d00ddcecf5c793.
+//
+// Solidity: event OperatorWhitelistingUpdated(address indexed operator, bool isWhitelisted)
+func (_ContractSFFLOperatorSetUpdateRegistry *ContractSFFLOperatorSetUpdateRegistryFilterer) FilterOperatorWhitelistingUpdated(opts *bind.FilterOpts, operator []common.Address) (*ContractSFFLOperatorSetUpdateRegistryOperatorWhitelistingUpdatedIterator, error) {
+
+	var operatorRule []interface{}
+	for _, operatorItem := range operator {
+		operatorRule = append(operatorRule, operatorItem)
+	}
+
+	logs, sub, err := _ContractSFFLOperatorSetUpdateRegistry.contract.FilterLogs(opts, "OperatorWhitelistingUpdated", operatorRule)
+	if err != nil {
+		return nil, err
+	}
+	return &ContractSFFLOperatorSetUpdateRegistryOperatorWhitelistingUpdatedIterator{contract: _ContractSFFLOperatorSetUpdateRegistry.contract, event: "OperatorWhitelistingUpdated", logs: logs, sub: sub}, nil
+}
+
+// WatchOperatorWhitelistingUpdated is a free log subscription operation binding the contract event 0x2b83db0a8941bdf64ef44d95a1a397fdbcb6fd1b93ed421b73d00ddcecf5c793.
+//
+// Solidity: event OperatorWhitelistingUpdated(address indexed operator, bool isWhitelisted)
+func (_ContractSFFLOperatorSetUpdateRegistry *ContractSFFLOperatorSetUpdateRegistryFilterer) WatchOperatorWhitelistingUpdated(opts *bind.WatchOpts, sink chan<- *ContractSFFLOperatorSetUpdateRegistryOperatorWhitelistingUpdated, operator []common.Address) (event.Subscription, error) {
+
+	var operatorRule []interface{}
+	for _, operatorItem := range operator {
+		operatorRule = append(operatorRule, operatorItem)
+	}
+
+	logs, sub, err := _ContractSFFLOperatorSetUpdateRegistry.contract.WatchLogs(opts, "OperatorWhitelistingUpdated", operatorRule)
+	if err != nil {
+		return nil, err
+	}
+	return event.NewSubscription(func(quit <-chan struct{}) error {
+		defer sub.Unsubscribe()
+		for {
+			select {
+			case log := <-logs:
+				// New log arrived, parse the event and forward to the user
+				event := new(ContractSFFLOperatorSetUpdateRegistryOperatorWhitelistingUpdated)
+				if err := _ContractSFFLOperatorSetUpdateRegistry.contract.UnpackLog(event, "OperatorWhitelistingUpdated", log); err != nil {
+					return err
+				}
+				event.Raw = log
+
+				select {
+				case sink <- event:
+				case err := <-sub.Err():
+					return err
+				case <-quit:
+					return nil
+				}
+			case err := <-sub.Err():
+				return err
+			case <-quit:
+				return nil
+			}
+		}
+	}), nil
+}
+
+// ParseOperatorWhitelistingUpdated is a log parse operation binding the contract event 0x2b83db0a8941bdf64ef44d95a1a397fdbcb6fd1b93ed421b73d00ddcecf5c793.
+//
+// Solidity: event OperatorWhitelistingUpdated(address indexed operator, bool isWhitelisted)
+func (_ContractSFFLOperatorSetUpdateRegistry *ContractSFFLOperatorSetUpdateRegistryFilterer) ParseOperatorWhitelistingUpdated(log types.Log) (*ContractSFFLOperatorSetUpdateRegistryOperatorWhitelistingUpdated, error) {
+	event := new(ContractSFFLOperatorSetUpdateRegistryOperatorWhitelistingUpdated)
+	if err := _ContractSFFLOperatorSetUpdateRegistry.contract.UnpackLog(event, "OperatorWhitelistingUpdated", log); err != nil {
 		return nil, err
 	}
 	event.Raw = log
