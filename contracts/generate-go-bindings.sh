@@ -22,7 +22,7 @@ function create_binding {
 rm -rf bindings/*
 forge build --root ./evm
 
-avs_service_contracts="SFFLServiceManager SFFLTaskManager SFFLRegistryRollup SFFLRegistryCoordinator SFFLOperatorSetUpdateRegistry"
+avs_service_contracts="SFFLServiceManager SFFLTaskManager SFFLRegistryRollup SFFLRegistryCoordinator SFFLOperatorSetUpdateRegistry TransparentUpgradeableProxy"
 for contract in $avs_service_contracts; do
     create_binding . $contract ./bindings
 done
