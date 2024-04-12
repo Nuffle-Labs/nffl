@@ -29,7 +29,7 @@ pub(crate) enum SubCommand {
 #[derive(clap::Parser, Deserialize, Debug)]
 pub(crate) struct RunConfigArgs {
     /// Rabbit mq address
-    #[clap(long)]
+    #[clap(long, default_value = "amqp://localhost:5672")]
     pub rmq_address: String,
     /// Data availability contract
     #[clap(short, long)]
