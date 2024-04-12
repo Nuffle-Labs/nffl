@@ -114,6 +114,26 @@ contract SFFLTaskManagerTest is TestUtils {
         assertEq(taskManager.allCheckpointTaskHashes(0), task.hash());
     }
 
+    function test_createCheckpointTask_RevertWhen_Paused() public {
+        uint8 flag = taskManager.PAUSED_CREATE_CHECKPOINT_TASK();
+
+        vm.prank(pauser);
+        taskManager.pause(2 ** flag);
+
+        Checkpoint.Task memory task = Checkpoint.Task({
+            taskCreatedBlock: 100,
+            fromTimestamp: 0,
+            toTimestamp: 1,
+            quorumThreshold: quorumThreshold(thresholdDenominator, 1),
+            quorumNumbers: hex"00"
+        });
+
+        vm.expectRevert("Pausable: index is paused");
+
+        vm.prank(generator);
+        taskManager.createCheckpointTask(task.fromTimestamp, task.toTimestamp, task.quorumThreshold, task.quorumNumbers);
+    }
+
     function test_respondToCheckpointTask() public {
         Checkpoint.Task memory task = Checkpoint.Task({
             taskCreatedBlock: 1000,
@@ -153,6 +173,34 @@ contract SFFLTaskManagerTest is TestUtils {
         taskManager.respondToCheckpointTask(task, taskResponse, nonSignerStakesAndSignature);
 
         assertEq(taskManager.allCheckpointTaskResponses(0), taskResponse.hashAgreement(taskResponseMetadata));
+    }
+
+    function test_respondToCheckpointTask_RevertWhen_Paused() public {
+        uint8 flag = taskManager.PAUSED_RESPOND_TO_CHECKPOINT_TASK();
+
+        vm.prank(pauser);
+        taskManager.pause(2 ** flag);
+
+        Checkpoint.Task memory task = Checkpoint.Task({
+            taskCreatedBlock: 1000,
+            fromTimestamp: 0,
+            toTimestamp: 1,
+            quorumThreshold: quorumThreshold(thresholdDenominator, 1),
+            quorumNumbers: hex"00"
+        });
+
+        Checkpoint.TaskResponse memory taskResponse = Checkpoint.TaskResponse({
+            referenceTaskIndex: 0,
+            stateRootUpdatesRoot: keccak256(hex"beef"),
+            operatorSetUpdatesRoot: keccak256(hex"f00d")
+        });
+
+        IBLSSignatureChecker.NonSignerStakesAndSignature memory nonSignerStakesAndSignature;
+
+        vm.expectRevert("Pausable: index is paused");
+
+        vm.prank(aggregator);
+        taskManager.respondToCheckpointTask(task, taskResponse, nonSignerStakesAndSignature);
     }
 
     function test_respondToCheckpointTask_RevertWhen_InvalidTaskHash() public {

@@ -13,6 +13,7 @@ import {IBLSSignatureChecker} from "eigenlayer-middleware/src/interfaces/IBLSSig
 import {IDelegationManager} from "@eigenlayer/contracts/interfaces/IDelegationManager.sol";
 import {IRegistryCoordinator} from "eigenlayer-middleware/src/interfaces/IRegistryCoordinator.sol";
 import {IStakeRegistry} from "eigenlayer-middleware/src/interfaces/IStakeRegistry.sol";
+import {IPauserRegistry} from "@eigenlayer/contracts/interfaces/IPauserRegistry.sol";
 
 import {SFFLTaskManager} from "../src/eth/SFFLTaskManager.sol";
 import {SFFLServiceManager} from "../src/eth/SFFLServiceManager.sol";
@@ -21,13 +22,29 @@ import {StateRootUpdate} from "../src/base/message/StateRootUpdate.sol";
 
 import {TestUtils} from "./utils/TestUtils.sol";
 
+contract SFFLServiceManagerHarness is SFFLServiceManager {
+    constructor(
+        IDelegationManager _delegationManager,
+        IRegistryCoordinator _registryCoordinator,
+        IStakeRegistry _stakeRegistry,
+        SFFLTaskManager _taskManager
+    ) SFFLServiceManager(_delegationManager, _registryCoordinator, _stakeRegistry, _taskManager) {}
+
+    function forceInitialize(address initialOwner, IPauserRegistry _pauserRegistry) public {
+        _transferOwnership(initialOwner);
+        _initializePauser(_pauserRegistry, UNPAUSE_ALL);
+    }
+}
+
 contract SFFLServiceManagerTest is TestUtils {
     using StateRootUpdate for StateRootUpdate.Message;
 
     event StateRootUpdated(uint32 indexed rollupId, uint64 indexed blockHeight, bytes32 stateRoot);
 
-    SFFLServiceManager public sfflServiceManager;
+    SFFLServiceManagerHarness public sfflServiceManager;
     SFFLTaskManager public taskManager;
+
+    address public serviceManagerOwner = address(uint160(uint256(keccak256("serviceManagerOwner"))));
 
     uint32 public constant TASK_RESPONSE_WINDOW_BLOCK = 30;
     address public aggregator;
@@ -56,15 +73,19 @@ contract SFFLServiceManagerTest is TestUtils {
         vm.label(address(taskManager), "taskManagerProxy");
 
         address sfflServiceManagerImplementation = address(
-            new SFFLServiceManager(IDelegationManager(delegationMock), registryCoordinator, stakeRegistry, taskManager)
+            new SFFLServiceManagerHarness(
+                IDelegationManager(delegationMock), registryCoordinator, stakeRegistry, taskManager
+            )
         );
 
         vm.prank(proxyAdminOwner);
-        proxyAdmin.upgrade(
-            TransparentUpgradeableProxy(payable(address(serviceManager))), sfflServiceManagerImplementation
+        proxyAdmin.upgradeAndCall(
+            TransparentUpgradeableProxy(payable(address(serviceManager))),
+            sfflServiceManagerImplementation,
+            abi.encodeWithSignature("forceInitialize(address,address)", serviceManagerOwner, address(pauserRegistry))
         );
 
-        sfflServiceManager = SFFLServiceManager(address(serviceManager));
+        sfflServiceManager = SFFLServiceManagerHarness(address(serviceManager));
 
         vm.label(sfflServiceManagerImplementation, "serviceManagerImpl");
         vm.label(address(serviceManager), "serviceManagerProxy");
@@ -109,6 +130,29 @@ contract SFFLServiceManagerTest is TestUtils {
             setUpOperators(message.hash(), 1000, 100, maxOperatorsToRegister / 2);
 
         vm.expectRevert("Quorum not met");
+
+        sfflServiceManager.updateStateRoot(message, nonSignerStakesAndSignature);
+    }
+
+    function test_updateStateRoot_RevertWhen_Paused() public {
+        uint8 flag = sfflServiceManager.PAUSED_UPDATE_STATE_ROOT();
+
+        vm.prank(pauser);
+        sfflServiceManager.pause(2 ** flag);
+
+        StateRootUpdate.Message memory message = StateRootUpdate.Message({
+            rollupId: 0,
+            blockHeight: 1,
+            timestamp: 2,
+            nearDaTransactionId: keccak256(hex"03"),
+            nearDaCommitment: keccak256(hex"04"),
+            stateRoot: keccak256(hex"f00d")
+        });
+
+        (, IBLSSignatureChecker.NonSignerStakesAndSignature memory nonSignerStakesAndSignature) =
+            setUpOperators(message.hash(), 1000, 100, 1);
+
+        vm.expectRevert("Pausable: index is paused");
 
         sfflServiceManager.updateStateRoot(message, nonSignerStakesAndSignature);
     }

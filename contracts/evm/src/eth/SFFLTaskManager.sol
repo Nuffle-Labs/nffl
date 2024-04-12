@@ -45,6 +45,19 @@ contract SFFLTaskManager is Initializable, OwnableUpgradeable, Pausable, BLSSign
     uint32 public constant THRESHOLD_DENOMINATOR = 100;
 
     /**
+     * @notice Index for flag that pauses checkpoint task creation
+     */
+    uint8 public constant PAUSED_CREATE_CHECKPOINT_TASK = 0;
+    /**
+     * @notice Index for flag that pauses checkpoint responding
+     */
+    uint8 public constant PAUSED_RESPOND_TO_CHECKPOINT_TASK = 1;
+    /**
+     * @notice Index for flag pausing operator stake updates
+     */
+    uint8 public constant PAUSED_CHALLENGE_CHECKPOINT_TASK = 2;
+
+    /**
      * @notice Next checkpoint task number
      */
     uint32 public nextCheckpointTaskNum;
@@ -146,7 +159,7 @@ contract SFFLTaskManager is Initializable, OwnableUpgradeable, Pausable, BLSSign
         uint64 toTimestamp,
         uint32 quorumThreshold,
         bytes calldata quorumNumbers
-    ) external onlyTaskGenerator {
+    ) external onlyTaskGenerator onlyWhenNotPaused(PAUSED_CREATE_CHECKPOINT_TASK) {
         require(quorumThreshold <= THRESHOLD_DENOMINATOR, "Quorum threshold greater than denominator");
 
         Checkpoint.Task memory newTask = Checkpoint.Task({
@@ -173,7 +186,7 @@ contract SFFLTaskManager is Initializable, OwnableUpgradeable, Pausable, BLSSign
         Checkpoint.Task calldata task,
         Checkpoint.TaskResponse calldata taskResponse,
         NonSignerStakesAndSignature memory nonSignerStakesAndSignature
-    ) external onlyAggregator {
+    ) external onlyAggregator onlyWhenNotPaused(PAUSED_RESPOND_TO_CHECKPOINT_TASK) {
         uint32 taskCreatedBlock = task.taskCreatedBlock;
         bytes calldata quorumNumbers = task.quorumNumbers;
         uint32 quorumThreshold = task.quorumThreshold;
@@ -217,7 +230,7 @@ contract SFFLTaskManager is Initializable, OwnableUpgradeable, Pausable, BLSSign
         Checkpoint.TaskResponse calldata taskResponse,
         Checkpoint.TaskResponseMetadata calldata taskResponseMetadata,
         BN254.G1Point[] memory pubkeysOfNonSigningOperators
-    ) external {
+    ) external onlyWhenNotPaused(PAUSED_CHALLENGE_CHECKPOINT_TASK) {
         uint32 referenceTaskIndex = taskResponse.referenceTaskIndex;
 
         require(allCheckpointTaskResponses[referenceTaskIndex] != bytes32(0), "Task not responded");

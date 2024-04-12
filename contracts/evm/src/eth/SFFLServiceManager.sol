@@ -6,6 +6,8 @@ import {IDelegationManager} from "@eigenlayer/contracts/interfaces/IDelegationMa
 import {IRegistryCoordinator} from "eigenlayer-middleware/src/interfaces/IRegistryCoordinator.sol";
 import {IStakeRegistry} from "eigenlayer-middleware/src/interfaces/IStakeRegistry.sol";
 import {IBLSSignatureChecker} from "eigenlayer-middleware/src/interfaces/IBLSSignatureChecker.sol";
+import {Pausable} from "@eigenlayer/contracts/permissions/Pausable.sol";
+import {IPauserRegistry} from "@eigenlayer/contracts/interfaces/IPauserRegistry.sol";
 
 import {SFFLTaskManager} from "./SFFLTaskManager.sol";
 import {SFFLRegistryBase} from "../base/SFFLRegistryBase.sol";
@@ -15,13 +17,18 @@ import {StateRootUpdate} from "../base/message/StateRootUpdate.sol";
  * @title SFFL AVS Service Manager
  * @notice Entrypoint for most SFFL operations
  */
-contract SFFLServiceManager is SFFLRegistryBase, ServiceManagerBase {
+contract SFFLServiceManager is SFFLRegistryBase, ServiceManagerBase, Pausable {
     using StateRootUpdate for StateRootUpdate.Message;
 
     /**
      * @notice Address of the SFFL task manager
      */
     SFFLTaskManager public immutable taskManager;
+
+    /**
+     * @notice Index for flag pausing state root updates
+     */
+    uint8 public constant PAUSED_UPDATE_STATE_ROOT = 0;
 
     modifier onlyTaskManager() {
         require(msg.sender == address(taskManager), "Task manager must be the caller");
@@ -35,6 +42,25 @@ contract SFFLServiceManager is SFFLRegistryBase, ServiceManagerBase {
         SFFLTaskManager _taskManager
     ) ServiceManagerBase(_delegationManager, _registryCoordinator, _stakeRegistry) {
         taskManager = _taskManager;
+    }
+
+    /**
+     * @notice Initializes the contract, setting the initial owner and leaving pauser registry empty
+     * @dev This was defined only because Pausable already defines `initialize(address)`
+     * @param initialOwner Initial owner address
+     */
+    function initialize(address initialOwner) public override initializer {
+        _transferOwnership(initialOwner);
+        _initializePauser(IPauserRegistry(address(0)), UNPAUSE_ALL);
+    }
+
+    /**
+     * @notice Initializes the contract, setting the initial owner and pauser registry
+     * @param initialOwner Initial owner address
+     */
+    function initialize(address initialOwner, IPauserRegistry _pauserRegistry) public initializer {
+        _transferOwnership(initialOwner);
+        _initializePauser(_pauserRegistry, UNPAUSE_ALL);
     }
 
     /**
@@ -53,7 +79,7 @@ contract SFFLServiceManager is SFFLRegistryBase, ServiceManagerBase {
     function updateStateRoot(
         StateRootUpdate.Message calldata message,
         IBLSSignatureChecker.NonSignerStakesAndSignature calldata nonSignerStakesAndSignature
-    ) public {
+    ) public onlyWhenNotPaused(PAUSED_UPDATE_STATE_ROOT) {
         require(_verifyStateRootUpdate(message, nonSignerStakesAndSignature), "Quorum not met");
 
         _pushStateRoot(message.rollupId, message.blockHeight, message.stateRoot);

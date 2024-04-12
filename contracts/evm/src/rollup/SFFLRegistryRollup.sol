@@ -3,6 +3,8 @@ pragma solidity ^0.8.12;
 
 import {Initializable} from "@openzeppelin-upgrades/contracts/proxy/utils/Initializable.sol";
 import {OwnableUpgradeable} from "@openzeppelin-upgrades/contracts/access/OwnableUpgradeable.sol";
+import {Pausable} from "@eigenlayer/contracts/permissions/Pausable.sol";
+import {IPauserRegistry} from "@eigenlayer/contracts/interfaces/IPauserRegistry.sol";
 
 import {BN254} from "eigenlayer-middleware/src/libraries/BN254.sol";
 
@@ -19,11 +21,20 @@ import {RollupOperators} from "../base/utils/RollupOperators.sol";
  * the rollup contract heavily assumes a one-quorum operator set and can only
  * prove agreements based on the current operator set state
  */
-contract SFFLRegistryRollup is Initializable, OwnableUpgradeable, SFFLRegistryBase {
+contract SFFLRegistryRollup is Initializable, OwnableUpgradeable, Pausable, SFFLRegistryBase {
     using BN254 for BN254.G1Point;
     using RollupOperators for RollupOperators.OperatorSet;
     using OperatorSetUpdate for OperatorSetUpdate.Message;
     using StateRootUpdate for StateRootUpdate.Message;
+
+    /**
+     * @notice Index for flag that pauses operator set updates
+     */
+    uint8 public constant PAUSED_UPDATE_OPERATOR_SET = 0;
+    /**
+     * @notice Index for flag that pauses state root updates
+     */
+    uint8 public constant PAUSED_UPDATE_STATE_ROOT = 1;
 
     /**
      * @dev Operator set used for agreements
@@ -45,13 +56,16 @@ contract SFFLRegistryRollup is Initializable, OwnableUpgradeable, SFFLRegistryBa
      * @param quorumThreshold Quorum threshold, based on THRESHOLD_DENOMINATOR
      * @param operatorUpdateId Starting next operator update message ID
      * @param initialOwner Owner address
+     * @param _pauserRegistry Pauser registry address
      */
     function initialize(
         RollupOperators.Operator[] memory operators,
         uint128 quorumThreshold,
         uint64 operatorUpdateId,
-        address initialOwner
+        address initialOwner,
+        IPauserRegistry _pauserRegistry
     ) public initializer {
+        _initializePauser(_pauserRegistry, UNPAUSE_ALL);
         _transferOwnership(initialOwner);
 
         _operatorSet.initialize(operators, quorumThreshold);
@@ -67,7 +81,7 @@ contract SFFLRegistryRollup is Initializable, OwnableUpgradeable, SFFLRegistryBa
     function updateOperatorSet(
         OperatorSetUpdate.Message calldata message,
         RollupOperators.SignatureInfo calldata signatureInfo
-    ) external {
+    ) external onlyWhenNotPaused(PAUSED_UPDATE_OPERATOR_SET) {
         require(message.id == nextOperatorUpdateId, "Wrong message ID");
         require(_operatorSet.verifyCalldata(message.hashCalldata(), signatureInfo), "Quorum not met");
 
@@ -85,7 +99,7 @@ contract SFFLRegistryRollup is Initializable, OwnableUpgradeable, SFFLRegistryBa
     function updateStateRoot(
         StateRootUpdate.Message calldata message,
         RollupOperators.SignatureInfo calldata signatureInfo
-    ) public {
+    ) public onlyWhenNotPaused(PAUSED_UPDATE_STATE_ROOT) {
         require(_operatorSet.verifyCalldata(message.hashCalldata(), signatureInfo), "Quorum not met");
 
         _pushStateRoot(message.rollupId, message.blockHeight, message.stateRoot);
