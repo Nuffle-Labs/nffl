@@ -12,8 +12,6 @@ pub(crate) struct Opts {
     /// Sets a custom config dir. Defaults to ~/.near/
     #[clap(long)]
     pub home_dir: Option<std::path::PathBuf>,
-    #[clap(long)]
-    pub config: Option<std::path::PathBuf>,
     #[clap(subcommand)]
     pub subcmd: SubCommand,
 }
@@ -21,12 +19,24 @@ pub(crate) struct Opts {
 #[derive(clap::Parser, Debug)]
 pub(crate) enum SubCommand {
     /// Run NEAR Indexer Example. Start observe the network
-    Run(RunConfigArgs),
+    Run(RunConfigParams),
     /// Initialize necessary configs
-    Init(InitConfigArgs),
+    Init(InitConfigParams),
 }
 
 #[derive(clap::Parser, Deserialize, Debug)]
+#[command(group = clap::ArgGroup::new("config_path").conflicts_with("config_args").multiple(false))]
+pub(crate) struct RunConfigParams {
+    #[clap(long)]
+    #[arg(group = "config_path")]
+    pub config: Option<std::path::PathBuf>,
+
+    #[clap(flatten)]
+    pub run_config_args: Option<RunConfigArgs>,
+}
+
+#[derive(clap::Parser, Deserialize, Debug)]
+#[group(id = "config_args", conflicts_with = "config_path")]
 pub(crate) struct RunConfigArgs {
     /// Rabbit mq address
     #[clap(long, default_value = "amqp://localhost:5672")]
@@ -62,6 +72,18 @@ impl RunConfigArgs {
 }
 
 #[derive(clap::Parser, Deserialize, Debug)]
+#[command(group = clap::ArgGroup::new("config_path").conflicts_with("config_args").multiple(false))]
+pub(crate) struct InitConfigParams {
+    #[clap(long)]
+    #[arg(group = "config_path")]
+    pub config: Option<std::path::PathBuf>,
+
+    #[clap(flatten)]
+    pub args: Option<InitConfigArgs>,
+}
+
+#[derive(clap::Parser, Deserialize, Debug)]
+#[group(id = "config_args", conflicts_with = "config_path")]
 pub(crate) struct InitConfigArgs {
     /// chain/network id (localnet, testnet, devnet, betanet)
     #[clap(short, long)]

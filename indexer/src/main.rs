@@ -59,12 +59,16 @@ fn run(home_dir: std::path::PathBuf, config: RunConfigArgs) -> Result<()> {
     })
 }
 
-fn read_config<T: serde::de::DeserializeOwned>(config_args: T, config_path: Option<std::path::PathBuf>) -> Result<T> {
+fn read_config<T: serde::de::DeserializeOwned>(config_path: Option<std::path::PathBuf>, config_args: Option<T>) -> Result<T> {
     if let Some(config_path) = config_path {
         let config_str = std::fs::read_to_string(config_path)?;
         serde_yaml::from_str(&config_str).map_err(Into::into)
     } else {
-        Ok(config_args)
+        if let Some(config_args) = config_args {
+            Ok(config_args)
+        } else {
+            panic!("Either config_path or config_args must be provided")
+        }
     }
 }
 
@@ -81,11 +85,10 @@ fn main() -> Result<()> {
 
     let home_dir = opts.home_dir.unwrap_or(near_indexer::get_default_home());
     match opts.subcmd {
-        SubCommand::Init(config) => {
-            near_indexer::indexer_init_configs(&home_dir, read_config(config, opts.config)?.into())?
+        SubCommand::Init(params) => {
+            near_indexer::indexer_init_configs(&home_dir, read_config(params.config, params.args)?.into())?;
+            Ok(())
         }
-        SubCommand::Run(config) => run(home_dir, read_config(config, opts.config)?)?,
+        SubCommand::Run(params) => run(home_dir, read_config(params.config, params.run_config_args)?),
     }
-
-    Ok(())
 }
