@@ -11,7 +11,7 @@ import (
 	"github.com/ethereum/go-ethereum/rlp"
 	near "github.com/near/rollup-data-availability/gopkg/da-rpc"
 
-	"github.com/NethermindEth/near-sffl/core/config/relayer-config"
+	"github.com/NethermindEth/near-sffl/relayer/config"
 )
 
 const (
@@ -26,7 +26,7 @@ type Relayer struct {
 	nearClient *near.Config
 }
 
-func NewRelayerFromConfig(config *relayer_config.RelayerConfig, logger sdklogging.Logger) (*Relayer, error) {
+func NewRelayerFromConfig(config *config.RelayerConfig, logger sdklogging.Logger) (*Relayer, error) {
 	rpcClient, err := eth.NewClient(config.RpcUrl)
 	if err != nil {
 		return nil, err
@@ -57,21 +57,25 @@ func (r *Relayer) Start(ctx context.Context) error {
 		case err := <-sub.Err():
 			r.logger.Errorf("error on rollup block subscription: %s", err.Error())
 		case header := <-headers:
-			block := r.getBlockByNumber(ctx, header.Number)
-			if block == nil {
+			block, err := r.getBlockByNumber(ctx, header.Number)
+			if block == nil && err == nil {
 				return nil
+			}
+			if err != nil {
+				r.logger.Error("Error fetching block", "err", err)
+				continue
 			}
 
 			encodedBlock, err := rlp.EncodeToBytes(block)
 			if err != nil {
 				r.logger.Errorf("error RLP encoding block: %s", err.Error())
-				return err
+				continue
 			}
 
 			out, err := r.nearClient.ForceSubmit(encodedBlock)
 			if err != nil {
 				r.logger.Error("Error submitting block to NEAR", "err", err)
-				return err
+				continue
 			}
 
 			r.logger.Info(string(out))
@@ -81,13 +85,14 @@ func (r *Relayer) Start(ctx context.Context) error {
 	}
 }
 
-func (r *Relayer) getBlockByNumber(ctx context.Context, number *big.Int) *ethtypes.Block {
+func (r *Relayer) getBlockByNumber(ctx context.Context, number *big.Int) (*ethtypes.Block, error) {
 	r.logger.Infof("Got rollup block: #%s", number.String())
 
+	var err error
 	for i := 0; i < 5; i++ {
 		select {
 		case <-ctx.Done():
-			return nil
+			return nil, nil
 		default:
 		}
 
@@ -98,8 +103,8 @@ func (r *Relayer) getBlockByNumber(ctx context.Context, number *big.Int) *ethtyp
 			continue
 		}
 
-		return block
+		return block, nil
 	}
 
-	panic("Could not fetch rollup block")
+	return nil, err
 }

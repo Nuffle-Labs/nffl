@@ -1,4 +1,4 @@
-package relayer_config
+package config
 
 type RelayerConfig struct {
 	Production  bool
