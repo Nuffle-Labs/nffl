@@ -40,11 +40,11 @@ type AvsReader struct {
 
 var _ AvsReaderer = (*AvsReader)(nil)
 
-func BuildAvsReaderFromConfig(config *config.Config, client eth.EthClient, logger logging.Logger) (*AvsReader, error) {
+func BuildAvsReaderFromConfig(config *config.Config, client eth.Client, logger logging.Logger) (*AvsReader, error) {
 	return BuildAvsReader(config.SFFLRegistryCoordinatorAddr, config.OperatorStateRetrieverAddr, client, logger)
 }
 
-func BuildAvsReader(registryCoordinatorAddr, operatorStateRetrieverAddr gethcommon.Address, ethHttpClient eth.EthClient, logger logging.Logger) (*AvsReader, error) {
+func BuildAvsReader(registryCoordinatorAddr, operatorStateRetrieverAddr gethcommon.Address, ethHttpClient eth.Client, logger logging.Logger) (*AvsReader, error) {
 	avsManagersBindings, err := NewAvsManagersBindings(registryCoordinatorAddr, operatorStateRetrieverAddr, ethHttpClient, logger)
 	if err != nil {
 		return nil, err

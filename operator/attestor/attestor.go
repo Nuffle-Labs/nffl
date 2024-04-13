@@ -29,7 +29,7 @@ var (
 	unknownRollupIdError = errors.New("notify: rollupId unknown")
 )
 
-func createEthClient(rpcUrl string, enableMetrics bool, registry *prometheus.Registry, logger sdklogging.Logger) (eth.EthClient, error) {
+func createEthClient(rpcUrl string, enableMetrics bool, registry *prometheus.Registry, logger sdklogging.Logger) (eth.Client, error) {
 	if enableMetrics {
 		rpcCallsCollector := rpccalls.NewCollector(rpcUrl, registry)
 		ethClient, err := eth.NewInstrumentedClient(rpcUrl, rpcCallsCollector)
@@ -64,7 +64,7 @@ type Attestorer interface {
 type Attestor struct {
 	signedRootC     chan messages.SignedStateRootUpdateMessage
 	rollupIdsToUrls map[uint32]string
-	clients         map[uint32]eth.EthClient
+	clients         map[uint32]eth.Client
 	notifier        Notifier
 	consumer        *consumer.Consumer
 
@@ -87,7 +87,7 @@ func NewAttestor(config *optypes.NodeConfig, blsKeypair *bls.KeyPair, operatorId
 
 	attestor := Attestor{
 		signedRootC: make(chan messages.SignedStateRootUpdateMessage),
-		clients:     make(map[uint32]eth.EthClient),
+		clients:     make(map[uint32]eth.Client),
 		logger:      logger,
 		notifier:    NewNotifier(),
 		consumer:    consumer,
@@ -164,9 +164,9 @@ func (attestor *Attestor) processMQBlocks(ctx context.Context) {
 	}
 }
 
-func (attestor *Attestor) reconnectClient(rollupId uint32) (eth.EthClient, error) {
+func (attestor *Attestor) reconnectClient(rollupId uint32) (eth.Client, error) {
 	var err error
-	var client eth.EthClient
+	var client eth.Client
 	for i := 0; i < RECONNECTION_ATTEMPTS; i++ {
 		<-time.After(RECONNECTION_DELAY)
 

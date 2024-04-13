@@ -12,6 +12,7 @@ import (
 	"github.com/Layr-Labs/eigensdk-go/chainio/clients/eth"
 	"github.com/docker/go-connections/nat"
 	"github.com/ethereum/go-ethereum/common"
+	"github.com/ethereum/go-ethereum/rpc"
 	"github.com/testcontainers/testcontainers-go"
 	"github.com/testcontainers/testcontainers-go/wait"
 
@@ -29,19 +30,20 @@ const (
 
 type AnvilInstance struct {
 	Container  testcontainers.Container
-	HttpClient *eth.Client
+	HttpClient eth.Client
 	HttpUrl    string
-	WsClient   *eth.Client
+	WsClient   eth.Client
 	WsUrl      string
+	RpcClient  *rpc.Client
 	ChainID    *big.Int
 }
 
 func (ai *AnvilInstance) SetBalance(address common.Address, balance *big.Int) error {
-	return ai.WsClient.Client.Client().Call(nil, "anvil_setBalance", address.Hex(), "0x"+balance.Text(16))
+	return ai.RpcClient.Call(nil, "anvil_setBalance", address.Hex(), "0x"+balance.Text(16))
 }
 
 func (ai *AnvilInstance) Mine(blockCount, timestampInterval *big.Int) error {
-	return ai.WsClient.Client.Client().Call(nil, "anvil_mine", "0x"+blockCount.Text(16), "0x"+timestampInterval.Text(16))
+	return ai.RpcClient.Call(nil, "anvil_mine", "0x"+blockCount.Text(16), "0x"+timestampInterval.Text(16))
 }
 
 func GetDaContractAccountId(anvil *AnvilInstance) string {

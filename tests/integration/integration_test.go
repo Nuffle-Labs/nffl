@@ -27,6 +27,7 @@ import (
 	"github.com/ethereum/go-ethereum/accounts/abi/bind"
 	"github.com/ethereum/go-ethereum/common"
 	"github.com/ethereum/go-ethereum/crypto"
+	"github.com/ethereum/go-ethereum/rpc"
 	"github.com/stretchr/testify/assert"
 	"github.com/testcontainers/testcontainers-go"
 	"github.com/testcontainers/testcontainers-go/modules/rabbitmq"
@@ -503,6 +504,10 @@ func startAnvilTestContainer(t *testing.T, ctx context.Context, name, exposedPor
 	if err != nil {
 		t.Fatalf("Failed to create anvil HTTP client: %s", err.Error())
 	}
+	rpcClient, err := rpc.Dial(httpUrl)
+	if err != nil {
+		t.Fatalf("Failed to create anvil RPC client: %s", err.Error())
+	}
 
 	wsUrl := "ws://" + anvilEndpoint
 	wsClient, err := eth.NewClient(wsUrl)
@@ -529,6 +534,7 @@ func startAnvilTestContainer(t *testing.T, ctx context.Context, name, exposedPor
 		HttpUrl:    httpUrl,
 		WsClient:   wsClient,
 		WsUrl:      wsUrl,
+		RpcClient:  rpcClient,
 		ChainID:    fetchedChainId,
 	}
 

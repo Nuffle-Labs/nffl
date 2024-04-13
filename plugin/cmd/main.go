@@ -10,6 +10,7 @@ import (
 
 	sdkclients "github.com/Layr-Labs/eigensdk-go/chainio/clients"
 	"github.com/Layr-Labs/eigensdk-go/chainio/clients/eth"
+	"github.com/Layr-Labs/eigensdk-go/chainio/clients/wallet"
 	"github.com/Layr-Labs/eigensdk-go/chainio/txmgr"
 	regcoord "github.com/Layr-Labs/eigensdk-go/contracts/bindings/RegistryCoordinator"
 	"github.com/Layr-Labs/eigensdk-go/crypto/bls"
@@ -123,7 +124,18 @@ func plugin(ctx *cli.Context) {
 		fmt.Println(err)
 		return
 	}
-	clients, err := sdkclients.BuildAll(buildClientConfig, common.HexToAddress(avsConfig.OperatorAddress), signerV2, logger)
+	ecdsaPrivateKey, err := sdkecdsa.ReadKey(avsConfig.EcdsaPrivateKeyStorePath, ecdsaKeyPassword)
+	if err != nil {
+		fmt.Println("Failed to read ecdsa private key")
+		fmt.Println(err)
+		return
+	}
+	clients, err := sdkclients.BuildAll(buildClientConfig, ecdsaPrivateKey, logger)
+	if err != nil {
+		fmt.Println("can't create sdk clients")
+		fmt.Println(err)
+		return
+	}
 	avsReader, err := chainio.BuildAvsReader(
 		common.HexToAddress(avsConfig.AVSRegistryCoordinatorAddress),
 		common.HexToAddress(avsConfig.OperatorStateRetrieverAddress),
@@ -135,7 +147,13 @@ func plugin(ctx *cli.Context) {
 		fmt.Println(err)
 		return
 	}
-	txMgr := txmgr.NewSimpleTxManager(ethHttpClient, logger, signerV2, common.HexToAddress(avsConfig.OperatorAddress))
+	txSender, err := wallet.NewPrivateKeyWallet(ethHttpClient, signerV2, common.HexToAddress(avsConfig.OperatorAddress), logger)
+	if err != nil {
+		fmt.Println("can't create tx sender")
+		fmt.Println(err)
+		return
+	}
+	txMgr := txmgr.NewSimpleTxManager(txSender, ethHttpClient, logger, signerV2, common.HexToAddress(avsConfig.OperatorAddress))
 	avsWriter, err := chainio.BuildAvsWriter(
 		txMgr,
 		common.HexToAddress(avsConfig.AVSRegistryCoordinatorAddress),

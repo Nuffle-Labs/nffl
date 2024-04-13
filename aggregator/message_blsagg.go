@@ -88,13 +88,13 @@ type MessageBlsAggregatorService struct {
 	signedMessageDigestsCs map[coretypes.MessageDigest]chan SignedMessageDigest
 	messageChansLock       sync.RWMutex
 	avsRegistryService     avsregistry.AvsRegistryService
-	ethClient              eth.EthClient
+	ethClient              eth.Client
 	logger                 logging.Logger
 }
 
 var _ MessageBlsAggregationService = (*MessageBlsAggregatorService)(nil)
 
-func NewMessageBlsAggregatorService(avsRegistryService avsregistry.AvsRegistryService, ethClient eth.EthClient, logger logging.Logger) *MessageBlsAggregatorService {
+func NewMessageBlsAggregatorService(avsRegistryService avsregistry.AvsRegistryService, ethClient eth.Client, logger logging.Logger) *MessageBlsAggregatorService {
 	return &MessageBlsAggregatorService{
 		aggregatedResponsesC:   make(chan types.MessageBlsAggregationServiceResponse),
 		signedMessageDigestsCs: make(map[coretypes.MessageDigest]chan SignedMessageDigest),
