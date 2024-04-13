@@ -10,7 +10,7 @@ import {BN254} from "eigenlayer-middleware/src/libraries/BN254.sol";
 import {ServiceManagerBase} from "eigenlayer-middleware/src/ServiceManagerBase.sol";
 import {IRegistryCoordinator} from "eigenlayer-middleware/src/interfaces/IRegistryCoordinator.sol";
 import {IBLSSignatureChecker} from "eigenlayer-middleware/src/interfaces/IBLSSignatureChecker.sol";
-import {IDelegationManager} from "@eigenlayer/contracts/interfaces/IDelegationManager.sol";
+import {IAVSDirectory} from "@eigenlayer/contracts/interfaces/IAVSDirectory.sol";
 import {IRegistryCoordinator} from "eigenlayer-middleware/src/interfaces/IRegistryCoordinator.sol";
 import {IStakeRegistry} from "eigenlayer-middleware/src/interfaces/IStakeRegistry.sol";
 import {IPauserRegistry} from "@eigenlayer/contracts/interfaces/IPauserRegistry.sol";
@@ -24,11 +24,11 @@ import {TestUtils} from "./utils/TestUtils.sol";
 
 contract SFFLServiceManagerHarness is SFFLServiceManager {
     constructor(
-        IDelegationManager _delegationManager,
+        IAVSDirectory _avsDirectory,
         IRegistryCoordinator _registryCoordinator,
         IStakeRegistry _stakeRegistry,
         SFFLTaskManager _taskManager
-    ) SFFLServiceManager(_delegationManager, _registryCoordinator, _stakeRegistry, _taskManager) {}
+    ) SFFLServiceManager(_avsDirectory, _registryCoordinator, _stakeRegistry, _taskManager) {}
 
     function forceInitialize(address initialOwner, IPauserRegistry _pauserRegistry) public {
         _transferOwnership(initialOwner);
@@ -74,7 +74,7 @@ contract SFFLServiceManagerTest is TestUtils {
 
         address sfflServiceManagerImplementation = address(
             new SFFLServiceManagerHarness(
-                IDelegationManager(delegationMock), registryCoordinator, stakeRegistry, taskManager
+                IAVSDirectory(avsDirectoryMock), registryCoordinator, stakeRegistry, taskManager
             )
         );
 

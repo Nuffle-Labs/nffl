@@ -2,7 +2,7 @@
 pragma solidity ^0.8.12;
 
 import {ServiceManagerBase} from "eigenlayer-middleware/src/ServiceManagerBase.sol";
-import {IDelegationManager} from "@eigenlayer/contracts/interfaces/IDelegationManager.sol";
+import {IAVSDirectory} from "@eigenlayer/contracts/interfaces/IAVSDirectory.sol";
 import {IRegistryCoordinator} from "eigenlayer-middleware/src/interfaces/IRegistryCoordinator.sol";
 import {IStakeRegistry} from "eigenlayer-middleware/src/interfaces/IStakeRegistry.sol";
 import {IBLSSignatureChecker} from "eigenlayer-middleware/src/interfaces/IBLSSignatureChecker.sol";
@@ -36,11 +36,11 @@ contract SFFLServiceManager is SFFLRegistryBase, ServiceManagerBase, Pausable {
     }
 
     constructor(
-        IDelegationManager _delegationManager,
+        IAVSDirectory _avsDirectory,
         IRegistryCoordinator _registryCoordinator,
         IStakeRegistry _stakeRegistry,
         SFFLTaskManager _taskManager
-    ) ServiceManagerBase(_delegationManager, _registryCoordinator, _stakeRegistry) {
+    ) ServiceManagerBase(_avsDirectory, _registryCoordinator, _stakeRegistry) {
         taskManager = _taskManager;
     }
 
@@ -49,8 +49,8 @@ contract SFFLServiceManager is SFFLRegistryBase, ServiceManagerBase, Pausable {
      * @dev This was defined only because Pausable already defines `initialize(address)`
      * @param initialOwner Initial owner address
      */
-    function initialize(address initialOwner) public override initializer {
-        _transferOwnership(initialOwner);
+    function initialize(address initialOwner) public initializer {
+        __ServiceManagerBase_init(initialOwner);
         _initializePauser(IPauserRegistry(address(0)), UNPAUSE_ALL);
     }
 

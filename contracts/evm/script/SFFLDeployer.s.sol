@@ -5,6 +5,7 @@ import {ProxyAdmin, TransparentUpgradeableProxy} from "@openzeppelin/contracts/p
 
 import {PauserRegistry} from "@eigenlayer/contracts/permissions/PauserRegistry.sol";
 import {IDelegationManager} from "@eigenlayer/contracts/interfaces/IDelegationManager.sol";
+import {IAVSDirectory} from "@eigenlayer/contracts/interfaces/IAVSDirectory.sol";
 import {IStrategyManager, IStrategy} from "@eigenlayer/contracts/interfaces/IStrategyManager.sol";
 import {ISlasher} from "@eigenlayer/contracts/interfaces/ISlasher.sol";
 import {StrategyBaseTVLLimits} from "@eigenlayer/contracts/strategies/StrategyBaseTVLLimits.sol";
@@ -82,6 +83,8 @@ contract SFFLDeployer is Script, Utils {
             IStrategyManager(stdJson.readAddress(eigenlayerDeployedContracts, ".addresses.strategyManager"));
         IDelegationManager delegationManager =
             IDelegationManager(stdJson.readAddress(eigenlayerDeployedContracts, ".addresses.delegation"));
+        IAVSDirectory avsDirectory =
+            IAVSDirectory(stdJson.readAddress(eigenlayerDeployedContracts, ".addresses.avsDirectory"));
         ProxyAdmin eigenLayerProxyAdmin =
             ProxyAdmin(stdJson.readAddress(eigenlayerDeployedContracts, ".addresses.eigenLayerProxyAdmin"));
         PauserRegistry eigenLayerPauserReg =
@@ -97,7 +100,7 @@ contract SFFLDeployer is Script, Utils {
         _deployErc20AndStrategyAndWhitelistStrategy(
             eigenLayerProxyAdmin, eigenLayerPauserReg, baseStrategyImplementation, strategyManager
         );
-        _deploySFFLContracts(delegationManager, erc20MockStrategy, sfflCommunityMultisig, sfflPauser);
+        _deploySFFLContracts(delegationManager, avsDirectory, erc20MockStrategy, sfflCommunityMultisig, sfflPauser);
         vm.stopBroadcast();
     }
 
@@ -124,13 +127,18 @@ contract SFFLDeployer is Script, Utils {
                 )
             )
         );
+
         IStrategy[] memory strats = new IStrategy[](1);
         strats[0] = erc20MockStrategy;
-        strategyManager.addStrategiesToDepositWhitelist(strats);
+
+        bool[] memory thirdPartyTransfersForbiddenValues = new bool[](1);
+
+        strategyManager.addStrategiesToDepositWhitelist(strats, thirdPartyTransfersForbiddenValues);
     }
 
     function _deploySFFLContracts(
         IDelegationManager delegationManager,
+        IAVSDirectory avsDirectory,
         IStrategy strat,
         address sfflCommunityMultisig,
         address sfflPauser
@@ -253,7 +261,7 @@ contract SFFLDeployer is Script, Utils {
         }
 
         sfflServiceManagerImplementation =
-            new SFFLServiceManager(delegationManager, registryCoordinator, stakeRegistry, sfflTaskManager);
+            new SFFLServiceManager(avsDirectory, registryCoordinator, stakeRegistry, sfflTaskManager);
 
         sfflProxyAdmin.upgradeAndCall(
             TransparentUpgradeableProxy(payable(address(sfflServiceManager))),
