@@ -41,94 +41,160 @@ contract SFFLDeployer is Script, Utils {
     uint32 public constant TASK_RESPONSE_WINDOW_BLOCK = 30;
     uint32 public constant TASK_DURATION_BLOCKS = 0;
 
+    uint32 public constant MAX_OPERATOR_COUNT = 10000;
+    uint16 public constant KICK_BIPS_OF_OPERATOR_STAKE = 15000;
+    uint16 public constant KICK_BIPS_OF_TOTAL_STAKE = 100;
+
+    uint96 public constant STRATEGY_MULTIPLIER = 1 ether;
+    uint256 public constant WEIGHTING_DIVISOR = 1 ether;
+
+    uint256 public constant NUM_QUORUMS = 1;
+    uint256 public constant INITIAL_PAUSED_STATUS = 0;
+
+    uint256 public constant MOCK_STRATEGY_MAX_PER_DEPOSIT = 1 ether;
+    uint256 public constant MOCK_STRATEGY_MAX_DEPOSITS = 100 ether;
+
     // TODO: right now hardcoding these (this address is anvil's default address 9)
     address public constant AGGREGATOR_ADDR = 0xa0Ee7A142d267C1f36714E4a8F75612F20a79720;
     address public constant TASK_GENERATOR_ADDR = 0xa0Ee7A142d267C1f36714E4a8F75612F20a79720;
 
+    string public constant EIGENLAYER_DEPLOYMENT_FILE = "eigenlayer_deployment_output";
+    string public constant SFFL_DEPLOYMENT_FILE = "sffl_avs_deployment_output";
+
+    struct EigenlayerDeployedContracts {
+        IStrategyManager strategyManager;
+        IDelegationManager delegationManager;
+        ProxyAdmin eigenLayerProxyAdmin;
+        PauserRegistry eigenLayerPauserReg;
+        StrategyBaseTVLLimits baseStrategyImpl;
+    }
+
+    struct SFFLDeployedContracts {
+        ERC20Mock erc20Mock;
+        StrategyBaseTVLLimits erc20MockStrategy;
+        SFFLServiceManager sfflServiceManager;
+        address sfflServiceManagerImpl;
+        SFFLTaskManager sfflTaskManager;
+        address sfflTaskManagerImpl;
+        SFFLRegistryCoordinator registryCoordinator;
+        address registryCoordinatorImpl;
+        OperatorStateRetriever operatorStateRetriever;
+    }
+
+    EmptyContract public emptyContract;
     ERC20Mock public erc20Mock;
+
     StrategyBaseTVLLimits public erc20MockStrategy;
+    TransparentUpgradeableProxy public erc20MockStrategyProxy;
 
     // SFFL contracts
     ProxyAdmin public sfflProxyAdmin;
     PauserRegistry public sfflPauserReg;
 
     SFFLRegistryCoordinator public registryCoordinator;
-    IRegistryCoordinator public registryCoordinatorImplementation;
+    TransparentUpgradeableProxy public registryCoordinatorProxy;
+    address public registryCoordinatorImpl;
 
     IBLSApkRegistry public blsApkRegistry;
-    IBLSApkRegistry public blsApkRegistryImplementation;
+    TransparentUpgradeableProxy public blsApkRegistryProxy;
+    address public blsApkRegistryImpl;
 
     IIndexRegistry public indexRegistry;
-    IIndexRegistry public indexRegistryImplementation;
+    TransparentUpgradeableProxy public indexRegistryProxy;
+    address public indexRegistryImpl;
 
     IStakeRegistry public stakeRegistry;
-    IStakeRegistry public stakeRegistryImplementation;
+    TransparentUpgradeableProxy public stakeRegistryProxy;
+    address public stakeRegistryImpl;
 
     SFFLOperatorSetUpdateRegistry public operatorSetUpdateRegistry;
-    SFFLOperatorSetUpdateRegistry public operatorSetUpdateRegistryImplementation;
+    TransparentUpgradeableProxy public operatorSetUpdateRegistryProxy;
+    address public operatorSetUpdateRegistryImpl;
+
+    SFFLServiceManager public sfflServiceManager;
+    TransparentUpgradeableProxy public sfflServiceManagerProxy;
+    address public sfflServiceManagerImpl;
+
+    SFFLTaskManager public sfflTaskManager;
+    TransparentUpgradeableProxy public sfflTaskManagerProxy;
+    address public sfflTaskManagerImpl;
 
     OperatorStateRetriever public operatorStateRetriever;
 
-    SFFLServiceManager public sfflServiceManager;
-    SFFLServiceManager public sfflServiceManagerImplementation;
-
-    SFFLTaskManager public sfflTaskManager;
-    SFFLTaskManager public sfflTaskManagerImplementation;
-
     function run() external {
-        // Eigenlayer contracts
-        string memory eigenlayerDeployedContracts = readOutput("eigenlayer_deployment_output");
-        IStrategyManager strategyManager =
-            IStrategyManager(stdJson.readAddress(eigenlayerDeployedContracts, ".addresses.strategyManager"));
-        IDelegationManager delegationManager =
-            IDelegationManager(stdJson.readAddress(eigenlayerDeployedContracts, ".addresses.delegation"));
-        ProxyAdmin eigenLayerProxyAdmin =
-            ProxyAdmin(stdJson.readAddress(eigenlayerDeployedContracts, ".addresses.eigenLayerProxyAdmin"));
-        PauserRegistry eigenLayerPauserReg =
-            PauserRegistry(stdJson.readAddress(eigenlayerDeployedContracts, ".addresses.eigenLayerPauserReg"));
-        StrategyBaseTVLLimits baseStrategyImplementation = StrategyBaseTVLLimits(
-            stdJson.readAddress(eigenlayerDeployedContracts, ".addresses.baseStrategyImplementation")
-        );
+        EigenlayerDeployedContracts memory eigenlayerContracts = _readEigenlayerDeployedContracts();
 
         address sfflCommunityMultisig = msg.sender;
         address sfflPauser = msg.sender;
 
         vm.startBroadcast();
+
+        emptyContract = new EmptyContract();
+
         _deployErc20AndStrategyAndWhitelistStrategy(
-            eigenLayerProxyAdmin, eigenLayerPauserReg, baseStrategyImplementation, strategyManager
+            eigenlayerContracts.eigenLayerProxyAdmin,
+            eigenlayerContracts.eigenLayerPauserReg,
+            eigenlayerContracts.baseStrategyImpl,
+            eigenlayerContracts.strategyManager
         );
-        _deploySFFLContracts(delegationManager, erc20MockStrategy, sfflCommunityMultisig, sfflPauser);
+        _deploySFFLContracts(
+            eigenlayerContracts.delegationManager, erc20MockStrategy, sfflCommunityMultisig, sfflPauser
+        );
+
         vm.stopBroadcast();
     }
 
+    /**
+     * @dev Reads the output of the Eigenlayer deployment script from the forge output and returns the EL deployed contracts.
+     */
+    function _readEigenlayerDeployedContracts() internal view returns (EigenlayerDeployedContracts memory) {
+        string memory json = readOutput(EIGENLAYER_DEPLOYMENT_FILE);
+        return EigenlayerDeployedContracts({
+            strategyManager: IStrategyManager(stdJson.readAddress(json, ".addresses.strategyManager")),
+            delegationManager: IDelegationManager(stdJson.readAddress(json, ".addresses.delegation")),
+            eigenLayerProxyAdmin: ProxyAdmin(stdJson.readAddress(json, ".addresses.eigenLayerProxyAdmin")),
+            eigenLayerPauserReg: PauserRegistry(stdJson.readAddress(json, ".addresses.eigenLayerPauserReg")),
+            baseStrategyImpl: StrategyBaseTVLLimits(stdJson.readAddress(json, ".addresses.baseStrategyImplementation"))
+        });
+    }
+
+    /**
+     * @dev Deploys the ERC20 mock and the strategy and whitelists the strategy.
+     */
     function _deployErc20AndStrategyAndWhitelistStrategy(
         ProxyAdmin eigenLayerProxyAdmin,
         PauserRegistry eigenLayerPauserReg,
-        StrategyBaseTVLLimits baseStrategyImplementation,
+        StrategyBaseTVLLimits baseStrategyImpl,
         IStrategyManager strategyManager
     ) internal {
         erc20Mock = new ERC20Mock();
 
-        erc20MockStrategy = StrategyBaseTVLLimits(
-            address(
-                new TransparentUpgradeableProxy(
-                    address(baseStrategyImplementation),
-                    address(eigenLayerProxyAdmin),
-                    abi.encodeWithSelector(
-                        StrategyBaseTVLLimits.initialize.selector,
-                        1 ether, // maxPerDeposit
-                        100 ether, // maxDeposits
-                        IERC20(erc20Mock),
-                        eigenLayerPauserReg
-                    )
-                )
+        erc20MockStrategyProxy = _deployProxy(
+            eigenLayerProxyAdmin,
+            address(baseStrategyImpl),
+            abi.encodeWithSelector(
+                StrategyBaseTVLLimits.initialize.selector,
+                MOCK_STRATEGY_MAX_PER_DEPOSIT,
+                MOCK_STRATEGY_MAX_DEPOSITS,
+                IERC20(erc20Mock),
+                eigenLayerPauserReg
             )
         );
+        erc20MockStrategy = StrategyBaseTVLLimits(address(erc20MockStrategyProxy));
+
         IStrategy[] memory strats = new IStrategy[](1);
         strats[0] = erc20MockStrategy;
+
         strategyManager.addStrategiesToDepositWhitelist(strats);
     }
 
+    /**
+     * @dev Deploys the SFFL contracts.
+     * @param delegationManager The delegation manager.
+     * @param strat The deployed strategy.
+     * @param sfflCommunityMultisig The community multisig.
+     * @param sfflPauser The pauser.
+     */
     function _deploySFFLContracts(
         IDelegationManager delegationManager,
         IStrategy strat,
@@ -140,134 +206,112 @@ contract SFFLDeployer is Script, Utils {
 
         sfflProxyAdmin = new ProxyAdmin();
 
-        {
-            address[] memory pausers = new address[](2);
-            pausers[0] = sfflPauser;
-            pausers[1] = sfflCommunityMultisig;
-            sfflPauserReg = new PauserRegistry(pausers, sfflCommunityMultisig);
-        }
+        address[] memory pausers = new address[](2);
+        pausers[0] = sfflPauser;
+        pausers[1] = sfflCommunityMultisig;
 
-        EmptyContract emptyContract = new EmptyContract();
+        sfflPauserReg = new PauserRegistry(pausers, sfflCommunityMultisig);
 
-        sfflServiceManager = SFFLServiceManager(
-            address(new TransparentUpgradeableProxy(address(emptyContract), address(sfflProxyAdmin), ""))
-        );
-        sfflTaskManager = SFFLTaskManager(
-            address(new TransparentUpgradeableProxy(address(emptyContract), address(sfflProxyAdmin), ""))
-        );
-        registryCoordinator = SFFLRegistryCoordinator(
-            address(new TransparentUpgradeableProxy(address(emptyContract), address(sfflProxyAdmin), ""))
-        );
-        blsApkRegistry = IBLSApkRegistry(
-            address(new TransparentUpgradeableProxy(address(emptyContract), address(sfflProxyAdmin), ""))
-        );
-        indexRegistry = IIndexRegistry(
-            address(new TransparentUpgradeableProxy(address(emptyContract), address(sfflProxyAdmin), ""))
-        );
-        stakeRegistry = IStakeRegistry(
-            address(new TransparentUpgradeableProxy(address(emptyContract), address(sfflProxyAdmin), ""))
-        );
-        operatorSetUpdateRegistry = SFFLOperatorSetUpdateRegistry(
-            address(new TransparentUpgradeableProxy(address(emptyContract), address(sfflProxyAdmin), ""))
-        );
+        sfflServiceManagerProxy = _deployEmptyProxy(sfflProxyAdmin);
+        sfflServiceManager = SFFLServiceManager(address(sfflServiceManagerProxy));
+
+        sfflTaskManagerProxy = _deployEmptyProxy(sfflProxyAdmin);
+        sfflTaskManager = SFFLTaskManager(address(sfflTaskManagerProxy));
+
+        registryCoordinatorProxy = _deployEmptyProxy(sfflProxyAdmin);
+        registryCoordinator = SFFLRegistryCoordinator(address(registryCoordinatorProxy));
+
+        blsApkRegistryProxy = _deployEmptyProxy(sfflProxyAdmin);
+        blsApkRegistry = BLSApkRegistry(address(blsApkRegistryProxy));
+
+        indexRegistryProxy = _deployEmptyProxy(sfflProxyAdmin);
+        indexRegistry = IndexRegistry(address(indexRegistryProxy));
+
+        operatorSetUpdateRegistryProxy = _deployEmptyProxy(sfflProxyAdmin);
+        operatorSetUpdateRegistry = SFFLOperatorSetUpdateRegistry(address(operatorSetUpdateRegistryProxy));
+
+        stakeRegistryProxy = _deployEmptyProxy(sfflProxyAdmin);
+        stakeRegistry = StakeRegistry(address(stakeRegistryProxy));
 
         operatorStateRetriever = new OperatorStateRetriever();
 
-        {
-            stakeRegistryImplementation = new StakeRegistry(registryCoordinator, delegationManager);
+        stakeRegistryImpl = address(new StakeRegistry(registryCoordinator, delegationManager));
+        _upgradeProxy(sfflProxyAdmin, stakeRegistryProxy, stakeRegistryImpl);
+        
+        blsApkRegistryImpl = address(new BLSApkRegistry(registryCoordinator));
+        _upgradeProxy(sfflProxyAdmin, blsApkRegistryProxy, blsApkRegistryImpl);
+        
+        indexRegistryImpl = address(new IndexRegistry(registryCoordinator));
+        _upgradeProxy(sfflProxyAdmin, indexRegistryProxy, indexRegistryImpl);
+        
+        operatorSetUpdateRegistryImpl = address(new SFFLOperatorSetUpdateRegistry(registryCoordinator));
+        _upgradeProxy(sfflProxyAdmin, operatorSetUpdateRegistryProxy, operatorSetUpdateRegistryImpl);
 
-            sfflProxyAdmin.upgrade(
-                TransparentUpgradeableProxy(payable(address(stakeRegistry))), address(stakeRegistryImplementation)
-            );
-
-            blsApkRegistryImplementation = new BLSApkRegistry(registryCoordinator);
-
-            sfflProxyAdmin.upgrade(
-                TransparentUpgradeableProxy(payable(address(blsApkRegistry))), address(blsApkRegistryImplementation)
-            );
-
-            indexRegistryImplementation = new IndexRegistry(registryCoordinator);
-
-            sfflProxyAdmin.upgrade(
-                TransparentUpgradeableProxy(payable(address(indexRegistry))), address(indexRegistryImplementation)
-            );
-
-            operatorSetUpdateRegistryImplementation = new SFFLOperatorSetUpdateRegistry(registryCoordinator);
-
-            sfflProxyAdmin.upgrade(
-                TransparentUpgradeableProxy(payable(address(operatorSetUpdateRegistry))),
-                address(operatorSetUpdateRegistryImplementation)
-            );
-        }
-
-        registryCoordinatorImplementation = new SFFLRegistryCoordinator(
-            sfflServiceManager,
-            IStakeRegistry(address(stakeRegistry)),
-            IBLSApkRegistry(address(blsApkRegistry)),
-            IIndexRegistry(address(indexRegistry)),
-            SFFLOperatorSetUpdateRegistry(address(operatorSetUpdateRegistry))
+        registryCoordinatorImpl = address(
+            new SFFLRegistryCoordinator(
+                sfflServiceManager, stakeRegistry, blsApkRegistry, indexRegistry, operatorSetUpdateRegistry
+            )
         );
 
-        {
-            uint256 numQuorums = 1;
-            IRegistryCoordinator.OperatorSetParam[] memory quorumsOperatorSetParams =
-                new IRegistryCoordinator.OperatorSetParam[](numQuorums);
-            for (uint256 i = 0; i < numQuorums; i++) {
-                quorumsOperatorSetParams[i] = IRegistryCoordinator.OperatorSetParam({
-                    maxOperatorCount: 10000,
-                    kickBIPsOfOperatorStake: 15000,
-                    kickBIPsOfTotalStake: 100
-                });
-            }
-            uint96[] memory quorumsMinimumStake = new uint96[](numQuorums);
-            IStakeRegistry.StrategyParams[][] memory quorumsStrategyParams =
-                new IStakeRegistry.StrategyParams[][](numQuorums);
-            for (uint256 i = 0; i < numQuorums; i++) {
-                quorumsStrategyParams[i] = new IStakeRegistry.StrategyParams[](numStrategies);
-                for (uint256 j = 0; j < numStrategies; j++) {
-                    quorumsStrategyParams[i][j] = IStakeRegistry.StrategyParams({
-                        strategy: deployedStrategyArray[j],
-                        // setting this to 1 ether since the divisor is also 1 ether
-                        // therefore this allows an operator to register with even just 1 token
-                        // see https://github.com/Layr-Labs/eigenlayer-middleware/blob/m2-mainnet/src/StakeRegistry.sol#L484
-                        //    weight += uint96(sharesAmount * strategyAndMultiplier.multiplier / WEIGHTING_DIVISOR);
-                        multiplier: 1 ether
-                    });
-                }
-            }
-            sfflProxyAdmin.upgradeAndCall(
-                TransparentUpgradeableProxy(payable(address(registryCoordinator))),
-                address(registryCoordinatorImplementation),
-                abi.encodeWithSelector(
-                    RegistryCoordinator.initialize.selector,
-                    sfflCommunityMultisig,
-                    sfflCommunityMultisig,
-                    sfflCommunityMultisig,
-                    sfflPauserReg,
-                    0, // 0 initialPausedStatus means everything unpaused
-                    quorumsOperatorSetParams,
-                    quorumsMinimumStake,
-                    quorumsStrategyParams
-                )
-            );
+        IRegistryCoordinator.OperatorSetParam[] memory quorumsOperatorSetParams =
+            new IRegistryCoordinator.OperatorSetParam[](NUM_QUORUMS);
+
+        for (uint256 i = 0; i < quorumsOperatorSetParams.length; i++) {
+            quorumsOperatorSetParams[i] = IRegistryCoordinator.OperatorSetParam({
+                maxOperatorCount: MAX_OPERATOR_COUNT,
+                kickBIPsOfOperatorStake: KICK_BIPS_OF_OPERATOR_STAKE,
+                kickBIPsOfTotalStake: KICK_BIPS_OF_TOTAL_STAKE
+            });
         }
 
-        sfflServiceManagerImplementation =
-            new SFFLServiceManager(delegationManager, registryCoordinator, stakeRegistry, sfflTaskManager);
+        uint96[] memory quorumsMinimumStake = new uint96[](NUM_QUORUMS);
+        IStakeRegistry.StrategyParams[][] memory quorumsStrategyParams =
+            new IStakeRegistry.StrategyParams[][](NUM_QUORUMS);
 
-        sfflProxyAdmin.upgradeAndCall(
-            TransparentUpgradeableProxy(payable(address(sfflServiceManager))),
-            address(sfflServiceManagerImplementation),
+        for (uint256 i = 0; i < quorumsStrategyParams.length; i++) {
+            quorumsStrategyParams[i] = new IStakeRegistry.StrategyParams[](numStrategies);
+
+            for (uint256 j = 0; j < quorumsStrategyParams[i].length; j++) {
+                quorumsStrategyParams[i][j] =
+                    IStakeRegistry.StrategyParams({strategy: deployedStrategyArray[j], multiplier: STRATEGY_MULTIPLIER});
+            }
+        }
+
+        _upgradeProxyAndCall(
+            sfflProxyAdmin,
+            registryCoordinatorProxy,
+            registryCoordinatorImpl,
+            abi.encodeWithSelector(
+                registryCoordinator.initialize.selector,
+                sfflCommunityMultisig,
+                sfflCommunityMultisig,
+                sfflCommunityMultisig,
+                sfflPauserReg,
+                INITIAL_PAUSED_STATUS,
+                quorumsOperatorSetParams,
+                quorumsMinimumStake,
+                quorumsStrategyParams
+            )
+        );
+
+        sfflServiceManagerImpl =
+            address(new SFFLServiceManager(delegationManager, registryCoordinator, stakeRegistry, sfflTaskManager));
+
+        _upgradeProxyAndCall(
+            sfflProxyAdmin,
+            sfflServiceManagerProxy,
+            sfflServiceManagerImpl,
             abi.encodeWithSignature("initialize(address,address)", sfflCommunityMultisig, sfflPauserReg)
         );
 
-        sfflTaskManagerImplementation = new SFFLTaskManager(registryCoordinator, TASK_RESPONSE_WINDOW_BLOCK);
+        sfflTaskManagerImpl = address(new SFFLTaskManager(registryCoordinator, TASK_RESPONSE_WINDOW_BLOCK));
 
-        sfflProxyAdmin.upgradeAndCall(
-            TransparentUpgradeableProxy(payable(address(sfflTaskManager))),
-            address(sfflTaskManagerImplementation),
+        _upgradeProxyAndCall(
+            sfflProxyAdmin,
+            sfflTaskManagerProxy,
+            sfflTaskManagerImpl,
             abi.encodeWithSelector(
-                sfflTaskManager.initialize.selector,
+                SFFLTaskManager.initialize.selector,
                 sfflPauserReg,
                 sfflCommunityMultisig,
                 AGGREGATOR_ADDR,
@@ -275,26 +319,89 @@ contract SFFLDeployer is Script, Utils {
             )
         );
 
-        string memory parent_object = "parent object";
+        SFFLDeployedContracts memory sfflContracts = SFFLDeployedContracts({
+            erc20Mock: erc20Mock,
+            erc20MockStrategy: erc20MockStrategy,
+            sfflServiceManager: sfflServiceManager,
+            sfflServiceManagerImpl: sfflServiceManagerImpl,
+            sfflTaskManager: sfflTaskManager,
+            sfflTaskManagerImpl: sfflTaskManagerImpl,
+            registryCoordinator: registryCoordinator,
+            registryCoordinatorImpl: registryCoordinatorImpl,
+            operatorStateRetriever: operatorStateRetriever
+        });
 
+        _serializeSFFLDeployedContracts(sfflContracts);
+    }
+
+    /**
+     * @dev Deploys a new proxy contract using the given implementation and initialization data.
+     * @param _impl Address of the implementation contract.
+     * @param _admin Proxy admin.
+     * @param _initCode Initialization code.
+     */
+    function _deployProxy(ProxyAdmin _admin, address _impl, bytes memory _initCode)
+        internal
+        returns (TransparentUpgradeableProxy)
+    {
+        return new TransparentUpgradeableProxy(_impl, address(_admin), _initCode);
+    }
+
+    /**
+     * @dev Deploys an empty proxy - i.e. a zero implementation and with no init code
+     * @param _admin Proxy admin.
+     */
+    function _deployEmptyProxy(ProxyAdmin _admin) internal returns (TransparentUpgradeableProxy) {
+        return new TransparentUpgradeableProxy(address(emptyContract), address(_admin), "");
+    }
+
+    /**
+     * @dev Upgrades a proxy to a new implementation.
+     * @param _admin Proxy admin.
+     * @param _proxy The proxy to upgrade.
+     * @param _impl The new implementation to upgrade to.
+     */
+    function _upgradeProxy(ProxyAdmin _admin, TransparentUpgradeableProxy _proxy, address _impl) internal {
+        _admin.upgrade(_proxy, _impl);
+    }
+
+    /**
+     * @dev Upgrades a proxy to a new impl and calls a function on the implementation.
+     * @param _admin Proxy admin.
+     * @param _proxy The proxy to upgrade.
+     * @param _impl The new impl to upgrade to.
+     * @param _data The encoded calldata to use in the call after upgrading.
+     */
+    function _upgradeProxyAndCall(
+        ProxyAdmin _admin,
+        TransparentUpgradeableProxy _proxy,
+        address _impl,
+        bytes memory _data
+    ) internal {
+        _admin.upgradeAndCall(_proxy, _impl, _data);
+    }
+
+    /**
+     * @dev Serializes the SFFL deployed contracts to the forge output.
+     * @param sfflContracts The deployed contracts.
+     */
+    function _serializeSFFLDeployedContracts(SFFLDeployedContracts memory sfflContracts) internal {
+        string memory parent_object = "parent object";
         string memory deployed_addresses = "addresses";
-        vm.serializeAddress(deployed_addresses, "erc20Mock", address(erc20Mock));
+
+        vm.serializeAddress(deployed_addresses, "erc20Mock", address(sfflContracts.erc20Mock));
         vm.serializeAddress(deployed_addresses, "erc20MockStrategy", address(erc20MockStrategy));
         vm.serializeAddress(deployed_addresses, "sfflServiceManager", address(sfflServiceManager));
-        vm.serializeAddress(
-            deployed_addresses, "sfflServiceManagerImplementation", address(sfflServiceManagerImplementation)
-        );
+        vm.serializeAddress(deployed_addresses, "sfflServiceManagerImpl", address(sfflServiceManagerImpl));
         vm.serializeAddress(deployed_addresses, "sfflTaskManager", address(sfflTaskManager));
-        vm.serializeAddress(deployed_addresses, "sfflTaskManagerImplementation", address(sfflTaskManagerImplementation));
+        vm.serializeAddress(deployed_addresses, "sfflTaskManagerImpl", address(sfflTaskManagerImpl));
         vm.serializeAddress(deployed_addresses, "registryCoordinator", address(registryCoordinator));
-        vm.serializeAddress(
-            deployed_addresses, "registryCoordinatorImplementation", address(registryCoordinatorImplementation)
-        );
+        vm.serializeAddress(deployed_addresses, "registryCoordinatorImpl", address(registryCoordinatorImpl));
         string memory deployed_addresses_output =
             vm.serializeAddress(deployed_addresses, "operatorStateRetriever", address(operatorStateRetriever));
 
         string memory finalJson = vm.serializeString(parent_object, deployed_addresses, deployed_addresses_output);
 
-        writeOutput(finalJson, "sffl_avs_deployment_output");
+        writeOutput(finalJson, SFFL_DEPLOYMENT_FILE);
     }
 }
