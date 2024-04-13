@@ -69,18 +69,6 @@ contract SFFLDeployer is Script, Utils {
         StrategyBaseTVLLimits baseStrategyImpl;
     }
 
-    struct SFFLDeployedContracts {
-        ERC20Mock erc20Mock;
-        StrategyBaseTVLLimits erc20MockStrategy;
-        SFFLServiceManager sfflServiceManager;
-        address sfflServiceManagerImpl;
-        SFFLTaskManager sfflTaskManager;
-        address sfflTaskManagerImpl;
-        SFFLRegistryCoordinator registryCoordinator;
-        address registryCoordinatorImpl;
-        OperatorStateRetriever operatorStateRetriever;
-    }
-
     EmptyContract public emptyContract;
     ERC20Mock public erc20Mock;
 
@@ -237,13 +225,13 @@ contract SFFLDeployer is Script, Utils {
 
         stakeRegistryImpl = address(new StakeRegistry(registryCoordinator, delegationManager));
         _upgradeProxy(sfflProxyAdmin, stakeRegistryProxy, stakeRegistryImpl);
-        
+
         blsApkRegistryImpl = address(new BLSApkRegistry(registryCoordinator));
         _upgradeProxy(sfflProxyAdmin, blsApkRegistryProxy, blsApkRegistryImpl);
-        
+
         indexRegistryImpl = address(new IndexRegistry(registryCoordinator));
         _upgradeProxy(sfflProxyAdmin, indexRegistryProxy, indexRegistryImpl);
-        
+
         operatorSetUpdateRegistryImpl = address(new SFFLOperatorSetUpdateRegistry(registryCoordinator));
         _upgradeProxy(sfflProxyAdmin, operatorSetUpdateRegistryProxy, operatorSetUpdateRegistryImpl);
 
@@ -319,19 +307,7 @@ contract SFFLDeployer is Script, Utils {
             )
         );
 
-        SFFLDeployedContracts memory sfflContracts = SFFLDeployedContracts({
-            erc20Mock: erc20Mock,
-            erc20MockStrategy: erc20MockStrategy,
-            sfflServiceManager: sfflServiceManager,
-            sfflServiceManagerImpl: sfflServiceManagerImpl,
-            sfflTaskManager: sfflTaskManager,
-            sfflTaskManagerImpl: sfflTaskManagerImpl,
-            registryCoordinator: registryCoordinator,
-            registryCoordinatorImpl: registryCoordinatorImpl,
-            operatorStateRetriever: operatorStateRetriever
-        });
-
-        _serializeSFFLDeployedContracts(sfflContracts);
+        _serializeSFFLDeployedContracts();
     }
 
     /**
@@ -383,24 +359,35 @@ contract SFFLDeployer is Script, Utils {
 
     /**
      * @dev Serializes the SFFL deployed contracts to the forge output.
-     * @param sfflContracts The deployed contracts.
      */
-    function _serializeSFFLDeployedContracts(SFFLDeployedContracts memory sfflContracts) internal {
+    function _serializeSFFLDeployedContracts() internal {
         string memory parent_object = "parent object";
-        string memory deployed_addresses = "addresses";
+        string memory addresses = "addresses";
 
-        vm.serializeAddress(deployed_addresses, "erc20Mock", address(sfflContracts.erc20Mock));
-        vm.serializeAddress(deployed_addresses, "erc20MockStrategy", address(erc20MockStrategy));
-        vm.serializeAddress(deployed_addresses, "sfflServiceManager", address(sfflServiceManager));
-        vm.serializeAddress(deployed_addresses, "sfflServiceManagerImpl", address(sfflServiceManagerImpl));
-        vm.serializeAddress(deployed_addresses, "sfflTaskManager", address(sfflTaskManager));
-        vm.serializeAddress(deployed_addresses, "sfflTaskManagerImpl", address(sfflTaskManagerImpl));
-        vm.serializeAddress(deployed_addresses, "registryCoordinator", address(registryCoordinator));
-        vm.serializeAddress(deployed_addresses, "registryCoordinatorImpl", address(registryCoordinatorImpl));
-        string memory deployed_addresses_output =
-            vm.serializeAddress(deployed_addresses, "operatorStateRetriever", address(operatorStateRetriever));
+        string memory output;
 
-        string memory finalJson = vm.serializeString(parent_object, deployed_addresses, deployed_addresses_output);
+        output = vm.serializeAddress(addresses, "deployer", address(msg.sender));
+        output = vm.serializeAddress(addresses, "erc20Mock", address(erc20Mock));
+        output = vm.serializeAddress(addresses, "erc20MockStrategy", address(erc20MockStrategy));
+        output = vm.serializeAddress(addresses, "sfflProxyAdmin", address(sfflProxyAdmin));
+        output = vm.serializeAddress(addresses, "sfflPauserReg", address(sfflPauserReg));
+        output = vm.serializeAddress(addresses, "registryCoordinator", address(registryCoordinator));
+        output = vm.serializeAddress(addresses, "registryCoordinatorImpl", address(registryCoordinatorImpl));
+        output = vm.serializeAddress(addresses, "blsApkRegistry", address(blsApkRegistry));
+        output = vm.serializeAddress(addresses, "blsApkRegistryImpl", address(blsApkRegistryImpl));
+        output = vm.serializeAddress(addresses, "indexRegistry", address(indexRegistry));
+        output = vm.serializeAddress(addresses, "indexRegistryImpl", address(indexRegistryImpl));
+        output = vm.serializeAddress(addresses, "stakeRegistry", address(stakeRegistry));
+        output = vm.serializeAddress(addresses, "stakeRegistryImpl", address(stakeRegistryImpl));
+        output = vm.serializeAddress(addresses, "operatorSetUpdateRegistry", address(operatorSetUpdateRegistry));
+        output = vm.serializeAddress(addresses, "operatorSetUpdateRegistryImpl", address(operatorSetUpdateRegistryImpl));
+        output = vm.serializeAddress(addresses, "sfflServiceManager", address(sfflServiceManager));
+        output = vm.serializeAddress(addresses, "sfflServiceManagerImpl", address(sfflServiceManagerImpl));
+        output = vm.serializeAddress(addresses, "sfflTaskManager", address(sfflTaskManager));
+        output = vm.serializeAddress(addresses, "sfflTaskManagerImpl", address(sfflTaskManagerImpl));
+        output = vm.serializeAddress(addresses, "operatorStateRetriever", address(operatorStateRetriever));
+
+        string memory finalJson = vm.serializeString(parent_object, addresses, output);
 
         writeOutput(finalJson, SFFL_DEPLOYMENT_FILE);
     }
