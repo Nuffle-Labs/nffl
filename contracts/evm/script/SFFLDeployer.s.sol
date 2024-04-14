@@ -127,7 +127,14 @@ contract SFFLDeployer is Script, Utils {
             eigenlayerContracts.baseStrategyImpl,
             eigenlayerContracts.strategyManager
         );
-        _deploySFFLContracts(eigenlayerContracts.delegationManager, eigenlayerContracts.avsDirectory, erc20MockStrategy, sfflCommunityMultisig, sfflPauser);
+        _deploySFFLContracts(
+            eigenlayerContracts.delegationManager,
+            eigenlayerContracts.avsDirectory,
+            erc20MockStrategy,
+            sfflCommunityMultisig,
+            sfflPauser
+        );
+
         _whitelistOperators();
         vm.stopBroadcast();
     }
