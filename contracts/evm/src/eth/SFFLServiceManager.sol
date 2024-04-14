@@ -79,7 +79,7 @@ contract SFFLServiceManager is SFFLRegistryBase, ServiceManagerBase, Pausable {
         address operator,
         ISignatureUtils.SignatureWithSaltAndExpiry memory operatorSignature
     ) public virtual override onlyRegistryCoordinator {
-        require(operatorSetUpdateRegistry.isOperatorWhitelisted(msg.sender), "Not whitelisted");
+        require(operatorSetUpdateRegistry.isOperatorWhitelisted(operator), "Not whitelisted");
 
         super.registerOperatorToAVS(operator, operatorSignature);
     }
