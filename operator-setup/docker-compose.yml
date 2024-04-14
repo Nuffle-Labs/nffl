@@ -50,8 +50,8 @@ services:
       - ./:/near-sffl/
     working_dir: /near-sffl
     environment:
-      - OPERATOR_BLS_KEY_PASSWORD=fDUMDLmBROwlzzPXyIcy
-      - OPERATOR_ECDSA_KEY_PASSWORD=EnJuncq01CiVk9UbuBYl
+      - OPERATOR_BLS_KEY_PASSWORD=${OPERATOR_BLS_KEY_PASSWORD}
+      - OPERATOR_ECDSA_KEY_PASSWORD=${OPERATOR_ECDSA_KEY_PASSWORD}
     command: --config config/operator.yaml
     networks:
       - near-sffl
