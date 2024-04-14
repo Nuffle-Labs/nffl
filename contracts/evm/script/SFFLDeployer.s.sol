@@ -65,7 +65,7 @@ contract SFFLDeployer is Script, Utils {
     struct EigenlayerDeployedContracts {
         IStrategyManager strategyManager;
         IDelegationManager delegationManager;
-        IAvsDirectory avsDirectory;
+        IAVSDirectory avsDirectory;
         ProxyAdmin eigenLayerProxyAdmin;
         PauserRegistry eigenLayerPauserReg;
         StrategyBaseTVLLimits baseStrategyImpl;
@@ -301,8 +301,11 @@ contract SFFLDeployer is Script, Utils {
             )
         );
 
-        sfflServiceManagerImpl =
-            address(new SFFLServiceManager(delegationManager, registryCoordinator, stakeRegistry, sfflTaskManager));
+        sfflServiceManagerImpl = address(
+            new SFFLServiceManager(
+                avsDirectory, registryCoordinator, stakeRegistry, sfflTaskManager, operatorSetUpdateRegistry
+            )
+        );
 
         _upgradeProxyAndCall(
             sfflProxyAdmin,
