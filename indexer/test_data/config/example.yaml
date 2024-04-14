@@ -1,0 +1,37 @@
+# chain/network id (localnet, testnet, devnet, betanet)
+# chain_id: localnet
+
+account_id: test.near
+
+# Specify private key generated from seed (TESTING ONLY)
+# test_seed: 
+
+# Number of shards to initialize the chain with
+num_shards: 1
+
+# Makes block production fast (TESTING ONLY)
+fast: false
+
+# Genesis file to use when initialize testnet (including downloading)
+# genesis: 
+
+# Download the verified NEAR genesis file automatically.
+# download_genesis: 
+
+# Specify a custom download URL for the genesis-file.
+# download_genesis_url: 
+
+# Specify a custom download URL for the records-file.
+# download_records_url: 
+
+# Download the verified NEAR config file automatically.
+download_config: false
+
+# Specify a custom download URL for the config file.
+# download_config_url: 
+
+# Specify the boot nodes to bootstrap the network
+# boot_nodes: 
+
+# Specify a custom max_gas_burnt_view limit.
+# max_gas_burnt_view: 
