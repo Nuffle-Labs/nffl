@@ -26,7 +26,7 @@ ecdsa_private_key_store_path: tests/keys/ecdsa/1.ecdsa.key.json
 # We are using bn254 curve for bls keys
 #
 # If you are running locally using go run main.go, this should be full path to your local bls key file
-bls_private_key_store_path: tests/keys/bls/1.bls.key.json
+bls_private_key_store_path: tests/keys/bls/1/key.json
 
 # address which the aggregator listens on for operator signed messages
 aggregator_server_ip_port_address: near-sffl-aggregator:8090
