@@ -82,7 +82,7 @@ contract SFFLDeployer is Script, Utils {
         IStrategyManager strategyManager =
             IStrategyManager(stdJson.readAddress(eigenlayerDeployedContracts, ".addresses.strategyManager"));
         IDelegationManager delegationManager =
-            IDelegationManager(stdJson.readAddress(eigenlayerDeployedContracts, ".addresses.delegation"));
+            IDelegationManager(stdJson.readAddress(eigenlayerDeployedContracts, ".addresses.delegationManager"));
         IAVSDirectory avsDirectory =
             IAVSDirectory(stdJson.readAddress(eigenlayerDeployedContracts, ".addresses.avsDirectory"));
         ProxyAdmin eigenLayerProxyAdmin =
@@ -101,6 +101,7 @@ contract SFFLDeployer is Script, Utils {
             eigenLayerProxyAdmin, eigenLayerPauserReg, baseStrategyImplementation, strategyManager
         );
         _deploySFFLContracts(delegationManager, avsDirectory, erc20MockStrategy, sfflCommunityMultisig, sfflPauser);
+        _whitelistOperators();
         vm.stopBroadcast();
     }
 
@@ -134,6 +135,14 @@ contract SFFLDeployer is Script, Utils {
         bool[] memory thirdPartyTransfersForbiddenValues = new bool[](1);
 
         strategyManager.addStrategiesToDepositWhitelist(strats, thirdPartyTransfersForbiddenValues);
+    }
+
+    function _whitelistOperators() internal {
+        // from keys in tests/keys/ecdsa
+        operatorSetUpdateRegistry.setOperatorWhitelisting(0xD5A0359da7B310917d7760385516B2426E86ab7f, true);
+        operatorSetUpdateRegistry.setOperatorWhitelisting(0x9441540E8183d416f2Dc1901AB2034600f17B65a, true);
+        operatorSetUpdateRegistry.setOperatorWhitelisting(0x49d0D93C30f799343745d482695a0Fdb952B1d02, true);
+        operatorSetUpdateRegistry.setOperatorWhitelisting(0x4b35F09961ed53545f7508f5ac1e8414D7c31D7A, true);
     }
 
     function _deploySFFLContracts(
