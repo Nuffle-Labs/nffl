@@ -228,8 +228,8 @@ contract SFFLTaskManager is Initializable, OwnableUpgradeable, Pausable, BLSSign
     function raiseAndResolveCheckpointChallenge(
         Checkpoint.Task calldata task,
         Checkpoint.TaskResponse calldata taskResponse,
-        Checkpoint.TaskResponseMetadata calldata taskResponseMetadata,
-        BN254.G1Point[] memory pubkeysOfNonSigningOperators
+        Checkpoint.TaskResponseMetadata calldata taskResponseMetadata,// forgefmt: disable-line
+        BN254.G1Point[] memory pubkeysOfNonSigningOperators// forgefmt: disable-line
     ) external onlyWhenNotPaused(PAUSED_CHALLENGE_CHECKPOINT_TASK) {
         uint32 referenceTaskIndex = taskResponse.referenceTaskIndex;
 
