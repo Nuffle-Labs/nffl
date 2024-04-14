@@ -379,6 +379,8 @@ func genOperatorConfig(t *testing.T, ctx context.Context, keysPath string, mainn
 
 	address := crypto.PubkeyToAddress(ecdsaKey.PublicKey)
 
+	t.Logf("Generated config for operator: %s", address.String())
+
 	nodeConfig.OperatorAddress = address.String()
 	nodeConfig.RegisterOperatorOnStartup = true
 	nodeConfig.EthRpcUrl = mainnetAnvil.HttpUrl
