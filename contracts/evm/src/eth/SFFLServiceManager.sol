@@ -78,7 +78,7 @@ contract SFFLServiceManager is SFFLRegistryBase, ServiceManagerBase, Pausable {
     function registerOperatorToAVS(
         address operator,
         ISignatureUtils.SignatureWithSaltAndExpiry memory operatorSignature
-    ) public override onlyRegistryCoordinator {
+    ) public virtual override onlyRegistryCoordinator {
         require(operatorSetUpdateRegistry.isOperatorWhitelisted(msg.sender), "Not whitelisted");
 
         super.registerOperatorToAVS(operator, operatorSignature);
@@ -125,7 +125,8 @@ contract SFFLServiceManager is SFFLRegistryBase, ServiceManagerBase, Pausable {
     }
 
     /**
-     * @dev Computes whether a state root update quorum was met or not
+     * @dev Computes whether a state root update quorum was met or not.
+     * Checks quorum for the previous block - see https://github.com/Layr-Labs/eigenlayer-middleware/pull/181.
      * @param message State root update message
      * @param nonSignerStakesAndSignature AVS operators agreement info
      * @return Whether the quorum was met or not
@@ -137,7 +138,7 @@ contract SFFLServiceManager is SFFLRegistryBase, ServiceManagerBase, Pausable {
         (bool success,) = taskManager.checkQuorum(
             message.hashCalldata(),
             hex"00",
-            uint32(block.number),
+            uint32(block.number - 1),
             nonSignerStakesAndSignature,
             2 * taskManager.THRESHOLD_DENOMINATOR() / 3
         );

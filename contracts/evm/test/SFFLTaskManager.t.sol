@@ -152,7 +152,7 @@ contract SFFLTaskManagerTest is TestUtils {
         (
             bytes32 signatoryRecordHash,
             IBLSSignatureChecker.NonSignerStakesAndSignature memory nonSignerStakesAndSignature
-        ) = setUpOperators(taskResponse.hash(), task.taskCreatedBlock, 100, 1);
+        ) = setUpOperators(taskResponse.hash(), task.taskCreatedBlock - 1, task.taskCreatedBlock, 100, 1);
 
         Checkpoint.TaskResponseMetadata memory taskResponseMetadata = Checkpoint.TaskResponseMetadata({
             taskRespondedBlock: task.taskCreatedBlock + TASK_RESPONSE_WINDOW_BLOCK,
@@ -221,7 +221,7 @@ contract SFFLTaskManagerTest is TestUtils {
         (
             bytes32 signatoryRecordHash,
             IBLSSignatureChecker.NonSignerStakesAndSignature memory nonSignerStakesAndSignature
-        ) = setUpOperators(taskResponse.hash(), task.taskCreatedBlock, 100, 1);
+        ) = setUpOperators(taskResponse.hash(), task.taskCreatedBlock - 1, task.taskCreatedBlock, 100, 1);
 
         Checkpoint.TaskResponseMetadata memory taskResponseMetadata = Checkpoint.TaskResponseMetadata({
             taskRespondedBlock: task.taskCreatedBlock + TASK_RESPONSE_WINDOW_BLOCK,
@@ -259,7 +259,7 @@ contract SFFLTaskManagerTest is TestUtils {
         (
             bytes32 signatoryRecordHash,
             IBLSSignatureChecker.NonSignerStakesAndSignature memory nonSignerStakesAndSignature
-        ) = setUpOperators(taskResponse.hash(), task.taskCreatedBlock, 100, 1);
+        ) = setUpOperators(taskResponse.hash(), task.taskCreatedBlock - 1, task.taskCreatedBlock, 100, 1);
 
         Checkpoint.TaskResponseMetadata memory taskResponseMetadata = Checkpoint.TaskResponseMetadata({
             taskRespondedBlock: task.taskCreatedBlock + TASK_RESPONSE_WINDOW_BLOCK,
@@ -300,7 +300,7 @@ contract SFFLTaskManagerTest is TestUtils {
         (
             bytes32 signatoryRecordHash,
             IBLSSignatureChecker.NonSignerStakesAndSignature memory nonSignerStakesAndSignature
-        ) = setUpOperators(taskResponse.hash(), task.taskCreatedBlock, 100, 1);
+        ) = setUpOperators(taskResponse.hash(), task.taskCreatedBlock - 1, task.taskCreatedBlock, 100, 1);
 
         Checkpoint.TaskResponseMetadata memory taskResponseMetadata = Checkpoint.TaskResponseMetadata({
             taskRespondedBlock: task.taskCreatedBlock + TASK_RESPONSE_WINDOW_BLOCK + 1,
@@ -338,7 +338,7 @@ contract SFFLTaskManagerTest is TestUtils {
         (
             bytes32 signatoryRecordHash,
             IBLSSignatureChecker.NonSignerStakesAndSignature memory nonSignerStakesAndSignature
-        ) = setUpOperators(taskResponse.hash(), task.taskCreatedBlock, 100, 1);
+        ) = setUpOperators(taskResponse.hash(), task.taskCreatedBlock - 1, task.taskCreatedBlock, 100, 1);
 
         Checkpoint.TaskResponseMetadata memory taskResponseMetadata = Checkpoint.TaskResponseMetadata({
             taskRespondedBlock: task.taskCreatedBlock + TASK_RESPONSE_WINDOW_BLOCK,
@@ -860,24 +860,28 @@ contract SFFLTaskManagerTest is TestUtils {
     }
 
     function test_checkQuorum() public {
-        uint32 blockNumber = 1000;
+        uint32 taskCreationBlockNumber = 1000;
         bytes32 _msgHash = keccak256("test");
 
         (
             bytes32 expectedSignatoryRecordHash,
             IBLSSignatureChecker.NonSignerStakesAndSignature memory nonSignerStakesAndSignature
-        ) = setUpOperators(_msgHash, blockNumber, 100, 1);
+        ) = setUpOperators(_msgHash, taskCreationBlockNumber - 1, taskCreationBlockNumber, 100, 1);
 
-        vm.roll(blockNumber);
-
+        vm.roll(taskCreationBlockNumber + 1);
         (bool success, bytes32 signatoryRecordHash) =
-            taskManager.checkQuorum(_msgHash, hex"00", blockNumber, nonSignerStakesAndSignature, 0);
+            taskManager.checkQuorum(_msgHash, hex"00", taskCreationBlockNumber, nonSignerStakesAndSignature, 0);
 
         assertTrue(success);
         assertEq(signatoryRecordHash, expectedSignatoryRecordHash);
 
+        vm.roll(taskCreationBlockNumber + 1);
         (success, signatoryRecordHash) = taskManager.checkQuorum(
-            _msgHash, hex"00", blockNumber, nonSignerStakesAndSignature, quorumThreshold(thresholdDenominator, 1) + 1
+            _msgHash,
+            hex"00",
+            taskCreationBlockNumber,
+            nonSignerStakesAndSignature,
+            quorumThreshold(thresholdDenominator, 1) + 1
         );
 
         assertFalse(success);

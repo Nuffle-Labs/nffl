@@ -28,10 +28,14 @@ abstract contract TestUtils is Test, BLSUtilsFFI, BLSMockAVSDeployer {
 
     function setUpOperators(
         bytes32 _msgHash,
+        uint32 operatorRegisterBlock,
         uint32 taskCreationBlock,
         uint256 pseudoRandomNumber,
         uint256 numNonSigners
     ) public returns (bytes32, IBLSSignatureChecker.NonSignerStakesAndSignature memory) {
+        assertLe(block.number, operatorRegisterBlock);
+        assertGt(taskCreationBlock, operatorRegisterBlock);
+
         msgHash = _msgHash;
         _setAggregatePublicKeysAndSignature();
 
@@ -44,7 +48,6 @@ abstract contract TestUtils is Test, BLSUtilsFFI, BLSMockAVSDeployer {
         }
         bytes32 signatoryRecordHash = keccak256(abi.encodePacked(taskCreationBlock, nonSignersPubkeyHashes));
 
-        assertLe(block.number, taskCreationBlock);
         vm.roll(taskCreationBlock);
 
         return (signatoryRecordHash, nonSignerStakesAndSignature);
