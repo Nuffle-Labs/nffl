@@ -260,8 +260,9 @@ contract SFFLDeployer is Script, Utils {
             );
         }
 
-        sfflServiceManagerImplementation =
-            new SFFLServiceManager(avsDirectory, registryCoordinator, stakeRegistry, sfflTaskManager);
+        sfflServiceManagerImplementation = new SFFLServiceManager(
+            avsDirectory, registryCoordinator, stakeRegistry, sfflTaskManager, operatorSetUpdateRegistry
+        );
 
         sfflProxyAdmin.upgradeAndCall(
             TransparentUpgradeableProxy(payable(address(sfflServiceManager))),

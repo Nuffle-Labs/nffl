@@ -19,6 +19,7 @@ import {SFFLTaskManager} from "../src/eth/SFFLTaskManager.sol";
 import {SFFLServiceManager} from "../src/eth/SFFLServiceManager.sol";
 import {Checkpoint} from "../src/eth/task/Checkpoint.sol";
 import {StateRootUpdate} from "../src/base/message/StateRootUpdate.sol";
+import {SFFLOperatorSetUpdateRegistry} from "../src/eth/SFFLOperatorSetUpdateRegistry.sol";
 
 import {TestUtils} from "./utils/TestUtils.sol";
 
@@ -27,8 +28,11 @@ contract SFFLServiceManagerHarness is SFFLServiceManager {
         IAVSDirectory _avsDirectory,
         IRegistryCoordinator _registryCoordinator,
         IStakeRegistry _stakeRegistry,
-        SFFLTaskManager _taskManager
-    ) SFFLServiceManager(_avsDirectory, _registryCoordinator, _stakeRegistry, _taskManager) {}
+        SFFLTaskManager _taskManager,
+        SFFLOperatorSetUpdateRegistry _operatorSetUpdateRegistry
+    )
+        SFFLServiceManager(_avsDirectory, _registryCoordinator, _stakeRegistry, _taskManager, _operatorSetUpdateRegistry)
+    {}
 
     function forceInitialize(address initialOwner, IPauserRegistry _pauserRegistry) public {
         _transferOwnership(initialOwner);
@@ -72,9 +76,15 @@ contract SFFLServiceManagerTest is TestUtils {
         vm.label(impl, "taskManagerImpl");
         vm.label(address(taskManager), "taskManagerProxy");
 
+        SFFLOperatorSetUpdateRegistry operatorSetUpdateRegistry = new SFFLOperatorSetUpdateRegistry(registryCoordinator);
+
         address sfflServiceManagerImplementation = address(
             new SFFLServiceManagerHarness(
-                IAVSDirectory(avsDirectoryMock), registryCoordinator, stakeRegistry, taskManager
+                IAVSDirectory(avsDirectoryMock),
+                registryCoordinator,
+                stakeRegistry,
+                taskManager,
+                operatorSetUpdateRegistry
             )
         );
 

@@ -8,10 +8,12 @@ import {IStakeRegistry} from "eigenlayer-middleware/src/interfaces/IStakeRegistr
 import {IBLSSignatureChecker} from "eigenlayer-middleware/src/interfaces/IBLSSignatureChecker.sol";
 import {Pausable} from "@eigenlayer/contracts/permissions/Pausable.sol";
 import {IPauserRegistry} from "@eigenlayer/contracts/interfaces/IPauserRegistry.sol";
+import {ISignatureUtils} from "@eigenlayer/contracts/interfaces/ISignatureUtils.sol";
 
 import {SFFLTaskManager} from "./SFFLTaskManager.sol";
 import {SFFLRegistryBase} from "../base/SFFLRegistryBase.sol";
 import {StateRootUpdate} from "../base/message/StateRootUpdate.sol";
+import {SFFLOperatorSetUpdateRegistry} from "./SFFLOperatorSetUpdateRegistry.sol";
 
 /**
  * @title SFFL AVS Service Manager
@@ -24,6 +26,11 @@ contract SFFLServiceManager is SFFLRegistryBase, ServiceManagerBase, Pausable {
      * @notice Address of the SFFL task manager
      */
     SFFLTaskManager public immutable taskManager;
+
+    /**
+     * @notice Address of the SFFL operator set update registry
+     */
+    SFFLOperatorSetUpdateRegistry public immutable operatorSetUpdateRegistry;
 
     /**
      * @notice Index for flag pausing state root updates
@@ -39,9 +46,11 @@ contract SFFLServiceManager is SFFLRegistryBase, ServiceManagerBase, Pausable {
         IAVSDirectory _avsDirectory,
         IRegistryCoordinator _registryCoordinator,
         IStakeRegistry _stakeRegistry,
-        SFFLTaskManager _taskManager
+        SFFLTaskManager _taskManager,
+        SFFLOperatorSetUpdateRegistry _operatorSetUpdateRegistry
     ) ServiceManagerBase(_avsDirectory, _registryCoordinator, _stakeRegistry) {
         taskManager = _taskManager;
+        operatorSetUpdateRegistry = _operatorSetUpdateRegistry;
     }
 
     /**
@@ -61,6 +70,18 @@ contract SFFLServiceManager is SFFLRegistryBase, ServiceManagerBase, Pausable {
     function initialize(address initialOwner, IPauserRegistry _pauserRegistry) public initializer {
         _transferOwnership(initialOwner);
         _initializePauser(_pauserRegistry, UNPAUSE_ALL);
+    }
+
+    /**
+     * @inheritdoc ServiceManagerBase
+     */
+    function registerOperatorToAVS(
+        address operator,
+        ISignatureUtils.SignatureWithSaltAndExpiry memory operatorSignature
+    ) public override onlyRegistryCoordinator {
+        require(operatorSetUpdateRegistry.isOperatorWhitelisted(msg.sender), "Not whitelisted");
+
+        super.registerOperatorToAVS(operator, operatorSignature);
     }
 
     /**
