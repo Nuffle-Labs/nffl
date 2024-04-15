@@ -46,7 +46,9 @@ import (
 )
 
 const (
-	TEST_DATA_DIR = "../../test_data"
+	TEST_DATA_DIR  = "../../test_data"
+	BLS_KEYS_DIR   = "../../keys/bls"
+	ECDSA_KEYS_DIR = "../../keys/ecdsa"
 )
 
 func TestIntegration(t *testing.T) {
@@ -343,11 +345,11 @@ func genOperatorConfig(t *testing.T, ctx context.Context, keysPath string, mainn
 	os.Setenv("OPERATOR_BLS_KEY_PASSWORD", "")
 	os.Setenv("OPERATOR_ECDSA_KEY_PASSWORD", "")
 
-	nodeConfig.BlsPrivateKeyStorePath, err = filepath.Abs(filepath.Join("../keys/bls", keysPath, "key.json"))
+	nodeConfig.BlsPrivateKeyStorePath, err = filepath.Abs(filepath.Join(BLS_KEYS_DIR, keysPath, "key.json"))
 	if err != nil {
 		t.Fatalf("Failed to get BLS key dir: %s", err.Error())
 	}
-	passwordPath := filepath.Join("../keys/bls", keysPath, "password.txt")
+	passwordPath := filepath.Join(BLS_KEYS_DIR, keysPath, "password.txt")
 	password, err := os.ReadFile(passwordPath)
 	if err != nil {
 		t.Fatalf("Failed to read BLS password: %s", err.Error())
@@ -360,11 +362,11 @@ func genOperatorConfig(t *testing.T, ctx context.Context, keysPath string, mainn
 		t.Fatalf("Failed to generate operator BLS keys: %s", err.Error())
 	}
 
-	nodeConfig.EcdsaPrivateKeyStorePath, err = filepath.Abs(filepath.Join("../keys/ecdsa", keysPath, "key.json"))
+	nodeConfig.EcdsaPrivateKeyStorePath, err = filepath.Abs(filepath.Join(ECDSA_KEYS_DIR, keysPath, "key.json"))
 	if err != nil {
 		t.Fatalf("Failed to get ECDSA key dir: %s", err.Error())
 	}
-	passwordPath = filepath.Join("../keys/ecdsa", keysPath, "password.txt")
+	passwordPath = filepath.Join(ECDSA_KEYS_DIR, keysPath, "password.txt")
 	password, err = os.ReadFile(passwordPath)
 	if err != nil {
 		t.Fatalf("Failed to read ECDSA password: %s", err.Error())
