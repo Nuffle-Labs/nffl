@@ -2,6 +2,7 @@ package attestor
 
 import (
 	"context"
+	"encoding/hex"
 	"errors"
 	"time"
 
@@ -19,7 +20,7 @@ import (
 )
 
 const (
-	MQ_WAIT_TIMEOUT       = 5 * time.Second
+	MQ_WAIT_TIMEOUT       = 3 * time.Second
 	RECONNECTION_ATTEMPTS = 5
 	RECONNECTION_DELAY    = time.Second
 )
@@ -81,6 +82,7 @@ func NewAttestor(config *optypes.NodeConfig, blsKeypair *bls.KeyPair, operatorId
 	consumer := consumer.NewConsumer(consumer.ConsumerConfig{
 		Addr:      config.NearDaIndexerRmqIpPortAddress,
 		RollupIds: config.NearDaIndexerRollupIds,
+		Id:        hex.EncodeToString(operatorId[:]),
 	}, logger)
 
 	attestor := Attestor{

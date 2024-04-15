@@ -3,6 +3,7 @@ package consumer
 import (
 	"context"
 	"errors"
+	"fmt"
 	"sync"
 
 	"github.com/Layr-Labs/eigensdk-go/logging"
@@ -113,12 +114,15 @@ func (l *QueuesListener) listen(ctx context.Context, rollupId uint32, rollupData
 					continue
 				}
 
-				l.receivedBlocksC <- BlockData{
+				blockData := BlockData{
 					RollupId:      rollupId,
 					TransactionId: publishPayload.TransactionId,
 					Commitment:    blob.Commitment,
 					Block:         block,
 				}
+
+				l.logger.Info("MQ Block", "blockData", blockData, "listener", fmt.Sprintf("%p", l))
+				l.receivedBlocksC <- blockData
 			}
 
 			d.Ack(false)
