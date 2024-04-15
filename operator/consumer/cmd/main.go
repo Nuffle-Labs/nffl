@@ -14,14 +14,14 @@ func main() {
 	app := cli.NewApp()
 	app.Flags = []cli.Flag{
 		cli.StringFlag{
+			Name:     "id",
+			Required: true,
+			Usage:    "Unique consumer identifier",
+		},
+		cli.StringFlag{
 			Name:     "rmq-address",
 			Required: true,
 			Usage:    "Connect to RMQ publisher at `ADDRESS`",
-		},
-		cli.StringFlag{
-			Name:  "consumer-tag",
-			Value: "da-consumer",
-			Usage: "Connect to RMQ publisher using `TAG`",
 		},
 		cli.Int64SliceFlag{
 			Name:     "rollup-ids",
@@ -60,9 +60,9 @@ func consumerMain(ctx *cli.Context) error {
 	}
 
 	consumer := consumer.NewConsumer(consumer.ConsumerConfig{
-		Addr:        ctx.GlobalString("rmq-address"),
-		ConsumerTag: ctx.GlobalString("consumer-tag"),
-		RollupIds:   rollupIds,
+		Id:        ctx.GlobalString("id"),
+		Addr:      ctx.GlobalString("rmq-address"),
+		RollupIds: rollupIds,
 	}, logger)
 
 	blockStream := consumer.GetBlockStream()

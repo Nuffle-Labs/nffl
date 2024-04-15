@@ -6,9 +6,11 @@ import (
 	"log"
 	"os"
 
-	"github.com/NethermindEth/near-sffl/relayer"
-
+	sdklogging "github.com/Layr-Labs/eigensdk-go/logging"
 	"github.com/urfave/cli"
+
+	"github.com/NethermindEth/near-sffl/relayer"
+	"github.com/NethermindEth/near-sffl/relayer/config"
 )
 
 func main() {
@@ -21,12 +23,22 @@ func main() {
 		cli.StringFlag{
 			Name:     "rpc-url",
 			Required: true,
-			Usage:    "Connect to the indicated RPC`",
+			Usage:    "Connect to the indicated RPC",
 		},
 		cli.StringFlag{
 			Name:     "da-account-id",
 			Required: true,
 			Usage:    "Publish block data to the indicated NEAR account",
+		},
+		cli.StringFlag{
+			Name:     "key-path",
+			Required: true,
+			Usage:    "Path to NEAR account's key file",
+		},
+		cli.StringFlag{
+			Name:  "network",
+			Value: "http://127.0.0.1:3030",
+			Usage: "Network for NEAR client to use (options: Mainnet, Testnet, Custom url, default: http://127.0.0.1:3030)",
 		},
 	}
 	app.Name = "sffl-test-relayer"
@@ -41,31 +53,47 @@ func main() {
 }
 
 func relayerMain(ctx *cli.Context) error {
-	log.Println("Initializing Relayer")
-
-	config := &relayer.RelayerConfig{
+	config := &config.RelayerConfig{
 		Production:  ctx.GlobalBool("production"),
 		RpcUrl:      ctx.GlobalString("rpc-url"),
 		DaAccountId: ctx.GlobalString("da-account-id"),
+		KeyPath:     ctx.GlobalString("key-path"),
+		Network:     ctx.GlobalString("network"),
 	}
 
-	configJson, err := json.MarshalIndent(config, "", "  ")
-	if err != nil {
-		log.Fatalf(err.Error())
+	var logLevel sdklogging.LogLevel
+	if config.Production {
+		logLevel = sdklogging.Production
+	} else {
+		logLevel = sdklogging.Development
 	}
 
-	log.Println("Config:", string(configJson))
-
-	log.Println("initializing relayer")
-	rel, err := relayer.NewRelayerFromConfig(config)
+	logger, err := sdklogging.NewZapLogger(logLevel)
 	if err != nil {
 		return err
 	}
-	log.Println("initialized relayer")
 
-	log.Println("starting relayer")
+	logger.Info("Initializing Relayer")
+	configJson, err := json.MarshalIndent(config, "", "  ")
+	if err != nil {
+		logger.Fatal(err.Error())
+	}
+
+	logger.Infof("Config: %s", string(configJson))
+
+	logger.Info("initializing relayer")
+	rel, err := relayer.NewRelayerFromConfig(config, logger)
+	if err != nil {
+		logger.Error("Error creating relayer", "err", err)
+		return err
+	}
+
+	logger.Info("initialized relayer")
+
+	logger.Info("starting relayer")
 	err = rel.Start(context.Background())
 	if err != nil {
+		logger.Error("Error starting relayer", "err", err)
 		return err
 	}
 

@@ -1,13 +1,17 @@
 use borsh::{BorshDeserialize, BorshSerialize};
 use deadpool_lapin::{Manager, Pool};
-use lapin::{options::BasicPublishOptions, BasicProperties, ConnectionProperties};
+use lapin::{
+    options::{BasicPublishOptions, ExchangeDeclareOptions},
+    types::FieldTable,
+    BasicProperties, ConnectionProperties, ExchangeKind,
+};
 use near_indexer::near_primitives::hash::CryptoHash;
 use tokio::sync::mpsc;
 use tracing::{error, info};
 
 use crate::errors::{Error, Result};
 
-const DEFAULT_EXCHANGE: &str = "";
+const EXCHANGE_NAME: &str = "rollup_exchange";
 const DEFAULT_ROUTING_KEY: &str = "da-mq";
 const PERSISTENT_DELIVERY_MODE: u8 = 2;
 
@@ -28,7 +32,7 @@ pub(crate) fn get_routing_key(rollup_id: u32) -> String {
 impl Default for PublishOptions {
     fn default() -> Self {
         Self {
-            exchange: DEFAULT_EXCHANGE.into(),
+            exchange: EXCHANGE_NAME.into(),
             routing_key: DEFAULT_ROUTING_KEY.into(),
             basic_publish_options: BasicPublishOptions::default(),
             basic_properties: BasicProperties::default().with_delivery_mode(PERSISTENT_DELIVERY_MODE),
@@ -89,6 +93,26 @@ impl RabbitPublisher {
         Ok(self.sender.send(publish_data).await?)
     }
 
+    async fn exchange_declare(connection: &Connection) -> Result<()> {
+        let channel = connection.create_channel().await?;
+        channel
+            .exchange_declare(
+                EXCHANGE_NAME,
+                ExchangeKind::Topic,
+                ExchangeDeclareOptions {
+                    passive: false,
+                    durable: true,
+                    auto_delete: false,
+                    internal: false,
+                    nowait: false,
+                },
+                FieldTable::default(),
+            )
+            .await?;
+
+        Ok(())
+    }
+
     async fn publisher(connection_pool: Pool, mut receiver: mpsc::Receiver<PublishData>) {
         const ERROR_CODE: i32 = 1;
 
@@ -98,6 +122,15 @@ impl RabbitPublisher {
                 Self::handle_error(err, None);
                 actix::System::current().stop_with_code(ERROR_CODE);
                 return;
+            }
+        };
+
+        match Self::exchange_declare(&connection).await {
+            Ok(_) => {}
+            Err(err) => {
+                error!(target: "rabbit_publisher", "Failed to declare exchange: {}", err);
+                receiver.close();
+                actix::System::current().stop_with_code(ERROR_CODE);
             }
         };
 

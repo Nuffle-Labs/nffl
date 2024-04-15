@@ -1,7 +1,6 @@
 package attestor
 
 import (
-	"github.com/stretchr/testify/assert"
 	"math/big"
 	"math/rand"
 	"sync"
@@ -9,6 +8,7 @@ import (
 	"time"
 
 	"github.com/ethereum/go-ethereum/core/types"
+	"github.com/stretchr/testify/assert"
 
 	"github.com/NethermindEth/near-sffl/operator/consumer"
 )

@@ -47,12 +47,12 @@ bindings: ## generates contract bindings
 ___DOCKER___: ##
 docker-build-indexer:
 	docker build -t near-sffl-indexer -f ./indexer/Dockerfile .
-docker-build-images: docker-build-indexer ## builds and publishes indexer, operator and aggregator docker images
+docker-build-relayer:
 	docker build -t near-sffl-test-relayer -f ./relayer/Dockerfile .
+docker-build-images: docker-build-indexer docker-build-relayer ## builds and publishes indexer, operator and aggregator docker images
 	ko build aggregator/cmd/main.go --preserve-import-paths -L
 	ko build operator/cmd/main.go --preserve-import-paths -L
-docker-start-everything: ## starts aggregator and operator docker containers
-	docker-build-images
+docker-start-everything: docker-build-images ## starts aggregator and operator docker containers
 	docker compose up
 
 __CLI__: ## 
@@ -118,5 +118,5 @@ tests-contract: ## runs all forge tests
 	cd contracts/evm && forge test
 
 tests-integration: ## runs all integration tests
-	go test ./tests/integration/... -v -count=1
+	go test ./tests/integration/integration_test.go -v -count=1
 

@@ -2,6 +2,7 @@ package attestor
 
 import (
 	"context"
+	"encoding/hex"
 	"errors"
 	"time"
 
@@ -19,8 +20,7 @@ import (
 )
 
 const (
-	MQ_WAIT_TIMEOUT       = time.Second
-	MQ_REBROADCAST_DELAY  = 10 * time.Second
+	MQ_WAIT_TIMEOUT       = 3 * time.Second
 	RECONNECTION_ATTEMPTS = 5
 	RECONNECTION_DELAY    = time.Second
 )
@@ -82,6 +82,7 @@ func NewAttestor(config *optypes.NodeConfig, blsKeypair *bls.KeyPair, operatorId
 	consumer := consumer.NewConsumer(consumer.ConsumerConfig{
 		Addr:      config.NearDaIndexerRmqIpPortAddress,
 		RollupIds: config.NearDaIndexerRollupIds,
+		Id:        hex.EncodeToString(operatorId[:]),
 	}, logger)
 
 	attestor := Attestor{
@@ -150,7 +151,7 @@ func (attestor *Attestor) processMQBlocks(ctx context.Context) {
 			// Rebroadcast in case mq block arrives first
 			go func(mqBlock consumer.BlockData) {
 				select {
-				case <-time.After(MQ_REBROADCAST_DELAY):
+				case <-time.After(MQ_WAIT_TIMEOUT):
 					err := attestor.notifier.Notify(mqBlock.RollupId, mqBlock)
 					attestor.logger.Warn("Renotify", "err", err)
 					return
@@ -221,10 +222,14 @@ func (attestor *Attestor) processHeader(rollupId uint32, rollupHeader *ethtypes.
 	mqBlocksC, id := attestor.notifier.Subscribe(rollupId)
 	defer attestor.notifier.Unsubscribe(rollupId, id)
 
+	transactionId := [32]byte{0}
+	daCommitment := [32]byte{0}
+
+	timer := time.After(MQ_WAIT_TIMEOUT)
 loop:
 	for {
 		select {
-		case <-time.After(MQ_WAIT_TIMEOUT):
+		case <-timer:
 			break loop
 
 		case mqBlock := <-mqBlocksC:
@@ -243,6 +248,9 @@ loop:
 				attestor.logger.Warnf("StateRoot from MQ doesn't match one from Node")
 			}
 
+			daCommitment = mqBlock.Commitment
+			transactionId = mqBlock.TransactionId
+
 			break loop
 
 		case <-ctx.Done():
@@ -251,13 +259,12 @@ loop:
 	}
 
 	message := messages.StateRootUpdateMessage{
-		RollupId:    rollupId,
-		BlockHeight: rollupHeader.Number.Uint64(),
-		Timestamp:   rollupHeader.Time,
-		StateRoot:   rollupHeader.Root,
-		// TODO: get below fields from mqBlock
-		NearDaTransactionId: [32]byte{1},
-		NearDaCommitment:    [32]byte{2},
+		RollupId:            rollupId,
+		BlockHeight:         rollupHeader.Number.Uint64(),
+		Timestamp:           rollupHeader.Time,
+		StateRoot:           rollupHeader.Root,
+		NearDaTransactionId: transactionId,
+		NearDaCommitment:    daCommitment,
 	}
 	signature, err := SignStateRootUpdateMessage(attestor.blsKeypair, &message)
 	if err != nil {

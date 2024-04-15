@@ -2,11 +2,15 @@ package database
 
 import (
 	"errors"
+	"log"
 	"math"
+	"os"
+	"time"
 
 	"gorm.io/driver/sqlite"
 	"gorm.io/gorm"
 	"gorm.io/gorm/clause"
+	"gorm.io/gorm/logger"
 
 	"github.com/NethermindEth/near-sffl/aggregator/database/models"
 	"github.com/NethermindEth/near-sffl/core/types/messages"
@@ -31,11 +35,22 @@ type Database struct {
 }
 
 func NewDatabase(dbPath string) (*Database, error) {
+	logger := logger.New(
+		log.New(os.Stdout, "\r\n", log.LstdFlags),
+		logger.Config{
+			SlowThreshold:             time.Second,
+			LogLevel:                  logger.Info,
+			IgnoreRecordNotFoundError: false,
+			ParameterizedQueries:      false,
+			Colorful:                  true,
+		},
+	)
+
 	if dbPath == "" {
 		dbPath = "file::memory:?cache=shared"
 	}
 
-	db, err := gorm.Open(sqlite.Open(dbPath), &gorm.Config{})
+	db, err := gorm.Open(sqlite.Open(dbPath), &gorm.Config{Logger: logger})
 	if err != nil {
 		return nil, err
 	}

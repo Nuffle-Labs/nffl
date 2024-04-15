@@ -3,6 +3,7 @@ package consumer
 import (
 	"context"
 	"errors"
+	"fmt"
 	"strconv"
 	"time"
 
@@ -14,14 +15,19 @@ import (
 const (
 	RECONNECT_DELAY = 3 * time.Second
 	RECHANNEL_DELAY = 2 * time.Second
+	EXCHANGE_NAME   = "rollup_exchange"
 )
 
 var (
 	AlreadyClosedError = errors.New("Consumer connection is already closed")
 )
 
-func getQueueName(rollupId uint32) string {
-	return "rollup" + strconv.FormatUint(uint64(rollupId), 10)
+func getQueueName(rollupId uint32, id string) string {
+	return fmt.Sprintf("rollup%s-%s", strconv.FormatUint(uint64(rollupId), 10), id)
+}
+
+func getRotingKey(rollupId uint32) string {
+	return fmt.Sprintf("rollup%s", strconv.FormatUint(uint64(rollupId), 10))
 }
 
 func getConsumerTag(rollupId uint32) string {
@@ -29,14 +35,16 @@ func getConsumerTag(rollupId uint32) string {
 }
 
 type ConsumerConfig struct {
-	Addr        string
-	ConsumerTag string
-	RollupIds   []uint32
+	Addr      string
+	RollupIds []uint32
+	Id        string
 }
 
 type BlockData struct {
-	RollupId uint32
-	Block    types.Block
+	RollupId      uint32
+	Commitment    Commitment
+	TransactionId TransactionId
+	Block         types.Block
 }
 
 type Consumerer interface {
@@ -50,6 +58,7 @@ type Consumer struct {
 	receivedBlocksC chan BlockData
 	queuesListener  QueuesListener
 
+	id        string
 	rollupIds []uint32
 
 	isReady           bool
@@ -66,6 +75,7 @@ func NewConsumer(config ConsumerConfig, logger logging.Logger) *Consumer {
 	ctx, cancel := context.WithCancel(context.Background())
 
 	consumer := Consumer{
+		id:                config.Id,
 		rollupIds:         config.RollupIds,
 		receivedBlocksC:   make(chan BlockData),
 		contextCancelFunc: cancel,
@@ -183,7 +193,12 @@ func (consumer *Consumer) setupChannel(conn *rmq.Connection, ctx context.Context
 
 	listener := NewQueuesListener(consumer.receivedBlocksC, consumer.logger)
 	for _, rollupId := range consumer.rollupIds {
-		queue, err := channel.QueueDeclare(getQueueName(rollupId), true, false, false, false, nil)
+		queue, err := channel.QueueDeclare(getQueueName(rollupId, consumer.id), true, false, false, false, nil)
+		if err != nil {
+			return err
+		}
+
+		err = channel.QueueBind(queue.Name, getRotingKey(rollupId), EXCHANGE_NAME, false, nil)
 		if err != nil {
 			return err
 		}
