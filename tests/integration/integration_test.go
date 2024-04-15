@@ -47,8 +47,8 @@ import (
 
 const (
 	TEST_DATA_DIR  = "../../test_data"
-	BLS_KEYS_DIR   = "../../keys/bls"
-	ECDSA_KEYS_DIR = "../../keys/ecdsa"
+	BLS_KEYS_DIR   = "../keys/bls"
+	ECDSA_KEYS_DIR = "../keys/ecdsa"
 )
 
 func TestIntegration(t *testing.T) {
