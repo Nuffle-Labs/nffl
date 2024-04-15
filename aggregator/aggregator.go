@@ -73,6 +73,7 @@ type Aggregator struct {
 	logger               logging.Logger
 	serverIpPortAddr     string
 	restServerIpPortAddr string
+	checkpointInterval   time.Duration
 	avsWriter            chainio.AvsWriterer
 	avsReader            chainio.AvsReaderer
 	rollupBroadcaster    RollupBroadcasterer
@@ -176,6 +177,7 @@ func NewAggregator(ctx context.Context, config *config.Config, logger logging.Lo
 		logger:                                 logger,
 		serverIpPortAddr:                       config.AggregatorServerIpPortAddr,
 		restServerIpPortAddr:                   config.AggregatorRestServerIpPortAddr,
+		checkpointInterval:                     config.AggregatorCheckpointInterval,
 		avsWriter:                              avsWriter,
 		avsReader:                              avsReader,
 		rollupBroadcaster:                      rollupBroadcaster,
@@ -200,9 +202,8 @@ func (agg *Aggregator) Start(ctx context.Context) error {
 	agg.logger.Infof("Starting aggregator REST API.")
 	go agg.startRestServer()
 
-	// TODO(soubhik): refactor task generation/sending into a separate function that we can run as goroutine
-	ticker := time.NewTicker(40 * time.Second)
-	agg.logger.Infof("Aggregator set to send new task every 40 seconds...")
+	ticker := time.NewTicker(agg.checkpointInterval)
+	agg.logger.Infof("Aggregator set to send new task every %s...", agg.checkpointInterval.String())
 	defer ticker.Stop()
 
 	broadcasterErrorChan := agg.rollupBroadcaster.GetErrorChan()
@@ -300,6 +301,10 @@ func (agg *Aggregator) sendNewCheckpointTask() error {
 	}
 
 	fromTimestamp := lastCheckpointToTimestamp + 1
+	if lastCheckpointToTimestamp == 0 {
+		fromTimestamp = 0
+	}
+
 	toTimestamp := block.Time()
 
 	agg.logger.Info("Aggregator sending new task", "fromTimestamp", fromTimestamp, "toTimestamp", toTimestamp)

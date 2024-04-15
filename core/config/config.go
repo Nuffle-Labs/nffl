@@ -5,6 +5,7 @@ import (
 	"errors"
 	"fmt"
 	"os"
+	"time"
 
 	"github.com/ethereum/go-ethereum/common"
 	"github.com/ethereum/go-ethereum/crypto"
@@ -31,6 +32,7 @@ type Config struct {
 	AggregatorServerIpPortAddr     string
 	AggregatorRestServerIpPortAddr string
 	AggregatorDatabasePath         string
+	AggregatorCheckpointInterval   time.Duration
 	RegisterOperatorOnStartup      bool
 	// json:"-" skips this field when marshaling (only used for logging to stdout), since SignerFn doesnt implement marshalJson
 	AggregatorAddress common.Address
@@ -44,6 +46,7 @@ type ConfigRaw struct {
 	AggregatorServerIpPortAddr     string              `yaml:"aggregator_server_ip_port_address"`
 	AggregatorRestServerIpPortAddr string              `yaml:"aggregator_rest_server_ip_port_address"`
 	AggregatorDatabasePath         string              `yaml:"aggregator_database_path"`
+	AggregatorCheckpointInterval   uint32              `yaml:"aggregator_checkpoint_interval"`
 	RegisterOperatorOnStartup      bool                `yaml:"register_operator_on_startup"`
 	RollupIdsToRpcUrls             map[uint32]string   `yaml:"rollup_ids_to_rpc_urls"`
 }
@@ -168,6 +171,7 @@ func NewConfig(ctx *cli.Context, configRaw ConfigRaw, logger sdklogging.Logger) 
 		RegisterOperatorOnStartup:      configRaw.RegisterOperatorOnStartup,
 		AggregatorRestServerIpPortAddr: configRaw.AggregatorRestServerIpPortAddr,
 		AggregatorDatabasePath:         configRaw.AggregatorDatabasePath,
+		AggregatorCheckpointInterval:   time.Duration(configRaw.AggregatorCheckpointInterval) * time.Millisecond,
 		AggregatorAddress:              aggregatorAddr,
 		RollupsInfo:                    rollupsInfo,
 	}

@@ -453,6 +453,7 @@ func buildConfig(t *testing.T, sfflDeploymentRaw config.SFFLDeploymentRaw, addre
 		AggregatorServerIpPortAddr:     aggConfigRaw.AggregatorServerIpPortAddr,
 		AggregatorRestServerIpPortAddr: aggConfigRaw.AggregatorRestServerIpPortAddr,
 		AggregatorDatabasePath:         aggConfigRaw.AggregatorDatabasePath,
+		AggregatorCheckpointInterval:   time.Duration(aggConfigRaw.AggregatorCheckpointInterval) * time.Millisecond,
 		RegisterOperatorOnStartup:      aggConfigRaw.RegisterOperatorOnStartup,
 		AggregatorAddress:              aggregatorAddr,
 		RollupsInfo:                    rollupsInfo,
