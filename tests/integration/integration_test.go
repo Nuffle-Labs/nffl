@@ -332,7 +332,7 @@ func readSfflDeploymentRaw() config.SFFLDeploymentRaw {
 	return sfflDeploymentRaw
 }
 
-func genOperatorConfig(t *testing.T, ctx context.Context, keysPath string, mainnetAnvil *utils.AnvilInstance, rollupAnvils []*utils.AnvilInstance, rabbitMq *rabbitmq.RabbitMQContainer) (optypes.NodeConfig, *bls.KeyPair, *ecdsa.PrivateKey) {
+func genOperatorConfig(t *testing.T, ctx context.Context, keyId string, mainnetAnvil *utils.AnvilInstance, rollupAnvils []*utils.AnvilInstance, rabbitMq *rabbitmq.RabbitMQContainer) (optypes.NodeConfig, *bls.KeyPair, *ecdsa.PrivateKey) {
 	nodeConfig := optypes.NodeConfig{}
 	nodeConfigFilePath := "../../config-files/operator.anvil.yaml"
 	err := sdkutils.ReadYamlConfig(nodeConfigFilePath, &nodeConfig)
@@ -345,11 +345,11 @@ func genOperatorConfig(t *testing.T, ctx context.Context, keysPath string, mainn
 	os.Setenv("OPERATOR_BLS_KEY_PASSWORD", "")
 	os.Setenv("OPERATOR_ECDSA_KEY_PASSWORD", "")
 
-	nodeConfig.BlsPrivateKeyStorePath, err = filepath.Abs(filepath.Join(BLS_KEYS_DIR, keysPath, "key.json"))
+	nodeConfig.BlsPrivateKeyStorePath, err = filepath.Abs(filepath.Join(BLS_KEYS_DIR, keyId, "key.json"))
 	if err != nil {
 		t.Fatalf("Failed to get BLS key dir: %s", err.Error())
 	}
-	passwordPath := filepath.Join(BLS_KEYS_DIR, keysPath, "password.txt")
+	passwordPath := filepath.Join(BLS_KEYS_DIR, keyId, "password.txt")
 	password, err := os.ReadFile(passwordPath)
 	if err != nil {
 		t.Fatalf("Failed to read BLS password: %s", err.Error())
@@ -362,11 +362,11 @@ func genOperatorConfig(t *testing.T, ctx context.Context, keysPath string, mainn
 		t.Fatalf("Failed to generate operator BLS keys: %s", err.Error())
 	}
 
-	nodeConfig.EcdsaPrivateKeyStorePath, err = filepath.Abs(filepath.Join(ECDSA_KEYS_DIR, keysPath, "key.json"))
+	nodeConfig.EcdsaPrivateKeyStorePath, err = filepath.Abs(filepath.Join(ECDSA_KEYS_DIR, keyId, "key.json"))
 	if err != nil {
 		t.Fatalf("Failed to get ECDSA key dir: %s", err.Error())
 	}
-	passwordPath = filepath.Join(ECDSA_KEYS_DIR, keysPath, "password.txt")
+	passwordPath = filepath.Join(ECDSA_KEYS_DIR, keyId, "password.txt")
 	password, err = os.ReadFile(passwordPath)
 	if err != nil {
 		t.Fatalf("Failed to read ECDSA password: %s", err.Error())
