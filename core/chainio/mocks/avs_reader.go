@@ -92,6 +92,21 @@ func (mr *MockAvsReadererMockRecorder) GetErc20Mock(arg0, arg1 any) *gomock.Call
 	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "GetErc20Mock", reflect.TypeOf((*MockAvsReaderer)(nil).GetErc20Mock), arg0, arg1)
 }
 
+// GetLastCheckpointToTimestamp mocks base method.
+func (m *MockAvsReaderer) GetLastCheckpointToTimestamp(arg0 context.Context) (uint64, error) {
+	m.ctrl.T.Helper()
+	ret := m.ctrl.Call(m, "GetLastCheckpointToTimestamp", arg0)
+	ret0, _ := ret[0].(uint64)
+	ret1, _ := ret[1].(error)
+	return ret0, ret1
+}
+
+// GetLastCheckpointToTimestamp indicates an expected call of GetLastCheckpointToTimestamp.
+func (mr *MockAvsReadererMockRecorder) GetLastCheckpointToTimestamp(arg0 any) *gomock.Call {
+	mr.mock.ctrl.T.Helper()
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "GetLastCheckpointToTimestamp", reflect.TypeOf((*MockAvsReaderer)(nil).GetLastCheckpointToTimestamp), arg0)
+}
+
 // GetNextOperatorSetUpdateId mocks base method.
 func (m *MockAvsReaderer) GetNextOperatorSetUpdateId(arg0 context.Context) (uint64, error) {
 	m.ctrl.T.Helper()

@@ -2,6 +2,7 @@ package aggregator
 
 import (
 	"context"
+	"math/big"
 	"sync"
 	"time"
 
@@ -75,8 +76,8 @@ type Aggregator struct {
 	avsWriter            chainio.AvsWriterer
 	avsReader            chainio.AvsReaderer
 	rollupBroadcaster    RollupBroadcasterer
+	client               eth.Client
 
-	// aggregation related fields
 	taskBlsAggregationService              blsagg.BlsAggregationService
 	stateRootUpdateBlsAggregationService   MessageBlsAggregationService
 	operatorSetUpdateBlsAggregationService MessageBlsAggregationService
@@ -178,6 +179,7 @@ func NewAggregator(ctx context.Context, config *config.Config, logger logging.Lo
 		avsWriter:                              avsWriter,
 		avsReader:                              avsReader,
 		rollupBroadcaster:                      rollupBroadcaster,
+		client:                                 ethHttpClient,
 		taskBlsAggregationService:              taskBlsAggregationService,
 		stateRootUpdateBlsAggregationService:   stateRootUpdateBlsAggregationService,
 		operatorSetUpdateBlsAggregationService: operatorSetUpdateBlsAggregationService,
@@ -203,12 +205,6 @@ func (agg *Aggregator) Start(ctx context.Context) error {
 	agg.logger.Infof("Aggregator set to send new task every 40 seconds...")
 	defer ticker.Stop()
 
-	// ticker doesn't tick immediately, so we send the first task here
-	// see https://github.com/golang/go/issues/17601
-
-	// TODO: make this based on the actual timestamps
-	timestamp := uint64(0)
-
 	broadcasterErrorChan := agg.rollupBroadcaster.GetErrorChan()
 	for {
 		select {
@@ -224,10 +220,9 @@ func (agg *Aggregator) Start(ctx context.Context) error {
 			agg.logger.Info("Received response from operatorSetUpdateBlsAggregationService", "blsAggServiceResp", blsAggServiceResp)
 			agg.handleOperatorSetUpdateReachedQuorum(ctx, blsAggServiceResp)
 		case <-ticker.C:
-			err := agg.sendNewCheckpointTask(timestamp, timestamp)
-			timestamp++
+			err := agg.sendNewCheckpointTask()
 			if err != nil {
-				// we log the errors inside sendNewCheckpointTask() so here we just continue to the next task
+				agg.logger.Error("Failed to send new checkpoint task", "err", err)
 				continue
 			}
 
@@ -285,7 +280,28 @@ func (agg *Aggregator) sendAggregatedResponseToContract(blsAggServiceResp blsagg
 
 // sendNewCheckpointTask sends a new task to the task manager contract, and updates the Task dict struct
 // with the information of operators opted into quorum 0 at the block of task creation.
-func (agg *Aggregator) sendNewCheckpointTask(fromTimestamp uint64, toTimestamp uint64) error {
+func (agg *Aggregator) sendNewCheckpointTask() error {
+	blockNumber, err := agg.client.BlockNumber(context.Background())
+	if err != nil {
+		agg.logger.Error("Failed to get block number", "err", err)
+		return err
+	}
+
+	block, err := agg.client.BlockByNumber(context.Background(), big.NewInt(0).SetUint64(blockNumber))
+	if err != nil {
+		agg.logger.Error("Failed to get block", "err", err)
+		return err
+	}
+
+	lastCheckpointToTimestamp, err := agg.avsReader.GetLastCheckpointToTimestamp(context.Background())
+	if err != nil {
+		agg.logger.Error("Failed to get last checkpoint toTimestamp", "err", err)
+		return err
+	}
+
+	fromTimestamp := lastCheckpointToTimestamp + 1
+	toTimestamp := block.Time()
+
 	agg.logger.Info("Aggregator sending new task", "fromTimestamp", fromTimestamp, "toTimestamp", toTimestamp)
 	// Send checkpoint to the task manager contract
 	newTask, taskIndex, err := agg.avsWriter.SendNewCheckpointTask(context.Background(), fromTimestamp, toTimestamp, types.QUORUM_THRESHOLD_NUMERATOR, coretypes.QUORUM_NUMBERS)

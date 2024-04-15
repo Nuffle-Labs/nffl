@@ -6,9 +6,7 @@ import (
 	"testing"
 	"time"
 
-	"github.com/ethereum/go-ethereum/accounts/abi/bind/backends"
 	"github.com/ethereum/go-ethereum/common"
-	gethcore "github.com/ethereum/go-ethereum/core"
 	"github.com/stretchr/testify/assert"
 	"go.uber.org/mock/gomock"
 
@@ -16,6 +14,7 @@ import (
 	sdklogging "github.com/Layr-Labs/eigensdk-go/logging"
 	blsaggservmock "github.com/Layr-Labs/eigensdk-go/services/mocks/blsagg"
 	sdktypes "github.com/Layr-Labs/eigensdk-go/types"
+	gethtypes "github.com/ethereum/go-ethereum/core/types"
 
 	dbmocks "github.com/NethermindEth/near-sffl/aggregator/database/mocks"
 	aggmocks "github.com/NethermindEth/near-sffl/aggregator/mocks"
@@ -54,17 +53,24 @@ func TestSendNewTask(t *testing.T) {
 	mockCtrl := gomock.NewController(t)
 	defer mockCtrl.Finish()
 
-	aggregator, _, mockAvsWriterer, mockTaskBlsAggService, _, _, _, _, err := createMockAggregator(mockCtrl, MOCK_OPERATOR_PUBKEY_DICT)
+	aggregator, mockAvsReaderer, mockAvsWriterer, mockTaskBlsAggService, _, _, _, _, mockClient, err := createMockAggregator(mockCtrl, MOCK_OPERATOR_PUBKEY_DICT)
 	assert.Nil(t, err)
 
 	var TASK_INDEX = uint32(0)
 	var BLOCK_NUMBER = uint32(100)
-	var FROM_NEAR_BLOCK = uint64(3)
-	var TO_NEAR_BLOCK = uint64(4)
+	var FROM_TIMESTAMP = uint64(3)
+	var TO_TIMESTAMP = uint64(4)
+
+	mockClient.EXPECT().BlockNumber(context.Background()).Return(uint64(BLOCK_NUMBER), nil)
+	mockClient.EXPECT().BlockByNumber(context.Background(), big.NewInt(int64(BLOCK_NUMBER))).Return(
+		gethtypes.NewBlockWithHeader(&gethtypes.Header{Time: TO_TIMESTAMP}),
+		nil,
+	)
 
 	mockAvsWriterer.EXPECT().SendNewCheckpointTask(
-		context.Background(), FROM_NEAR_BLOCK, TO_NEAR_BLOCK, types.QUORUM_THRESHOLD_NUMERATOR, coretypes.QUORUM_NUMBERS,
-	).Return(aggmocks.MockSendNewCheckpointTask(BLOCK_NUMBER, TASK_INDEX, FROM_NEAR_BLOCK, TO_NEAR_BLOCK))
+		context.Background(), FROM_TIMESTAMP, TO_TIMESTAMP, types.QUORUM_THRESHOLD_NUMERATOR, coretypes.QUORUM_NUMBERS,
+	).Return(aggmocks.MockSendNewCheckpointTask(BLOCK_NUMBER, TASK_INDEX, FROM_TIMESTAMP, TO_TIMESTAMP))
+	mockAvsReaderer.EXPECT().GetLastCheckpointToTimestamp(context.Background()).Return(FROM_TIMESTAMP-1, nil)
 
 	// 100 blocks, each takes 12 seconds. We hardcode for now since aggregator also hardcodes this value
 	taskTimeToExpiry := 100 * 12 * time.Second
@@ -73,7 +79,7 @@ func TestSendNewTask(t *testing.T) {
 	// see https://hynek.me/articles/what-to-mock-in-5-mins/
 	mockTaskBlsAggService.EXPECT().InitializeNewTask(TASK_INDEX, BLOCK_NUMBER, coretypes.QUORUM_NUMBERS, []uint32{types.QUORUM_THRESHOLD_NUMERATOR}, taskTimeToExpiry)
 
-	err = aggregator.sendNewCheckpointTask(FROM_NEAR_BLOCK, TO_NEAR_BLOCK)
+	err = aggregator.sendNewCheckpointTask()
 	assert.Nil(t, err)
 }
 
@@ -81,7 +87,7 @@ func TestHandleStateRootUpdateAggregationReachedQuorum(t *testing.T) {
 	mockCtrl := gomock.NewController(t)
 	defer mockCtrl.Finish()
 
-	aggregator, _, _, _, _, _, mockMsgDb, _, err := createMockAggregator(mockCtrl, MOCK_OPERATOR_PUBKEY_DICT)
+	aggregator, _, _, _, _, _, mockMsgDb, _, _, err := createMockAggregator(mockCtrl, MOCK_OPERATOR_PUBKEY_DICT)
 	assert.Nil(t, err)
 
 	msg := messages.StateRootUpdateMessage{}
@@ -110,7 +116,7 @@ func TestHandleOperatorSetUpdateAggregationReachedQuorum(t *testing.T) {
 	mockCtrl := gomock.NewController(t)
 	defer mockCtrl.Finish()
 
-	aggregator, _, _, _, _, _, mockMsgDb, mockRollupBroadcaster, err := createMockAggregator(mockCtrl, MOCK_OPERATOR_PUBKEY_DICT)
+	aggregator, _, _, _, _, _, mockMsgDb, mockRollupBroadcaster, _, err := createMockAggregator(mockCtrl, MOCK_OPERATOR_PUBKEY_DICT)
 	assert.Nil(t, err)
 
 	msg := messages.OperatorSetUpdateMessage{}
@@ -143,7 +149,7 @@ func TestHandleOperatorSetUpdateAggregationReachedQuorum(t *testing.T) {
 
 func createMockAggregator(
 	mockCtrl *gomock.Controller, operatorPubkeyDict map[bls.OperatorId]types.OperatorInfo,
-) (*Aggregator, *chainiomocks.MockAvsReaderer, *chainiomocks.MockAvsWriterer, *blsaggservmock.MockBlsAggregationService, *aggmocks.MockMessageBlsAggregationService, *aggmocks.MockMessageBlsAggregationService, *dbmocks.MockDatabaser, *aggmocks.MockRollupBroadcasterer, error) {
+) (*Aggregator, *chainiomocks.MockAvsReaderer, *chainiomocks.MockAvsWriterer, *blsaggservmock.MockBlsAggregationService, *aggmocks.MockMessageBlsAggregationService, *aggmocks.MockMessageBlsAggregationService, *dbmocks.MockDatabaser, *aggmocks.MockRollupBroadcasterer, *aggmocks.MockClient, error) {
 	logger := sdklogging.NewNoopLogger()
 	mockAvsWriter := chainiomocks.NewMockAvsWriterer(mockCtrl)
 	mockAvsReader := chainiomocks.NewMockAvsReaderer(mockCtrl)
@@ -152,6 +158,7 @@ func createMockAggregator(
 	mockOperatorSetUpdateBlsAggregationService := aggmocks.NewMockMessageBlsAggregationService(mockCtrl)
 	mockMsgDb := dbmocks.NewMockDatabaser(mockCtrl)
 	mockRollupBroadcaster := aggmocks.NewMockRollupBroadcasterer(mockCtrl)
+	mockClient := aggmocks.NewMockClient(mockCtrl)
 
 	aggregator := &Aggregator{
 		logger:                                 logger,
@@ -166,15 +173,7 @@ func createMockAggregator(
 		stateRootUpdates:                       make(map[coretypes.MessageDigest]messages.StateRootUpdateMessage),
 		operatorSetUpdates:                     make(map[coretypes.MessageDigest]messages.OperatorSetUpdateMessage),
 		rollupBroadcaster:                      mockRollupBroadcaster,
+		client:                                 mockClient,
 	}
-	return aggregator, mockAvsReader, mockAvsWriter, mockTaskBlsAggregationService, mockStateRootUpdateBlsAggregationService, mockOperatorSetUpdateBlsAggregationService, mockMsgDb, mockRollupBroadcaster, nil
-}
-
-// just a mock ethclient to pass to bindings
-// so that we can access abi methods
-func createMockEthClient() *backends.SimulatedBackend {
-	genesisAlloc := map[common.Address]gethcore.GenesisAccount{}
-	blockGasLimit := uint64(1000000)
-	client := backends.NewSimulatedBackend(genesisAlloc, blockGasLimit)
-	return client
+	return aggregator, mockAvsReader, mockAvsWriter, mockTaskBlsAggregationService, mockStateRootUpdateBlsAggregationService, mockOperatorSetUpdateBlsAggregationService, mockMsgDb, mockRollupBroadcaster, mockClient, nil
 }
