@@ -123,29 +123,31 @@ func (b *RollupBroadcaster) tryInitializeRollupOperatorSet(ctx context.Context, 
 		return
 	}
 
-	if nextOperatorUpdateId == 0 {
-		b.logger.Info("Operator set not initialized yet", "rollupId", writer.rollupId, "mainnetNextOperatorSetUpdateId", mainnetNextOperatorSetUpdateId)
+	if nextOperatorUpdateId != 0 {
+		return
+	}
 
-		operators, err := b.tryGetOperatorSetById(ctx, avsReader, mainnetNextOperatorSetUpdateId-1)
-		if err != nil {
-			b.logger.Error("Error fetching operator set", "err", err)
-			b.errorChan <- err
-			return
-		}
+	b.logger.Info("Operator set not initialized yet", "rollupId", writer.rollupId, "mainnetNextOperatorSetUpdateId", mainnetNextOperatorSetUpdateId)
 
-		convertedOperators := make([]registryrollup.RollupOperatorsOperator, len(operators))
-		for i, op := range operators {
-			convertedOperators[i] = registryrollup.RollupOperatorsOperator{
-				Pubkey: registryrollup.BN254G1Point{X: op.Pubkey.X, Y: op.Pubkey.Y},
-				Weight: op.Weight,
-			}
-		}
+	operators, err := b.tryGetOperatorSetById(ctx, avsReader, mainnetNextOperatorSetUpdateId-1)
+	if err != nil {
+		b.logger.Error("Error fetching operator set", "err", err)
+		b.errorChan <- err
+		return
+	}
 
-		err = writer.InitializeOperatorSet(ctx, convertedOperators, mainnetNextOperatorSetUpdateId-1)
-		if err != nil {
-			b.logger.Error("Error initializing operator set", "err", err)
-			b.errorChan <- err
+	convertedOperators := make([]registryrollup.RollupOperatorsOperator, len(operators))
+	for i, op := range operators {
+		convertedOperators[i] = registryrollup.RollupOperatorsOperator{
+			Pubkey: registryrollup.BN254G1Point{X: op.Pubkey.X, Y: op.Pubkey.Y},
+			Weight: op.Weight,
 		}
+	}
+
+	err = writer.InitializeOperatorSet(ctx, convertedOperators, mainnetNextOperatorSetUpdateId-1)
+	if err != nil {
+		b.logger.Error("Error initializing operator set", "err", err)
+		b.errorChan <- err
 	}
 }
 
