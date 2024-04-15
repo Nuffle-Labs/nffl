@@ -6,7 +6,6 @@ import {OwnableUpgradeable} from "@openzeppelin-upgrades/contracts/access/Ownabl
 import {Pausable} from "@eigenlayer/contracts/permissions/Pausable.sol";
 import {BLSApkRegistry} from "eigenlayer-middleware/src/BLSApkRegistry.sol";
 import {BLSSignatureChecker} from "eigenlayer-middleware/src/BLSSignatureChecker.sol";
-import {OperatorStateRetriever} from "eigenlayer-middleware/src/OperatorStateRetriever.sol";
 import {IPauserRegistry} from "@eigenlayer/contracts/interfaces/IPauserRegistry.sol";
 import {IRegistryCoordinator} from "eigenlayer-middleware/src/interfaces/IRegistryCoordinator.sol";
 import {BN254} from "eigenlayer-middleware/src/libraries/BN254.sol";
@@ -21,7 +20,7 @@ import {Checkpoint} from "./task/Checkpoint.sol";
  * @notice Manages task submissions and resolving, as well as verifies
  * agreements
  */
-contract SFFLTaskManager is Initializable, OwnableUpgradeable, Pausable, BLSSignatureChecker, OperatorStateRetriever {
+contract SFFLTaskManager is Initializable, OwnableUpgradeable, Pausable, BLSSignatureChecker {
     using BN254 for BN254.G1Point;
     using Checkpoint for Checkpoint.Task;
     using Checkpoint for Checkpoint.TaskResponse;

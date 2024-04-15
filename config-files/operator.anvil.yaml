@@ -9,7 +9,7 @@ operator_address: 0x0000000000000000000000000000000000000000
 # The saved eigenlayer state is located in tests/anvil/data/sffl_avs_deployment_output.json
 # TODO(samlaf): automate updating these addresses when we deploy new contracts
 avs_registry_coordinator_address: 0x8f86403A4DE0BB5791fa46B8e795C547942fE4Cf
-operator_state_retriever_address: 0x0E801D84Fa97b50751Dbf25036d067dCf18858bF
+operator_state_retriever_address: 0x4c5859f0F772848b2D91F1D83E2Fe57935348029
 
 # ETH RPC URL
 eth_rpc_url: http://localhost:8545
