@@ -357,7 +357,7 @@ func genOperatorConfig(t *testing.T, ctx context.Context, keyId string, mainnetA
 	if string(password) != "" {
 		t.Fatalf("Password is not empty: '%s'", password)
 	}
-	keyPair, err := bls.ReadPrivateKeyFromFile(nodeConfig.BlsPrivateKeyStorePath, "")
+	keyPair, err := bls.ReadPrivateKeyFromFile(nodeConfig.BlsPrivateKeyStorePath, string(password))
 	if err != nil {
 		t.Fatalf("Failed to generate operator BLS keys: %s", err.Error())
 	}
@@ -374,7 +374,7 @@ func genOperatorConfig(t *testing.T, ctx context.Context, keyId string, mainnetA
 	if string(password) != "" {
 		t.Fatalf("Password is not empty: '%s'", password)
 	}
-	ecdsaKey, err := sdkEcdsa.ReadKey(nodeConfig.EcdsaPrivateKeyStorePath, "")
+	ecdsaKey, err := sdkEcdsa.ReadKey(nodeConfig.EcdsaPrivateKeyStorePath, string(password))
 	if err != nil {
 		t.Fatalf("Failed to generate operator ECDSA keys: %s", err.Error())
 	}
