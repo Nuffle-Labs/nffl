@@ -74,7 +74,7 @@ func NewRollupWriter(
 	return writer, nil
 }
 
-func (w *RollupWriter) InitializeOperatorSet(ctx context.Context, operators []registryrollup.RollupOperatorsOperator, mainnetNextOperatorSetUpdateId uint64) error {
+func (w *RollupWriter) InitializeOperatorSet(ctx context.Context, operators []registryrollup.RollupOperatorsOperator, operatorSetUpdateId uint64) error {
 	w.operatorSetUpdateLock.Lock()
 	defer w.operatorSetUpdateLock.Unlock()
 
@@ -87,7 +87,7 @@ func (w *RollupWriter) InitializeOperatorSet(ctx context.Context, operators []re
 			return err
 		}
 
-		tx, err := w.sfflRegistryRollup.SetInitialOperatorSet(txOpts, operators, mainnetNextOperatorSetUpdateId)
+		tx, err := w.sfflRegistryRollup.SetInitialOperatorSet(txOpts, operators, operatorSetUpdateId+1)
 		if err != nil {
 			w.logger.Error("Error assembling SetInitialOperatorSet tx", "err", err)
 			return err
