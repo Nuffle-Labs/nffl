@@ -73,8 +73,6 @@ contract SFFLRegistryCoordinator is RegistryCoordinator {
         IBLSApkRegistry.PubkeyRegistrationParams calldata params,
         SignatureWithSaltAndExpiry memory operatorSignature
     ) public override {
-        require(operatorSetUpdateRegistry.isOperatorWhitelisted(msg.sender), "Not whitelisted");
-
         _recordOperatorSetUpdate();
         RegistryCoordinator.registerOperator(quorumNumbers, socket, params, operatorSignature);
     }
@@ -90,8 +88,6 @@ contract SFFLRegistryCoordinator is RegistryCoordinator {
         SignatureWithSaltAndExpiry memory churnApproverSignature,
         SignatureWithSaltAndExpiry memory operatorSignature
     ) public override {
-        require(operatorSetUpdateRegistry.isOperatorWhitelisted(msg.sender), "Not whitelisted");
-
         _recordOperatorSetUpdate();
         RegistryCoordinator.registerOperatorWithChurn(
             quorumNumbers, socket, params, operatorKickParams, churnApproverSignature, operatorSignature

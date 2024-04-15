@@ -27,6 +27,7 @@ import (
 	"github.com/ethereum/go-ethereum/accounts/abi/bind"
 	"github.com/ethereum/go-ethereum/common"
 	"github.com/ethereum/go-ethereum/crypto"
+	"github.com/ethereum/go-ethereum/rpc"
 	"github.com/stretchr/testify/assert"
 	"github.com/testcontainers/testcontainers-go"
 	"github.com/testcontainers/testcontainers-go/modules/rabbitmq"
@@ -45,7 +46,9 @@ import (
 )
 
 const (
-	TEST_DATA_DIR = "../../test_data"
+	TEST_DATA_DIR  = "../../test_data"
+	BLS_KEYS_DIR   = "../keys/bls"
+	ECDSA_KEYS_DIR = "../keys/ecdsa"
 )
 
 func TestIntegration(t *testing.T) {
@@ -90,7 +93,7 @@ func TestIntegration(t *testing.T) {
 		t.Fatalf("Error updating state root: %s", err.Error())
 	}
 
-	newOperatorConfig, _, _ := genOperatorConfig(t, ctx, setup.mainnetAnvil, setup.rollupAnvils, setup.rabbitMq)
+	newOperatorConfig, _, _ := genOperatorConfig(t, ctx, "4", setup.mainnetAnvil, setup.rollupAnvils, setup.rabbitMq)
 	newOperator := startOperator(t, ctx, newOperatorConfig)
 
 	time.Sleep(50 * time.Second)
@@ -210,7 +213,7 @@ func setupTestEnv(t *testing.T, ctx context.Context) *testEnv {
 		t.Fatalf("Failed to create logger: %s", err.Error())
 	}
 
-	nodeConfig, _, _ := genOperatorConfig(t, ctx, mainnetAnvil, rollupAnvils, rabbitMq)
+	nodeConfig, _, _ := genOperatorConfig(t, ctx, "3", mainnetAnvil, rollupAnvils, rabbitMq)
 
 	addresses, registryRollups, registryRollupAuths, _ := deployRegistryRollups(t, rollupAnvils)
 	operator := startOperator(t, ctx, nodeConfig)
@@ -329,7 +332,7 @@ func readSfflDeploymentRaw() config.SFFLDeploymentRaw {
 	return sfflDeploymentRaw
 }
 
-func genOperatorConfig(t *testing.T, ctx context.Context, mainnetAnvil *utils.AnvilInstance, rollupAnvils []*utils.AnvilInstance, rabbitMq *rabbitmq.RabbitMQContainer) (optypes.NodeConfig, *bls.KeyPair, *ecdsa.PrivateKey) {
+func genOperatorConfig(t *testing.T, ctx context.Context, keyId string, mainnetAnvil *utils.AnvilInstance, rollupAnvils []*utils.AnvilInstance, rabbitMq *rabbitmq.RabbitMQContainer) (optypes.NodeConfig, *bls.KeyPair, *ecdsa.PrivateKey) {
 	nodeConfig := optypes.NodeConfig{}
 	nodeConfigFilePath := "../../config-files/operator.anvil.yaml"
 	err := sdkutils.ReadYamlConfig(nodeConfigFilePath, &nodeConfig)
@@ -342,43 +345,43 @@ func genOperatorConfig(t *testing.T, ctx context.Context, mainnetAnvil *utils.An
 	os.Setenv("OPERATOR_BLS_KEY_PASSWORD", "")
 	os.Setenv("OPERATOR_ECDSA_KEY_PASSWORD", "")
 
-	err = os.MkdirAll(getOperatorKeysPathPrefix(t), 0770)
-	if err != nil {
-		t.Fatalf("Failed to create operators keys dir: %s", err.Error())
-	}
-
-	keysPath, err := os.MkdirTemp(getOperatorKeysPathPrefix(t), "")
-	if err != nil {
-		t.Fatalf("Failed to create operator keys dir: %s", err.Error())
-	}
-
-	nodeConfig.BlsPrivateKeyStorePath, err = filepath.Abs(filepath.Join(keysPath, "test.bls.key.json"))
+	nodeConfig.BlsPrivateKeyStorePath, err = filepath.Abs(filepath.Join(BLS_KEYS_DIR, keyId, "key.json"))
 	if err != nil {
 		t.Fatalf("Failed to get BLS key dir: %s", err.Error())
 	}
-	keyPair, err := bls.GenRandomBlsKeys()
+	passwordPath := filepath.Join(BLS_KEYS_DIR, keyId, "password.txt")
+	password, err := os.ReadFile(passwordPath)
+	if err != nil {
+		t.Fatalf("Failed to read BLS password: %s", err.Error())
+	}
+	if string(password) != "" {
+		t.Fatalf("Password is not empty: '%s'", password)
+	}
+	keyPair, err := bls.ReadPrivateKeyFromFile(nodeConfig.BlsPrivateKeyStorePath, string(password))
 	if err != nil {
 		t.Fatalf("Failed to generate operator BLS keys: %s", err.Error())
 	}
-	err = keyPair.SaveToFile(nodeConfig.BlsPrivateKeyStorePath, "")
-	if err != nil {
-		t.Fatalf("Failed to save operator BLS keys: %s", err.Error())
-	}
 
-	nodeConfig.EcdsaPrivateKeyStorePath, err = filepath.Abs(filepath.Join(keysPath, "test.ecdsa.key.json"))
+	nodeConfig.EcdsaPrivateKeyStorePath, err = filepath.Abs(filepath.Join(ECDSA_KEYS_DIR, keyId, "key.json"))
 	if err != nil {
 		t.Fatalf("Failed to get ECDSA key dir: %s", err.Error())
 	}
-	ecdsaKey, err := crypto.GenerateKey()
+	passwordPath = filepath.Join(ECDSA_KEYS_DIR, keyId, "password.txt")
+	password, err = os.ReadFile(passwordPath)
 	if err != nil {
-		t.Fatalf("Failed to save generate operator ECDSA key: %s", err.Error())
+		t.Fatalf("Failed to read ECDSA password: %s", err.Error())
 	}
-	sdkEcdsa.WriteKey(nodeConfig.EcdsaPrivateKeyStorePath, ecdsaKey, "")
+	if string(password) != "" {
+		t.Fatalf("Password is not empty: '%s'", password)
+	}
+	ecdsaKey, err := sdkEcdsa.ReadKey(nodeConfig.EcdsaPrivateKeyStorePath, string(password))
 	if err != nil {
-		t.Fatalf("Failed to save operator ECDSA keys: %s", err.Error())
+		t.Fatalf("Failed to generate operator ECDSA keys: %s", err.Error())
 	}
 
 	address := crypto.PubkeyToAddress(ecdsaKey.PublicKey)
+
+	t.Logf("Generated config for operator: %s", address.String())
 
 	nodeConfig.OperatorAddress = address.String()
 	nodeConfig.RegisterOperatorOnStartup = true
@@ -503,6 +506,10 @@ func startAnvilTestContainer(t *testing.T, ctx context.Context, name, exposedPor
 	if err != nil {
 		t.Fatalf("Failed to create anvil HTTP client: %s", err.Error())
 	}
+	rpcClient, err := rpc.Dial(httpUrl)
+	if err != nil {
+		t.Fatalf("Failed to create anvil RPC client: %s", err.Error())
+	}
 
 	wsUrl := "ws://" + anvilEndpoint
 	wsClient, err := eth.NewClient(wsUrl)
@@ -529,6 +536,7 @@ func startAnvilTestContainer(t *testing.T, ctx context.Context, name, exposedPor
 		HttpUrl:    httpUrl,
 		WsClient:   wsClient,
 		WsUrl:      wsUrl,
+		RpcClient:  rpcClient,
 		ChainID:    fetchedChainId,
 	}
 
@@ -818,14 +826,6 @@ func getNearCliConfigPath(t *testing.T) string {
 	path, err := filepath.Abs(filepath.Join(TEST_DATA_DIR, "sffl_test_localnet"))
 	if err != nil {
 		t.Fatalf("Error getting near-cli config path: %s", err.Error())
-	}
-	return path
-}
-
-func getOperatorKeysPathPrefix(t *testing.T) string {
-	path, err := filepath.Abs(filepath.Join(TEST_DATA_DIR, "sffl_test_operators"))
-	if err != nil {
-		t.Fatalf("Error getting operator keys path prefix: %s", err.Error())
 	}
 	return path
 }

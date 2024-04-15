@@ -10,7 +10,6 @@ import {IServiceManager} from "eigenlayer-middleware/src/interfaces/IServiceMana
 import {IRegistryCoordinator} from "eigenlayer-middleware/src/interfaces/IRegistryCoordinator.sol";
 import {BN254} from "eigenlayer-middleware/src/libraries/BN254.sol";
 
-import {SFFLRegistryCoordinator} from "./SFFLRegistryCoordinator.sol";
 import {RegistryCoordinator} from "../external/RegistryCoordinator.sol";
 import {RollupOperators} from "../base/utils/RollupOperators.sol";
 
@@ -34,7 +33,7 @@ contract SFFLOperatorSetUpdateRegistry is Initializable {
     /**
      * @notice Address of the RegistryCoordinator contract
      */
-    SFFLRegistryCoordinator public immutable registryCoordinator;
+    IRegistryCoordinator public immutable registryCoordinator;
 
     /**
      * @notice Reference block numbers for each operator set update
@@ -78,7 +77,7 @@ contract SFFLOperatorSetUpdateRegistry is Initializable {
         _;
     }
 
-    constructor(SFFLRegistryCoordinator _registryCoordinator) {
+    constructor(IRegistryCoordinator _registryCoordinator) {
         registryCoordinator = _registryCoordinator;
         _disableInitializers();
     }
@@ -117,7 +116,7 @@ contract SFFLOperatorSetUpdateRegistry is Initializable {
      * @dev This method's gas usage is high, and is meant for external calls,
      * not transactions.
      * @param operatorSetUpdateId Operator set update ID. Refer to
-     * {SFFLRegistryCoordinator}
+     * {IRegistryCoordinator}
      * @return previousOperatorSet Operator set in the previous update, or an
      * empty set if operatorSetUpdateId is 0
      * @return newOperatorSet Operator set in the update indicated by

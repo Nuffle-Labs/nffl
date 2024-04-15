@@ -4,4 +4,11 @@ out = "out"
 libs = ["lib"]
 fs_permissions = [{ access = "read-write", path = "./"}]
 
+# This is a low optimizer_runs setting since the `RegistryCoordinator`
+# contract size is really high and we must extend it in SFFL. It would be
+# important to increase this value in the future, especially in a mainnet
+# deployment.
+optimizer = true
+optimizer_runs = 100
+
 # See more config options https://github.com/foundry-rs/foundry/blob/master/crates/config/README.md#all-options

@@ -228,42 +228,42 @@ contract SFFLTaskManager is Initializable, OwnableUpgradeable, Pausable, BLSSign
     function raiseAndResolveCheckpointChallenge(
         Checkpoint.Task calldata task,
         Checkpoint.TaskResponse calldata taskResponse,
-        Checkpoint.TaskResponseMetadata calldata taskResponseMetadata,
-        BN254.G1Point[] memory pubkeysOfNonSigningOperators
+        Checkpoint.TaskResponseMetadata calldata taskResponseMetadata,// forgefmt: disable-line
+        BN254.G1Point[] memory pubkeysOfNonSigningOperators// forgefmt: disable-line
     ) external onlyWhenNotPaused(PAUSED_CHALLENGE_CHECKPOINT_TASK) {
         uint32 referenceTaskIndex = taskResponse.referenceTaskIndex;
 
-        require(allCheckpointTaskResponses[referenceTaskIndex] != bytes32(0), "Task not responded");
-        require(
-            allCheckpointTaskResponses[referenceTaskIndex] == taskResponse.hashAgreementCalldata(taskResponseMetadata),
-            "Wrong task response"
-        );
-        require(!checkpointTaskSuccesfullyChallenged[referenceTaskIndex], "Already been challenged");
+        // require(allCheckpointTaskResponses[referenceTaskIndex] != bytes32(0), "Task not responded");
+        // require(
+        //     allCheckpointTaskResponses[referenceTaskIndex] == taskResponse.hashAgreementCalldata(taskResponseMetadata),
+        //     "Wrong task response"
+        // );
+        // require(!checkpointTaskSuccesfullyChallenged[referenceTaskIndex], "Already been challenged");
 
-        require(
-            uint32(block.number) <= taskResponseMetadata.taskRespondedBlock + TASK_CHALLENGE_WINDOW_BLOCK,
-            "Challenge period expired"
-        );
+        // require(
+        //     uint32(block.number) <= taskResponseMetadata.taskRespondedBlock + TASK_CHALLENGE_WINDOW_BLOCK,
+        //     "Challenge period expired"
+        // );
 
         if (!_validateChallenge(task, taskResponse)) {
             emit CheckpointTaskChallengedUnsuccessfully(referenceTaskIndex, msg.sender);
             return;
         }
 
-        bytes32[] memory hashesOfPubkeysOfNonSigningOperators = new bytes32[](pubkeysOfNonSigningOperators.length);
-        for (uint256 i = 0; i < pubkeysOfNonSigningOperators.length; i++) {
-            hashesOfPubkeysOfNonSigningOperators[i] = pubkeysOfNonSigningOperators[i].hashG1Point();
-        }
+        // bytes32[] memory hashesOfPubkeysOfNonSigningOperators = new bytes32[](pubkeysOfNonSigningOperators.length);
+        // for (uint256 i = 0; i < pubkeysOfNonSigningOperators.length; i++) {
+        //     hashesOfPubkeysOfNonSigningOperators[i] = pubkeysOfNonSigningOperators[i].hashG1Point();
+        // }
 
-        bytes32 signatoryRecordHash =
-            keccak256(abi.encodePacked(task.taskCreatedBlock, hashesOfPubkeysOfNonSigningOperators));
-        require(signatoryRecordHash == taskResponseMetadata.hashOfNonSigners, "Wrong non-signer pubkeys");
+        // bytes32 signatoryRecordHash =
+        //     keccak256(abi.encodePacked(task.taskCreatedBlock, hashesOfPubkeysOfNonSigningOperators));
+        // require(signatoryRecordHash == taskResponseMetadata.hashOfNonSigners, "Wrong non-signer pubkeys");
 
-        // TODO: slashing logic when it's available
+        // // TODO: slashing logic when it's available
 
-        checkpointTaskSuccesfullyChallenged[referenceTaskIndex] = true;
+        // checkpointTaskSuccesfullyChallenged[referenceTaskIndex] = true;
 
-        emit CheckpointTaskChallengedSuccessfully(referenceTaskIndex, msg.sender);
+        // emit CheckpointTaskChallengedSuccessfully(referenceTaskIndex, msg.sender);
     }
 
     /**

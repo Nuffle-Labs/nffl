@@ -10,29 +10,41 @@ import {BN254} from "eigenlayer-middleware/src/libraries/BN254.sol";
 import {ServiceManagerBase} from "eigenlayer-middleware/src/ServiceManagerBase.sol";
 import {IRegistryCoordinator} from "eigenlayer-middleware/src/interfaces/IRegistryCoordinator.sol";
 import {IBLSSignatureChecker} from "eigenlayer-middleware/src/interfaces/IBLSSignatureChecker.sol";
-import {IDelegationManager} from "@eigenlayer/contracts/interfaces/IDelegationManager.sol";
+import {IAVSDirectory} from "@eigenlayer/contracts/interfaces/IAVSDirectory.sol";
 import {IRegistryCoordinator} from "eigenlayer-middleware/src/interfaces/IRegistryCoordinator.sol";
 import {IStakeRegistry} from "eigenlayer-middleware/src/interfaces/IStakeRegistry.sol";
 import {IPauserRegistry} from "@eigenlayer/contracts/interfaces/IPauserRegistry.sol";
+import {ISignatureUtils} from "@eigenlayer/contracts/interfaces/ISignatureUtils.sol";
 
 import {SFFLTaskManager} from "../src/eth/SFFLTaskManager.sol";
 import {SFFLServiceManager} from "../src/eth/SFFLServiceManager.sol";
 import {Checkpoint} from "../src/eth/task/Checkpoint.sol";
 import {StateRootUpdate} from "../src/base/message/StateRootUpdate.sol";
+import {SFFLOperatorSetUpdateRegistry} from "../src/eth/SFFLOperatorSetUpdateRegistry.sol";
 
 import {TestUtils} from "./utils/TestUtils.sol";
 
 contract SFFLServiceManagerHarness is SFFLServiceManager {
     constructor(
-        IDelegationManager _delegationManager,
+        IAVSDirectory _avsDirectory,
         IRegistryCoordinator _registryCoordinator,
         IStakeRegistry _stakeRegistry,
-        SFFLTaskManager _taskManager
-    ) SFFLServiceManager(_delegationManager, _registryCoordinator, _stakeRegistry, _taskManager) {}
+        SFFLTaskManager _taskManager,
+        SFFLOperatorSetUpdateRegistry _operatorSetUpdateRegistry
+    )
+        SFFLServiceManager(_avsDirectory, _registryCoordinator, _stakeRegistry, _taskManager, _operatorSetUpdateRegistry)
+    {}
 
     function forceInitialize(address initialOwner, IPauserRegistry _pauserRegistry) public {
         _transferOwnership(initialOwner);
         _initializePauser(_pauserRegistry, UNPAUSE_ALL);
+    }
+
+    function registerOperatorToAVS(
+        address operator,
+        ISignatureUtils.SignatureWithSaltAndExpiry memory operatorSignature
+    ) public override onlyRegistryCoordinator {
+        ServiceManagerBase.registerOperatorToAVS(operator, operatorSignature);
     }
 }
 
@@ -72,9 +84,15 @@ contract SFFLServiceManagerTest is TestUtils {
         vm.label(impl, "taskManagerImpl");
         vm.label(address(taskManager), "taskManagerProxy");
 
+        SFFLOperatorSetUpdateRegistry operatorSetUpdateRegistry = new SFFLOperatorSetUpdateRegistry(registryCoordinator);
+
         address sfflServiceManagerImplementation = address(
             new SFFLServiceManagerHarness(
-                IDelegationManager(delegationMock), registryCoordinator, stakeRegistry, taskManager
+                IAVSDirectory(avsDirectoryMock),
+                registryCoordinator,
+                stakeRegistry,
+                taskManager,
+                operatorSetUpdateRegistry
             )
         );
 
@@ -104,13 +122,14 @@ contract SFFLServiceManagerTest is TestUtils {
         });
 
         (, IBLSSignatureChecker.NonSignerStakesAndSignature memory nonSignerStakesAndSignature) =
-            setUpOperators(message.hash(), 1000, 100, 1);
+            setUpOperators(message.hash(), 999, 1000, 100, 1);
 
         vm.expectEmit(true, true, false, true);
         emit StateRootUpdated(message.rollupId, message.blockHeight, message.stateRoot);
 
         assertEq(sfflServiceManager.getStateRoot(message.rollupId, message.blockHeight), bytes32(0));
 
+        vm.roll(1001);
         sfflServiceManager.updateStateRoot(message, nonSignerStakesAndSignature);
 
         assertEq(sfflServiceManager.getStateRoot(message.rollupId, message.blockHeight), message.stateRoot);
@@ -127,10 +146,11 @@ contract SFFLServiceManagerTest is TestUtils {
         });
 
         (, IBLSSignatureChecker.NonSignerStakesAndSignature memory nonSignerStakesAndSignature) =
-            setUpOperators(message.hash(), 1000, 100, maxOperatorsToRegister / 2);
+            setUpOperators(message.hash(), 999, 1000, 100, maxOperatorsToRegister / 2);
 
         vm.expectRevert("Quorum not met");
 
+        vm.roll(1001);
         sfflServiceManager.updateStateRoot(message, nonSignerStakesAndSignature);
     }
 
@@ -150,7 +170,7 @@ contract SFFLServiceManagerTest is TestUtils {
         });
 
         (, IBLSSignatureChecker.NonSignerStakesAndSignature memory nonSignerStakesAndSignature) =
-            setUpOperators(message.hash(), 1000, 100, 1);
+            setUpOperators(message.hash(), 999, 1000, 100, 1);
 
         vm.expectRevert("Pausable: index is paused");
 

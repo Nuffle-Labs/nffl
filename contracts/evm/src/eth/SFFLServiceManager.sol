@@ -2,16 +2,18 @@
 pragma solidity ^0.8.12;
 
 import {ServiceManagerBase} from "eigenlayer-middleware/src/ServiceManagerBase.sol";
-import {IDelegationManager} from "@eigenlayer/contracts/interfaces/IDelegationManager.sol";
+import {IAVSDirectory} from "@eigenlayer/contracts/interfaces/IAVSDirectory.sol";
 import {IRegistryCoordinator} from "eigenlayer-middleware/src/interfaces/IRegistryCoordinator.sol";
 import {IStakeRegistry} from "eigenlayer-middleware/src/interfaces/IStakeRegistry.sol";
 import {IBLSSignatureChecker} from "eigenlayer-middleware/src/interfaces/IBLSSignatureChecker.sol";
 import {Pausable} from "@eigenlayer/contracts/permissions/Pausable.sol";
 import {IPauserRegistry} from "@eigenlayer/contracts/interfaces/IPauserRegistry.sol";
+import {ISignatureUtils} from "@eigenlayer/contracts/interfaces/ISignatureUtils.sol";
 
 import {SFFLTaskManager} from "./SFFLTaskManager.sol";
 import {SFFLRegistryBase} from "../base/SFFLRegistryBase.sol";
 import {StateRootUpdate} from "../base/message/StateRootUpdate.sol";
+import {SFFLOperatorSetUpdateRegistry} from "./SFFLOperatorSetUpdateRegistry.sol";
 
 /**
  * @title SFFL AVS Service Manager
@@ -26,6 +28,11 @@ contract SFFLServiceManager is SFFLRegistryBase, ServiceManagerBase, Pausable {
     SFFLTaskManager public immutable taskManager;
 
     /**
+     * @notice Address of the SFFL operator set update registry
+     */
+    SFFLOperatorSetUpdateRegistry public immutable operatorSetUpdateRegistry;
+
+    /**
      * @notice Index for flag pausing state root updates
      */
     uint8 public constant PAUSED_UPDATE_STATE_ROOT = 0;
@@ -36,12 +43,14 @@ contract SFFLServiceManager is SFFLRegistryBase, ServiceManagerBase, Pausable {
     }
 
     constructor(
-        IDelegationManager _delegationManager,
+        IAVSDirectory _avsDirectory,
         IRegistryCoordinator _registryCoordinator,
         IStakeRegistry _stakeRegistry,
-        SFFLTaskManager _taskManager
-    ) ServiceManagerBase(_delegationManager, _registryCoordinator, _stakeRegistry) {
+        SFFLTaskManager _taskManager,
+        SFFLOperatorSetUpdateRegistry _operatorSetUpdateRegistry
+    ) ServiceManagerBase(_avsDirectory, _registryCoordinator, _stakeRegistry) {
         taskManager = _taskManager;
+        operatorSetUpdateRegistry = _operatorSetUpdateRegistry;
     }
 
     /**
@@ -49,8 +58,8 @@ contract SFFLServiceManager is SFFLRegistryBase, ServiceManagerBase, Pausable {
      * @dev This was defined only because Pausable already defines `initialize(address)`
      * @param initialOwner Initial owner address
      */
-    function initialize(address initialOwner) public override initializer {
-        _transferOwnership(initialOwner);
+    function initialize(address initialOwner) public initializer {
+        __ServiceManagerBase_init(initialOwner);
         _initializePauser(IPauserRegistry(address(0)), UNPAUSE_ALL);
     }
 
@@ -61,6 +70,18 @@ contract SFFLServiceManager is SFFLRegistryBase, ServiceManagerBase, Pausable {
     function initialize(address initialOwner, IPauserRegistry _pauserRegistry) public initializer {
         _transferOwnership(initialOwner);
         _initializePauser(_pauserRegistry, UNPAUSE_ALL);
+    }
+
+    /**
+     * @inheritdoc ServiceManagerBase
+     */
+    function registerOperatorToAVS(
+        address operator,
+        ISignatureUtils.SignatureWithSaltAndExpiry memory operatorSignature
+    ) public virtual override onlyRegistryCoordinator {
+        require(operatorSetUpdateRegistry.isOperatorWhitelisted(operator), "Not whitelisted");
+
+        super.registerOperatorToAVS(operator, operatorSignature);
     }
 
     /**
@@ -104,7 +125,8 @@ contract SFFLServiceManager is SFFLRegistryBase, ServiceManagerBase, Pausable {
     }
 
     /**
-     * @dev Computes whether a state root update quorum was met or not
+     * @dev Computes whether a state root update quorum was met or not.
+     * Checks quorum for the previous block - see https://github.com/Layr-Labs/eigenlayer-middleware/pull/181.
      * @param message State root update message
      * @param nonSignerStakesAndSignature AVS operators agreement info
      * @return Whether the quorum was met or not
@@ -116,7 +138,7 @@ contract SFFLServiceManager is SFFLRegistryBase, ServiceManagerBase, Pausable {
         (bool success,) = taskManager.checkQuorum(
             message.hashCalldata(),
             hex"00",
-            uint32(block.number),
+            uint32(block.number - 1),
             nonSignerStakesAndSignature,
             2 * taskManager.THRESHOLD_DENOMINATOR() / 3
         );

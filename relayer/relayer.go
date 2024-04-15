@@ -20,7 +20,7 @@ const (
 
 type Relayer struct {
 	logger      sdklogging.Logger
-	rpcClient   eth.EthClient
+	rpcClient   eth.Client
 	daAccountId string
 
 	nearClient *near.Config

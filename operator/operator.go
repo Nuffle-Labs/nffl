@@ -11,6 +11,7 @@ import (
 
 	"github.com/Layr-Labs/eigensdk-go/chainio/clients"
 	"github.com/Layr-Labs/eigensdk-go/chainio/clients/eth"
+	"github.com/Layr-Labs/eigensdk-go/chainio/clients/wallet"
 	"github.com/Layr-Labs/eigensdk-go/chainio/txmgr"
 	"github.com/Layr-Labs/eigensdk-go/crypto/bls"
 	sdkecdsa "github.com/Layr-Labs/eigensdk-go/crypto/ecdsa"
@@ -37,7 +38,7 @@ const SEM_VER = "0.0.1"
 type Operator struct {
 	config    optypes.NodeConfig
 	logger    sdklogging.Logger
-	ethClient eth.EthClient
+	ethClient eth.Client
 	// they are only used for registration, so we should make a special registration package
 	// this way, auditing this operator code makes it obvious that operators don't need to
 	// write to the chain during the course of their normal operations
@@ -61,7 +62,7 @@ type Operator struct {
 	avsManager *AvsManager
 }
 
-func createEthClients(config *optypes.NodeConfig, registry *prometheus.Registry, logger sdklogging.Logger) (eth.EthClient, eth.EthClient, error) {
+func createEthClients(config *optypes.NodeConfig, registry *prometheus.Registry, logger sdklogging.Logger) (eth.Client, eth.Client, error) {
 	if config.EnableMetrics {
 		rpcCallsCollector := rpccalls.NewCollector(AVS_NAME, registry)
 		ethRpcClient, err := eth.NewInstrumentedClient(config.EthRpcUrl, rpcCallsCollector)
@@ -153,7 +154,19 @@ func NewOperatorFromConfig(c optypes.NodeConfig) (*Operator, error) {
 		panic(err)
 	}
 
-	txMgr := txmgr.NewSimpleTxManager(ethRpcClient, logger, signerV2, common.HexToAddress(c.OperatorAddress))
+	ecdsaPrivateKey, err := sdkecdsa.ReadKey(c.EcdsaPrivateKeyStorePath, ecdsaKeyPassword)
+	if err != nil {
+		logger.Error("Failed to read ecdsa private key", "err", err)
+		return nil, err
+	}
+
+	txSender, err := wallet.NewPrivateKeyWallet(ethRpcClient, signerV2, common.HexToAddress(c.OperatorAddress), logger)
+	if err != nil {
+		logger.Error("Failed to create transaction sender", "err", err)
+		return nil, err
+	}
+
+	txMgr := txmgr.NewSimpleTxManager(txSender, ethRpcClient, logger, signerV2, common.HexToAddress(c.OperatorAddress))
 	chainioConfig := clients.BuildAllConfig{
 		EthHttpUrl:                 c.EthRpcUrl,
 		EthWsUrl:                   c.EthWsUrl,
@@ -162,7 +175,7 @@ func NewOperatorFromConfig(c optypes.NodeConfig) (*Operator, error) {
 		AvsName:                    AVS_NAME,
 		PromMetricsIpPortAddress:   c.EigenMetricsIpPortAddress,
 	}
-	sdkClients, err := clients.BuildAll(chainioConfig, common.HexToAddress(c.OperatorAddress), signerV2, logger)
+	sdkClients, err := clients.BuildAll(chainioConfig, ecdsaPrivateKey, logger)
 	if err != nil {
 		panic(err)
 	}

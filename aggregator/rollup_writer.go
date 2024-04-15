@@ -7,6 +7,7 @@ import (
 	"time"
 
 	"github.com/Layr-Labs/eigensdk-go/chainio/clients/eth"
+	"github.com/Layr-Labs/eigensdk-go/chainio/clients/wallet"
 	"github.com/Layr-Labs/eigensdk-go/chainio/txmgr"
 	"github.com/Layr-Labs/eigensdk-go/logging"
 	"github.com/Layr-Labs/eigensdk-go/signerv2"
@@ -27,7 +28,7 @@ const (
 
 type RollupWriter struct {
 	txMgr                 txmgr.TxManager
-	client                eth.EthClient
+	client                eth.Client
 	sfflRegistryRollup    *registryrollup.ContractSFFLRegistryRollup
 	rollupId              uint32
 	operatorSetUpdateLock sync.Mutex
@@ -57,7 +58,14 @@ func NewRollupWriter(
 	if err != nil {
 		panic(err)
 	}
-	txMgr := txmgr.NewSimpleTxManager(client, logger, signerV2, address)
+
+	txSender, err := wallet.NewPrivateKeyWallet(client, signerV2, address, logger)
+	if err != nil {
+		logger.Error("Failed to create transaction sender", "err", err)
+		return nil, err
+	}
+
+	txMgr := txmgr.NewSimpleTxManager(txSender, client, logger, signerV2, address)
 
 	sfflRegistryRollup, err := registryrollup.NewContractSFFLRegistryRollup(rollupInfo.SFFLRegistryRollupAddr, client)
 	if err != nil {

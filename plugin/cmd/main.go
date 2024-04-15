@@ -10,6 +10,7 @@ import (
 
 	sdkclients "github.com/Layr-Labs/eigensdk-go/chainio/clients"
 	"github.com/Layr-Labs/eigensdk-go/chainio/clients/eth"
+	"github.com/Layr-Labs/eigensdk-go/chainio/clients/wallet"
 	"github.com/Layr-Labs/eigensdk-go/chainio/txmgr"
 	regcoord "github.com/Layr-Labs/eigensdk-go/contracts/bindings/RegistryCoordinator"
 	"github.com/Layr-Labs/eigensdk-go/crypto/bls"
@@ -79,6 +80,7 @@ func main() {
 
 func plugin(ctx *cli.Context) {
 	goCtx := context.Background()
+	logger, _ := logging.NewZapLogger(logging.Development)
 
 	operationType := ctx.GlobalString(OperationFlag.Name)
 	configPath := ctx.GlobalString(ConfigFileFlag.Name)
@@ -86,10 +88,11 @@ func plugin(ctx *cli.Context) {
 	avsConfig := optypes.NodeConfig{}
 	err := utils.ReadYamlConfig(configPath, &avsConfig)
 	if err != nil {
-		fmt.Println(err)
+		logger.Error("Failed to read config", "err", err)
 		return
 	}
-	fmt.Println(avsConfig)
+
+	logger.Info("Starting with config", "avsConfig", avsConfig)
 
 	ecdsaKeyPassword := ctx.GlobalString(EcdsaKeyPasswordFlag.Name)
 
@@ -101,17 +104,14 @@ func plugin(ctx *cli.Context) {
 		AvsName:                    "super-fast-finality-layer",
 		PromMetricsIpPortAddress:   avsConfig.EigenMetricsIpPortAddress,
 	}
-	logger, _ := logging.NewZapLogger(logging.Development)
 	ethHttpClient, err := eth.NewClient(avsConfig.EthRpcUrl)
 	if err != nil {
-		fmt.Println("can't connect to eth client")
-		fmt.Println(err)
+		logger.Error("Failed to connect to eth client", "err", err)
 		return
 	}
 	chainID, err := ethHttpClient.ChainID(goCtx)
 	if err != nil {
-		fmt.Println("can't get chain id")
-		fmt.Println(err)
+		logger.Error("Failed to get chain ID", "err", err)
 		return
 	}
 	signerV2, _, err := signerv2.SignerFromConfig(signerv2.Config{
@@ -119,11 +119,19 @@ func plugin(ctx *cli.Context) {
 		Password:     ecdsaKeyPassword,
 	}, chainID)
 	if err != nil {
-		fmt.Println("can't create signer")
-		fmt.Println(err)
+		logger.Error("Failed to create signer", "err", err)
 		return
 	}
-	clients, err := sdkclients.BuildAll(buildClientConfig, common.HexToAddress(avsConfig.OperatorAddress), signerV2, logger)
+	ecdsaPrivateKey, err := sdkecdsa.ReadKey(avsConfig.EcdsaPrivateKeyStorePath, ecdsaKeyPassword)
+	if err != nil {
+		logger.Error("Failed to read ecdsa private key", "err", err)
+		return
+	}
+	clients, err := sdkclients.BuildAll(buildClientConfig, ecdsaPrivateKey, logger)
+	if err != nil {
+		logger.Error("Failed to create sdk clients", "err", err)
+		return
+	}
 	avsReader, err := chainio.BuildAvsReader(
 		common.HexToAddress(avsConfig.AVSRegistryCoordinatorAddress),
 		common.HexToAddress(avsConfig.OperatorStateRetrieverAddress),
@@ -131,11 +139,15 @@ func plugin(ctx *cli.Context) {
 		logger,
 	)
 	if err != nil {
-		fmt.Println("can't create avs reader")
-		fmt.Println(err)
+		logger.Error("Failed to create avs reader", "err", err)
 		return
 	}
-	txMgr := txmgr.NewSimpleTxManager(ethHttpClient, logger, signerV2, common.HexToAddress(avsConfig.OperatorAddress))
+	txSender, err := wallet.NewPrivateKeyWallet(ethHttpClient, signerV2, common.HexToAddress(avsConfig.OperatorAddress), logger)
+	if err != nil {
+		logger.Error("Failed to create tx sender", "err", err)
+		return
+	}
+	txMgr := txmgr.NewSimpleTxManager(txSender, ethHttpClient, logger, signerV2, common.HexToAddress(avsConfig.OperatorAddress))
 	avsWriter, err := chainio.BuildAvsWriter(
 		txMgr,
 		common.HexToAddress(avsConfig.AVSRegistryCoordinatorAddress),
@@ -144,8 +156,7 @@ func plugin(ctx *cli.Context) {
 		logger,
 	)
 	if err != nil {
-		fmt.Println("can't create avs reader")
-		fmt.Println(err)
+		logger.Error("Failed to create avs writer", "err", err)
 		return
 	}
 
@@ -154,7 +165,7 @@ func plugin(ctx *cli.Context) {
 
 		blsKeypair, err := bls.ReadPrivateKeyFromFile(avsConfig.BlsPrivateKeyStorePath, blsKeyPassword)
 		if err != nil {
-			fmt.Println(err)
+			logger.Error("Failed to read bls private key", "err", err)
 			return
 		}
 
@@ -163,7 +174,7 @@ func plugin(ctx *cli.Context) {
 			ecdsaKeyPassword,
 		)
 		if err != nil {
-			fmt.Println(err)
+			logger.Error("Failed to read operator ecdsa private key", "err", err)
 			return
 		}
 
@@ -180,8 +191,7 @@ func plugin(ctx *cli.Context) {
 			blsKeypair, quorumNumbers, socket,
 		)
 		if err != nil {
-			logger.Errorf("Error assembling RegisterOperatorWithAVSRegistryCoordinator tx")
-			fmt.Println(err)
+			logger.Error("Failed to assemble RegisterOperatorWithAVSRegistryCoordinator tx", "err", err)
 			return
 		}
 		logger.Infof("Registered with registry coordination successfully with tx hash %s", r.TxHash.Hex())
@@ -190,7 +200,7 @@ func plugin(ctx *cli.Context) {
 	} else if operationType == "deposit" {
 		starategyAddrString := ctx.GlobalString(StrategyAddrFlag.Name)
 		if len(starategyAddrString) == 0 {
-			fmt.Println("Strategy address is required for deposit operation")
+			logger.Error("Strategy address is required for deposit operation")
 			return
 		}
 		strategyAddr := common.HexToAddress(ctx.GlobalString(StrategyAddrFlag.Name))
@@ -206,29 +216,29 @@ func plugin(ctx *cli.Context) {
 		}
 		txOpts, err := avsWriter.TxMgr.GetNoSendTxOpts()
 		if err != nil {
-			logger.Errorf("Error getting tx opts")
+			logger.Error("Failed to get tx opts", "err", err)
 			return
 		}
 		amount := big.NewInt(1000)
 		tx, err := contractErc20Mock.Mint(txOpts, common.HexToAddress(avsConfig.OperatorAddress), amount)
 		if err != nil {
-			logger.Errorf("Error assembling Mint tx")
+			logger.Error("Failed to assemble Mint tx", "err", err)
 			return
 		}
 		_, err = avsWriter.TxMgr.Send(context.Background(), tx)
 		if err != nil {
-			logger.Errorf("Error submitting Mint tx")
+			logger.Error("Failed to submit Mint tx", "err", err)
 			return
 		}
 
 		_, err = clients.ElChainWriter.DepositERC20IntoStrategy(context.Background(), strategyAddr, amount)
 		if err != nil {
-			logger.Errorf("Error depositing into strategy")
+			logger.Error("Failed to deposit into strategy", "err", err)
 			return
 		}
 		return
 	} else {
-		fmt.Println("Invalid operation type")
+		logger.Error("Invalid operation type")
 	}
 }
 

@@ -8,6 +8,7 @@ import (
 	"github.com/Layr-Labs/eigensdk-go/chainio/clients"
 	sdkclients "github.com/Layr-Labs/eigensdk-go/chainio/clients"
 	"github.com/Layr-Labs/eigensdk-go/chainio/clients/eth"
+	"github.com/Layr-Labs/eigensdk-go/chainio/clients/wallet"
 	"github.com/Layr-Labs/eigensdk-go/chainio/txmgr"
 	"github.com/Layr-Labs/eigensdk-go/logging"
 	"github.com/Layr-Labs/eigensdk-go/services/avsregistry"
@@ -117,7 +118,14 @@ func NewAggregator(ctx context.Context, config *config.Config, logger logging.Lo
 	if err != nil {
 		panic(err)
 	}
-	txMgr := txmgr.NewSimpleTxManager(ethHttpClient, logger, signerV2, config.AggregatorAddress)
+
+	txSender, err := wallet.NewPrivateKeyWallet(ethHttpClient, signerV2, config.AggregatorAddress, logger)
+	if err != nil {
+		logger.Error("Failed to create transaction sender", "err", err)
+		return nil, err
+	}
+
+	txMgr := txmgr.NewSimpleTxManager(txSender, ethHttpClient, logger, signerV2, config.AggregatorAddress)
 
 	avsWriter, err := chainio.BuildAvsWriterFromConfig(txMgr, config, ethHttpClient, logger)
 	if err != nil {
@@ -139,7 +147,7 @@ func NewAggregator(ctx context.Context, config *config.Config, logger logging.Lo
 		AvsName:                    avsName,
 		PromMetricsIpPortAddress:   ":9090",
 	}
-	clients, err := clients.BuildAll(chainioConfig, config.AggregatorAddress, signerV2, logger)
+	clients, err := clients.BuildAll(chainioConfig, config.EcdsaPrivateKey, logger)
 	if err != nil {
 		logger.Errorf("Cannot create sdk clients", "err", err)
 		return nil, err

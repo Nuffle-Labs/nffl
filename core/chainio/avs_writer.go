@@ -46,16 +46,16 @@ type AvsWriter struct {
 	AvsContractBindings *AvsManagersBindings
 	logger              logging.Logger
 	TxMgr               txmgr.TxManager
-	client              eth.EthClient
+	client              eth.Client
 }
 
 var _ AvsWriterer = (*AvsWriter)(nil)
 
-func BuildAvsWriterFromConfig(txMgr txmgr.TxManager, config *config.Config, client eth.EthClient, logger logging.Logger) (*AvsWriter, error) {
+func BuildAvsWriterFromConfig(txMgr txmgr.TxManager, config *config.Config, client eth.Client, logger logging.Logger) (*AvsWriter, error) {
 	return BuildAvsWriter(txMgr, config.SFFLRegistryCoordinatorAddr, config.OperatorStateRetrieverAddr, client, logger)
 }
 
-func BuildAvsWriter(txMgr txmgr.TxManager, registryCoordinatorAddr, operatorStateRetrieverAddr gethcommon.Address, ethHttpClient eth.EthClient, logger logging.Logger) (*AvsWriter, error) {
+func BuildAvsWriter(txMgr txmgr.TxManager, registryCoordinatorAddr, operatorStateRetrieverAddr gethcommon.Address, ethHttpClient eth.Client, logger logging.Logger) (*AvsWriter, error) {
 	avsServiceBindings, err := NewAvsManagersBindings(registryCoordinatorAddr, operatorStateRetrieverAddr, ethHttpClient, logger)
 	if err != nil {
 		logger.Error("Failed to create contract bindings", "err", err)

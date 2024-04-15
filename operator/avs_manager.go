@@ -29,7 +29,7 @@ type AvsManagerer interface {
 	DepositIntoStrategy(operatorAddr common.Address, strategyAddr common.Address, amount *big.Int) error
 	RegisterOperatorWithEigenlayer(operatorAddr common.Address) error
 	RegisterOperatorWithAvs(
-		client eth.EthClient,
+		client eth.Client,
 		operatorEcdsaKeyPair *ecdsa.PrivateKey,
 		blsKeyPair *bls.KeyPair,
 	) error
@@ -56,7 +56,7 @@ type AvsManager struct {
 	logger sdklogging.Logger
 }
 
-func NewAvsManager(config *optypes.NodeConfig, ethRpcClient eth.EthClient, ethWsClient eth.EthClient, sdkClients *clients.Clients, txManager *txmgr.SimpleTxManager, logger sdklogging.Logger) (*AvsManager, error) {
+func NewAvsManager(config *optypes.NodeConfig, ethRpcClient eth.Client, ethWsClient eth.Client, sdkClients *clients.Clients, txManager *txmgr.SimpleTxManager, logger sdklogging.Logger) (*AvsManager, error) {
 	avsWriter, err := chainio.BuildAvsWriter(
 		txManager, common.HexToAddress(config.AVSRegistryCoordinatorAddress),
 		common.HexToAddress(config.OperatorStateRetrieverAddress), ethRpcClient, logger,
@@ -243,7 +243,7 @@ func (avsManager *AvsManager) RegisterOperatorWithEigenlayer(operatorAddr common
 
 // RegisterOperatorWithAvs Registration specific functions
 func (avsManager *AvsManager) RegisterOperatorWithAvs(
-	client eth.EthClient,
+	client eth.Client,
 	operatorEcdsaKeyPair *ecdsa.PrivateKey,
 	blsKeyPair *bls.KeyPair,
 ) error {
