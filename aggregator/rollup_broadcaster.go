@@ -102,9 +102,8 @@ func (w *RollupWriter) InitializeOperatorSet(ctx context.Context, operators []re
 		return nil
 	}
 
-	var err error = nil
 	for i := 0; i < NUM_OF_RETRIES; i++ {
-		err = operation()
+		err := operation()
 		if err == nil {
 			w.logger.Info("Rollup Operator set initialized")
 
@@ -124,7 +123,7 @@ func (w *RollupWriter) InitializeOperatorSet(ctx context.Context, operators []re
 		}
 	}
 
-	return nil
+	return errors.New("failed to initialize operator set after retries")
 }
 
 func (w *RollupWriter) UpdateOperatorSet(ctx context.Context, message messages.OperatorSetUpdateMessage, signatureInfo registryrollup.RollupOperatorsSignatureInfo) error {
@@ -164,9 +163,8 @@ func (w *RollupWriter) UpdateOperatorSet(ctx context.Context, message messages.O
 		return nil
 	}
 
-	var err error = nil
 	for i := 0; i < NUM_OF_RETRIES; i++ {
-		err = operation()
+		err := operation()
 		if err == nil {
 			w.logger.Info("Rollup Operator set updated")
 
@@ -186,7 +184,7 @@ func (w *RollupWriter) UpdateOperatorSet(ctx context.Context, message messages.O
 		}
 	}
 
-	return err
+	return errors.New("failed to update operator set after retries")
 }
 
 type RollupBroadcasterer interface {
