@@ -293,7 +293,7 @@ func (b *RollupBroadcaster) tryInitializeRollupOperatorSet(ctx context.Context, 
 	if nextOperatorUpdateId == 0 {
 		b.logger.Info("Operator set not initialized yet", "rollupId", writer.rollupId, "mainnetNextOperatorSetUpdateId", mainnetNextOperatorSetUpdateId)
 
-		operators, err := b.tryGetOperatorSetUpdateById(ctx, avsReader, mainnetNextOperatorSetUpdateId-1)
+		operators, err := b.tryGetOperatorSetById(ctx, avsReader, mainnetNextOperatorSetUpdateId-1)
 		if err != nil {
 			b.logger.Error("Error fetching operator set", "err", err)
 			b.errorChan <- err
@@ -337,7 +337,7 @@ func (b *RollupBroadcaster) GetErrorChan() <-chan error {
 	return b.errorChan
 }
 
-func (b *RollupBroadcaster) tryGetOperatorSetUpdateById(ctx context.Context, avsReader chainio.AvsReaderer, operatorSetUpdateId uint64) ([]opsetupdatereg.RollupOperatorsOperator, error) {
+func (b *RollupBroadcaster) tryGetOperatorSetById(ctx context.Context, avsReader chainio.AvsReaderer, operatorSetUpdateId uint64) ([]opsetupdatereg.RollupOperatorsOperator, error) {
 	for i := 0; i < NUM_OF_RETRIES; i++ {
 		operators, err := avsReader.GetOperatorSetById(ctx, operatorSetUpdateId)
 
