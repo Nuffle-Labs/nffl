@@ -42,8 +42,8 @@ jobs:
           context: .
           file: ./indexer/Dockerfile
           tags: near-sffl-indexer
-          cache-from: type=local,src=/tmp/.buildx-cache
-          cache-to: type=local,dest=/tmp/.buildx-cache-new
+          cache-from: type=local,src=/tmp/.buildx-cache,scope=indexer
+          cache-to: type=local,dest=/tmp/.buildx-cache-new,scope=indexer
 
       - name: Build relayer container
         uses: docker/build-push-action@v4
@@ -52,8 +52,8 @@ jobs:
           context: .
           file: ./relayer/Dockerfile
           tags: near-sffl-test-relayer
-          cache-from: type=local,src=/tmp/.buildx-cache
-          cache-to: type=local,dest=/tmp/.buildx-cache-new
+          cache-from: type=local,src=/tmp/.buildx-cache,scope=relayer
+          cache-to: type=local,dest=/tmp/.buildx-cache-new,scope=relayer
 
       - name: Move cache
         run: |
