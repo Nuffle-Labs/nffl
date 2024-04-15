@@ -3,6 +3,8 @@ use std::collections::HashMap;
 
 use crate::errors::{Error, Result};
 
+use serde::Deserialize;
+
 #[derive(clap::Parser, Debug)]
 #[clap(version = "0.0.1")]
 #[clap(subcommand_required = true, arg_required_else_help = true)]
@@ -17,15 +19,27 @@ pub(crate) struct Opts {
 #[derive(clap::Parser, Debug)]
 pub(crate) enum SubCommand {
     /// Run NEAR Indexer Example. Start observe the network
-    Run(RunConfigArgs),
+    Run(RunConfigParams),
     /// Initialize necessary configs
-    Init(InitConfigArgs),
+    Init(InitConfigParams),
 }
 
-#[derive(clap::Parser, Debug)]
+#[derive(clap::Parser, Deserialize, Debug)]
+#[command(group = clap::ArgGroup::new("config_path").conflicts_with("config_args").multiple(false))]
+pub(crate) struct RunConfigParams {
+    #[clap(long)]
+    #[arg(group = "config_path")]
+    pub config: Option<std::path::PathBuf>,
+
+    #[clap(flatten)]
+    pub run_config_args: Option<RunConfigArgs>,
+}
+
+#[derive(clap::Parser, Deserialize, Debug)]
+#[group(id = "config_args", conflicts_with = "config_path")]
 pub(crate) struct RunConfigArgs {
     /// Rabbit mq address
-    #[clap(long)]
+    #[clap(long, default_value = "amqp://localhost:5672")]
     pub rmq_address: String,
     /// Data availability contract
     #[clap(short, long)]
@@ -57,7 +71,19 @@ impl RunConfigArgs {
     }
 }
 
-#[derive(clap::Parser, Debug)]
+#[derive(clap::Parser, Deserialize, Debug)]
+#[command(group = clap::ArgGroup::new("config_path").conflicts_with("config_args").multiple(false))]
+pub(crate) struct InitConfigParams {
+    #[clap(long)]
+    #[arg(group = "config_path")]
+    pub config: Option<std::path::PathBuf>,
+
+    #[clap(flatten)]
+    pub args: Option<InitConfigArgs>,
+}
+
+#[derive(clap::Parser, Deserialize, Debug)]
+#[group(id = "config_args", conflicts_with = "config_path")]
 pub(crate) struct InitConfigArgs {
     /// chain/network id (localnet, testnet, devnet, betanet)
     #[clap(short, long)]

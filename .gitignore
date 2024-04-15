@@ -35,4 +35,4 @@ target
 aggregator.db
 
 # Test artifacts
-test_data
+/test_data
