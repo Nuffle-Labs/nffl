@@ -27,7 +27,9 @@ type AvsReaderer interface {
 	) (taskmanager.IBLSSignatureCheckerQuorumStakeTotals, error)
 	GetErc20Mock(ctx context.Context, tokenAddr gethcommon.Address) (*erc20mock.ContractERC20Mock, error)
 	GetOperatorSetUpdateDelta(ctx context.Context, id uint64) ([]opsetupdatereg.RollupOperatorsOperator, error)
+	GetOperatorSetById(ctx context.Context, id uint64) ([]opsetupdatereg.RollupOperatorsOperator, error)
 	GetOperatorSetUpdateBlock(ctx context.Context, id uint64) (uint32, error)
+	GetNextOperatorSetUpdateId(ctx context.Context) (uint64, error)
 }
 
 type AvsReader struct {
@@ -126,6 +128,23 @@ func (r *AvsReader) GetOperatorSetUpdateDelta(ctx context.Context, id uint64) ([
 	return delta, nil
 }
 
+func (r *AvsReader) GetOperatorSetById(ctx context.Context, id uint64) ([]opsetupdatereg.RollupOperatorsOperator, error) {
+	result, err := r.AvsServiceBindings.OperatorSetUpdateRegistry.GetOperatorSetUpdate(&bind.CallOpts{}, id)
+	if err != nil {
+		return nil, err
+	}
+
+	return result.NewOperatorSet, nil
+}
+
 func (r *AvsReader) GetOperatorSetUpdateBlock(ctx context.Context, id uint64) (uint32, error) {
 	return r.AvsServiceBindings.OperatorSetUpdateRegistry.OperatorSetUpdateIdToBlockNumber(&bind.CallOpts{}, big.NewInt(0).SetUint64(id))
+}
+
+func (r *AvsReader) GetNextOperatorSetUpdateId(ctx context.Context) (uint64, error) {
+	count, err := r.AvsServiceBindings.OperatorSetUpdateRegistry.GetOperatorSetUpdateCount(&bind.CallOpts{})
+	if err != nil {
+		return 0, err
+	}
+	return count, nil
 }

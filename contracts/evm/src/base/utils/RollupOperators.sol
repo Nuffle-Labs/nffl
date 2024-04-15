@@ -56,19 +56,6 @@ library RollupOperators {
     event QuorumThresholdUpdated(uint128 indexed newQuorumThreshold);
 
     /**
-     * @notice Initializes the operator set with the initial operators and
-     * quorum weight threshold
-     * @param self Operator set
-     * @param operators Initial operator list
-     * @param quorumThreshold New quorum weight threshold, based on
-     * THRESHOLD_DENOMINATOR
-     */
-    function initialize(OperatorSet storage self, Operator[] memory operators, uint128 quorumThreshold) internal {
-        update(self, operators);
-        setQuorumThreshold(self, quorumThreshold);
-    }
-
-    /**
      * @notice Sets the weight threshold for agreement validations
      * @param self Operator set
      * @param quorumThreshold New quorum weight threshold, based on
@@ -145,6 +132,8 @@ library RollupOperators {
     {
         BN254.G1Point memory apk = BN254.G1Point(0, 0);
         uint256 weight = self.totalWeight;
+
+        require(weight != 0, "Operator set was not initialized");
 
         bytes32[] memory nonSignerPubkeyHashes = new bytes32[](signatureInfo.nonSignerPubkeys.length);
 

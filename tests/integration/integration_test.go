@@ -210,17 +210,9 @@ func setupTestEnv(t *testing.T, ctx context.Context) *testEnv {
 		t.Fatalf("Failed to create logger: %s", err.Error())
 	}
 
-	nodeConfig, keyPair, _ := genOperatorConfig(t, ctx, mainnetAnvil, rollupAnvils, rabbitMq)
-	rollupInitialOperatorSet := []registryrollup.RollupOperatorsOperator{
-		{
-			Pubkey: registryrollup.BN254G1Point{
-				X: keyPair.PubKey.X.BigInt(big.NewInt(0)),
-				Y: keyPair.PubKey.Y.BigInt(big.NewInt(0)),
-			},
-			Weight: big.NewInt(1000),
-		},
-	}
-	addresses, registryRollups, registryRollupAuths, _ := deployRegistryRollups(t, rollupInitialOperatorSet, 1, rollupAnvils)
+	nodeConfig, _, _ := genOperatorConfig(t, ctx, mainnetAnvil, rollupAnvils, rabbitMq)
+
+	addresses, registryRollups, registryRollupAuths, _ := deployRegistryRollups(t, rollupAnvils)
 	operator := startOperator(t, ctx, nodeConfig)
 
 	config := buildConfig(t, sfflDeploymentRaw, addresses, rollupAnvils, configRaw)
@@ -547,14 +539,14 @@ func startAnvilTestContainer(t *testing.T, ctx context.Context, name, exposedPor
 	return anvil
 }
 
-func deployRegistryRollups(t *testing.T, initialOperatorSet []registryrollup.RollupOperatorsOperator, nextOperatorSetUpdateId uint64, anvils []*utils.AnvilInstance) ([]common.Address, []*registryrollup.ContractSFFLRegistryRollup, []*bind.TransactOpts, []*bind.TransactOpts) {
+func deployRegistryRollups(t *testing.T, anvils []*utils.AnvilInstance) ([]common.Address, []*registryrollup.ContractSFFLRegistryRollup, []*bind.TransactOpts, []*bind.TransactOpts) {
 	var registryRollups []*registryrollup.ContractSFFLRegistryRollup
 	var ownerAuths []*bind.TransactOpts
 	var proxyAdminAuths []*bind.TransactOpts
 	var addresses []common.Address
 
 	for _, anvil := range anvils {
-		addr, registryRollup, ownerAuth, proxyAdminAuth := deployRegistryRollup(t, initialOperatorSet, nextOperatorSetUpdateId, anvil)
+		addr, registryRollup, ownerAuth, proxyAdminAuth := deployRegistryRollup(t, anvil)
 
 		addresses = append(addresses, addr)
 		registryRollups = append(registryRollups, registryRollup)
@@ -565,7 +557,7 @@ func deployRegistryRollups(t *testing.T, initialOperatorSet []registryrollup.Rol
 	return addresses, registryRollups, ownerAuths, proxyAdminAuths
 }
 
-func deployRegistryRollup(t *testing.T, initialOperatorSet []registryrollup.RollupOperatorsOperator, nextOperatorSetUpdateId uint64, anvil *utils.AnvilInstance) (common.Address, *registryrollup.ContractSFFLRegistryRollup, *bind.TransactOpts, *bind.TransactOpts) {
+func deployRegistryRollup(t *testing.T, anvil *utils.AnvilInstance) (common.Address, *registryrollup.ContractSFFLRegistryRollup, *bind.TransactOpts, *bind.TransactOpts) {
 	t.Logf("Deploying RegistryRollup to chain %s", anvil.ChainID.String())
 
 	ownerPrivateKeyString := "ac0974bec39a17e36ba4a6b4d238ff944bacb478cbed5efcae784d7bf4f2ff80"
@@ -575,16 +567,12 @@ func deployRegistryRollup(t *testing.T, initialOperatorSet []registryrollup.Roll
 	}
 	ownerAddr := crypto.PubkeyToAddress(ownerKeyPair.PublicKey)
 
+	aggregatorAddr := common.HexToAddress("0xa0Ee7A142d267C1f36714E4a8F75612F20a79720")
+
 	ownerAuth, err := bind.NewKeyedTransactorWithChainID(ownerKeyPair, anvil.ChainID)
 	if err != nil {
 		t.Fatalf("Error generating transactor: %s", err.Error())
 	}
-
-	if len(initialOperatorSet) == 0 {
-		t.Fatal("Operator set is empty")
-	}
-
-	t.Logf("RegistryRollup deployed with operators: %v", initialOperatorSet)
 
 	implAddr, _, _, err := registryrollup.DeployContractSFFLRegistryRollup(ownerAuth, anvil.WsClient)
 	if err != nil {
@@ -598,7 +586,7 @@ func deployRegistryRollup(t *testing.T, initialOperatorSet []registryrollup.Roll
 
 	mockPauserRegistryAddr := common.HexToAddress("0x000000000000000000000000000000000000001")
 
-	initCall, err := abi.Pack("initialize", initialOperatorSet, big.NewInt(66), nextOperatorSetUpdateId, ownerAddr, mockPauserRegistryAddr)
+	initCall, err := abi.Pack("initialize", big.NewInt(66), ownerAddr, aggregatorAddr, mockPauserRegistryAddr)
 	if err != nil {
 		t.Fatalf("Error encoding RegistryRollup initialize call: %s", err.Error())
 	}
