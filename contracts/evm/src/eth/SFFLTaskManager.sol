@@ -61,7 +61,7 @@ contract SFFLTaskManager is Initializable, OwnableUpgradeable, Pausable, BLSSign
      */
     uint32 public nextCheckpointTaskNum;
     /**
-     * @notice Next checkpoint task number
+     * @notice Last checkpoint toTimestamp
      */
     uint64 public lastCheckpointToTimestamp;
     /**
