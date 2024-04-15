@@ -337,9 +337,9 @@ func (b *RollupBroadcaster) GetErrorChan() <-chan error {
 	return b.errorChan
 }
 
-func (b *RollupBroadcaster) tryGetOperatorSetUpdateById(ctx context.Context, avsReader chainio.AvsReaderer, mainnetNextOperatorSetUpdateId uint64) ([]opsetupdatereg.RollupOperatorsOperator, error) {
+func (b *RollupBroadcaster) tryGetOperatorSetUpdateById(ctx context.Context, avsReader chainio.AvsReaderer, operatorSetUpdateId uint64) ([]opsetupdatereg.RollupOperatorsOperator, error) {
 	for i := 0; i < NUM_OF_RETRIES; i++ {
-		operators, err := avsReader.GetOperatorSetById(ctx, mainnetNextOperatorSetUpdateId-1)
+		operators, err := avsReader.GetOperatorSetById(ctx, operatorSetUpdateId)
 
 		if err == nil {
 			return operators, nil
