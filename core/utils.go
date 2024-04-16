@@ -4,6 +4,7 @@ import (
 	"math/big"
 
 	"github.com/Layr-Labs/eigensdk-go/crypto/bls"
+	"github.com/ethereum/go-ethereum/accounts/abi"
 	"golang.org/x/crypto/sha3"
 
 	taskmanager "github.com/NethermindEth/near-sffl/contracts/bindings/SFFLTaskManager"
@@ -37,4 +38,23 @@ func ConvertToBN254G2Point(input *bls.G2Point) taskmanager.BN254G2Point {
 		Y: [2]*big.Int{input.Y.A1.BigInt(big.NewInt(0)), input.Y.A0.BigInt(big.NewInt(0))},
 	}
 	return output
+}
+
+func HashBNG1Point(input taskmanager.BN254G1Point) ([32]byte, error) {
+	typ, err := abi.NewType("tuple", "", []abi.ArgumentMarshaling{
+		{Name: "X", Type: "uint256"},
+		{Name: "Y", Type: "uint256"},
+	})
+	if err != nil {
+		return [32]byte{}, err
+	}
+
+	arguments := abi.Arguments{{Type: typ}}
+
+	bytes, err := arguments.Pack(input)
+	if err != nil {
+		return [32]byte{}, err
+	}
+
+	return Keccak256(bytes)
 }

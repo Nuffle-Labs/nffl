@@ -264,20 +264,13 @@ func (agg *Aggregator) sendAggregatedResponseToContract(blsAggServiceResp blsagg
 	taskResponse := agg.taskResponses[blsAggServiceResp.TaskIndex][blsAggServiceResp.TaskResponseDigest]
 	agg.taskResponsesLock.RUnlock()
 
-	aggregation := messages.MessageBlsAggregation{
-		EthBlockNumber:               uint64(task.TaskCreatedBlock),
-		MessageDigest:                blsAggServiceResp.TaskResponseDigest,
-		NonSignersPubkeysG1:          blsAggServiceResp.NonSignersPubkeysG1,
-		QuorumApksG1:                 blsAggServiceResp.QuorumApksG1,
-		SignersApkG2:                 blsAggServiceResp.SignersApkG2,
-		SignersAggSigG1:              blsAggServiceResp.SignersAggSigG1,
-		NonSignerQuorumBitmapIndices: blsAggServiceResp.NonSignerQuorumBitmapIndices,
-		QuorumApkIndices:             blsAggServiceResp.QuorumApkIndices,
-		TotalStakeIndices:            blsAggServiceResp.TotalStakeIndices,
-		NonSignerStakeIndices:        blsAggServiceResp.NonSignerStakeIndices,
+	aggregation, err := messages.NewMessageBlsAggregationFromServiceResponse(uint64(task.TaskCreatedBlock), blsAggServiceResp)
+	if err != nil {
+		agg.logger.Error("Aggregator failed to format aggregation", "err", err)
+		return
 	}
 
-	_, err := agg.avsWriter.SendAggregatedResponse(context.Background(), task, taskResponse, aggregation)
+	_, err = agg.avsWriter.SendAggregatedResponse(context.Background(), task, taskResponse, aggregation)
 	if err != nil {
 		agg.logger.Error("Aggregator failed to respond to task", "err", err)
 	}

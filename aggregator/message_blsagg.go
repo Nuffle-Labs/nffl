@@ -14,6 +14,7 @@ import (
 	"github.com/Layr-Labs/eigensdk-go/crypto/bls"
 	"github.com/Layr-Labs/eigensdk-go/logging"
 	"github.com/Layr-Labs/eigensdk-go/services/avsregistry"
+	blsagg "github.com/Layr-Labs/eigensdk-go/services/bls_aggregation"
 	eigensdktypes "github.com/Layr-Labs/eigensdk-go/types"
 	"github.com/ethereum/go-ethereum/accounts/abi/bind"
 
@@ -288,11 +289,10 @@ func (mbas *MessageBlsAggregatorService) handleSignedMessageDigest(signedMessage
 		return false
 	}
 
-	messageBlsAggregationServiceResponse := types.MessageBlsAggregationServiceResponse{
-		Err: nil,
-		MessageBlsAggregation: messages.MessageBlsAggregation{
-			EthBlockNumber:               validationInfo.ethBlockNumber,
-			MessageDigest:                signedMessageDigest.MessageDigest,
+	aggregation, err := messages.NewMessageBlsAggregationFromServiceResponse(
+		validationInfo.ethBlockNumber,
+		blsagg.BlsAggregationServiceResponse{
+			TaskResponseDigest:           signedMessageDigest.MessageDigest,
 			NonSignersPubkeysG1:          getG1PubkeysOfNonSigners(digestAggregatedOperators.signersOperatorIdsSet, validationInfo.operatorsAvsStateDict),
 			QuorumApksG1:                 validationInfo.quorumApksG1,
 			SignersApkG2:                 digestAggregatedOperators.signersApkG2,
@@ -302,6 +302,18 @@ func (mbas *MessageBlsAggregatorService) handleSignedMessageDigest(signedMessage
 			TotalStakeIndices:            indices.TotalStakeIndices,
 			NonSignerStakeIndices:        indices.NonSignerStakeIndices,
 		},
+	)
+	if err != nil {
+		mbas.logger.Error("Failed to format aggregation", "err", err)
+		mbas.aggregatedResponsesC <- types.MessageBlsAggregationServiceResponse{
+			Err: err,
+		}
+		return false
+	}
+
+	messageBlsAggregationServiceResponse := types.MessageBlsAggregationServiceResponse{
+		Err:                   nil,
+		MessageBlsAggregation: aggregation,
 	}
 
 	mbas.aggregatedResponsesC <- messageBlsAggregationServiceResponse
