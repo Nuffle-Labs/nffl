@@ -85,6 +85,8 @@ jobs:
             image: aggregator
           - path: operator/cmd/main.go
             image: operator
+          - path: plugin/cmd/main.go
+            image: operator-plugin
     permissions:
       contents: read
       packages: write
