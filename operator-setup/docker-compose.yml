@@ -32,6 +32,9 @@ services:
         condition: service_healthy
     ports:
       - "3030:3030"
+    volumes:
+      - ./:/near-sffl/
+    working_dir: /near-sffl
     command: 
       - --config
       - config/indexer.yaml
