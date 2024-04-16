@@ -101,6 +101,8 @@ jobs:
         id: meta
         uses: docker/metadata-action@v4
         with:
+          images: |
+            name=,enable=true
           tags: |
             type=semver,pattern={{version}}
             type=sha
