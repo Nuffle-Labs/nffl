@@ -3,11 +3,13 @@ name: Build and Push Containers
 on:
   workflow_dispatch:
     inputs:
-      ref:
-        description: "The branch, tag or SHA to checkout"
-        type: string
+      commit_sha:
+        description: "Specific Commit SHA (Required)"
         required: true
-        default: "main"
+      release_tag:
+        description: "Release Tag (Optional)"
+        required: false
+        default: ""
 
 env:
   REGISTRY: ghcr.io
@@ -32,7 +34,7 @@ jobs:
       - name: Checkout repository
         uses: actions/checkout@v3
         with:
-          ref: ${{ inputs.ref }}
+          ref: ${{ github.event.inputs.commit_sha }}
 
       - name: Set up Go
         uses: actions/setup-go@v4
@@ -53,16 +55,16 @@ jobs:
           username: ${{ github.actor }}
           password: ${{ secrets.GITHUB_TOKEN }}
 
-      - name: Extract metadata (tags, labels) for Docker
+      - name: Set Tag Name
+        id: set_tag
+        run: echo "tag=${{ github.event.inputs.release_tag || github.event.inputs.commit_sha }}" >> $GITHUB_OUTPUT
+
+      - name: Extract metadata for Docker
         id: meta
         uses: docker/metadata-action@v4
         with:
-          images: ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}/${{ matrix.image }}
-          tags: |
-            type=semver,pattern={{version}}
-            type=sha
-            type=ref,event=branch
-            type=ref,event=tag
+          images: |
+            name=,enable=true
             
       - name: Build and push Docker image
         uses: docker/build-push-action@v4
@@ -70,7 +72,7 @@ jobs:
           context: .
           file: ${{ matrix.dockerfile }}
           push: false # dry-run
-          tags: ${{ steps.meta.outputs.tags }}
+          tags: ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}/${{ matrix.image }}:${{ steps.set_tag.outputs.tag }}
           labels: ${{ steps.meta.outputs.labels }}
   
   ko:
@@ -83,6 +85,8 @@ jobs:
             image: aggregator
           - path: operator/cmd/main.go
             image: operator
+          - path: plugin/cmd/main.go
+            image: operator-plugin
     permissions:
       contents: read
       packages: write
@@ -90,28 +94,28 @@ jobs:
       - name: Checkout repository
         uses: actions/checkout@v3
         with:
-          ref: ${{ inputs.ref }}
+          ref: ${{ github.event.inputs.commit_sha }}
 
       - name: Set up Go
         uses: actions/setup-go@v2
         with:
           go-version: '1.21.x'
 
-      - name: Extract metadata (tags, labels) for Docker
+      - name: Set Tag Name
+        id: set_tag
+        run: echo "tag=${{ github.event.inputs.release_tag || github.event.inputs.commit_sha }}" >> $GITHUB_OUTPUT
+
+      - name: Extract metadata for Docker
         id: meta
         uses: docker/metadata-action@v4
         with:
-          tags: |
-            type=semver,pattern={{version}}
-            type=sha
-            type=ref,event=branch
-            type=ref,event=tag
-          sep-tags: ","
+          images: |
+            name=,enable=true
       
       - name: Set up Ko
         uses: ko-build/setup-ko@v0.6
       
       - name: Build and push container
-        run: ko build ${{ matrix.path }} --bare --tags=${{ steps.meta.outputs.tags }} --push false # dry-run
+        run: ko build ${{ matrix.path }} --bare --tags=${{ steps.set_tag.outputs.tag }} --push false # dry-run
         env:
           KO_DOCKER_REPO: ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}/${{ matrix.image }}
