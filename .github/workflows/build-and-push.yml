@@ -11,7 +11,7 @@ on:
 
 env:
   REGISTRY: ghcr.io
-  IMAGE_NAME: NethermindEth/near-sffl
+  IMAGE_NAME: nethermindeth/near-sffl
 
 jobs:
   custom-build:
