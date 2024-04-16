@@ -70,5 +70,5 @@ jobs:
         with:
           context: .
           file: ${{ matrix.dockerfile }}
-          push: false # dry-run
+          push: true
           tags: ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}/${{ matrix.image }}:${{ steps.set_tag.outputs.tag }}
