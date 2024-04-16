@@ -58,13 +58,6 @@ jobs:
       - name: Set Tag Name
         id: set_tag
         run: echo "tag=${{ github.event.inputs.release_tag || github.event.inputs.commit_sha }}" >> $GITHUB_OUTPUT
-
-      - name: Extract metadata for Docker
-        id: meta
-        uses: docker/metadata-action@v4
-        with:
-          images: |
-            name=,enable=true
             
       - name: Build and push Docker image
         uses: docker/build-push-action@v4
@@ -73,7 +66,6 @@ jobs:
           file: ${{ matrix.dockerfile }}
           push: false # dry-run
           tags: ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}/${{ matrix.image }}:${{ steps.set_tag.outputs.tag }}
-          labels: ${{ steps.meta.outputs.labels }}
   
   ko:
     runs-on: ubuntu-latest
@@ -104,13 +96,6 @@ jobs:
       - name: Set Tag Name
         id: set_tag
         run: echo "tag=${{ github.event.inputs.release_tag || github.event.inputs.commit_sha }}" >> $GITHUB_OUTPUT
-
-      - name: Extract metadata for Docker
-        id: meta
-        uses: docker/metadata-action@v4
-        with:
-          images: |
-            name=,enable=true
       
       - name: Set up Ko
         uses: ko-build/setup-ko@v0.6
