@@ -25,7 +25,7 @@ services:
       - near-sffl
 
   indexer:
-    image: ghcr.io/nethermindeth/near-sffl/indexer:latest
+    image: ghcr.io/nethermindeth/near-sffl/indexer:${SFFL_RELEASE}
     container_name: near-sffl-indexer
     depends_on:
       rmq:
@@ -42,7 +42,7 @@ services:
       - near-sffl
 
   operator:
-    image: ghcr.io/nethermindeth/near-sffl/operator:latest
+    image: ghcr.io/nethermindeth/near-sffl/operator:${SFFL_RELEASE}
     container_name: near-sffl-operator
     depends_on:
       rmq:
