@@ -108,8 +108,7 @@ Compose, in which each service is executed in a separate container.
 #### Dependencies
 
 In order to build and run the containers, you'll need to install
-[Docker](https://www.docker.com/get-started/), as well as
-[ko](https://ko.build/install/).
+[Docker](https://www.docker.com/get-started/).
 
 You should also have `make` for the build script, or examine and run the same
 steps.

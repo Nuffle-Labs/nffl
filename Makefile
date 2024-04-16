@@ -48,11 +48,14 @@ ___DOCKER___: ##
 docker-build-indexer:
 	docker build -t near-sffl-indexer -f ./indexer/Dockerfile .
 docker-build-relayer:
-	docker build -t near-sffl-test-relayer -f ./relayer/Dockerfile .
-docker-build-images: docker-build-indexer docker-build-relayer ## builds and publishes indexer, operator and aggregator docker images
-	ko build aggregator/cmd/main.go --preserve-import-paths -L
-	ko build operator/cmd/main.go --preserve-import-paths -L
-	ko build plugin/cmd/main.go --preserve-import-paths -L
+	docker build -t near-sffl-test-relayer -f ./relayer/cmd/Dockerfile .
+docker-build-aggregator:
+	docker build -t near-sffl-aggregator -f ./aggregator/cmd/Dockerfile .
+docker-build-operator:
+	docker build -t near-sffl-operator -f ./operator/cmd/Dockerfile .
+docker-build-plugin:
+	docker build -t near-sffl-operator-plugin -f ./plugin/cmd/Dockerfile .
+docker-build-images: docker-build-indexer docker-build-relayer docker-build-aggregator docker-build-operator docker-build-plugin ## builds and publishes indexer, operator and aggregator docker images
 docker-start-everything: docker-build-images ## starts aggregator and operator docker containers
 	docker compose up
 
