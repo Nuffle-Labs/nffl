@@ -24,8 +24,14 @@ jobs:
         include:
           - dockerfile: ./indexer/Dockerfile
             image: indexer
-          - dockerfile: ./relayer/Dockerfile  
+          - dockerfile: ./relayer/cmd/Dockerfile  
             image: relayer
+          - dockerfile: ./aggregator/cmd/Dockerfile  
+            image: aggregator
+          - dockerfile: ./operator/cmd/Dockerfile  
+            image: operator
+          - dockerfile: ./plugin/cmd/Dockerfile  
+            image: operator-plugin
     permissions:
       contents: read
       packages: write
@@ -66,41 +72,3 @@ jobs:
           file: ${{ matrix.dockerfile }}
           push: false # dry-run
           tags: ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}/${{ matrix.image }}:${{ steps.set_tag.outputs.tag }}
-  
-  ko:
-    runs-on: ubuntu-latest
-    strategy:
-      fail-fast: false
-      matrix:
-        include:
-          - path: aggregator/cmd/main.go
-            image: aggregator
-          - path: operator/cmd/main.go
-            image: operator
-          - path: plugin/cmd/main.go
-            image: operator-plugin
-    permissions:
-      contents: read
-      packages: write
-    steps:
-      - name: Checkout repository
-        uses: actions/checkout@v3
-        with:
-          ref: ${{ github.event.inputs.commit_sha }}
-
-      - name: Set up Go
-        uses: actions/setup-go@v2
-        with:
-          go-version: '1.21.x'
-
-      - name: Set Tag Name
-        id: set_tag
-        run: echo "tag=${{ github.event.inputs.release_tag || github.event.inputs.commit_sha }}" >> $GITHUB_OUTPUT
-      
-      - name: Set up Ko
-        uses: ko-build/setup-ko@v0.6
-      
-      - name: Build and push container
-        run: ko build ${{ matrix.path }} --bare --tags=${{ steps.set_tag.outputs.tag }} --push false # dry-run
-        env:
-          KO_DOCKER_REPO: ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}/${{ matrix.image }}

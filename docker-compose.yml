@@ -244,7 +244,7 @@ services:
       - near-sffl
 
   aggregator:
-    image: ko.local/aggregator/cmd/main.go:latest
+    image: near-sffl-aggregator
     container_name: near-sffl-aggregator
     depends_on:
       mainnet-anvil-setup:
@@ -267,7 +267,7 @@ services:
       - near-sffl
 
   operator0:
-    image: ko.local/operator/cmd/main.go:latest
+    image: near-sffl-operator
     container_name: near-sffl-operator0
     depends_on:
       rmq:
@@ -307,7 +307,7 @@ services:
       - near-sffl
 
   operator1:
-    image: ko.local/operator/cmd/main.go:latest
+    image: near-sffl-operator
     container_name: near-sffl-operator1
     depends_on:
       operator0-health:
