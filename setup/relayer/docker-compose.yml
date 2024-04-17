@@ -1,0 +1,17 @@
+version: "3"
+
+services:
+  relayer:
+    image: ghcr.io/nethermindeth/near-sffl/relayer:${SFFL_RELEASE}
+    container_name: near-sffl-relayer
+    volumes:
+      - ${NEAR_KEYS_DIR}:/root/.near-credentials
+    command:
+      - --rpc-url
+      - ${ROLLUP_RPC_URL}
+      - --da-account-id
+      - ${NEAR_DA_ACCOUNT_ID}
+      - --key-path
+      - /root/.near-credentials/${NEAR_CHAIN_ID}/${NEAR_DA_ACCOUNT_ID}.json
+      - --network
+      - ${NEAR_RPC_URL}
