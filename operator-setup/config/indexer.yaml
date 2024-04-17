@@ -4,6 +4,6 @@ da_contract_ids:
   - da2.test.near
   - da3.test.near
 rollup_ids:
-  - "1"
-  - "2"
-  - "3"
+  - 1
+  - 2
+  - 3
