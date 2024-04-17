@@ -14,5 +14,8 @@ RUN go build -v -o /usr/local/bin/plugin ./...
 
 FROM debian:bookworm
 
+RUN apt update && apt install -yy openssl ca-certificates
+RUN update-ca-certificates
+
 COPY --from=builder /usr/local/bin/plugin /usr/local/bin/plugin
 ENTRYPOINT ["plugin"]

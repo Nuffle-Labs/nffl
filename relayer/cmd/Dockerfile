@@ -30,5 +30,8 @@ RUN go build -v -o /usr/local/bin/relayer ./...
 
 FROM debian:bookworm
 
+RUN apt update && apt install -yy openssl ca-certificates
+RUN update-ca-certificates
+
 COPY --from=relayer-builder /usr/local/bin/relayer /usr/local/bin/relayer
 ENTRYPOINT [ "relayer"]
