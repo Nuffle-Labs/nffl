@@ -1,59 +1,12 @@
-// SPDX-License-Identifier: BUSL-1.1
-// Utility contract from EigenLayer's Incredible Squaring AVS:
-// https://github.com/Layr-Labs/incredible-squaring-avs/blob/2c21b017da9f7a0df7b2c8896fbabf05fc80137a/contracts/script/utils/Utils.sol
-
+// SPDX-License-Identifier: MIT
 pragma solidity =0.8.12;
 
-import {IRegistryCoordinator} from "eigenlayer-middleware/src/interfaces/IRegistryCoordinator.sol";
-import {StrategyBase} from "@eigenlayer/contracts/strategies/StrategyBase.sol";
-import {ERC20Mock} from "../../test/mock/ERC20Mock.sol";
+import {ProxyAdmin, TransparentUpgradeableProxy} from "@openzeppelin/contracts/proxy/transparent/ProxyAdmin.sol";
 
 import "forge-std/Script.sol";
 import "forge-std/StdJson.sol";
 
 contract Utils is Script {
-    // Note that this fct will only work for the ERC20Mock that has a public mint function
-    function _mintTokens(address strategyAddress, address[] memory tos, uint256[] memory amounts) internal {
-        for (uint256 i = 0; i < tos.length; i++) {
-            ERC20Mock underlyingToken = ERC20Mock(address(StrategyBase(strategyAddress).underlyingToken()));
-            underlyingToken.mint(tos[i], amounts[i]);
-        }
-    }
-
-    // TODO: this doesn't actually advance by n blocks... maybe because broadcasting batches txs somehow..?
-    function advanceChainByNBlocks(uint256 n) public {
-        for (uint256 i = 0; i < n; i++) {
-            // we transfer eth to ourselves to advance the block
-            vm.broadcast(msg.sender);
-            payable(msg.sender).transfer(1 wei);
-        }
-    }
-
-    function convertBoolToString(bool input) public pure returns (string memory) {
-        if (input) {
-            return "true";
-        } else {
-            return "false";
-        }
-    }
-
-    function convertOperatorStatusToString(IRegistryCoordinator.OperatorStatus operatorStatus)
-        public
-        pure
-        returns (string memory)
-    {
-        if (operatorStatus == IRegistryCoordinator.OperatorStatus.NEVER_REGISTERED) {
-            return "NEVER_REGISTERED";
-        } else if (operatorStatus == IRegistryCoordinator.OperatorStatus.REGISTERED) {
-            return "REGISTERED";
-        } else if (operatorStatus == IRegistryCoordinator.OperatorStatus.DEREGISTERED) {
-            return "DEREGISTERED";
-        } else {
-            return "UNKNOWN";
-        }
-    }
-
-    // Forge scripts best practice: https://book.getfoundry.sh/tutorials/best-practices#scripts
     function readInput(string memory inputFileName) internal view returns (string memory) {
         string memory inputDir = string.concat(vm.projectRoot(), "/script/input/");
         string memory chainDir = string.concat(vm.toString(block.chainid), "/");
@@ -73,5 +26,55 @@ contract Utils is Script {
         string memory chainDir = string.concat(vm.toString(block.chainid), "/");
         string memory outputFilePath = string.concat(outputDir, chainDir, outputFileName, ".json");
         vm.writeJson(outputJson, outputFilePath);
+    }
+
+    /**
+     * @dev Deploys a new proxy contract using the given implementation and initialization data.
+     * @param _impl Address of the implementation contract.
+     * @param _admin Proxy admin.
+     * @param _initCode Initialization code.
+     */
+    function _deployProxy(ProxyAdmin _admin, address _impl, bytes memory _initCode)
+        internal
+        returns (TransparentUpgradeableProxy)
+    {
+        return new TransparentUpgradeableProxy(_impl, address(_admin), _initCode);
+    }
+
+    /**
+     * @dev Deploys an empty proxy - i.e. a zero implementation and with no init code
+     * @param _admin Proxy admin.
+     */
+    function _deployEmptyProxy(ProxyAdmin _admin, address emptyContract)
+        internal
+        returns (TransparentUpgradeableProxy)
+    {
+        return new TransparentUpgradeableProxy(emptyContract, address(_admin), "");
+    }
+
+    /**
+     * @dev Upgrades a proxy to a new implementation.
+     * @param _admin Proxy admin.
+     * @param _proxy The proxy to upgrade.
+     * @param _impl The new implementation to upgrade to.
+     */
+    function _upgradeProxy(ProxyAdmin _admin, TransparentUpgradeableProxy _proxy, address _impl) internal {
+        _admin.upgrade(_proxy, _impl);
+    }
+
+    /**
+     * @dev Upgrades a proxy to a new impl and calls a function on the implementation.
+     * @param _admin Proxy admin.
+     * @param _proxy The proxy to upgrade.
+     * @param _impl The new impl to upgrade to.
+     * @param _data The encoded calldata to use in the call after upgrading.
+     */
+    function _upgradeProxyAndCall(
+        ProxyAdmin _admin,
+        TransparentUpgradeableProxy _proxy,
+        address _impl,
+        bytes memory _data
+    ) internal {
+        _admin.upgradeAndCall(_proxy, _impl, _data);
     }
 }

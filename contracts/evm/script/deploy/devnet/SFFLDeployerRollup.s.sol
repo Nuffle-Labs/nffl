@@ -1,0 +1,82 @@
+// SPDX-License-Identifier: MIT
+pragma solidity ^0.8.9;
+
+import {ProxyAdmin, TransparentUpgradeableProxy} from "@openzeppelin/contracts/proxy/transparent/ProxyAdmin.sol";
+
+import {PauserRegistry} from "@eigenlayer/contracts/permissions/PauserRegistry.sol";
+
+import {SFFLRegistryRollup} from "../../../src/rollup/SFFLRegistryRollup.sol";
+
+import {Utils} from "../../utils/Utils.sol";
+
+import "forge-std/Test.sol";
+import "forge-std/Script.sol";
+import "forge-std/StdJson.sol";
+import "forge-std/console.sol";
+
+contract SFFLDeployerRollup is Script, Utils {
+    uint256 public constant QUORUM_THRESHOLD_PERCENTAGE = 66;
+    address public constant AGGREGATOR_ADDR = 0xa0Ee7A142d267C1f36714E4a8F75612F20a79720;
+
+    ProxyAdmin public sfflProxyAdmin;
+    PauserRegistry public sfflPauserReg;
+
+    SFFLRegistryRollup public sfflRegistryRollup;
+    TransparentUpgradeableProxy public sfflRegistryRollupProxy;
+    address public sfflRegistryRollupImpl;
+
+    string public constant SFFL_DEPLOYMENT_FILE = "sffl_rollup_deployment_output";
+
+    function run() external {
+        address sfflCommunityMultisig = msg.sender;
+        address sfflPauser = msg.sender;
+
+        vm.startBroadcast();
+
+        sfflProxyAdmin = new ProxyAdmin();
+
+        address[] memory pausers = new address[](2);
+        pausers[0] = sfflPauser;
+        pausers[1] = sfflCommunityMultisig;
+
+        sfflPauserReg = new PauserRegistry(pausers, sfflCommunityMultisig);
+
+        sfflRegistryRollupImpl = address(new SFFLRegistryRollup());
+        sfflRegistryRollupProxy = _deployProxy(
+            sfflProxyAdmin,
+            sfflRegistryRollupImpl,
+            abi.encodeWithSelector(
+                SFFLRegistryRollup.initialize.selector,
+                QUORUM_THRESHOLD_PERCENTAGE,
+                sfflCommunityMultisig,
+                AGGREGATOR_ADDR,
+                sfflPauserReg
+            )
+        );
+        sfflRegistryRollup = SFFLRegistryRollup(address(sfflRegistryRollupProxy));
+
+        _serializeSFFLDeployedContracts();
+
+        vm.stopBroadcast();
+    }
+
+    /**
+     * @dev Serializes the SFFL deployed contracts to the forge output.
+     */
+    function _serializeSFFLDeployedContracts() internal {
+        string memory parent_object = "parent object";
+        string memory addresses = "addresses";
+
+        string memory output;
+
+        output = vm.serializeAddress(addresses, "deployer", address(msg.sender));
+        output = vm.serializeAddress(addresses, "sfflProxyAdmin", address(sfflProxyAdmin));
+        output = vm.serializeAddress(addresses, "sfflPauserReg", address(sfflPauserReg));
+        output = vm.serializeAddress(addresses, "sfflRegistryRollup", address(sfflRegistryRollup));
+        output = vm.serializeAddress(addresses, "sfflRegistryRollupImpl", address(sfflRegistryRollupImpl));
+
+        string memory finalJson = vm.serializeString(parent_object, addresses, output);
+
+        writeOutput(finalJson, SFFL_DEPLOYMENT_FILE);
+    }
+}

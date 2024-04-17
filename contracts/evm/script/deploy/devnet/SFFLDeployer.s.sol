@@ -22,21 +22,20 @@ import {IndexRegistry} from "eigenlayer-middleware/src/IndexRegistry.sol";
 import {StakeRegistry} from "eigenlayer-middleware/src/StakeRegistry.sol";
 import {OperatorStateRetriever} from "eigenlayer-middleware/src/OperatorStateRetriever.sol";
 
-import {RegistryCoordinator} from "../src/external/RegistryCoordinator.sol";
-import {SFFLServiceManager} from "../src/eth/SFFLServiceManager.sol";
-import {SFFLTaskManager} from "../src/eth/SFFLTaskManager.sol";
-import {SFFLRegistryCoordinator} from "../src/eth/SFFLRegistryCoordinator.sol";
-import {SFFLOperatorSetUpdateRegistry} from "../src/eth/SFFLOperatorSetUpdateRegistry.sol";
-import {ERC20Mock, IERC20} from "../test/mock/ERC20Mock.sol";
+import {RegistryCoordinator} from "../../../src/external/RegistryCoordinator.sol";
+import {SFFLServiceManager} from "../../../src/eth/SFFLServiceManager.sol";
+import {SFFLTaskManager} from "../../../src/eth/SFFLTaskManager.sol";
+import {SFFLRegistryCoordinator} from "../../../src/eth/SFFLRegistryCoordinator.sol";
+import {SFFLOperatorSetUpdateRegistry} from "../../../src/eth/SFFLOperatorSetUpdateRegistry.sol";
+import {ERC20Mock, IERC20} from "../../../test/mock/ERC20Mock.sol";
 
-import {Utils} from "./utils/Utils.sol";
+import {Utils} from "../../utils/Utils.sol";
 
 import "forge-std/Test.sol";
 import "forge-std/Script.sol";
 import "forge-std/StdJson.sol";
 import "forge-std/console.sol";
 
-// forge script script/SFFLDeployer.s.sol:SFFLDeployer --rpc-url $RPC_URL --private-key $PRIVATE_KEY --broadcast -vvvv
 contract SFFLDeployer is Script, Utils {
     uint256 public constant QUORUM_THRESHOLD_PERCENTAGE = 100;
     uint32 public constant TASK_RESPONSE_WINDOW_BLOCK = 30;
@@ -197,6 +196,7 @@ contract SFFLDeployer is Script, Utils {
     /**
      * @dev Deploys the SFFL contracts.
      * @param delegationManager The delegation manager.
+     * @param avsDirectory The AVS directory.
      * @param strat The deployed strategy.
      * @param sfflCommunityMultisig The community multisig.
      * @param sfflPauser The pauser.
@@ -219,25 +219,25 @@ contract SFFLDeployer is Script, Utils {
 
         sfflPauserReg = new PauserRegistry(pausers, sfflCommunityMultisig);
 
-        sfflServiceManagerProxy = _deployEmptyProxy(sfflProxyAdmin);
+        sfflServiceManagerProxy = _deployEmptyProxy(sfflProxyAdmin, address(emptyContract));
         sfflServiceManager = SFFLServiceManager(address(sfflServiceManagerProxy));
 
-        sfflTaskManagerProxy = _deployEmptyProxy(sfflProxyAdmin);
+        sfflTaskManagerProxy = _deployEmptyProxy(sfflProxyAdmin, address(emptyContract));
         sfflTaskManager = SFFLTaskManager(address(sfflTaskManagerProxy));
 
-        registryCoordinatorProxy = _deployEmptyProxy(sfflProxyAdmin);
+        registryCoordinatorProxy = _deployEmptyProxy(sfflProxyAdmin, address(emptyContract));
         registryCoordinator = SFFLRegistryCoordinator(address(registryCoordinatorProxy));
 
-        blsApkRegistryProxy = _deployEmptyProxy(sfflProxyAdmin);
+        blsApkRegistryProxy = _deployEmptyProxy(sfflProxyAdmin, address(emptyContract));
         blsApkRegistry = BLSApkRegistry(address(blsApkRegistryProxy));
 
-        indexRegistryProxy = _deployEmptyProxy(sfflProxyAdmin);
+        indexRegistryProxy = _deployEmptyProxy(sfflProxyAdmin, address(emptyContract));
         indexRegistry = IndexRegistry(address(indexRegistryProxy));
 
-        operatorSetUpdateRegistryProxy = _deployEmptyProxy(sfflProxyAdmin);
+        operatorSetUpdateRegistryProxy = _deployEmptyProxy(sfflProxyAdmin, address(emptyContract));
         operatorSetUpdateRegistry = SFFLOperatorSetUpdateRegistry(address(operatorSetUpdateRegistryProxy));
 
-        stakeRegistryProxy = _deployEmptyProxy(sfflProxyAdmin);
+        stakeRegistryProxy = _deployEmptyProxy(sfflProxyAdmin, address(emptyContract));
         stakeRegistry = StakeRegistry(address(stakeRegistryProxy));
 
         operatorStateRetriever = new OperatorStateRetriever();
@@ -330,53 +330,6 @@ contract SFFLDeployer is Script, Utils {
         );
 
         _serializeSFFLDeployedContracts();
-    }
-
-    /**
-     * @dev Deploys a new proxy contract using the given implementation and initialization data.
-     * @param _impl Address of the implementation contract.
-     * @param _admin Proxy admin.
-     * @param _initCode Initialization code.
-     */
-    function _deployProxy(ProxyAdmin _admin, address _impl, bytes memory _initCode)
-        internal
-        returns (TransparentUpgradeableProxy)
-    {
-        return new TransparentUpgradeableProxy(_impl, address(_admin), _initCode);
-    }
-
-    /**
-     * @dev Deploys an empty proxy - i.e. a zero implementation and with no init code
-     * @param _admin Proxy admin.
-     */
-    function _deployEmptyProxy(ProxyAdmin _admin) internal returns (TransparentUpgradeableProxy) {
-        return new TransparentUpgradeableProxy(address(emptyContract), address(_admin), "");
-    }
-
-    /**
-     * @dev Upgrades a proxy to a new implementation.
-     * @param _admin Proxy admin.
-     * @param _proxy The proxy to upgrade.
-     * @param _impl The new implementation to upgrade to.
-     */
-    function _upgradeProxy(ProxyAdmin _admin, TransparentUpgradeableProxy _proxy, address _impl) internal {
-        _admin.upgrade(_proxy, _impl);
-    }
-
-    /**
-     * @dev Upgrades a proxy to a new impl and calls a function on the implementation.
-     * @param _admin Proxy admin.
-     * @param _proxy The proxy to upgrade.
-     * @param _impl The new impl to upgrade to.
-     * @param _data The encoded calldata to use in the call after upgrading.
-     */
-    function _upgradeProxyAndCall(
-        ProxyAdmin _admin,
-        TransparentUpgradeableProxy _proxy,
-        address _impl,
-        bytes memory _data
-    ) internal {
-        _admin.upgradeAndCall(_proxy, _impl, _data);
     }
 
     /**
