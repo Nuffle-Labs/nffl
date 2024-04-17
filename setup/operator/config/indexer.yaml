@@ -1,0 +1,7 @@
+rmq_address: amqp://rmq:5672
+da_contract_ids:
+  - sfrelayer421614-0.testnet
+  - sfrelayer11155420-0.testnet
+rollup_ids:
+  - 421614
+  - 11155420

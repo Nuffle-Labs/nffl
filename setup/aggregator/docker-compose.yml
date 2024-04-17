@@ -1,0 +1,21 @@
+version: "3"
+
+services:
+  aggregator:
+    image: ghcr.io/nethermindeth/near-sffl/aggregator:${SFFL_RELEASE}
+    container_name: near-sffl-aggregator
+    volumes:
+      - ./:/near-sffl/
+    working_dir: /near-sffl
+    command: 
+      - --config 
+      - config/aggregator.yaml
+      - --sffl-deployment 
+      - config/deployment.json
+      - --ecdsa-private-key 
+      - ${ECDSA_PRIVATE_KEY}
+    expose:
+      - 4001
+      - 4002
+    networks:
+      - near-sffl
