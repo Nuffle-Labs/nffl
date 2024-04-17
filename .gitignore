@@ -36,3 +36,6 @@ aggregator.db
 
 # Test artifacts
 /test_data
+
+# Operator setup environment variables
+/operator-setup/.env

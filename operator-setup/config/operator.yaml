@@ -1,0 +1,30 @@
+production: false
+
+operator_address: 0xD5A0359da7B310917d7760385516B2426E86ab7f
+
+avs_registry_coordinator_address: 0xc3e53F4d16Ae77Db1c982e75a937B9f60FE63690
+operator_state_retriever_address: 0x1613beB3B2C4f22Ee086B2b38C1476A3cE7f78E8
+
+eth_rpc_url: http://mainnet-anvil:8545
+eth_ws_url: ws://mainnet-anvil:8545
+
+ecdsa_private_key_store_path: keys/ecdsa.json
+bls_private_key_store_path: keys/bls.json
+
+aggregator_server_ip_port_address: near-sffl-aggregator:8090
+
+eigen_metrics_ip_port_address: near-sffl-operator0:9090
+enable_metrics: true
+node_api_ip_port_address: near-sffl-operator0:9010
+enable_node_api: true
+
+register_operator_on_startup: false
+token_strategy_addr: 0x0000000000000000000000000000000000000000
+
+near_da_indexer_rmq_ip_port_address: amqp://rmq:5672
+near_da_indexer_rollup_ids: [1, 2, 3]
+
+rollup_ids_to_rpc_urls:
+  1: ws://mainnet-anvil:8545
+  2: ws://rollup0-anvil:8546
+  3: ws://rollup1-anvil:8547

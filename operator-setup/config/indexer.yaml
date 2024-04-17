@@ -1,0 +1,9 @@
+rmq_address: amqp://rmq:5672
+da_contract_ids:
+  - da1.test.near
+  - da2.test.near
+  - da3.test.near
+rollup_ids:
+  - 1
+  - 2
+  - 3
