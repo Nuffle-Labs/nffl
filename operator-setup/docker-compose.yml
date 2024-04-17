@@ -39,10 +39,9 @@ services:
       - ./:/near-sffl/
       - ${NEAR_HOME_DIR}:/root/.near
       - ${NEAR_KEYS_DIR}:/root/.near-credentials
-    working_dir: /near-sffl
     command: 
       - --config
-      - config/indexer.yaml
+      - /near-sffl/config/indexer.yaml
     networks:
       - near-sffl
 
