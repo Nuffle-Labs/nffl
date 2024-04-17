@@ -1,9 +1,11 @@
 package chainio
 
 import (
+	"bytes"
 	"context"
 	"fmt"
 	"math/big"
+	"sort"
 
 	"github.com/ethereum/go-ethereum/accounts/abi/bind"
 	gethcommon "github.com/ethereum/go-ethereum/common"
@@ -15,6 +17,7 @@ import (
 	erc20mock "github.com/NethermindEth/near-sffl/contracts/bindings/ERC20Mock"
 	opsetupdatereg "github.com/NethermindEth/near-sffl/contracts/bindings/SFFLOperatorSetUpdateRegistry"
 	taskmanager "github.com/NethermindEth/near-sffl/contracts/bindings/SFFLTaskManager"
+	"github.com/NethermindEth/near-sffl/core"
 	"github.com/NethermindEth/near-sffl/core/config"
 	"github.com/NethermindEth/near-sffl/core/types/messages"
 )
@@ -124,6 +127,20 @@ func (r *AvsReader) GetOperatorSetUpdateDelta(ctx context.Context, id uint64) ([
 			delta = append(delta, opsetupdatereg.RollupOperatorsOperator{Pubkey: operatorUpdate.pubkey, Weight: operatorUpdate.newWeight})
 		}
 	}
+
+	nonSignersPubkeyHashes := make([][32]byte, 0, len(delta))
+	for _, operatorDelta := range delta {
+		hash, err := core.HashBNG1Point(taskmanager.BN254G1Point(operatorDelta.Pubkey))
+		if err != nil {
+			return nil, err
+		}
+
+		nonSignersPubkeyHashes = append(nonSignersPubkeyHashes, hash)
+	}
+
+	sort.Slice(delta, func(i, j int) bool {
+		return bytes.Compare(nonSignersPubkeyHashes[i][:], nonSignersPubkeyHashes[j][:]) == -1
+	})
 
 	return delta, nil
 }
