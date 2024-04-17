@@ -16,6 +16,16 @@ import {OperatorSetUpdate, RollupOperators} from "../src/base/message/OperatorSe
 
 import {TestUtils} from "./utils/TestUtils.sol";
 
+contract SFFLTaskManagerHarness is SFFLTaskManager {
+    constructor(IRegistryCoordinator registryCoordinator, uint32 taskResponseWindowBlock)
+        SFFLTaskManager(registryCoordinator, taskResponseWindowBlock)
+    {}
+
+    function setLastCheckpointToTimestamp(uint64 timestamp) public {
+        lastCheckpointToTimestamp = timestamp;
+    }
+}
+
 contract SFFLTaskManagerTest is TestUtils {
     using BN254 for BN254.G1Point;
     using Checkpoint for Checkpoint.Task;
@@ -23,7 +33,7 @@ contract SFFLTaskManagerTest is TestUtils {
     using StateRootUpdate for StateRootUpdate.Message;
     using OperatorSetUpdate for OperatorSetUpdate.Message;
 
-    SFFLTaskManager public taskManager;
+    SFFLTaskManagerHarness public taskManager;
 
     uint32 public constant TASK_RESPONSE_WINDOW_BLOCK = 30;
     address public aggregator;
@@ -43,9 +53,9 @@ contract SFFLTaskManagerTest is TestUtils {
         aggregator = addr("aggregator");
         generator = addr("generator");
 
-        address impl = address(new SFFLTaskManager(registryCoordinator, TASK_RESPONSE_WINDOW_BLOCK));
+        address impl = address(new SFFLTaskManagerHarness(registryCoordinator, TASK_RESPONSE_WINDOW_BLOCK));
 
-        taskManager = SFFLTaskManager(
+        taskManager = SFFLTaskManagerHarness(
             deployProxy(
                 impl,
                 address(proxyAdmin),
@@ -85,6 +95,57 @@ contract SFFLTaskManagerTest is TestUtils {
         });
 
         vm.expectRevert("Quorum threshold greater than denominator");
+
+        vm.prank(generator);
+        taskManager.createCheckpointTask(task.fromTimestamp, task.toTimestamp, task.quorumThreshold, task.quorumNumbers);
+    }
+
+    function test_createCheckpointTask_RevertWhen_FromTimestampGreaterThanToTimestamp() public {
+        Checkpoint.Task memory task = Checkpoint.Task({
+            taskCreatedBlock: 100,
+            fromTimestamp: 2,
+            toTimestamp: 1,
+            quorumThreshold: quorumThreshold(thresholdDenominator, 1),
+            quorumNumbers: hex"00"
+        });
+
+        vm.expectRevert("fromTimestamp greater than toTimestamp");
+
+        vm.prank(generator);
+        taskManager.createCheckpointTask(task.fromTimestamp, task.toTimestamp, task.quorumThreshold, task.quorumNumbers);
+    }
+
+    function test_createCheckpointTask_RevertWhen_ToTimestampGreaterThanCurrentTimestamp() public {
+        vm.warp(10);
+
+        Checkpoint.Task memory task = Checkpoint.Task({
+            taskCreatedBlock: 100,
+            fromTimestamp: 1,
+            toTimestamp: 20,
+            quorumThreshold: quorumThreshold(thresholdDenominator, 1),
+            quorumNumbers: hex"00"
+        });
+
+        vm.expectRevert("toTimestamp greater than current timestamp");
+
+        vm.prank(generator);
+        taskManager.createCheckpointTask(task.fromTimestamp, task.toTimestamp, task.quorumThreshold, task.quorumNumbers);
+    }
+
+    function test_createCheckpointTask_RevertWhen_FromTimestampNotGreaterThanLastCheckpointToTimestamp() public {
+        taskManager.setLastCheckpointToTimestamp(1);
+
+        vm.warp(2);
+
+        Checkpoint.Task memory task = Checkpoint.Task({
+            taskCreatedBlock: 100,
+            fromTimestamp: 1,
+            toTimestamp: 2,
+            quorumThreshold: quorumThreshold(thresholdDenominator, 1),
+            quorumNumbers: hex"00"
+        });
+
+        vm.expectRevert("fromTimestamp not greater than last checkpoint toTimestamp");
 
         vm.prank(generator);
         taskManager.createCheckpointTask(task.fromTimestamp, task.toTimestamp, task.quorumThreshold, task.quorumNumbers);

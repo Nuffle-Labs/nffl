@@ -8,7 +8,7 @@ operator_address: 0xD5A0359da7B310917d7760385516B2426E86ab7f
 # This is the address of the slasher which is deployed in the anvil saved state
 # The saved eigenlayer state is located in tests/anvil/data/eigenlayer-deployed-anvil-state.json
 avs_registry_coordinator_address: 0x8f86403A4DE0BB5791fa46B8e795C547942fE4Cf
-operator_state_retriever_address: 0x0E801D84Fa97b50751Dbf25036d067dCf18858bF
+operator_state_retriever_address: 0x4c5859f0F772848b2D91F1D83E2Fe57935348029
 
 # ETH RPC URL
 eth_rpc_url: http://mainnet-anvil:8545

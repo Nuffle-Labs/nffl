@@ -33,6 +33,7 @@ type AvsReaderer interface {
 	GetOperatorSetById(ctx context.Context, id uint64) ([]opsetupdatereg.RollupOperatorsOperator, error)
 	GetOperatorSetUpdateBlock(ctx context.Context, id uint64) (uint32, error)
 	GetNextOperatorSetUpdateId(ctx context.Context) (uint64, error)
+	GetLastCheckpointToTimestamp(ctx context.Context) (uint64, error)
 }
 
 type AvsReader struct {
@@ -164,4 +165,12 @@ func (r *AvsReader) GetNextOperatorSetUpdateId(ctx context.Context) (uint64, err
 		return 0, err
 	}
 	return count, nil
+}
+
+func (r *AvsReader) GetLastCheckpointToTimestamp(ctx context.Context) (uint64, error) {
+	lastCheckpointToTimestamp, err := r.AvsServiceBindings.TaskManager.LastCheckpointToTimestamp(&bind.CallOpts{})
+	if err != nil {
+		return 0, err
+	}
+	return lastCheckpointToTimestamp, nil
 }

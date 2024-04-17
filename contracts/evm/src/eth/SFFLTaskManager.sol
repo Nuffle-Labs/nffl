@@ -6,7 +6,6 @@ import {OwnableUpgradeable} from "@openzeppelin-upgrades/contracts/access/Ownabl
 import {Pausable} from "@eigenlayer/contracts/permissions/Pausable.sol";
 import {BLSApkRegistry} from "eigenlayer-middleware/src/BLSApkRegistry.sol";
 import {BLSSignatureChecker} from "eigenlayer-middleware/src/BLSSignatureChecker.sol";
-import {OperatorStateRetriever} from "eigenlayer-middleware/src/OperatorStateRetriever.sol";
 import {IPauserRegistry} from "@eigenlayer/contracts/interfaces/IPauserRegistry.sol";
 import {IRegistryCoordinator} from "eigenlayer-middleware/src/interfaces/IRegistryCoordinator.sol";
 import {BN254} from "eigenlayer-middleware/src/libraries/BN254.sol";
@@ -21,7 +20,7 @@ import {Checkpoint} from "./task/Checkpoint.sol";
  * @notice Manages task submissions and resolving, as well as verifies
  * agreements
  */
-contract SFFLTaskManager is Initializable, OwnableUpgradeable, Pausable, BLSSignatureChecker, OperatorStateRetriever {
+contract SFFLTaskManager is Initializable, OwnableUpgradeable, Pausable, BLSSignatureChecker {
     using BN254 for BN254.G1Point;
     using Checkpoint for Checkpoint.Task;
     using Checkpoint for Checkpoint.TaskResponse;
@@ -61,6 +60,10 @@ contract SFFLTaskManager is Initializable, OwnableUpgradeable, Pausable, BLSSign
      * @notice Next checkpoint task number
      */
     uint32 public nextCheckpointTaskNum;
+    /**
+     * @notice Last checkpoint toTimestamp
+     */
+    uint64 public lastCheckpointToTimestamp;
     /**
      * @notice Task generator whitelisted address
      */
@@ -149,8 +152,8 @@ contract SFFLTaskManager is Initializable, OwnableUpgradeable, Pausable, BLSSign
     /**
      * @notice Creates a new checkpoint task
      * @dev Only callable by the task generator
-     * @param fromTimestamp NEAR block range start
-     * @param toTimestamp NEAR block range end
+     * @param fromTimestamp Timestamp range start
+     * @param toTimestamp Timestamp range end (inclusive)
      * @param quorumThreshold Necessary quorum, based on THRESHOLD_DENOMINATOR
      * @param quorumNumbers Byte array of quorum numbers
      */
@@ -161,6 +164,12 @@ contract SFFLTaskManager is Initializable, OwnableUpgradeable, Pausable, BLSSign
         bytes calldata quorumNumbers
     ) external onlyTaskGenerator onlyWhenNotPaused(PAUSED_CREATE_CHECKPOINT_TASK) {
         require(quorumThreshold <= THRESHOLD_DENOMINATOR, "Quorum threshold greater than denominator");
+        require(toTimestamp >= fromTimestamp, "fromTimestamp greater than toTimestamp");
+        require(toTimestamp <= block.timestamp, "toTimestamp greater than current timestamp");
+        require(
+            fromTimestamp == 0 || fromTimestamp > lastCheckpointToTimestamp,
+            "fromTimestamp not greater than last checkpoint toTimestamp"
+        );
 
         Checkpoint.Task memory newTask = Checkpoint.Task({
             taskCreatedBlock: uint32(block.number),
@@ -172,7 +181,9 @@ contract SFFLTaskManager is Initializable, OwnableUpgradeable, Pausable, BLSSign
 
         allCheckpointTaskHashes[nextCheckpointTaskNum] = newTask.hash();
         emit CheckpointTaskCreated(nextCheckpointTaskNum, newTask);
+
         nextCheckpointTaskNum = nextCheckpointTaskNum + 1;
+        lastCheckpointToTimestamp = toTimestamp;
     }
 
     /**
