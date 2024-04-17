@@ -36,6 +36,8 @@ services:
       - CHAIN_ID=${NEAR_CHAIN_ID}
     volumes:
       - ./:/near-sffl/
+      - ${NEAR_HOME_DIR}:/root/.near
+      - ${NEAR_KEYS_DIR}:/root/.near-credentials
     working_dir: /near-sffl
     command: 
       - --config
