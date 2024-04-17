@@ -2,8 +2,6 @@ package relayer
 
 import (
 	"context"
-	"math/big"
-	"time"
 
 	"github.com/Layr-Labs/eigensdk-go/chainio/clients/eth"
 	sdklogging "github.com/Layr-Labs/eigensdk-go/logging"
@@ -57,16 +55,9 @@ func (r *Relayer) Start(ctx context.Context) error {
 		case err := <-sub.Err():
 			r.logger.Errorf("error on rollup block subscription: %s", err.Error())
 		case header := <-headers:
-			block, err := r.getBlockByNumber(ctx, header.Number)
-			if block == nil && err == nil {
-				return nil
-			}
-			if err != nil {
-				r.logger.Error("Error fetching block", "err", err)
-				continue
-			}
+			blockWithNoTransactions := ethtypes.NewBlockWithHeader(header)
 
-			encodedBlock, err := rlp.EncodeToBytes(block)
+			encodedBlock, err := rlp.EncodeToBytes(blockWithNoTransactions)
 			if err != nil {
 				r.logger.Errorf("error RLP encoding block: %s", err.Error())
 				continue
@@ -83,28 +74,4 @@ func (r *Relayer) Start(ctx context.Context) error {
 			return nil
 		}
 	}
-}
-
-func (r *Relayer) getBlockByNumber(ctx context.Context, number *big.Int) (*ethtypes.Block, error) {
-	r.logger.Infof("Got rollup block: #%s", number.String())
-
-	var err error
-	for i := 0; i < 5; i++ {
-		select {
-		case <-ctx.Done():
-			return nil, nil
-		default:
-		}
-
-		block, err := r.rpcClient.BlockByNumber(ctx, number)
-		if err != nil {
-			r.logger.Errorf("Error fetching rollup block: %s", err.Error())
-			time.Sleep(1 * time.Second)
-			continue
-		}
-
-		return block, nil
-	}
-
-	return nil, err
 }
