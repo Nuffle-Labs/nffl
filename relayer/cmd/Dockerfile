@@ -1,4 +1,4 @@
-FROM rust:1.74 AS near-da-builder
+FROM rust:1.75 AS near-da-builder
 
 # Install cbindgen for C bindings compilation
 RUN cargo install --force cbindgen
