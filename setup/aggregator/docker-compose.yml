@@ -14,10 +14,6 @@ services:
       - config/deployment/17000.json
       - --ecdsa-private-key 
       - ${ECDSA_PRIVATE_KEY}
-      - --rollup-configs
-      - config/deployment/421614.json
-      - --rollup-configs
-      - config/deployment/11155420.json
     expose:
       - 4001
       - 4002
