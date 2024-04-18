@@ -480,6 +480,8 @@ func (o *Operator) registerOperatorOnStartup(
 			o.logger.Fatal("Error registering operator with avs", "err", err)
 		}
 		o.logger.Infof("Registered operator with avs")
+	} else {
+		o.logger.Infof("Operator already registered with avs")
 	}
 }
 
