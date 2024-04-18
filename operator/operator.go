@@ -459,19 +459,30 @@ func (o *Operator) registerOperatorOnStartup(
 		o.logger.Infof("Registered operator with eigenlayer")
 	}
 
-	// TODO(samlaf): shouldn't hardcode number here
-	amount := big.NewInt(1000)
-	err = o.DepositIntoStrategy(mockTokenStrategyAddr, amount)
-	if err != nil {
-		o.logger.Fatal("Error depositing into strategy", "err", err)
+	if mockTokenStrategyAddr.Cmp(common.Address{}) != 0 {
+		// TODO(samlaf): shouldn't hardcode number here
+		amount := big.NewInt(1000)
+		err = o.DepositIntoStrategy(mockTokenStrategyAddr, amount)
+		if err != nil {
+			o.logger.Fatal("Error depositing into strategy", "err", err)
+		}
+		o.logger.Infof("Deposited %s into strategy %s", amount, mockTokenStrategyAddr)
 	}
-	o.logger.Infof("Deposited %s into strategy %s", amount, mockTokenStrategyAddr)
 
-	err = o.avsManager.RegisterOperatorWithAvs(o.ethClient, operatorEcdsaPrivateKey, o.blsKeypair)
+	isOperatorRegistered, err := o.avsManager.avsReader.IsOperatorRegistered(&bind.CallOpts{}, o.operatorAddr)
 	if err != nil {
-		o.logger.Fatal("Error registering operator with avs", "err", err)
+		o.logger.Fatal("Error checking if operator is registered", "err", err)
 	}
-	o.logger.Infof("Registered operator with avs")
+
+	if !isOperatorRegistered {
+		err = o.avsManager.RegisterOperatorWithAvs(o.ethClient, operatorEcdsaPrivateKey, o.blsKeypair)
+		if err != nil {
+			o.logger.Fatal("Error registering operator with avs", "err", err)
+		}
+		o.logger.Infof("Registered operator with avs")
+	} else {
+		o.logger.Infof("Operator already registered with avs")
+	}
 }
 
 func (o *Operator) BlsPubkeyG1() *bls.G1Point {
