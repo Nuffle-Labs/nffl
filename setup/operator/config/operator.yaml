@@ -18,7 +18,7 @@ enable_metrics: true
 node_api_ip_port_address: near-sffl-operator0:9010
 enable_node_api: true
 
-register_operator_on_startup: false
+register_operator_on_startup: true
 token_strategy_addr: 0x0000000000000000000000000000000000000000
 
 near_da_indexer_rmq_ip_port_address: amqp://rmq:5672
