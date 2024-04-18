@@ -467,11 +467,18 @@ func (o *Operator) registerOperatorOnStartup(
 	}
 	o.logger.Infof("Deposited %s into strategy %s", amount, mockTokenStrategyAddr)
 
-	err = o.avsManager.RegisterOperatorWithAvs(o.ethClient, operatorEcdsaPrivateKey, o.blsKeypair)
+	isOperatorRegistered, err := o.avsManager.avsReader.IsOperatorRegistered(&bind.CallOpts{}, o.operatorAddr)
 	if err != nil {
-		o.logger.Fatal("Error registering operator with avs", "err", err)
+		o.logger.Fatal("Error checking if operator is registered", "err", err)
 	}
-	o.logger.Infof("Registered operator with avs")
+
+	if !isOperatorRegistered {
+		err = o.avsManager.RegisterOperatorWithAvs(o.ethClient, operatorEcdsaPrivateKey, o.blsKeypair)
+		if err != nil {
+			o.logger.Fatal("Error registering operator with avs", "err", err)
+		}
+		o.logger.Infof("Registered operator with avs")
+	}
 }
 
 func (o *Operator) BlsPubkeyG1() *bls.G1Point {
