@@ -5,5 +5,9 @@
     "sfflProxyAdmin": "0x408dd5765DbE189929a4b2cfc40Ab2F52c310781",
     "sfflRegistryRollup": "0x6eB9b1FAdCEE1a722B3bCf82c14b6C0067a7f123",
     "sfflRegistryRollupImpl": "0xBB75932Dcf41cCC6C29B45b656d9e53DeCcb3A6E"
+  },
+  "chainInfo": {
+    "chainId": 421614,
+    "deploymentBlock": 34699056
   }
 }

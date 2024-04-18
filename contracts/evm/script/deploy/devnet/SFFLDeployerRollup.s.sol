@@ -67,15 +67,22 @@ contract SFFLDeployerRollup is Script, Utils {
         string memory parent_object = "parent object";
         string memory addresses = "addresses";
 
-        string memory output;
+        string memory addressesOutput;
 
-        output = vm.serializeAddress(addresses, "deployer", address(msg.sender));
-        output = vm.serializeAddress(addresses, "sfflProxyAdmin", address(sfflProxyAdmin));
-        output = vm.serializeAddress(addresses, "sfflPauserReg", address(sfflPauserReg));
-        output = vm.serializeAddress(addresses, "sfflRegistryRollup", address(sfflRegistryRollup));
-        output = vm.serializeAddress(addresses, "sfflRegistryRollupImpl", address(sfflRegistryRollupImpl));
+        addressesOutput = vm.serializeAddress(addresses, "deployer", address(msg.sender));
+        addressesOutput = vm.serializeAddress(addresses, "sfflProxyAdmin", address(sfflProxyAdmin));
+        addressesOutput = vm.serializeAddress(addresses, "sfflPauserReg", address(sfflPauserReg));
+        addressesOutput = vm.serializeAddress(addresses, "sfflRegistryRollup", address(sfflRegistryRollup));
+        addressesOutput = vm.serializeAddress(addresses, "sfflRegistryRollupImpl", address(sfflRegistryRollupImpl));
 
-        string memory finalJson = vm.serializeString(parent_object, addresses, output);
+        string memory chainInfo = "chainInfo";
+        string memory chainInfoOutput;
+        chainInfoOutput = vm.serializeUint(chainInfo, "chainId", block.chainid);
+        chainInfoOutput = vm.serializeUint(chainInfo, "deploymentBlock", block.number);
+
+        string memory finalJson;
+        finalJson = vm.serializeString(parent_object, addresses, addressesOutput);
+        finalJson = vm.serializeString(parent_object, chainInfo, chainInfoOutput);
 
         writeOutput(finalJson, SFFL_DEPLOYMENT_FILE);
     }

@@ -20,5 +20,9 @@
     "sfflTaskManagerImpl": "0xB0D4afd8879eD9F52b28595d31B441D079B2Ca07",
     "stakeRegistry": "0x809d550fca64d94Bd9F66E60752A544199cfAC3D",
     "stakeRegistryImpl": "0x1291Be112d480055DaFd8a610b7d1e203891C274"
+  },
+  "chainInfo": {
+    "chainId": 31337,
+    "deploymentBlock": 0
   }
 }
