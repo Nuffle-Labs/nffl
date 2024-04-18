@@ -459,13 +459,15 @@ func (o *Operator) registerOperatorOnStartup(
 		o.logger.Infof("Registered operator with eigenlayer")
 	}
 
-	// TODO(samlaf): shouldn't hardcode number here
-	amount := big.NewInt(1000)
-	err = o.DepositIntoStrategy(mockTokenStrategyAddr, amount)
-	if err != nil {
-		o.logger.Fatal("Error depositing into strategy", "err", err)
+	if mockTokenStrategyAddr.Cmp(common.Address{}) != 0 {
+		// TODO(samlaf): shouldn't hardcode number here
+		amount := big.NewInt(1000)
+		err = o.DepositIntoStrategy(mockTokenStrategyAddr, amount)
+		if err != nil {
+			o.logger.Fatal("Error depositing into strategy", "err", err)
+		}
+		o.logger.Infof("Deposited %s into strategy %s", amount, mockTokenStrategyAddr)
 	}
-	o.logger.Infof("Deposited %s into strategy %s", amount, mockTokenStrategyAddr)
 
 	isOperatorRegistered, err := o.avsManager.avsReader.IsOperatorRegistered(&bind.CallOpts{}, o.operatorAddr)
 	if err != nil {
