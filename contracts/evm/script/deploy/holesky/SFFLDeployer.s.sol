@@ -296,28 +296,35 @@ contract SFFLDeployer is Script, Utils {
         string memory parent_object = "parent object";
         string memory addresses = "addresses";
 
-        string memory output;
+        string memory addressesOutput;
 
-        output = vm.serializeAddress(addresses, "deployer", address(msg.sender));
-        output = vm.serializeAddress(addresses, "sfflProxyAdmin", address(sfflProxyAdmin));
-        output = vm.serializeAddress(addresses, "sfflPauserReg", address(sfflPauserReg));
-        output = vm.serializeAddress(addresses, "registryCoordinator", address(registryCoordinator));
-        output = vm.serializeAddress(addresses, "registryCoordinatorImpl", address(registryCoordinatorImpl));
-        output = vm.serializeAddress(addresses, "blsApkRegistry", address(blsApkRegistry));
-        output = vm.serializeAddress(addresses, "blsApkRegistryImpl", address(blsApkRegistryImpl));
-        output = vm.serializeAddress(addresses, "indexRegistry", address(indexRegistry));
-        output = vm.serializeAddress(addresses, "indexRegistryImpl", address(indexRegistryImpl));
-        output = vm.serializeAddress(addresses, "stakeRegistry", address(stakeRegistry));
-        output = vm.serializeAddress(addresses, "stakeRegistryImpl", address(stakeRegistryImpl));
-        output = vm.serializeAddress(addresses, "operatorSetUpdateRegistry", address(operatorSetUpdateRegistry));
-        output = vm.serializeAddress(addresses, "operatorSetUpdateRegistryImpl", address(operatorSetUpdateRegistryImpl));
-        output = vm.serializeAddress(addresses, "sfflServiceManager", address(sfflServiceManager));
-        output = vm.serializeAddress(addresses, "sfflServiceManagerImpl", address(sfflServiceManagerImpl));
-        output = vm.serializeAddress(addresses, "sfflTaskManager", address(sfflTaskManager));
-        output = vm.serializeAddress(addresses, "sfflTaskManagerImpl", address(sfflTaskManagerImpl));
-        output = vm.serializeAddress(addresses, "operatorStateRetriever", address(operatorStateRetriever));
+        addressesOutput = vm.serializeAddress(addresses, "deployer", address(msg.sender));
+        addressesOutput = vm.serializeAddress(addresses, "sfflProxyAdmin", address(sfflProxyAdmin));
+        addressesOutput = vm.serializeAddress(addresses, "sfflPauserReg", address(sfflPauserReg));
+        addressesOutput = vm.serializeAddress(addresses, "registryCoordinator", address(registryCoordinator));
+        addressesOutput = vm.serializeAddress(addresses, "registryCoordinatorImpl", address(registryCoordinatorImpl));
+        addressesOutput = vm.serializeAddress(addresses, "blsApkRegistry", address(blsApkRegistry));
+        addressesOutput = vm.serializeAddress(addresses, "blsApkRegistryImpl", address(blsApkRegistryImpl));
+        addressesOutput = vm.serializeAddress(addresses, "indexRegistry", address(indexRegistry));
+        addressesOutput = vm.serializeAddress(addresses, "indexRegistryImpl", address(indexRegistryImpl));
+        addressesOutput = vm.serializeAddress(addresses, "stakeRegistry", address(stakeRegistry));
+        addressesOutput = vm.serializeAddress(addresses, "stakeRegistryImpl", address(stakeRegistryImpl));
+        addressesOutput = vm.serializeAddress(addresses, "operatorSetUpdateRegistry", address(operatorSetUpdateRegistry));
+        addressesOutput = vm.serializeAddress(addresses, "operatorSetUpdateRegistryImpl", address(operatorSetUpdateRegistryImpl));
+        addressesOutput = vm.serializeAddress(addresses, "sfflServiceManager", address(sfflServiceManager));
+        addressesOutput = vm.serializeAddress(addresses, "sfflServiceManagerImpl", address(sfflServiceManagerImpl));
+        addressesOutput = vm.serializeAddress(addresses, "sfflTaskManager", address(sfflTaskManager));
+        addressesOutput = vm.serializeAddress(addresses, "sfflTaskManagerImpl", address(sfflTaskManagerImpl));
+        addressesOutput = vm.serializeAddress(addresses, "operatorStateRetriever", address(operatorStateRetriever));
 
-        string memory finalJson = vm.serializeString(parent_object, addresses, output);
+        string memory chainInfo = "chainInfo";
+        string memory chainInfoOutput;
+        chainInfoOutput = vm.serializeUint(chainInfo, "chainId", block.chainid);
+        chainInfoOutput = vm.serializeUint(chainInfo, "deploymentBlock", block.number);
+
+        string memory finalJson;
+        finalJson = vm.serializeString(parent_object, addresses, addressesOutput);
+        finalJson = vm.serializeString(parent_object, chainInfo, chainInfoOutput);
 
         writeOutput(finalJson, SFFL_DEPLOYMENT_FILE);
     }
