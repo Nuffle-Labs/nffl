@@ -10,3 +10,6 @@ aggregator_checkpoint_interval: 3600000 # ms
 rollup_ids_to_rpc_urls:
   421614: wss://arbitrum-sepolia-rpc.publicnode.com
   11155420: wss://optimism-sepolia-rpc.publicnode.com
+rollup_ids_to_registry_addresses:
+  421614: 0x6eB9b1FAdCEE1a722B3bCf82c14b6C0067a7f123
+  11155420: 0x6eB9b1FAdCEE1a722B3bCf82c14b6C0067a7f123
