@@ -21,5 +21,3 @@ services:
     expose:
       - 4001
       - 4002
-    networks:
-      - near-sffl
