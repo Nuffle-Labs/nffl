@@ -103,6 +103,12 @@ func NewAggregator(ctx context.Context, config *config.Config, logger logging.Lo
 		return nil, err
 	}
 
+	ethWsClient, err := eth.NewClient(config.EthWsRpcUrl)
+	if err != nil {
+		logger.Errorf("Cannot create ws ethclient", "err", err)
+		return nil, err
+	}
+
 	avsReader, err := chainio.BuildAvsReaderFromConfig(config, ethHttpClient, logger)
 	if err != nil {
 		logger.Error("Cannot create avsReader", "err", err)
@@ -135,7 +141,7 @@ func NewAggregator(ctx context.Context, config *config.Config, logger logging.Lo
 		return nil, err
 	}
 
-	avsSubscriber, err := chainio.BuildAvsSubscriber(config.SFFLRegistryCoordinatorAddr, config.OperatorStateRetrieverAddr, ethHttpClient, logger)
+	avsSubscriber, err := chainio.BuildAvsSubscriber(config.SFFLRegistryCoordinatorAddr, config.OperatorStateRetrieverAddr, ethWsClient, logger)
 	if err != nil {
 		logger.Error("Cannot create AvsSubscriber", "err", err)
 		return nil, err
