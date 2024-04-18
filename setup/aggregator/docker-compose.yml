@@ -14,6 +14,6 @@ services:
       - config/deployment/17000.json
       - --ecdsa-private-key 
       - ${ECDSA_PRIVATE_KEY}
-    expose:
-      - 4001
-      - 4002
+    ports:
+      - "4001:4001"
+      - "4002:4002"
