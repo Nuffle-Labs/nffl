@@ -20,7 +20,7 @@ import (
 )
 
 const (
-	MQ_WAIT_TIMEOUT       = 3 * time.Second
+	MQ_WAIT_TIMEOUT       = 6 * time.Second
 	RECONNECTION_ATTEMPTS = 5
 	RECONNECTION_DELAY    = time.Second
 )

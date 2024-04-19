@@ -108,21 +108,23 @@ func (l *QueuesListener) listen(ctx context.Context, rollupId uint32, rollupData
 			}
 
 			for _, blob := range submitRequest.Blobs {
-				var block types.Block
-				if err := rlp.DecodeBytes(blob.Data, &block); err != nil {
+				var blocks []*types.Block
+				if err := rlp.DecodeBytes(blob.Data, &blocks); err != nil {
 					l.logger.Warn("Invalid block", "rollupId", rollupId, "err", err)
 					continue
 				}
 
-				blockData := BlockData{
-					RollupId:      rollupId,
-					TransactionId: publishPayload.TransactionId,
-					Commitment:    blob.Commitment,
-					Block:         block,
-				}
+				for _, block := range blocks {
+					blockData := BlockData{
+						RollupId:      rollupId,
+						TransactionId: publishPayload.TransactionId,
+						Commitment:    blob.Commitment,
+						Block:         *block,
+					}
 
-				l.logger.Info("MQ Block", "blockData", blockData, "listener", fmt.Sprintf("%p", l))
-				l.receivedBlocksC <- blockData
+					l.logger.Info("MQ Block", "blockData", blockData, "listener", fmt.Sprintf("%p", l))
+					l.receivedBlocksC <- blockData
+				}
 			}
 
 			d.Ack(false)

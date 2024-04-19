@@ -2,6 +2,7 @@ package relayer
 
 import (
 	"context"
+	"time"
 
 	"github.com/Layr-Labs/eigensdk-go/chainio/clients/eth"
 	sdklogging "github.com/Layr-Labs/eigensdk-go/logging"
@@ -50,26 +51,38 @@ func (r *Relayer) Start(ctx context.Context) error {
 		r.logger.Fatalf("Error subscribing to new rollup block headers: %s", err.Error())
 	}
 
+	ticker := time.NewTicker(1500 * time.Millisecond)
+
+	var blocks []*ethtypes.Block
+
 	for {
 		select {
 		case err := <-sub.Err():
 			r.logger.Errorf("error on rollup block subscription: %s", err.Error())
 		case header := <-headers:
 			blockWithNoTransactions := ethtypes.NewBlockWithHeader(header)
+			blocks = append(blocks, blockWithNoTransactions)
+		case <-ticker.C:
+			if len(blocks) == 0 {
+				continue
+			}
 
-			encodedBlock, err := rlp.EncodeToBytes(blockWithNoTransactions)
+			encodedBlocks, err := rlp.EncodeToBytes(blocks)
 			if err != nil {
 				r.logger.Errorf("error RLP encoding block: %s", err.Error())
 				continue
 			}
 
-			out, err := r.nearClient.ForceSubmit(encodedBlock)
-			if err != nil {
-				r.logger.Error("Error submitting block to NEAR", "err", err)
-				continue
-			}
+			blocks = nil
 
-			r.logger.Info(string(out))
+			go func() {
+				out, err := r.nearClient.ForceSubmit(encodedBlocks)
+				if err != nil {
+					r.logger.Error("Error submitting block to NEAR", "err", err)
+				}
+
+				r.logger.Info(string(out))
+			}()
 		case <-ctx.Done():
 			return nil
 		}
