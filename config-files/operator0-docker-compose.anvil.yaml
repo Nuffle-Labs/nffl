@@ -18,7 +18,7 @@ eth_ws_url: ws://mainnet-anvil:8545
 # this should be /operator_keys/ecdsa_key.json as the host path will be asked while running
 #
 # If you are running locally using go run main.go, this should be full path to your local ecdsa key file
-ecdsa_private_key_store_path: tests/keys/ecdsa/1.ecdsa.key.json
+ecdsa_private_key_store_path: tests/keys/ecdsa/1/key.json
 
 # If you running this using eigenlayer CLI and the provided AVS packaging structure,
 # this should be /operator_keys/bls_key.json as the host path will be asked while running
