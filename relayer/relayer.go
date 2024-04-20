@@ -54,10 +54,10 @@ func (r *Relayer) Start(ctx context.Context) error {
 
 	blocksToSubmit := make(chan []*ethtypes.Block)
 
-	go func() {
-		ticker := time.NewTicker(1500 * time.Millisecond)
-		defer ticker.Stop()
+	ticker := time.NewTicker(1500 * time.Millisecond)
+	defer ticker.Stop()
 
+	go func() {
 		var blocks []*ethtypes.Block
 		for {
 			select {
@@ -72,6 +72,7 @@ func (r *Relayer) Start(ctx context.Context) error {
 				if len(blocks) > 0 {
 					blocksToSubmit <- blocks
 					blocks = nil
+					ticker.Stop()
 				}
 			case <-ctx.Done():
 				return
@@ -101,6 +102,8 @@ func (r *Relayer) Start(ctx context.Context) error {
 			}
 
 			r.logger.Info(string(out))
+
+			ticker.Reset(1500 * time.Millisecond)
 		case <-ctx.Done():
 			return ctx.Err()
 		}
