@@ -117,7 +117,7 @@ func (r *Relayer) Start(ctx context.Context) error {
 				r.logger.Info(string(out))
 			}
 
-			ticker.Reset(2 * time.Second)
+			ticker.Reset(1500 * time.Millisecond)
 		case <-ctx.Done():
 			return ctx.Err()
 		}
