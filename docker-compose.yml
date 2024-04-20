@@ -208,7 +208,7 @@ services:
     container_name: near-sffl-indexer-setup
     depends_on:
       indexer:
-        condition: service_started
+        condition: service_healthy
     volumes:
       - ./:/near-sffl/
       - near_cli_data:/near-cli
