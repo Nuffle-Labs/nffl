@@ -15,7 +15,8 @@ import (
 )
 
 const (
-	NAMESPACE_ID = 1
+	NAMESPACE_ID          = 1
+	SUBMIT_BLOCK_INTERVAL = 1500 * time.Millisecond
 )
 
 type Relayer struct {
@@ -55,7 +56,7 @@ func (r *Relayer) Start(ctx context.Context) error {
 
 	blocksToSubmit := make(chan []*ethtypes.Block)
 
-	ticker := time.NewTicker(1500 * time.Millisecond)
+	ticker := time.NewTicker(SUBMIT_BLOCK_INTERVAL)
 	defer ticker.Stop()
 
 	go func() {
@@ -117,7 +118,7 @@ func (r *Relayer) Start(ctx context.Context) error {
 				r.logger.Info(string(out))
 			}
 
-			ticker.Reset(1500 * time.Millisecond)
+			ticker.Reset(SUBMIT_BLOCK_INTERVAL)
 		case <-ctx.Done():
 			return ctx.Err()
 		}
