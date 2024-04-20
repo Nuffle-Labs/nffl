@@ -56,7 +56,6 @@ func (r *Relayer) Start(ctx context.Context) error {
 	defer ticker.Stop()
 
 	var blocks []*ethtypes.Block
-
 	for {
 		select {
 		case err := <-sub.Err():
@@ -65,6 +64,13 @@ func (r *Relayer) Start(ctx context.Context) error {
 		case header := <-headers:
 			blockWithNoTransactions := ethtypes.NewBlockWithHeader(header)
 			blocks = append(blocks, blockWithNoTransactions)
+			continue
+		case <-ctx.Done():
+			return ctx.Err()
+		default:
+		}
+
+		select {
 		case <-ticker.C:
 			if len(blocks) == 0 {
 				continue
