@@ -78,15 +78,13 @@ func (r *Relayer) Start(ctx context.Context) error {
 
 			blocks = blocks[:0]
 
-			go func(encodedBlocks []byte) {
-				out, err := r.nearClient.ForceSubmit(encodedBlocks)
-				if err != nil {
-					r.logger.Error("Error submitting block to NEAR", "err", err)
-					return
-				}
+			out, err := r.nearClient.ForceSubmit(encodedBlocks)
+			if err != nil {
+				r.logger.Error("Error submitting block to NEAR", "err", err)
+				return err
+			}
 
-				r.logger.Info(string(out))
-			}(encodedBlocks)
+			r.logger.Info(string(out))
 		case <-ctx.Done():
 			return ctx.Err()
 		}
