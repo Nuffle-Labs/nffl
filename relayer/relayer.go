@@ -15,8 +15,9 @@ import (
 )
 
 const (
-	NAMESPACE_ID          = 1
-	SUBMIT_BLOCK_INTERVAL = 1500 * time.Millisecond
+	NAMESPACE_ID               = 1
+	SUBMIT_BLOCK_INTERVAL      = 1500 * time.Millisecond
+	SUBMIT_BLOCK_RETRY_TIMEOUT = 1 * time.Second
 )
 
 type Relayer struct {
@@ -103,7 +104,7 @@ func (r *Relayer) Start(ctx context.Context) error {
 
 				if strings.Contains(err.Error(), "InvalidNonce") {
 					r.logger.Info("Invalid nonce, resubmitting")
-					time.Sleep(1 * time.Second)
+					time.Sleep(SUBMIT_BLOCK_RETRY_TIMEOUT)
 
 					out, err = r.nearClient.ForceSubmit(encodedBlocks)
 					if err != nil {
