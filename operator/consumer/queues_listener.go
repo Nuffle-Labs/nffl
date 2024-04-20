@@ -52,8 +52,8 @@ type QueuesListener struct {
 	logger logging.Logger
 }
 
-func NewQueuesListener(receivedBlocksC chan<- BlockData, logger logging.Logger) QueuesListener {
-	listener := QueuesListener{
+func NewQueuesListener(receivedBlocksC chan<- BlockData, logger logging.Logger) *QueuesListener {
+	listener := &QueuesListener{
 		receivedBlocksC: receivedBlocksC,
 		queueDeliveryCs: make(map[uint32]<-chan rmq.Delivery),
 		logger:          logger,
