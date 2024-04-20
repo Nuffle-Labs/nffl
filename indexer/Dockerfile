@@ -37,7 +37,7 @@ EXPOSE 3030
 HEALTHCHECK --interval=20s --timeout=30s --retries=200 \
   CMD nc -zv localhost 3030 && \
       sh -c 'while true; do \
-        resp=$(http post http://localhost:3030 jsonrpc=2.0 method=status params:="[]" id=dontcare); \
+        resp=$(http --ignore-stdin post http://localhost:3030 jsonrpc=2.0 method=status params:="[]" id=dontcare); \
         if [ $? -ne 0 ]; then \
           echo "Request failed with error: $resp" >&2; \
           exit 1; \
