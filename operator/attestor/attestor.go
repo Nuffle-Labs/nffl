@@ -20,9 +20,10 @@ import (
 )
 
 const (
-	MQ_WAIT_TIMEOUT       = 6 * time.Second
-	RECONNECTION_ATTEMPTS = 5
-	RECONNECTION_DELAY    = time.Second
+	MQ_WAIT_TIMEOUT        = 10 * time.Second
+	MQ_REBROADCAST_TIMEOUT = 6 * time.Second
+	RECONNECTION_ATTEMPTS  = 5
+	RECONNECTION_DELAY     = time.Second
 )
 
 var (
@@ -127,7 +128,7 @@ func (attestor *Attestor) Start(ctx context.Context) error {
 
 	go attestor.processMQBlocks(ctx)
 
-	for rollupId, _ := range attestor.clients {
+	for rollupId := range attestor.clients {
 		go attestor.processRollupHeaders(rollupId, headersCs[rollupId], subscriptions[rollupId], ctx)
 	}
 
@@ -151,7 +152,7 @@ func (attestor *Attestor) processMQBlocks(ctx context.Context) {
 			// Rebroadcast in case mq block arrives first
 			go func(mqBlock consumer.BlockData) {
 				select {
-				case <-time.After(MQ_WAIT_TIMEOUT):
+				case <-time.After(MQ_REBROADCAST_TIMEOUT):
 					err := attestor.notifier.Notify(mqBlock.RollupId, mqBlock)
 					attestor.logger.Warn("Renotify", "err", err)
 					return
