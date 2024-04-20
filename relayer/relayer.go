@@ -81,9 +81,9 @@ func (r *Relayer) Start(ctx context.Context) error {
 					out, err = r.nearClient.ForceSubmit(encodedBlocks)
 					if err != nil {
 						r.logger.Error("Error resubmitting block to NEAR", "err", err)
+					} else {
+						r.logger.Info(string(out))
 					}
-
-					r.logger.Info(string(out))
 				}
 
 				return err
