@@ -51,6 +51,15 @@ const (
 	ECDSA_KEYS_DIR = "../keys/ecdsa"
 )
 
+type TestLogConsumer struct {
+	t             *testing.T
+	containerName string
+}
+
+func (lc *TestLogConsumer) Accept(l testcontainers.Log) {
+	lc.t.Logf("[%s] %s", lc.containerName, string(l.Content))
+}
+
 func TestIntegration(t *testing.T) {
 	ctx, cancel := context.WithTimeout(context.Background(), 250*time.Second)
 	setup := setupTestEnv(t, ctx)
@@ -466,6 +475,8 @@ func startAnvilTestContainer(t *testing.T, ctx context.Context, name, exposedPor
 		panic(err)
 	}
 
+	logConsumer := &TestLogConsumer{t: t, containerName: fmt.Sprintf("anvil %s", chainId)}
+
 	req := testcontainers.ContainerRequest{
 		Image:        "ghcr.io/foundry-rs/foundry:latest",
 		Name:         name,
@@ -529,6 +540,12 @@ func startAnvilTestContainer(t *testing.T, ctx context.Context, name, exposedPor
 	}
 	if fetchedChainId.Cmp(expectedChainId) != 0 {
 		t.Fatalf("Anvil chainId is not the expected: expected %s, got %s", expectedChainId.String(), fetchedChainId.String())
+	}
+
+	anvilC.FollowOutput(logConsumer)
+	err = anvilC.StartLogProducer(ctx)
+	if err != nil {
+		t.Fatalf("Failed to start log producer: %s", err.Error())
 	}
 
 	anvil := &utils.AnvilInstance{
@@ -653,6 +670,8 @@ func startIndexer(t *testing.T, ctx context.Context, name string, rollupAnvils [
 		rollupArgs = append(rollupArgs, "--rollup-ids", rollupAnvil.ChainID.String())
 	}
 
+	logConsumer := &TestLogConsumer{t: t, containerName: "indexer"}
+
 	req := testcontainers.ContainerRequest{
 		Image:        "near-sffl-indexer",
 		Name:         name,
@@ -668,6 +687,15 @@ func startIndexer(t *testing.T, ctx context.Context, name string, rollupAnvils [
 	}
 
 	indexerContainer, err := testcontainers.GenericContainer(ctx, genericReq)
+	if err != nil {
+		t.Fatalf("Failed to start indexer container: %s", err.Error())
+	}
+
+	indexerContainer.FollowOutput(logConsumer)
+	err = indexerContainer.StartLogProducer(ctx)
+	if err != nil {
+		t.Fatalf("Failed to start log producer: %s", err.Error())
+	}
 
 	if err != nil {
 		t.Fatalf("Error starting indexer container: %s", err.Error())
@@ -715,7 +743,9 @@ func setupNearDa(t *testing.T, ctx context.Context, indexerContainer testcontain
 			t.Fatalf("Error creating NEAR DA account: %s", err.Error())
 		}
 
-		relayer, err := utils.StartRelayer(t, ctx, accountId, indexerContainerIp, rollupAnvil)
+		logConsumer := &TestLogConsumer{t: t, containerName: fmt.Sprintf("relayer %s", rollupAnvil.ChainID.String())}
+
+		relayer, err := utils.StartRelayer(t, ctx, accountId, indexerContainerIp, rollupAnvil, logConsumer)
 		if err != nil {
 			t.Fatalf("Error creating realayer: #%s", err.Error())
 		}

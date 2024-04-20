@@ -99,7 +99,7 @@ func compileContainerConfig(ctx context.Context, daAccountId, keyPath, indexerIp
 	}, nil
 }
 
-func StartRelayer(t *testing.T, ctx context.Context, daAccountId, indexerContainerIp string, anvil *AnvilInstance) (testcontainers.Container, error) {
+func StartRelayer(t *testing.T, ctx context.Context, daAccountId, indexerContainerIp string, anvil *AnvilInstance, logConsumer testcontainers.LogConsumer) (testcontainers.Container, error) {
 	usr, err := user.Current()
 	if err != nil {
 		t.Fatalf("Couldn't get current user: #%s", err.Error())
@@ -136,10 +136,16 @@ func StartRelayer(t *testing.T, ctx context.Context, daAccountId, indexerContain
 		Started:          true,
 	}
 
-	indexerContainer, err := testcontainers.GenericContainer(ctx, genericReq)
+	relayerContainer, err := testcontainers.GenericContainer(ctx, genericReq)
 	if err != nil {
 		return nil, err
 	}
 
-	return indexerContainer, nil
+	relayerContainer.FollowOutput(logConsumer)
+	err = relayerContainer.StartLogProducer(ctx)
+	if err != nil {
+		t.Fatalf("Failed to start log producer: %s", err.Error())
+	}
+
+	return relayerContainer, nil
 }
