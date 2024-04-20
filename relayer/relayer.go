@@ -2,6 +2,7 @@ package relayer
 
 import (
 	"context"
+	"strings"
 	"time"
 
 	"github.com/Layr-Labs/eigensdk-go/chainio/clients/eth"
@@ -98,12 +99,25 @@ func (r *Relayer) Start(ctx context.Context) error {
 			out, err := r.nearClient.ForceSubmit(encodedBlocks)
 			if err != nil {
 				r.logger.Error("Error submitting block to NEAR", "err", err)
+
+				if strings.Contains(err.Error(), "InvalidNonce") {
+					r.logger.Info("Invalid nonce, resubmitting")
+					time.Sleep(1 * time.Second)
+
+					out, err = r.nearClient.ForceSubmit(encodedBlocks)
+					if err != nil {
+						r.logger.Error("Error resubmitting block to NEAR", "err", err)
+					}
+
+					r.logger.Info(string(out))
+				}
+
 				return err
+			} else {
+				r.logger.Info(string(out))
 			}
 
-			r.logger.Info(string(out))
-
-			ticker.Reset(1500 * time.Millisecond)
+			ticker.Reset(2 * time.Second)
 		case <-ctx.Done():
 			return ctx.Err()
 		}
