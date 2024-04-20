@@ -136,6 +136,11 @@ func (c *AggregatorRpcClient) tryResendFromDeque() {
 		if err != nil {
 			c.logger.Error("Couldn't resend message", "err", err)
 
+			if i == 0 {
+				c.logger.Error("Couldn't resend first message, most likely a connection error")
+				return
+			}
+
 			c.unsentMessages[errorPos] = message
 			errorPos++
 		}
