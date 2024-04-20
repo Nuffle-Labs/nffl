@@ -62,6 +62,7 @@ func (r *Relayer) Start(ctx context.Context) error {
 			r.logger.Errorf("error on rollup block subscription: %s", err.Error())
 			return err
 		case header := <-headers:
+			r.logger.Info("Received rollup block header", "number", header.Number.Uint64())
 			blockWithNoTransactions := ethtypes.NewBlockWithHeader(header)
 			blocks = append(blocks, blockWithNoTransactions)
 			continue
@@ -76,9 +77,15 @@ func (r *Relayer) Start(ctx context.Context) error {
 				continue
 			}
 
+			blockNumbers := make([]uint64, len(blocks))
+			for i, block := range blocks {
+				blockNumbers[i] = block.Number().Uint64()
+			}
+			r.logger.Info("Submitting blocks to NEAR", "numbers", blockNumbers)
+
 			encodedBlocks, err := rlp.EncodeToBytes(blocks)
 			if err != nil {
-				r.logger.Errorf("error RLP encoding block: %s", err.Error())
+				r.logger.Error("Error RLP encoding block", "err", err.Error())
 				continue
 			}
 
