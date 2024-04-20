@@ -52,31 +52,36 @@ func (r *Relayer) Start(ctx context.Context) error {
 	}
 	defer sub.Unsubscribe()
 
-	ticker := time.NewTicker(1500 * time.Millisecond)
-	defer ticker.Stop()
+	blocksToSubmit := make(chan []*ethtypes.Block)
 
-	var blocks []*ethtypes.Block
+	go func() {
+		ticker := time.NewTicker(1500 * time.Millisecond)
+		defer ticker.Stop()
+
+		var blocks []*ethtypes.Block
+		for {
+			select {
+			case err := <-sub.Err():
+				r.logger.Errorf("error on rollup block subscription: %s", err.Error())
+				return
+			case header := <-headers:
+				r.logger.Info("Received rollup block header", "number", header.Number.Uint64())
+				blockWithNoTransactions := ethtypes.NewBlockWithHeader(header)
+				blocks = append(blocks, blockWithNoTransactions)
+			case <-ticker.C:
+				if len(blocks) > 0 {
+					blocksToSubmit <- blocks
+					blocks = nil
+				}
+			case <-ctx.Done():
+				return
+			}
+		}
+	}()
+
 	for {
 		select {
-		case err := <-sub.Err():
-			r.logger.Errorf("error on rollup block subscription: %s", err.Error())
-			return err
-		case header := <-headers:
-			r.logger.Info("Received rollup block header", "number", header.Number.Uint64())
-			blockWithNoTransactions := ethtypes.NewBlockWithHeader(header)
-			blocks = append(blocks, blockWithNoTransactions)
-			continue
-		case <-ctx.Done():
-			return ctx.Err()
-		default:
-		}
-
-		select {
-		case <-ticker.C:
-			if len(blocks) == 0 {
-				continue
-			}
-
+		case blocks := <-blocksToSubmit:
 			blockNumbers := make([]uint64, len(blocks))
 			for i, block := range blocks {
 				blockNumbers[i] = block.Number().Uint64()
@@ -88,8 +93,6 @@ func (r *Relayer) Start(ctx context.Context) error {
 				r.logger.Error("Error RLP encoding block", "err", err.Error())
 				continue
 			}
-
-			blocks = blocks[:0]
 
 			out, err := r.nearClient.ForceSubmit(encodedBlocks)
 			if err != nil {
