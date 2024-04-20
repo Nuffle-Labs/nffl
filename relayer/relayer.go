@@ -48,40 +48,12 @@ func NewRelayerFromConfig(config *config.RelayerConfig, logger sdklogging.Logger
 }
 
 func (r *Relayer) Start(ctx context.Context) error {
-	headers := make(chan *ethtypes.Header)
-	sub, err := r.rpcClient.SubscribeNewHead(ctx, headers)
-	if err != nil {
-		r.logger.Fatalf("Error subscribing to new rollup block headers: %s", err.Error())
-	}
-	defer sub.Unsubscribe()
-
 	blocksToSubmit := make(chan []*ethtypes.Block)
 
 	ticker := time.NewTicker(SUBMIT_BLOCK_INTERVAL)
 	defer ticker.Stop()
 
-	go func() {
-		var blocks []*ethtypes.Block
-		for {
-			select {
-			case err := <-sub.Err():
-				r.logger.Errorf("error on rollup block subscription: %s", err.Error())
-				return
-			case header := <-headers:
-				r.logger.Info("Received rollup block header", "number", header.Number.Uint64())
-				blockWithNoTransactions := ethtypes.NewBlockWithHeader(header)
-				blocks = append(blocks, blockWithNoTransactions)
-			case <-ticker.C:
-				if len(blocks) > 0 {
-					blocksToSubmit <- blocks
-					blocks = nil
-					ticker.Stop()
-				}
-			case <-ctx.Done():
-				return
-			}
-		}
-	}()
+	go r.listenToBlocks(ctx, blocksToSubmit, ticker)
 
 	for {
 		select {
@@ -122,6 +94,37 @@ func (r *Relayer) Start(ctx context.Context) error {
 			ticker.Reset(SUBMIT_BLOCK_INTERVAL)
 		case <-ctx.Done():
 			return ctx.Err()
+		}
+	}
+}
+
+func (r *Relayer) listenToBlocks(ctx context.Context, blockBatchC chan []*ethtypes.Block, ticker *time.Ticker) {
+	headers := make(chan *ethtypes.Header)
+
+	sub, err := r.rpcClient.SubscribeNewHead(ctx, headers)
+	if err != nil {
+		r.logger.Fatalf("Error subscribing to new rollup block headers: %s", err.Error())
+	}
+	defer sub.Unsubscribe()
+
+	var blocks []*ethtypes.Block
+	for {
+		select {
+		case err := <-sub.Err():
+			r.logger.Errorf("error on rollup block subscription: %s", err.Error())
+			return
+		case header := <-headers:
+			r.logger.Info("Received rollup block header", "number", header.Number.Uint64())
+			blockWithNoTransactions := ethtypes.NewBlockWithHeader(header)
+			blocks = append(blocks, blockWithNoTransactions)
+		case <-ticker.C:
+			if len(blocks) > 0 {
+				blockBatchC <- blocks
+				blocks = nil
+				ticker.Stop()
+			}
+		case <-ctx.Done():
+			return
 		}
 	}
 }
