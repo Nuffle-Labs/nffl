@@ -23,6 +23,7 @@ const (
 type Relayer struct {
 	logger      sdklogging.Logger
 	rpcClient   eth.Client
+	rpcUrl      string
 	daAccountId string
 
 	nearClient *near.Config
@@ -42,6 +43,7 @@ func NewRelayerFromConfig(config *config.RelayerConfig, logger sdklogging.Logger
 	return &Relayer{
 		logger:      logger,
 		rpcClient:   rpcClient,
+		rpcUrl:      config.RpcUrl,
 		daAccountId: config.DaAccountId,
 		nearClient:  nearClient,
 	}, nil
@@ -112,7 +114,20 @@ func (r *Relayer) listenToBlocks(ctx context.Context, blockBatchC chan []*ethtyp
 		select {
 		case err := <-sub.Err():
 			r.logger.Errorf("error on rollup block subscription: %s", err.Error())
-			return
+
+			sub.Unsubscribe()
+
+			r.rpcClient, err = eth.NewClient(r.rpcUrl)
+			if err != nil {
+				r.logger.Fatalf("Error reconnecting to RPC: %s", err.Error())
+			}
+
+			sub, err = r.rpcClient.SubscribeNewHead(ctx, headers)
+			if err != nil {
+				r.logger.Fatalf("Error resubscribing to new rollup block headers: %s", err.Error())
+			}
+
+			r.logger.Info("Resubscribed to rollup block headers")
 		case header := <-headers:
 			r.logger.Info("Received rollup block header", "number", header.Number.Uint64())
 			blockWithNoTransactions := ethtypes.NewBlockWithHeader(header)
