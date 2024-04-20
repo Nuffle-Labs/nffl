@@ -122,11 +122,19 @@ func (l *QueuesListener) listen(ctx context.Context, rollupId uint32, rollupData
 						Block:         *block,
 					}
 
-					l.logger.Info("MQ Block", "blockData", blockData, "listener", fmt.Sprintf("%p", l))
+					l.logger.Info(
+						"MQ Block",
+						"rollupId", rollupId,
+						"blockHeight", blockData.Block.Header().Number.Uint64(),
+						"transactionId", blockData.TransactionId,
+						"commitment", blockData.Commitment,
+						"listener", fmt.Sprintf("%p", l),
+					)
 					l.receivedBlocksC <- blockData
 				}
 			}
 
+			l.logger.Info("Acking delivery", "rollupId", rollupId)
 			d.Ack(false)
 
 		case <-ctx.Done():
