@@ -50,8 +50,10 @@ func (r *Relayer) Start(ctx context.Context) error {
 	if err != nil {
 		r.logger.Fatalf("Error subscribing to new rollup block headers: %s", err.Error())
 	}
+	defer sub.Unsubscribe()
 
 	ticker := time.NewTicker(1500 * time.Millisecond)
+	defer ticker.Stop()
 
 	var blocks []*ethtypes.Block
 
@@ -59,6 +61,7 @@ func (r *Relayer) Start(ctx context.Context) error {
 		select {
 		case err := <-sub.Err():
 			r.logger.Errorf("error on rollup block subscription: %s", err.Error())
+			return err
 		case header := <-headers:
 			blockWithNoTransactions := ethtypes.NewBlockWithHeader(header)
 			blocks = append(blocks, blockWithNoTransactions)
@@ -73,18 +76,19 @@ func (r *Relayer) Start(ctx context.Context) error {
 				continue
 			}
 
-			blocks = nil
+			blocks = blocks[:0]
 
-			go func() {
+			go func(encodedBlocks []byte) {
 				out, err := r.nearClient.ForceSubmit(encodedBlocks)
 				if err != nil {
 					r.logger.Error("Error submitting block to NEAR", "err", err)
+					return
 				}
 
 				r.logger.Info(string(out))
-			}()
+			}(encodedBlocks)
 		case <-ctx.Done():
-			return nil
+			return ctx.Err()
 		}
 	}
 }
