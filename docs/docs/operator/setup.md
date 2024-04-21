@@ -153,8 +153,8 @@ token_strategy_addr: 0x0000000000000000000000000000000000000000
 In general, you should first set your operator address in `operator_address`,
 as well as your **Ethereum Holesky** RPC URLs in `eth_rpc_url` and `eth_ws_url`.
 Please double-check that these RPCs have no block bounds for `eth_getLogs`
-calls and allow event subscriptions. Infura and Quicknode should follow these
-restrictions.
+calls and allow event subscriptions. We recommend that you either use your own
+node's RPC or, in terms of providers, use Infura or Quicknode.
 
 Finally, set the aggregator server address in `aggregator_server_ip_port_address`.
 You should set this to the address that was sent to you during whitelisting.
