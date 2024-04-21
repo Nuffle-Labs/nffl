@@ -1,29 +1,47 @@
+
+# Production flag for logging - false for printing debug logs
 production: false
 
+# Operator ECDSA address
 operator_address: 0xD5A0359da7B310917d7760385516B2426E86ab7f
 
+# AVS contract addresses
 avs_registry_coordinator_address: 0x692A6ee6eC6f857144d222832fB7Ff44216BC0A7
 operator_state_retriever_address: 0xDb2B0ac0964809bCc041d1d687bCDfe6210a8E25
 
+# AVS network RPCs
+# Note that these RPCs must follow some conditions:
+# * It must support block-unbounded eth_getLogs calls
+# * It must support block and event subscription
 eth_rpc_url: https://ethereum-holesky-rpc.publicnode.com
 eth_ws_url: wss://ethereum-holesky-rpc.publicnode.com
 
+# EigenLayer ECDSA and BLS private key paths
 ecdsa_private_key_store_path: keys/ecdsa.json
 bls_private_key_store_path: keys/bls.json
 
+# Aggregator server IP and port
 aggregator_server_ip_port_address: near-sffl-aggregator:8090
 
+# Operator EigenLayer metrics server IP and port
 eigen_metrics_ip_port_address: near-sffl-operator:9090
 enable_metrics: true
 node_api_ip_port_address: near-sffl-operator:9010
 enable_node_api: true
 
+# Whether to try and register the operator in the AVS and in EL on startup
+# If set, it will not re-register the operator if already registered
 register_operator_on_startup: true
-token_strategy_addr: 0x0000000000000000000000000000000000000000
 
+# RMQ address and indexer rollup IDs
 near_da_indexer_rmq_ip_port_address: amqp://rmq:5672
 near_da_indexer_rollup_ids: [421614, 11155420]
 
+# Rollup RPCs
 rollup_ids_to_rpc_urls:
   421614: wss://arbitrum-sepolia-rpc.publicnode.com
   11155420: wss://optimism-sepolia-rpc.publicnode.com
+
+# Token strategy address
+# Mock strategy to deposit when registering (only used for testing)
+token_strategy_addr: 0x0000000000000000000000000000000000000000

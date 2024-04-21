@@ -1,12 +1,25 @@
 # production only prints info and above. development also prints debug
 environment: production
+
+# AVS network RPCs
+# Note that these RPCs must follow some conditions:
+# * It must support block-unbounded eth_getLogs calls
+# * It must support block and event subscription
 eth_rpc_url: https://ethereum-holesky-rpc.publicnode.com
 eth_ws_url: wss://ethereum-holesky-rpc.publicnode.com
-# address which the aggregator listens on for operator signed messages
+
+# Address which the aggregator listens on for operator signed messages
 aggregator_server_ip_port_address: 0.0.0.0:4001
 aggregator_rest_server_ip_port_address: 0.0.0.0:4002
+
+# Aggregator messages database path
 aggregator_database_path: "./db"
+
+# How often the aggregator creates a checkpoint task
 aggregator_checkpoint_interval: 3600000 # ms
+
+# Rollup RPCs and Registry addresses
+# Note that these RPCs must allow event subscriptions
 rollup_ids_to_rpc_urls:
   421614: wss://arbitrum-sepolia-rpc.publicnode.com
   11155420: wss://optimism-sepolia-rpc.publicnode.com
