@@ -2,8 +2,8 @@ production: false
 
 operator_address: 0xD5A0359da7B310917d7760385516B2426E86ab7f
 
-avs_registry_coordinator_address: 0xc3e53F4d16Ae77Db1c982e75a937B9f60FE63690
-operator_state_retriever_address: 0x1613beB3B2C4f22Ee086B2b38C1476A3cE7f78E8
+avs_registry_coordinator_address: 0x692A6ee6eC6f857144d222832fB7Ff44216BC0A7
+operator_state_retriever_address: 0xDb2B0ac0964809bCc041d1d687bCDfe6210a8E25
 
 eth_rpc_url: https://ethereum-holesky-rpc.publicnode.com
 eth_ws_url: wss://ethereum-holesky-rpc.publicnode.com
@@ -13,18 +13,17 @@ bls_private_key_store_path: keys/bls.json
 
 aggregator_server_ip_port_address: near-sffl-aggregator:8090
 
-eigen_metrics_ip_port_address: near-sffl-operator0:9090
+eigen_metrics_ip_port_address: near-sffl-operator:9090
 enable_metrics: true
-node_api_ip_port_address: near-sffl-operator0:9010
+node_api_ip_port_address: near-sffl-operator:9010
 enable_node_api: true
 
 register_operator_on_startup: true
 token_strategy_addr: 0x0000000000000000000000000000000000000000
 
 near_da_indexer_rmq_ip_port_address: amqp://rmq:5672
-near_da_indexer_rollup_ids: [17000, 421614, 11155420]
+near_da_indexer_rollup_ids: [421614, 11155420]
 
 rollup_ids_to_rpc_urls:
-  17000: wss://ethereum-holesky-rpc.publicnode.com
   421614: wss://arbitrum-sepolia-rpc.publicnode.com
   11155420: wss://optimism-sepolia-rpc.publicnode.com
