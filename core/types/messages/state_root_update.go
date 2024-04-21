@@ -63,7 +63,7 @@ func (msg StateRootUpdateMessage) Digest() ([32]byte, error) {
 		return [32]byte{}, err
 	}
 
-	digest, err := core.Keccak256(data)
+	digest, err := core.HashWithPrefix([]byte("SFFL::StateRootUpdateMessage"), data)
 	if err != nil {
 		return [32]byte{}, err
 	}

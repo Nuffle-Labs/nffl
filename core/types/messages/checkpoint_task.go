@@ -98,7 +98,7 @@ func (msg CheckpointTaskResponse) Digest() ([32]byte, error) {
 		return [32]byte{}, err
 	}
 
-	digest, err := core.Keccak256(data)
+	digest, err := core.HashWithPrefix([]byte("SFFL::CheckpointTaskResponse"), data)
 	if err != nil {
 		return [32]byte{}, err
 	}

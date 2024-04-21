@@ -18,13 +18,15 @@ library OperatorSetUpdate {
         RollupOperators.Operator[] operators;
     }
 
+    bytes32 internal constant OPERATOR_SET_UPDATE_HASH_PREFIX = keccak256("SFFL::OperatorSetUpdateMessage");
+
     /**
      * @notice Hashes an operator set update message
      * @param message Message structured data
      * @return Message hash
      */
     function hashCalldata(Message calldata message) internal pure returns (bytes32) {
-        return keccak256(abi.encode(message));
+        return keccak256(abi.encode(OPERATOR_SET_UPDATE_HASH_PREFIX, keccak256(abi.encode(message))));
     }
 
     /**
@@ -33,7 +35,7 @@ library OperatorSetUpdate {
      * @return Message hash
      */
     function hash(Message memory message) internal pure returns (bytes32) {
-        return keccak256(abi.encode(message));
+        return keccak256(abi.encode(OPERATOR_SET_UPDATE_HASH_PREFIX, keccak256(abi.encode(message))));
     }
 
     /**
