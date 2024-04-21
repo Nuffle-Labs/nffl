@@ -80,12 +80,26 @@ func NewRollupBroadcaster(
 func (b *RollupBroadcaster) initializeRollupOperatorSetsOnUpdate(ctx context.Context, avsReader chainio.AvsReaderer, avsSubscriber chainio.AvsSubscriberer) {
 	var operatorSetUpdatedChan chan *opsetupdatereg.ContractSFFLOperatorSetUpdateRegistryOperatorSetUpdatedAtBlock
 
-	avsSubscriber.SubscribeToOperatorSetUpdates(operatorSetUpdatedChan)
+	operatorSetUpdateSub, err := avsSubscriber.SubscribeToOperatorSetUpdates(operatorSetUpdatedChan)
+	if err != nil {
+		b.logger.Fatal("Error subscribing to operator set updates", "err", err)
+	}
 
 	for {
 		select {
 		case <-ctx.Done():
 			return
+		case err := <-operatorSetUpdateSub.Err():
+			b.logger.Error("Error in websocket subscription", "err", err)
+			operatorSetUpdateSub.Unsubscribe()
+			operatorSetUpdateSub, err = avsSubscriber.SubscribeToOperatorSetUpdates(operatorSetUpdatedChan)
+			if err != nil {
+				b.logger.Error("Error re-subscribing to operator set updates", "err", err)
+				close(operatorSetUpdatedChan)
+				return
+			}
+
+			continue
 		case event := <-operatorSetUpdatedChan:
 			b.logger.Info("Received operator set update", "id", event.Id)
 
