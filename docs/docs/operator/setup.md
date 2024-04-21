@@ -6,11 +6,19 @@ sidebar_position: 3
 
 ## Introduction
 
-This guide will walk you through the steps required to set up your operator node on the NEAR SFFL testnet. The testnet serves as a sandbox environment for testing and development, allowing you to test both the AVS smart contracts and off-chain services. As the network is under active development, it's crucial to stay updated with the latest changes and keep your node in sync with the network.
+This guide will walk you through the steps required to set up your operator
+node on the NEAR SFFL testnet. The testnet serves as a sandbox environment
+for testing and development, allowing you to test both the AVS smart contracts
+and off-chain services. As the network is under active development, it's
+crucial to stay updated with the latest changes and keep your node in sync
+with the network.
 
 ## Hardware Requirements
 
-A NEAR SFFL operator node consists of two main components: the AVS node software and a NEAR DA indexer. The AVS node software is a Go implementation of the AVS protocol, while the NEAR DA indexer is essentially a NEAR full node that indexes NEAR DA submissions on the NEAR blockchain.
+A NEAR SFFL operator node consists of two main components: the AVS node
+software and a NEAR DA indexer. The AVS node software is a Go implementation
+of the AVS protocol, while the NEAR DA indexer is essentially a NEAR full node
+that indexes NEAR DA submissions on the NEAR blockchain.
 
 ### Minimal Hardware Specifications
 
@@ -143,9 +151,9 @@ token_strategy_addr: 0x0000000000000000000000000000000000000000
 ```
 
 In general, you should first set your operator address in `operator_address`,
-as well as your **Ethereum Holesky** RPC URLs in `eth_rpc_url` and `eth_ws_url`. Please
-double-check that these RPCs have no block bounds for `eth_getLogs` calls
-and allow event subscriptions. Infura and Quicknode should follow these
+as well as your **Ethereum Holesky** RPC URLs in `eth_rpc_url` and `eth_ws_url`.
+Please double-check that these RPCs have no block bounds for `eth_getLogs`
+calls and allow event subscriptions. Infura and Quicknode should follow these
 restrictions.
 
 Finally, set the aggregator server address in `aggregator_server_ip_port_address`.
@@ -183,10 +191,12 @@ source .env
 docker compose --profile indexer up
 ```
 
-You most likely want to keep this as a separate screen, so you can use tools such as `screen` or `tmux` to keep it running as a separate session.
+You most likely want to keep this as a separate screen, so you can use tools
+such as `screen` or `tmux` to keep it running as a separate session.
 
 Your indexer should now continue the syncing process on it's own!
-Keep it running until it’s time to run the operator, as it’ll keep synced with NEAR.
+Keep it running until it’s time to run the operator, as it’ll keep synced with
+NEAR.
 
 ### Step 7: Run your operator
 
