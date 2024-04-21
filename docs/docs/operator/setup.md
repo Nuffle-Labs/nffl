@@ -113,11 +113,10 @@ avs_registry_coordinator_address: 0x692A6ee6eC6f857144d222832fB7Ff44216BC0A7
 operator_state_retriever_address: 0xDb2B0ac0964809bCc041d1d687bCDfe6210a8E25
 
 # AVS network RPCs
-# Note that these RPCs must follow some conditions:
-# * It must support block-unbounded eth_getLogs calls
-# * It must support block and event subscription
+# *Important*: The WS RPC must allow event subscriptions. As Public Node
+# doesn't support it, you should use a different RPC provider.
 eth_rpc_url: https://ethereum-holesky-rpc.publicnode.com
-eth_ws_url: wss://ethereum-holesky-rpc.publicnode.com
+eth_ws_url: wss://ethereum-holesky-rpc.publicnode.com # You should change this!
 
 # EigenLayer ECDSA and BLS private key paths
 ecdsa_private_key_store_path: keys/ecdsa.json
@@ -152,9 +151,9 @@ token_strategy_addr: 0x0000000000000000000000000000000000000000
 
 In general, you should first set your operator address in `operator_address`,
 as well as your **Ethereum Holesky** RPC URLs in `eth_rpc_url` and `eth_ws_url`.
-Please double-check that these RPCs have no block bounds for `eth_getLogs`
-calls and allow event subscriptions. We recommend that you either use your own
-node's RPC or, in terms of providers, use Infura or Quicknode.
+Please double-check that the WS RPC allows event subscriptions. We recommend
+that you either use your own node's RPC or, in terms of providers, use Infura
+or Quicknode - Public Node unfortunately doesn't support it.
 
 Finally, set the aggregator server address in `aggregator_server_ip_port_address`.
 You should set this to the address that was sent to you during whitelisting.
