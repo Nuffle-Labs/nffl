@@ -78,7 +78,9 @@ func NewRollupBroadcaster(
 }
 
 func (b *RollupBroadcaster) initializeRollupOperatorSetsOnUpdate(ctx context.Context, avsReader chainio.AvsReaderer, avsSubscriber chainio.AvsSubscriberer) {
-	var operatorSetUpdatedChan chan *opsetupdatereg.ContractSFFLOperatorSetUpdateRegistryOperatorSetUpdatedAtBlock
+	operatorSetUpdatedChan := make(chan *opsetupdatereg.ContractSFFLOperatorSetUpdateRegistryOperatorSetUpdatedAtBlock)
+
+	b.logger.Info("Initializing rollup operator sets on update")
 
 	operatorSetUpdateSub, err := avsSubscriber.SubscribeToOperatorSetUpdates(operatorSetUpdatedChan)
 	if err != nil {
