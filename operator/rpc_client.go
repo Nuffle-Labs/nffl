@@ -162,14 +162,14 @@ func (c *AggregatorRpcClient) sendOperatorMessage(sendCb func() error, message R
 		return
 	}
 
-	c.tryResendFromDeque()
-
 	c.logger.Info("Sending request to aggregator")
 	err = sendCb()
 	if err != nil {
 		appendProtected()
 		return
 	}
+
+	c.tryResendFromDeque()
 }
 
 func (c *AggregatorRpcClient) sendRequest(sendCb func() error) error {
