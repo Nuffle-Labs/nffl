@@ -19,6 +19,32 @@ func Keccak256(data []byte) ([32]byte, error) {
 	return digest, nil
 }
 
+func HashWithPrefix(prefix []byte, data []byte) ([32]byte, error) {
+	prefixHash, err := Keccak256(prefix)
+	if err != nil {
+		return [32]byte{}, err
+	}
+
+	dataHash, err := Keccak256(data)
+	if err != nil {
+		return [32]byte{}, err
+	}
+
+	bytes32Ty, err := abi.NewType("bytes32", "", nil)
+	if err != nil {
+		return [32]byte{}, err
+	}
+
+	arguments := abi.Arguments{{Type: bytes32Ty}, {Type: bytes32Ty}}
+
+	bytes, err := arguments.Pack(prefixHash, dataHash)
+	if err != nil {
+		return [32]byte{}, err
+	}
+
+	return Keccak256(bytes)
+}
+
 // BINDING UTILS - conversion from contract structs to golang structs
 
 // BN254.sol is a library, so bindings for G1 Points and G2 Points are only generated
