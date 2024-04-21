@@ -83,6 +83,8 @@ impl BlockListener {
         } = self;
 
         while let Some(streamer_message) = stream.recv().await {
+            info!(target: INDEXER, "Received streamer message");
+
             // TODO: check receipt_receiver is closed?
             let candidates_data: Vec<CandidateData> = streamer_message
                 .shards
@@ -102,6 +104,7 @@ impl BlockListener {
                 .collect();
 
             if candidates_data.is_empty() {
+                info!(target: INDEXER, "No candidate data found in the streamer message");
                 continue;
             }
             info!(target: INDEXER, "Found {} candidate(s)", candidates_data.len());

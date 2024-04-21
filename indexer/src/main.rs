@@ -1,7 +1,7 @@
 use clap::Parser;
 use configs::{Opts, SubCommand};
 use tokio::sync::mpsc;
-use tracing::error;
+use tracing::{error, info};
 
 use crate::{
     block_listener::{BlockListener, CandidateData},
@@ -78,6 +78,8 @@ fn read_config<T: serde::de::DeserializeOwned>(
 }
 
 fn main() -> Result<()> {
+    info!(target: "sffl_indexer", "Starting...");
+
     // We use it to automatically search the for root certificates to perform HTTPS calls
     // (sending telemetry and downloading genesis)
     openssl_probe::init_ssl_cert_env_vars();
