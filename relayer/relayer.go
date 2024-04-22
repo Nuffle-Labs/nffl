@@ -76,8 +76,8 @@ func (r *Relayer) Start(ctx context.Context) error {
 			if err != nil {
 				r.logger.Error("Error submitting block to NEAR", "err", err)
 
-				if strings.Contains(err.Error(), "InvalidNonce") {
-					r.logger.Info("Invalid nonce, resubmitting")
+				if strings.Contains(err.Error(), "InvalidNonce") || strings.Contains(err.Error(), "Expired") {
+					r.logger.Info("Invalid nonce or expired, resubmitting", "err", err)
 					time.Sleep(SUBMIT_BLOCK_RETRY_TIMEOUT)
 
 					out, err = r.nearClient.ForceSubmit(encodedBlocks)
@@ -88,7 +88,10 @@ func (r *Relayer) Start(ctx context.Context) error {
 					}
 				}
 
-				return err
+				if err != nil {
+					r.logger.Error("Error submitting block to NEAR", "err", err)
+					return err
+				}
 			} else {
 				r.logger.Info(string(out))
 			}
