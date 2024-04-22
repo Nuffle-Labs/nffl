@@ -84,11 +84,7 @@ impl Serialize for U256 {
             result.push(0);
         }
 
-        let str: String = result
-            .into_iter()
-            .rev()
-            .map(|d| (b'0' + d) as char)
-            .collect();
+        let str: String = result.into_iter().rev().map(|d| (b'0' + d) as char).collect();
 
         serializer.serialize_str(str.as_str())
     }
@@ -130,10 +126,7 @@ struct CopiablePublicKeyG1(G1);
 impl Into<SolidityKeyPair> for KeyPair {
     fn into(self) -> SolidityKeyPair {
         let mut priv_key_bytes = [0; 32];
-        self.priv_key
-            .into_u256()
-            .to_big_endian(&mut priv_key_bytes)
-            .unwrap();
+        self.priv_key.into_u256().to_big_endian(&mut priv_key_bytes).unwrap();
 
         SolidityKeyPair {
             pub_key_g1: self.pub_key_g1.into(),
@@ -161,17 +154,16 @@ where
     I: Iterator<Item = KeyPair>,
     J: Iterator<Item = Fr>,
 {
-    let (aggregated_priv_key, aggregated_pub_key_g1, aggregated_pub_key_g2) =
-        key_pairs.zip(multipliers).fold(
-            (Fr::zero(), G1::zero(), G2::zero()), // Starting point with zero elements for G1 and G2
-            |(acc_priv, acc_g1, acc_g2), (key_pair, fr)| {
-                (
-                    acc_priv + key_pair.priv_key * fr,
-                    acc_g1 + G1::from(key_pair.pub_key_g1) * fr,
-                    acc_g2 + G2::from(key_pair.pub_key_g2) * fr,
-                )
-            },
-        );
+    let (aggregated_priv_key, aggregated_pub_key_g1, aggregated_pub_key_g2) = key_pairs.zip(multipliers).fold(
+        (Fr::zero(), G1::zero(), G2::zero()), // Starting point with zero elements for G1 and G2
+        |(acc_priv, acc_g1, acc_g2), (key_pair, fr)| {
+            (
+                acc_priv + key_pair.priv_key * fr,
+                acc_g1 + G1::from(key_pair.pub_key_g1) * fr,
+                acc_g2 + G2::from(key_pair.pub_key_g2) * fr,
+            )
+        },
+    );
 
     KeyPair {
         priv_key: aggregated_priv_key,
@@ -195,10 +187,8 @@ fn main() {
                 })
                 .collect();
 
-            let solidity_key_pairs: Vec<SolidityKeyPair> = key_pairs
-                .into_iter()
-                .map(|keypair| keypair.into())
-                .collect();
+            let solidity_key_pairs: Vec<SolidityKeyPair> =
+                key_pairs.into_iter().map(|keypair| keypair.into()).collect();
 
             print!("{}", serde_json::to_string(&solidity_key_pairs).unwrap());
         }
@@ -208,19 +198,12 @@ fn main() {
                 .map(|key| KeyPair::from(Fr::from_str(&key).expect("Not an Fr")))
                 .collect();
 
-            let aggregated_key_pair =
-                aggregate(key_pairs.into_iter(), std::iter::repeat(Fr::one()));
+            let aggregated_key_pair = aggregate(key_pairs.into_iter(), std::iter::repeat(Fr::one()));
             let solidity_aggregated_key_pair: SolidityKeyPair = aggregated_key_pair.into();
 
-            print!(
-                "{}",
-                serde_json::to_string(&solidity_aggregated_key_pair).unwrap()
-            );
+            print!("{}", serde_json::to_string(&solidity_aggregated_key_pair).unwrap());
         }
-        Some(Commands::AggregateMul {
-            priv_keys,
-            multipliers,
-        }) => {
+        Some(Commands::AggregateMul { priv_keys, multipliers }) => {
             let key_pairs: Vec<KeyPair> = (&priv_keys)
                 .into_iter()
                 .map(|key| KeyPair::from(Fr::from_str(&key).expect("Not an Fr")))
@@ -234,10 +217,7 @@ fn main() {
             );
             let solidity_aggregated_key_pair: SolidityKeyPair = aggregated_key_pair.into();
 
-            print!(
-                "{}",
-                serde_json::to_string(&solidity_aggregated_key_pair).unwrap()
-            );
+            print!("{}", serde_json::to_string(&solidity_aggregated_key_pair).unwrap());
         }
         None => {}
     }

@@ -14,6 +14,8 @@ use crate::{
     rabbit_publisher::{get_routing_key, PublishData, PublishOptions, PublishPayload, PublisherContext},
 };
 
+const CANDIDATES_VALIDATOR: &str = "candidates_validator";
+
 type ProtectedQueue = sync::Arc<Mutex<VecDeque<CandidateData>>>;
 type ProtectedPublisher = sync::Arc<Mutex<RabbitPublisher>>;
 
@@ -47,7 +49,6 @@ impl CandidatesValidator {
         loop {
             tokio::select! {
                 _ = interval.tick() => {
-                    info!(target: "ticker", "trying to flush");
                     let mut queue = queue_protected.lock().await;
                     let _ = Self::flush(&mut queue, publisher_protected.clone(), &view_client).await;
                     interval.reset();
@@ -65,11 +66,17 @@ impl CandidatesValidator {
         publisher_protected: ProtectedPublisher,
         view_client: &actix::Addr<near_client::ViewClientActor>,
     ) -> Result<bool> {
+        if queue.is_empty() {
+            return Ok(true);
+        }
+
+        info!(target: CANDIDATES_VALIDATOR, "Flushing");
         while let Some(candidate_data) = queue.front() {
             let final_status = Self::fetch_execution_outcome(view_client, candidate_data).await?;
             match final_status {
                 FinalExecutionStatus::NotStarted | FinalExecutionStatus::Started => return Ok(false),
                 FinalExecutionStatus::SuccessValue(_) => {
+                    info!(target: CANDIDATES_VALIDATOR, "Candidate status now successful, candidate_data: {}", candidate_data);
                     Self::send(candidate_data, publisher_protected.clone()).await?;
                     queue.pop_front();
                 }
@@ -166,6 +173,7 @@ impl CandidatesValidator {
                     queue.push_back(candidate_data);
                 }
                 FinalExecutionStatus::SuccessValue(_) => {
+                    info!(target: CANDIDATES_VALIDATOR, "Candidate executed successfully, candidate_data: {}", candidate_data);
                     Self::send(&candidate_data, publisher_protected.clone()).await?;
                 }
                 FinalExecutionStatus::Failure(_) => {}

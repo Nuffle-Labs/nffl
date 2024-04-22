@@ -1,15 +1,31 @@
 use futures::future::join_all;
 use near_indexer::near_primitives::{types::AccountId, views::ActionView};
-use std::collections::HashMap;
+use std::{
+    collections::HashMap,
+    fmt::{self, Formatter},
+};
 use tokio::sync::mpsc;
+use tracing::info;
 
-use crate::errors::Result;
+use crate::{errors::Result, INDEXER};
 
 #[derive(Clone, Debug)]
 pub(crate) struct CandidateData {
     pub rollup_id: u32,
     pub transaction: near_indexer::IndexerTransactionWithOutcome,
     pub payloads: Vec<Vec<u8>>,
+}
+
+impl fmt::Display for CandidateData {
+    fn fmt(&self, f: &mut Formatter<'_>) -> fmt::Result {
+        f.write_fmt(format_args!(
+            "rollup_id: {}, id: {}, signer_id: {}, receiver_id {}",
+            self.rollup_id,
+            self.transaction.transaction.hash,
+            self.transaction.transaction.signer_id,
+            self.transaction.transaction.receiver_id
+        ))
+    }
 }
 
 pub(crate) struct BlockListener {
@@ -88,6 +104,7 @@ impl BlockListener {
             if candidates_data.is_empty() {
                 continue;
             }
+            info!(target: INDEXER, "Found {} candidate(s)", candidates_data.len());
 
             let results = join_all(candidates_data.into_iter().map(|receipt| receipt_sender.send(receipt))).await;
             results.into_iter().collect::<Result<_, _>>()?;
