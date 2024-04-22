@@ -4,6 +4,7 @@ import (
 	"context"
 
 	"github.com/Layr-Labs/eigensdk-go/crypto/bls"
+	eigentypes "github.com/Layr-Labs/eigensdk-go/types"
 	"github.com/prometheus/client_golang/prometheus"
 
 	"github.com/NethermindEth/near-sffl/core"
@@ -14,14 +15,14 @@ import (
 type MockAttestor struct {
 	consumer   *MockConsumer
 	blsKeypair *bls.KeyPair
-	operatorId bls.OperatorId
+	operatorId eigentypes.OperatorId
 
 	signedRootC chan messages.SignedStateRootUpdateMessage
 }
 
 var _ core.Metricable = (*MockAttestor)(nil)
 
-func NewMockAttestor(blsKeypair *bls.KeyPair, operatorId bls.OperatorId) *MockAttestor {
+func NewMockAttestor(blsKeypair *bls.KeyPair, operatorId eigentypes.OperatorId) *MockAttestor {
 	consumer := NewMockConsumer()
 	return &MockAttestor{
 		blsKeypair:  blsKeypair,

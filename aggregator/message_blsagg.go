@@ -15,7 +15,7 @@ import (
 	"github.com/Layr-Labs/eigensdk-go/logging"
 	"github.com/Layr-Labs/eigensdk-go/services/avsregistry"
 	blsagg "github.com/Layr-Labs/eigensdk-go/services/bls_aggregation"
-	eigensdktypes "github.com/Layr-Labs/eigensdk-go/types"
+	eigentypes "github.com/Layr-Labs/eigensdk-go/types"
 	"github.com/ethereum/go-ethereum/accounts/abi/bind"
 
 	"github.com/NethermindEth/near-sffl/aggregator/types"
@@ -31,7 +31,7 @@ var (
 	MessageNotFoundErrorFn = func(messageDigest coretypes.MessageDigest) error {
 		return fmt.Errorf("message %x not initialized or already completed", messageDigest)
 	}
-	OperatorNotPartOfMessageQuorumErrorFn = func(operatorId eigensdktypes.OperatorId, messageDigest coretypes.MessageDigest) error {
+	OperatorNotPartOfMessageQuorumErrorFn = func(operatorId eigentypes.OperatorId, messageDigest coretypes.MessageDigest) error {
 		return fmt.Errorf("operator %x not part of message %x's quorum", operatorId, messageDigest)
 	}
 	SignatureVerificationError = func(err error) error {
@@ -43,33 +43,33 @@ var (
 type AggregatedOperators struct {
 	signersApkG2               *bls.G2Point
 	signersAggSigG1            *bls.Signature
-	signersTotalStakePerQuorum map[eigensdktypes.QuorumNum]*big.Int
-	signersOperatorIdsSet      map[eigensdktypes.OperatorId]bool
+	signersTotalStakePerQuorum map[eigentypes.QuorumNum]*big.Int
+	signersOperatorIdsSet      map[eigentypes.OperatorId]bool
 }
 
 type SignedMessageDigest struct {
 	MessageDigest               coretypes.MessageDigest
 	BlsSignature                *bls.Signature
-	OperatorId                  bls.OperatorId
+	OperatorId                  eigentypes.OperatorId
 	SignatureVerificationErrorC chan error
 }
 
 type signedMessageDigestValidationInfo struct {
-	operatorsAvsStateDict         map[[32]byte]eigensdktypes.OperatorAvsState
-	quorumsAvsStakeDict           map[uint8]eigensdktypes.QuorumAvsState
-	totalStakePerQuorum           map[uint8]*big.Int
+	operatorsAvsStateDict         map[eigentypes.OperatorId]eigentypes.OperatorAvsState
+	quorumsAvsStakeDict           map[eigentypes.QuorumNum]eigentypes.QuorumAvsState
+	totalStakePerQuorum           map[eigentypes.QuorumNum]*big.Int
 	quorumApksG1                  []*bls.G1Point
-	aggregatedOperatorsDict       map[eigensdktypes.TaskResponseDigest]AggregatedOperators
-	quorumThresholdPercentagesMap map[uint8]uint32
-	quorumNumbers                 []eigensdktypes.QuorumNum
+	aggregatedOperatorsDict       map[eigentypes.TaskResponseDigest]AggregatedOperators
+	quorumThresholdPercentagesMap map[eigentypes.QuorumNum]eigentypes.QuorumThresholdPercentage
+	quorumNumbers                 []eigentypes.QuorumNum
 	ethBlockNumber                uint64
 }
 
 type MessageBlsAggregationService interface {
 	InitializeMessageIfNotExists(
 		messageDigest coretypes.MessageDigest,
-		quorumNumbers []eigensdktypes.QuorumNum,
-		quorumThresholdPercentages []eigensdktypes.QuorumThresholdPercentage,
+		quorumNumbers []eigentypes.QuorumNum,
+		quorumThresholdPercentages []eigentypes.QuorumThresholdPercentage,
 		timeToExpiry time.Duration,
 		ethBlockNumber uint64,
 	) error
@@ -78,7 +78,7 @@ type MessageBlsAggregationService interface {
 		ctx context.Context,
 		messageDigest coretypes.MessageDigest,
 		blsSignature *bls.Signature,
-		operatorId bls.OperatorId,
+		operatorId eigentypes.OperatorId,
 	) error
 
 	GetResponseChannel() <-chan types.MessageBlsAggregationServiceResponse
@@ -112,8 +112,8 @@ func (mbas *MessageBlsAggregatorService) GetResponseChannel() <-chan types.Messa
 
 func (mbas *MessageBlsAggregatorService) InitializeMessageIfNotExists(
 	messageDigest coretypes.MessageDigest,
-	quorumNumbers []eigensdktypes.QuorumNum,
-	quorumThresholdPercentages []eigensdktypes.QuorumThresholdPercentage,
+	quorumNumbers []eigentypes.QuorumNum,
+	quorumThresholdPercentages []eigentypes.QuorumThresholdPercentage,
 	timeToExpiry time.Duration,
 	ethBlockNumber uint64,
 ) error {
@@ -135,7 +135,7 @@ func (mbas *MessageBlsAggregatorService) ProcessNewSignature(
 	ctx context.Context,
 	messageDigest coretypes.MessageDigest,
 	blsSignature *bls.Signature,
-	operatorId bls.OperatorId,
+	operatorId eigentypes.OperatorId,
 ) error {
 	mbas.messageChansLock.RLock()
 	messageC, taskInitialized := mbas.signedMessageDigestsCs[messageDigest]
@@ -161,8 +161,8 @@ func (mbas *MessageBlsAggregatorService) ProcessNewSignature(
 
 func (mbas *MessageBlsAggregatorService) singleMessageAggregatorGoroutineFunc(
 	messageDigest coretypes.MessageDigest,
-	quorumNumbers []eigensdktypes.QuorumNum,
-	quorumThresholdPercentages []eigensdktypes.QuorumThresholdPercentage,
+	quorumNumbers []eigentypes.QuorumNum,
+	quorumThresholdPercentages []eigentypes.QuorumThresholdPercentage,
 	timeToExpiry time.Duration,
 	signedMessageDigestsC <-chan SignedMessageDigest,
 	ethBlockNumber uint64,
@@ -189,7 +189,7 @@ func (mbas *MessageBlsAggregatorService) singleMessageAggregatorGoroutineFunc(
 	}
 }
 
-func (mbas *MessageBlsAggregatorService) fetchValidationInfo(quorumNumbers []eigensdktypes.QuorumNum, quorumThresholdPercentages []eigensdktypes.QuorumThresholdPercentage, ethBlockNumber uint64) signedMessageDigestValidationInfo {
+func (mbas *MessageBlsAggregatorService) fetchValidationInfo(quorumNumbers []eigentypes.QuorumNum, quorumThresholdPercentages []eigentypes.QuorumThresholdPercentage, ethBlockNumber uint64) signedMessageDigestValidationInfo {
 	if ethBlockNumber == 0 {
 		curEthBlockNumber, err := mbas.ethClient.BlockNumber(context.Background())
 		if err != nil {
@@ -210,7 +210,7 @@ func (mbas *MessageBlsAggregatorService) fetchValidationInfo(quorumNumbers []eig
 		mbas.logger.Fatal("Aggregator failed to get quorums state from avs registry", "err", err)
 	}
 
-	totalStakePerQuorum := make(map[eigensdktypes.QuorumNum]*big.Int)
+	totalStakePerQuorum := make(map[eigentypes.QuorumNum]*big.Int)
 	for quorumNum, quorumAvsState := range quorumsAvsStakeDict {
 		totalStakePerQuorum[quorumNum] = quorumAvsState.TotalStake
 	}
@@ -220,7 +220,7 @@ func (mbas *MessageBlsAggregatorService) fetchValidationInfo(quorumNumbers []eig
 		quorumApksG1 = append(quorumApksG1, quorumsAvsStakeDict[quorumNumber].AggPubkeyG1)
 	}
 
-	quorumThresholdPercentagesMap := make(map[eigensdktypes.QuorumNum]eigensdktypes.QuorumThresholdPercentage)
+	quorumThresholdPercentagesMap := make(map[eigentypes.QuorumNum]eigentypes.QuorumThresholdPercentage)
 	for i, quorumNumber := range quorumNumbers {
 		quorumThresholdPercentagesMap[quorumNumber] = quorumThresholdPercentages[i]
 	}
@@ -230,7 +230,7 @@ func (mbas *MessageBlsAggregatorService) fetchValidationInfo(quorumNumbers []eig
 		quorumsAvsStakeDict:           quorumsAvsStakeDict,
 		totalStakePerQuorum:           totalStakePerQuorum,
 		quorumApksG1:                  quorumApksG1,
-		aggregatedOperatorsDict:       make(map[eigensdktypes.TaskResponseDigest]AggregatedOperators),
+		aggregatedOperatorsDict:       make(map[eigentypes.TaskResponseDigest]AggregatedOperators),
 		quorumThresholdPercentagesMap: quorumThresholdPercentagesMap,
 		quorumNumbers:                 quorumNumbers,
 		ethBlockNumber:                ethBlockNumber,
@@ -251,7 +251,7 @@ func (mbas *MessageBlsAggregatorService) handleSignedMessageDigest(signedMessage
 			// we've already verified that the operator is part of the task's quorum, so we don't need checks here
 			signersApkG2:               bls.NewZeroG2Point().Add(validationInfo.operatorsAvsStateDict[signedMessageDigest.OperatorId].Pubkeys.G2Pubkey),
 			signersAggSigG1:            signedMessageDigest.BlsSignature,
-			signersOperatorIdsSet:      map[eigensdktypes.OperatorId]bool{signedMessageDigest.OperatorId: true},
+			signersOperatorIdsSet:      map[eigentypes.OperatorId]bool{signedMessageDigest.OperatorId: true},
 			signersTotalStakePerQuorum: validationInfo.operatorsAvsStateDict[signedMessageDigest.OperatorId].StakePerQuorum,
 		}
 	} else {
@@ -273,7 +273,7 @@ func (mbas *MessageBlsAggregatorService) handleSignedMessageDigest(signedMessage
 		return false
 	}
 
-	nonSignersOperatorIds := []eigensdktypes.OperatorId{}
+	nonSignersOperatorIds := []eigentypes.OperatorId{}
 	for operatorId := range validationInfo.operatorsAvsStateDict {
 		if _, operatorSigned := digestAggregatedOperators.signersOperatorIdsSet[operatorId]; !operatorSigned {
 			nonSignersOperatorIds = append(nonSignersOperatorIds, operatorId)
@@ -329,7 +329,7 @@ func (mbas *MessageBlsAggregatorService) closeMessageGoroutine(messageDigest cor
 
 func (mbas *MessageBlsAggregatorService) verifySignature(
 	signedMessageDigest SignedMessageDigest,
-	operatorsAvsStateDict map[eigensdktypes.OperatorId]eigensdktypes.OperatorAvsState,
+	operatorsAvsStateDict map[eigentypes.OperatorId]eigentypes.OperatorAvsState,
 ) error {
 	_, ok := operatorsAvsStateDict[signedMessageDigest.OperatorId]
 	if !ok {
@@ -360,9 +360,9 @@ func (mbas *MessageBlsAggregatorService) verifySignature(
 }
 
 func checkIfStakeThresholdsMet(
-	signedStakePerQuorum map[eigensdktypes.QuorumNum]*big.Int,
-	totalStakePerQuorum map[eigensdktypes.QuorumNum]*big.Int,
-	quorumThresholdPercentagesMap map[eigensdktypes.QuorumNum]eigensdktypes.QuorumThresholdPercentage,
+	signedStakePerQuorum map[eigentypes.QuorumNum]*big.Int,
+	totalStakePerQuorum map[eigentypes.QuorumNum]*big.Int,
+	quorumThresholdPercentagesMap map[eigentypes.QuorumNum]eigentypes.QuorumThresholdPercentage,
 ) bool {
 	for quorumNum, quorumThresholdPercentage := range quorumThresholdPercentagesMap {
 		signedStake := big.NewInt(0).Mul(signedStakePerQuorum[quorumNum], big.NewInt(100))
@@ -374,7 +374,7 @@ func checkIfStakeThresholdsMet(
 	return true
 }
 
-func getG1PubkeysOfNonSigners(signersOperatorIdsSet map[eigensdktypes.OperatorId]bool, operatorAvsStateDict map[[32]byte]eigensdktypes.OperatorAvsState) []*bls.G1Point {
+func getG1PubkeysOfNonSigners(signersOperatorIdsSet map[eigentypes.OperatorId]bool, operatorAvsStateDict map[eigentypes.OperatorId]eigentypes.OperatorAvsState) []*bls.G1Point {
 	nonSignersG1Pubkeys := []*bls.G1Point{}
 	for operatorId, operator := range operatorAvsStateDict {
 		if _, operatorSigned := signersOperatorIdsSet[operatorId]; !operatorSigned {

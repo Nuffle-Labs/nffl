@@ -13,6 +13,7 @@ import (
 	"github.com/Layr-Labs/eigensdk-go/crypto/bls"
 	sdklogging "github.com/Layr-Labs/eigensdk-go/logging"
 	blsaggservmock "github.com/Layr-Labs/eigensdk-go/services/mocks/blsagg"
+	eigentypes "github.com/Layr-Labs/eigensdk-go/types"
 	sdktypes "github.com/Layr-Labs/eigensdk-go/types"
 	gethtypes "github.com/ethereum/go-ethereum/core/types"
 
@@ -32,7 +33,7 @@ var MOCK_OPERATOR_BLS_PRIVATE_KEY, _ = bls.NewPrivateKey(MOCK_OPERATOR_BLS_PRIVA
 var MOCK_OPERATOR_KEYPAIR = bls.NewKeyPair(MOCK_OPERATOR_BLS_PRIVATE_KEY)
 var MOCK_OPERATOR_G1PUBKEY = MOCK_OPERATOR_KEYPAIR.GetPubKeyG1()
 var MOCK_OPERATOR_G2PUBKEY = MOCK_OPERATOR_KEYPAIR.GetPubKeyG2()
-var MOCK_OPERATOR_PUBKEY_DICT = map[bls.OperatorId]types.OperatorInfo{
+var MOCK_OPERATOR_PUBKEY_DICT = map[eigentypes.OperatorId]types.OperatorInfo{
 	MOCK_OPERATOR_ID: {
 		OperatorPubkeys: sdktypes.OperatorPubkeys{
 			G1Pubkey: MOCK_OPERATOR_G1PUBKEY,
@@ -77,7 +78,7 @@ func TestSendNewTask(t *testing.T) {
 	// make sure that initializeNewTask was called on the blsAggService
 	// maybe there's a better way to do this? There's a saying "don't mock 3rd party code"
 	// see https://hynek.me/articles/what-to-mock-in-5-mins/
-	mockTaskBlsAggService.EXPECT().InitializeNewTask(TASK_INDEX, BLOCK_NUMBER, coretypes.QUORUM_NUMBERS, []uint32{types.QUORUM_THRESHOLD_NUMERATOR}, taskTimeToExpiry)
+	mockTaskBlsAggService.EXPECT().InitializeNewTask(TASK_INDEX, BLOCK_NUMBER, coretypes.QUORUM_NUMBERS, []eigentypes.QuorumThresholdPercentage{types.QUORUM_THRESHOLD_NUMERATOR}, taskTimeToExpiry)
 
 	err = aggregator.sendNewCheckpointTask()
 	assert.Nil(t, err)
@@ -148,7 +149,7 @@ func TestHandleOperatorSetUpdateAggregationReachedQuorum(t *testing.T) {
 }
 
 func createMockAggregator(
-	mockCtrl *gomock.Controller, operatorPubkeyDict map[bls.OperatorId]types.OperatorInfo,
+	mockCtrl *gomock.Controller, operatorPubkeyDict map[eigentypes.OperatorId]types.OperatorInfo,
 ) (*Aggregator, *chainiomocks.MockAvsReaderer, *chainiomocks.MockAvsWriterer, *blsaggservmock.MockBlsAggregationService, *aggmocks.MockMessageBlsAggregationService, *aggmocks.MockMessageBlsAggregationService, *dbmocks.MockDatabaser, *aggmocks.MockRollupBroadcasterer, *aggmocks.MockClient, error) {
 	logger := sdklogging.NewNoopLogger()
 	mockAvsWriter := chainiomocks.NewMockAvsWriterer(mockCtrl)

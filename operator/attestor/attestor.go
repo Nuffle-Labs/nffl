@@ -10,6 +10,7 @@ import (
 	"github.com/Layr-Labs/eigensdk-go/crypto/bls"
 	sdklogging "github.com/Layr-Labs/eigensdk-go/logging"
 	rpccalls "github.com/Layr-Labs/eigensdk-go/metrics/collectors/rpc_calls"
+	eigentypes "github.com/Layr-Labs/eigensdk-go/types"
 	"github.com/ethereum/go-ethereum"
 	ethtypes "github.com/ethereum/go-ethereum/core/types"
 	"github.com/prometheus/client_golang/prometheus"
@@ -54,7 +55,7 @@ type Attestor struct {
 
 	config     *optypes.NodeConfig
 	blsKeypair *bls.KeyPair
-	operatorId bls.OperatorId
+	operatorId eigentypes.OperatorId
 
 	logger   sdklogging.Logger
 	listener EventListener
@@ -64,7 +65,7 @@ type Attestor struct {
 
 var _ core.Metricable = (*Attestor)(nil)
 
-func NewAttestor(config *optypes.NodeConfig, blsKeypair *bls.KeyPair, operatorId bls.OperatorId, registry *prometheus.Registry, logger sdklogging.Logger) (*Attestor, error) {
+func NewAttestor(config *optypes.NodeConfig, blsKeypair *bls.KeyPair, operatorId eigentypes.OperatorId, registry *prometheus.Registry, logger sdklogging.Logger) (*Attestor, error) {
 	consumer := consumer.NewConsumer(consumer.ConsumerConfig{
 		RollupIds: config.NearDaIndexerRollupIds,
 		Id:        hex.EncodeToString(operatorId[:]),

@@ -18,8 +18,8 @@ func MockSendNewCheckpointTask(blockNum, taskNum uint32, fromTimestamp, toTimest
 		FromTimestamp:    fromTimestamp,
 		ToTimestamp:      toTimestamp,
 		TaskCreatedBlock: blockNum,
-		QuorumNumbers:    coretypes.QUORUM_NUMBERS,
-		QuorumThreshold:  types.QUORUM_THRESHOLD_NUMERATOR,
+		QuorumNumbers:    coretypes.QUORUM_NUMBERS_BYTES,
+		QuorumThreshold:  uint32(types.QUORUM_THRESHOLD_NUMERATOR),
 	}
 
 	return task, taskNum, nil

@@ -17,6 +17,7 @@ import (
 	blsagg "github.com/Layr-Labs/eigensdk-go/services/bls_aggregation"
 	oppubkeysserv "github.com/Layr-Labs/eigensdk-go/services/operatorpubkeys"
 	"github.com/Layr-Labs/eigensdk-go/signerv2"
+	eigentypes "github.com/Layr-Labs/eigensdk-go/types"
 	sdktypes "github.com/Layr-Labs/eigensdk-go/types"
 	"github.com/prometheus/client_golang/prometheus"
 
@@ -171,7 +172,7 @@ func NewAggregator(ctx context.Context, config *config.Config, logger logging.Lo
 		return nil, err
 	}
 
-	txMgr := txmgr.NewSimpleTxManager(txSender, ethHttpClient, logger, signerV2, config.AggregatorAddress)
+	txMgr := txmgr.NewSimpleTxManager(txSender, ethHttpClient, logger, config.AggregatorAddress)
 
 	avsWriter, err := chainio.BuildAvsWriterFromConfig(txMgr, config, ethHttpClient, logger)
 	if err != nil {
@@ -378,14 +379,14 @@ func (agg *Aggregator) sendNewCheckpointTask() error {
 	agg.tasks[taskIndex] = newTask
 	agg.tasksLock.Unlock()
 
-	quorumThresholds := make([]uint32, len(newTask.QuorumNumbers))
+	quorumThresholds := make([]eigentypes.QuorumThresholdPercentage, len(newTask.QuorumNumbers))
 	for i, _ := range newTask.QuorumNumbers {
-		quorumThresholds[i] = newTask.QuorumThreshold
+		quorumThresholds[i] = eigentypes.QuorumThresholdPercentage(newTask.QuorumThreshold)
 	}
 	// TODO(samlaf): we use seconds for now, but we should ideally pass a blocknumber to the blsAggregationService
 	// and it should monitor the chain and only expire the task aggregation once the chain has reached that block number.
 	taskTimeToExpiry := taskChallengeWindowBlock * blockTimeSeconds
-	agg.taskBlsAggregationService.InitializeNewTask(taskIndex, newTask.TaskCreatedBlock, newTask.QuorumNumbers, quorumThresholds, taskTimeToExpiry)
+	agg.taskBlsAggregationService.InitializeNewTask(taskIndex, newTask.TaskCreatedBlock, core.ConvertBytesToQuorumNumbers(newTask.QuorumNumbers), quorumThresholds, taskTimeToExpiry)
 	return nil
 }
 

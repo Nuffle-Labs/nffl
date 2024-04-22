@@ -14,7 +14,8 @@ import (
 	time "time"
 
 	bls "github.com/Layr-Labs/eigensdk-go/crypto/bls"
-	types "github.com/NethermindEth/near-sffl/aggregator/types"
+	types "github.com/Layr-Labs/eigensdk-go/types"
+	types0 "github.com/NethermindEth/near-sffl/aggregator/types"
 	gomock "go.uber.org/mock/gomock"
 )
 
@@ -42,10 +43,10 @@ func (m *MockMessageBlsAggregationService) EXPECT() *MockMessageBlsAggregationSe
 }
 
 // GetResponseChannel mocks base method.
-func (m *MockMessageBlsAggregationService) GetResponseChannel() <-chan types.MessageBlsAggregationServiceResponse {
+func (m *MockMessageBlsAggregationService) GetResponseChannel() <-chan types0.MessageBlsAggregationServiceResponse {
 	m.ctrl.T.Helper()
 	ret := m.ctrl.Call(m, "GetResponseChannel")
-	ret0, _ := ret[0].(<-chan types.MessageBlsAggregationServiceResponse)
+	ret0, _ := ret[0].(<-chan types0.MessageBlsAggregationServiceResponse)
 	return ret0
 }
 
@@ -56,7 +57,7 @@ func (mr *MockMessageBlsAggregationServiceMockRecorder) GetResponseChannel() *go
 }
 
 // InitializeMessageIfNotExists mocks base method.
-func (m *MockMessageBlsAggregationService) InitializeMessageIfNotExists(arg0 [32]byte, arg1 []byte, arg2 []uint32, arg3 time.Duration, arg4 uint64) error {
+func (m *MockMessageBlsAggregationService) InitializeMessageIfNotExists(arg0 [32]byte, arg1 []types.QuorumNum, arg2 []types.QuorumThresholdPercentage, arg3 time.Duration, arg4 uint64) error {
 	m.ctrl.T.Helper()
 	ret := m.ctrl.Call(m, "InitializeMessageIfNotExists", arg0, arg1, arg2, arg3, arg4)
 	ret0, _ := ret[0].(error)
@@ -70,7 +71,7 @@ func (mr *MockMessageBlsAggregationServiceMockRecorder) InitializeMessageIfNotEx
 }
 
 // ProcessNewSignature mocks base method.
-func (m *MockMessageBlsAggregationService) ProcessNewSignature(arg0 context.Context, arg1 [32]byte, arg2 *bls.Signature, arg3 [32]byte) error {
+func (m *MockMessageBlsAggregationService) ProcessNewSignature(arg0 context.Context, arg1 [32]byte, arg2 *bls.Signature, arg3 types.Bytes32) error {
 	m.ctrl.T.Helper()
 	ret := m.ctrl.Call(m, "ProcessNewSignature", arg0, arg1, arg2, arg3)
 	ret0, _ := ret[0].(error)

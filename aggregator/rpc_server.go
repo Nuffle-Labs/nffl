@@ -6,7 +6,7 @@ import (
 	"net/http"
 	"net/rpc"
 
-	sdktypes "github.com/Layr-Labs/eigensdk-go/types"
+	eigentypes "github.com/Layr-Labs/eigensdk-go/types"
 
 	"github.com/NethermindEth/near-sffl/aggregator/types"
 	coretypes "github.com/NethermindEth/near-sffl/core/types"
@@ -62,7 +62,7 @@ func (agg *Aggregator) ProcessSignedCheckpointTaskResponse(signedCheckpointTaskR
 
 	agg.taskResponsesLock.Lock()
 	if _, ok := agg.taskResponses[taskIndex]; !ok {
-		agg.taskResponses[taskIndex] = make(map[sdktypes.TaskResponseDigest]messages.CheckpointTaskResponse)
+		agg.taskResponses[taskIndex] = make(map[eigentypes.TaskResponseDigest]messages.CheckpointTaskResponse)
 	}
 	if _, ok := agg.taskResponses[taskIndex][taskResponseDigest]; !ok {
 		agg.taskResponses[taskIndex][taskResponseDigest] = signedCheckpointTaskResponse.TaskResponse
@@ -82,7 +82,7 @@ func (agg *Aggregator) ProcessSignedStateRootUpdateMessage(signedStateRootUpdate
 		return TaskResponseDigestNotFoundError500
 	}
 
-	agg.stateRootUpdateBlsAggregationService.InitializeMessageIfNotExists(messageDigest, coretypes.QUORUM_NUMBERS, []uint32{types.QUORUM_THRESHOLD_NUMERATOR}, types.MESSAGE_TTL, 0)
+	agg.stateRootUpdateBlsAggregationService.InitializeMessageIfNotExists(messageDigest, coretypes.QUORUM_NUMBERS, []eigentypes.QuorumThresholdPercentage{types.QUORUM_THRESHOLD_NUMERATOR}, types.MESSAGE_TTL, 0)
 
 	err = agg.stateRootUpdateBlsAggregationService.ProcessNewSignature(
 		context.Background(), messageDigest,
@@ -115,7 +115,7 @@ func (agg *Aggregator) ProcessSignedOperatorSetUpdateMessage(signedOperatorSetUp
 		return OperatorSetUpdateBlockNotFoundError500
 	}
 
-	agg.operatorSetUpdateBlsAggregationService.InitializeMessageIfNotExists(messageDigest, coretypes.QUORUM_NUMBERS, []uint32{types.QUORUM_THRESHOLD_NUMERATOR}, types.MESSAGE_TTL, uint64(blockNumber)-1)
+	agg.operatorSetUpdateBlsAggregationService.InitializeMessageIfNotExists(messageDigest, coretypes.QUORUM_NUMBERS, []eigentypes.QuorumThresholdPercentage{types.QUORUM_THRESHOLD_NUMERATOR}, types.MESSAGE_TTL, uint64(blockNumber)-1)
 
 	err = agg.operatorSetUpdateBlsAggregationService.ProcessNewSignature(
 		context.Background(), messageDigest,

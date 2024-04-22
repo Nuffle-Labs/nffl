@@ -147,7 +147,7 @@ func plugin(ctx *cli.Context) {
 		logger.Error("Failed to create tx sender", "err", err)
 		return
 	}
-	txMgr := txmgr.NewSimpleTxManager(txSender, ethHttpClient, logger, signerV2, common.HexToAddress(avsConfig.OperatorAddress))
+	txMgr := txmgr.NewSimpleTxManager(txSender, ethHttpClient, logger, common.HexToAddress(avsConfig.OperatorAddress))
 	avsWriter, err := chainio.BuildAvsWriter(
 		txMgr,
 		common.HexToAddress(avsConfig.AVSRegistryCoordinatorAddress),
