@@ -44,6 +44,7 @@ impl CandidatesValidator {
         publisher_protected: ProtectedPublisher,
         view_client: actix::Addr<near_client::ViewClientActor>,
     ) {
+        info!(target: CANDIDATES_VALIDATOR, "Starting ticker");
         let mut interval = time::interval(Duration::from_secs(2));
 
         loop {
@@ -74,13 +75,17 @@ impl CandidatesValidator {
         while let Some(candidate_data) = queue.front() {
             let final_status = Self::fetch_execution_outcome(view_client, candidate_data).await?;
             match final_status {
-                FinalExecutionStatus::NotStarted | FinalExecutionStatus::Started => return Ok(false),
+                FinalExecutionStatus::NotStarted | FinalExecutionStatus::Started => {
+                    info!(target: CANDIDATES_VALIDATOR, "Execution not finished, not sending to RabbitMQ");
+                    return Ok(false);
+                }
                 FinalExecutionStatus::SuccessValue(_) => {
                     info!(target: CANDIDATES_VALIDATOR, "Candidate status now successful, candidate_data: {}", candidate_data);
                     Self::send(candidate_data, publisher_protected.clone()).await?;
                     queue.pop_front();
                 }
                 FinalExecutionStatus::Failure(_) => {
+                    info!(target: CANDIDATES_VALIDATOR, "Execution failed, not sending to RabbitMQ");
                     queue.pop_front();
                 }
             };
@@ -93,6 +98,7 @@ impl CandidatesValidator {
         view_client: &actix::Addr<near_client::ViewClientActor>,
         candidate_data: &CandidateData,
     ) -> Result<FinalExecutionStatus> {
+        info!(target: CANDIDATES_VALIDATOR, "Fetching execution outcome for candidate data");
         Ok(view_client
             .send(
                 near_client::TxStatus {
@@ -151,12 +157,16 @@ impl CandidatesValidator {
         ));
 
         while let Some(candidate_data) = receiver.recv().await {
+            info!(target: CANDIDATES_VALIDATOR, "Received candidate data");
+
             {
                 let mut queue = queue_protected.lock().await;
                 // TODO(edwin): handle errors/ unwrap_or(false)?
+                info!(target: CANDIDATES_VALIDATOR, "Flushing enqueued candidates");
                 let flushed = Self::flush(&mut queue, publisher_protected.clone(), &view_client).await?;
 
                 if !flushed {
+                    info!(target: CANDIDATES_VALIDATOR, "Not flushed, so enqueuing candidate data");
                     queue.push_back(candidate_data);
                     continue;
                 }
@@ -169,6 +179,7 @@ impl CandidatesValidator {
 
             match final_status {
                 FinalExecutionStatus::NotStarted | FinalExecutionStatus::Started => {
+                    info!(target: CANDIDATES_VALIDATOR, "Execution not finished, pushing back to queue");
                     let mut queue = queue_protected.lock().await;
                     queue.push_back(candidate_data);
                 }
@@ -176,7 +187,9 @@ impl CandidatesValidator {
                     info!(target: CANDIDATES_VALIDATOR, "Candidate executed successfully, candidate_data: {}", candidate_data);
                     Self::send(&candidate_data, publisher_protected.clone()).await?;
                 }
-                FinalExecutionStatus::Failure(_) => {}
+                FinalExecutionStatus::Failure(_) => {
+                    info!(target: CANDIDATES_VALIDATOR, "Execution failed, not sending to RabbitMQ");
+                }
             }
         }
 

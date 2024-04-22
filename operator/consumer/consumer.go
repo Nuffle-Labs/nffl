@@ -56,7 +56,7 @@ type Consumerer interface {
 
 type Consumer struct {
 	receivedBlocksC chan BlockData
-	queuesListener  QueuesListener
+	queuesListener  *QueuesListener
 
 	id        string
 	rollupIds []uint32
@@ -259,6 +259,6 @@ func (consumer *Consumer) Close() error {
 	return nil
 }
 
-func (consumer Consumer) GetBlockStream() <-chan BlockData {
+func (consumer *Consumer) GetBlockStream() <-chan BlockData {
 	return consumer.receivedBlocksC
 }

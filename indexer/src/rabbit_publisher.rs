@@ -152,6 +152,8 @@ impl RabbitPublisher {
             let mut payload: Vec<u8> = Vec::new();
             publish_data.payload.serialize(&mut payload)?;
 
+            info!(target: PUBLISHER, "Publishing transaction: {:?}", publish_data.payload.transaction_id);
+
             channel
                 .basic_publish(
                     &exchange,

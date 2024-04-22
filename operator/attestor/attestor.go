@@ -20,8 +20,8 @@ import (
 )
 
 const (
-	MQ_WAIT_TIMEOUT        = 10 * time.Second
-	MQ_REBROADCAST_TIMEOUT = 6 * time.Second
+	MQ_WAIT_TIMEOUT        = 30 * time.Second
+	MQ_REBROADCAST_TIMEOUT = 15 * time.Second
 	RECONNECTION_ATTEMPTS  = 5
 	RECONNECTION_DELAY     = time.Second
 )
@@ -144,6 +144,7 @@ func (attestor *Attestor) processMQBlocks(ctx context.Context) {
 		case <-ctx.Done():
 			return
 		case mqBlock := <-mqBlockC:
+			attestor.logger.Info("Notifying", "rollupId", mqBlock.RollupId, "height", mqBlock.Block.Header().Number.Uint64())
 			err := attestor.notifier.Notify(mqBlock.RollupId, mqBlock)
 			if err != nil {
 				attestor.logger.Errorf("Notifier: %v", err)
@@ -153,10 +154,14 @@ func (attestor *Attestor) processMQBlocks(ctx context.Context) {
 			go func(mqBlock consumer.BlockData) {
 				select {
 				case <-time.After(MQ_REBROADCAST_TIMEOUT):
-					err := attestor.notifier.Notify(mqBlock.RollupId, mqBlock)
-					attestor.logger.Warn("Renotify", "err", err)
-					return
+					attestor.logger.Info("Renotifying", "rollupId", mqBlock.RollupId, "height", mqBlock.Block.Header().Number.Uint64())
 
+					err := attestor.notifier.Notify(mqBlock.RollupId, mqBlock)
+					if err != nil {
+						attestor.logger.Error("Error while renotifying", "err", err)
+					}
+
+					return
 				case <-ctx.Done():
 					return
 				}
@@ -220,6 +225,8 @@ func (attestor *Attestor) processRollupHeaders(rollupId uint32, headersC chan *e
 // Waits for MQ block for 1 minute. Then signs off and sends
 // Filters until receives one having same height
 func (attestor *Attestor) processHeader(rollupId uint32, rollupHeader *ethtypes.Header, ctx context.Context) {
+	attestor.logger.Info("Processing header", "rollupId", rollupId, "height", rollupHeader.Number.Uint64())
+
 	mqBlocksC, id := attestor.notifier.Subscribe(rollupId)
 	defer attestor.notifier.Unsubscribe(rollupId, id)
 
@@ -231,11 +238,14 @@ loop:
 	for {
 		select {
 		case <-timer:
+			attestor.logger.Info("MQ timeout", "rollupId", rollupId, "height", rollupHeader.Number.Uint64())
 			break loop
 
 		case mqBlock := <-mqBlocksC:
+			attestor.logger.Info("Received MQ block", "height", mqBlock.Block.Header().Number.Uint64(), "expectedHeight", rollupHeader.Number.Uint64(), "rollupId", mqBlock.RollupId)
+
 			if mqBlock.RollupId != rollupId {
-				attestor.logger.Warnf("Subsriber expected rollupId: %v, but got %v", rollupId, mqBlock.RollupId)
+				attestor.logger.Warnf("Subscriber expected rollupId: %v, but got %v", rollupId, mqBlock.RollupId)
 				continue loop
 			}
 
@@ -248,6 +258,8 @@ loop:
 				// TODO: Do smth here
 				attestor.logger.Warnf("StateRoot from MQ doesn't match one from Node")
 			}
+
+			attestor.logger.Info("MQ block found", "height", mqBlock.Block.Header().Number.Uint64(), "rollupId", mqBlock.RollupId)
 
 			daCommitment = mqBlock.Commitment
 			transactionId = mqBlock.TransactionId
