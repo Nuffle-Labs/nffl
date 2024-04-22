@@ -98,7 +98,7 @@ func (msg CheckpointTaskResponse) Digest() ([32]byte, error) {
 		return [32]byte{}, err
 	}
 
-	digest, err := core.HashWithPrefix([]byte("SFFL::CheckpointTaskResponse"), data)
+	digest, err := core.HashMessageWithPrefix([]byte("SFFL::CheckpointTaskResponse"), data)
 	if err != nil {
 		return [32]byte{}, err
 	}

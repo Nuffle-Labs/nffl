@@ -19,6 +19,7 @@ func Keccak256(data []byte) [32]byte {
 	return digest
 }
 
+func HashMessageWithPrefix(prefix []byte, data []byte) ([32]byte, error) {
 	prefixHash := Keccak256(prefix)
 	dataHash := Keccak256(data)
 
@@ -74,5 +75,5 @@ func HashBNG1Point(input taskmanager.BN254G1Point) ([32]byte, error) {
 		return [32]byte{}, err
 	}
 
-	return Keccak256(bytes)
+	return Keccak256(bytes), nil
 }

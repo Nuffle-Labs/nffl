@@ -96,7 +96,7 @@ func (msg OperatorSetUpdateMessage) Digest() ([32]byte, error) {
 		return [32]byte{}, err
 	}
 
-	digest, err := core.HashWithPrefix([]byte("SFFL::OperatorSetUpdateMessage"), data)
+	digest, err := core.HashMessageWithPrefix([]byte("SFFL::OperatorSetUpdateMessage"), data)
 	if err != nil {
 		return [32]byte{}, err
 	}
