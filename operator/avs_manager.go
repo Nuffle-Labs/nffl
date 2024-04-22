@@ -155,7 +155,7 @@ func (avsManager *AvsManager) Start(ctx context.Context, operatorAddr common.Add
 				operatorSetUpdateSub, err = avsManager.avsSubscriber.SubscribeToOperatorSetUpdates(avsManager.operatorSetUpdateChan)
 				if err != nil {
 					avsManager.logger.Error("Error re-subscribing to operator set updates", "err", err)
-					close(avsManager.checkpointTaskCreatedChan)
+					close(avsManager.operatorSetUpdateChan)
 					return
 				}
 
