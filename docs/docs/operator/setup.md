@@ -207,6 +207,7 @@ This is the final step!
 Stop the previous execution with `Ctrl+C`. Then, run the following:
 ```
 source .env
+docker compose --profile indexer --profile operator pull
 docker compose --profile indexer --profile operator up
 ```
 
