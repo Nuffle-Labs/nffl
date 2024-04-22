@@ -17,6 +17,8 @@ mod configs;
 mod errors;
 mod rabbit_publisher;
 
+const INDEXER: &str = "indexer";
+
 fn run(home_dir: std::path::PathBuf, config: RunConfigArgs) -> Result<()> {
     let addresses_to_rollup_ids = config.compile_addresses_to_ids_map()?;
     let rabbit_builder = RabbitBuilder::new(config.rmq_address);
@@ -54,12 +56,15 @@ fn run(home_dir: std::path::PathBuf, config: RunConfigArgs) -> Result<()> {
     system.run()?;
 
     block_res.map_err(|err| {
-        error!(target: "sffl_indexer", "Indexer Error: {}", err);
+        error!(target: INDEXER, "Indexer Error: {}", err);
         err
     })
 }
 
-fn read_config<T: serde::de::DeserializeOwned>(config_path: Option<std::path::PathBuf>, config_args: Option<T>) -> Result<T> {
+fn read_config<T: serde::de::DeserializeOwned>(
+    config_path: Option<std::path::PathBuf>,
+    config_args: Option<T>,
+) -> Result<T> {
     if let Some(config_path) = config_path {
         let config_str = std::fs::read_to_string(config_path)?;
         serde_yaml::from_str(&config_str).map_err(Into::into)
@@ -77,8 +82,8 @@ fn main() -> Result<()> {
     // (sending telemetry and downloading genesis)
     openssl_probe::init_ssl_cert_env_vars();
     let env_filter = near_o11y::tracing_subscriber::EnvFilter::new(
-        "nearcore=info,publisher=info,tokio_reactor=info,near=info,\
-         stats=info,telemetry=info,indexer=info,near-performance-metrics=info",
+        "nearcore=info,publisher=info,indexer=info,candidates_validator=info,tokio_reactor=info,near=info,\
+         stats=info,telemetry=info,near-performance-metrics=info",
     );
     let _subscriber = near_o11y::default_subscriber(env_filter, &Default::default()).global();
     let opts: Opts = Opts::parse();

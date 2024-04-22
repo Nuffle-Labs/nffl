@@ -11,6 +11,7 @@ use tracing::{error, info};
 
 use crate::errors::{Error, Result};
 
+const PUBLISHER: &str = "publisher";
 const EXCHANGE_NAME: &str = "rollup_exchange";
 const DEFAULT_ROUTING_KEY: &str = "da-mq";
 const PERSISTENT_DELIVERY_MODE: u8 = 2;
@@ -128,7 +129,7 @@ impl RabbitPublisher {
         match Self::exchange_declare(&connection).await {
             Ok(_) => {}
             Err(err) => {
-                error!(target: "rabbit_publisher", "Failed to declare exchange: {}", err);
+                error!(target: PUBLISHER, "Failed to declare exchange: {}", err);
                 receiver.close();
                 actix::System::current().stop_with_code(ERROR_CODE);
             }
@@ -161,7 +162,7 @@ impl RabbitPublisher {
                 )
                 .await?;
 
-            info!(target: "rabbit_publisher", "published tx");
+            info!(target: PUBLISHER, "published tx: {}, routing_key: {}", publish_data.payload.transaction_id, routing_key);
             Ok::<_, Error>(connection)
         };
 
@@ -192,7 +193,7 @@ impl RabbitPublisher {
             format!("Publisher Error: {}", error.to_string())
         };
 
-        error!(target: "publisher", message = display(msg.as_str()));
+        error!(target: PUBLISHER, message = display(msg.as_str()));
     }
 
     pub async fn closed(&self) {
