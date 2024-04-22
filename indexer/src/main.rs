@@ -25,7 +25,7 @@ fn run(home_dir: std::path::PathBuf, config: RunConfigArgs) -> Result<()> {
 
     let indexer_config = near_indexer::IndexerConfig {
         home_dir,
-        sync_mode: near_indexer::SyncModeEnum::FromInterruption,
+        sync_mode: near_indexer::SyncModeEnum::LatestSynced,
         await_for_node_synced: near_indexer::AwaitForNodeSyncedEnum::WaitForFullSync,
         validate_genesis: true,
     };
