@@ -10,13 +10,32 @@ import (
 	taskmanager "github.com/NethermindEth/near-sffl/contracts/bindings/SFFLTaskManager"
 )
 
-func Keccak256(data []byte) ([32]byte, error) {
+func Keccak256(data []byte) [32]byte {
 	var digest [32]byte
 	hasher := sha3.NewLegacyKeccak256()
 	hasher.Write(data)
 	copy(digest[:], hasher.Sum(nil)[:32])
 
-	return digest, nil
+	return digest
+}
+
+func HashMessageWithPrefix(prefix []byte, data []byte) ([32]byte, error) {
+	prefixHash := Keccak256(prefix)
+	dataHash := Keccak256(data)
+
+	bytes32Ty, err := abi.NewType("bytes32", "", nil)
+	if err != nil {
+		return [32]byte{}, err
+	}
+
+	arguments := abi.Arguments{{Type: bytes32Ty}, {Type: bytes32Ty}}
+
+	bytes, err := arguments.Pack(prefixHash, dataHash)
+	if err != nil {
+		return [32]byte{}, err
+	}
+
+	return Keccak256(bytes), nil
 }
 
 // BINDING UTILS - conversion from contract structs to golang structs
@@ -56,5 +75,5 @@ func HashBNG1Point(input taskmanager.BN254G1Point) ([32]byte, error) {
 		return [32]byte{}, err
 	}
 
-	return Keccak256(bytes)
+	return Keccak256(bytes), nil
 }

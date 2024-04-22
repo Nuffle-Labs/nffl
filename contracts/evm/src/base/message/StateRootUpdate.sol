@@ -23,13 +23,15 @@ library StateRootUpdate {
         bytes32 stateRoot;
     }
 
+    bytes32 internal constant STATE_ROOT_UPDATE_HASH_PREFIX = keccak256("SFFL::StateRootUpdateMessage");
+
     /**
      * @notice Hashes a state root update message
      * @param message Message structured data
      * @return Message hash
      */
     function hashCalldata(Message calldata message) internal pure returns (bytes32) {
-        return keccak256(abi.encode(message));
+        return keccak256(abi.encode(STATE_ROOT_UPDATE_HASH_PREFIX, keccak256(abi.encode(message))));
     }
 
     /**
@@ -38,7 +40,7 @@ library StateRootUpdate {
      * @return Message hash
      */
     function hash(Message memory message) internal pure returns (bytes32) {
-        return keccak256(abi.encode(message));
+        return keccak256(abi.encode(STATE_ROOT_UPDATE_HASH_PREFIX, keccak256(abi.encode(message))));
     }
 
     /**

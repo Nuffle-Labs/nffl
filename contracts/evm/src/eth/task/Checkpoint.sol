@@ -31,6 +31,8 @@ library Checkpoint {
         bytes32 hashOfNonSigners;
     }
 
+    bytes32 internal constant TASK_RESPONSE_HASH_PREFIX = keccak256("SFFL::CheckpointTaskResponse");
+
     /**
      * @notice Hashes a checkpoint task (submission)
      * @param task Checkpoint task structured data
@@ -55,7 +57,7 @@ library Checkpoint {
      * @return Task response hash
      */
     function hash(TaskResponse memory taskResponse) internal pure returns (bytes32) {
-        return keccak256(abi.encode(taskResponse));
+        return keccak256(abi.encode(TASK_RESPONSE_HASH_PREFIX, keccak256(abi.encode(taskResponse))));
     }
 
     /**
@@ -64,7 +66,7 @@ library Checkpoint {
      * @return Task response hash
      */
     function hashCalldata(TaskResponse calldata taskResponse) internal pure returns (bytes32) {
-        return keccak256(abi.encode(taskResponse));
+        return keccak256(abi.encode(TASK_RESPONSE_HASH_PREFIX, keccak256(abi.encode(taskResponse))));
     }
 
     /**
