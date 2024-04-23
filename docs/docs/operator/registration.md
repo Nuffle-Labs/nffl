@@ -85,8 +85,8 @@ production: false
 operator_address: 0xD5A0359da7B310917d7760385516B2426E86ab7f
 
 # AVS contract addresses
-avs_registry_coordinator_address: 0x692A6ee6eC6f857144d222832fB7Ff44216BC0A7
-operator_state_retriever_address: 0xDb2B0ac0964809bCc041d1d687bCDfe6210a8E25
+avs_registry_coordinator_address: 0x0069A298e68c09B047E5447b3b762E42114a99a2
+operator_state_retriever_address: 0x8D0b27Df027bc5C41855Da352Da4B5B2C406c1F0
 
 # AVS network RPCs
 # *Important*: The WS RPC must allow event subscriptions. As Public Node
@@ -95,16 +95,16 @@ eth_rpc_url: https://ethereum-holesky-rpc.publicnode.com
 eth_ws_url: wss://ethereum-holesky-rpc.publicnode.com # You should change this!
 
 # EigenLayer ECDSA and BLS private key paths
-ecdsa_private_key_store_path: keys/ecdsa.json
-bls_private_key_store_path: keys/bls.json
+ecdsa_private_key_store_path: /near-sffl/config/keys/ecdsa.json
+bls_private_key_store_path: /near-sffl/config/keys/bls.json
 
 # Aggregator server IP and port
 aggregator_server_ip_port_address: near-sffl-aggregator:8090
 
 # Operator EigenLayer metrics server IP and port
-eigen_metrics_ip_port_address: near-sffl-operator:9090
+eigen_metrics_ip_port_address: 0.0.0.0:9090
 enable_metrics: true
-node_api_ip_port_address: near-sffl-operator:9010
+node_api_ip_port_address: 0.0.0.0:9010
 enable_node_api: true
 
 # Whether to try and register the operator in the AVS and in EL on startup.
