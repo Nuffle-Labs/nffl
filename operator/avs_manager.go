@@ -5,6 +5,7 @@ import (
 	"crypto/ecdsa"
 	"fmt"
 	"math/big"
+	"time"
 
 	"github.com/Layr-Labs/eigensdk-go/chainio/clients"
 	"github.com/Layr-Labs/eigensdk-go/chainio/clients/elcontracts"
@@ -15,6 +16,7 @@ import (
 	eigenSdkTypes "github.com/Layr-Labs/eigensdk-go/types"
 	"github.com/ethereum/go-ethereum/accounts/abi/bind"
 	"github.com/ethereum/go-ethereum/common"
+	"github.com/ethereum/go-ethereum/crypto"
 
 	opsetupdatereg "github.com/NethermindEth/near-sffl/contracts/bindings/SFFLOperatorSetUpdateRegistry"
 	taskmanager "github.com/NethermindEth/near-sffl/contracts/bindings/SFFLTaskManager"
@@ -250,7 +252,6 @@ func (avsManager *AvsManager) RegisterOperatorWithAvs(
 	// hardcode these things for now
 	quorumNumbers := []byte{0}
 	socket := "Not Needed"
-	operatorToAvsRegistrationSigSalt := [32]byte{123}
 	curBlockNum, err := client.BlockNumber(context.Background())
 	if err != nil {
 		avsManager.logger.Errorf("Unable to get current block number")
@@ -263,8 +264,12 @@ func (avsManager *AvsManager) RegisterOperatorWithAvs(
 		return err
 	}
 
+	operatorId := blsKeyPair.GetOperatorID()
+
 	sigValidForSeconds := int64(1_000_000)
 	operatorToAvsRegistrationSigExpiry := big.NewInt(int64(curBlock.Time()) + sigValidForSeconds)
+	operatorToAvsRegistrationSigSalt := [32]byte{}
+	copy(operatorToAvsRegistrationSigSalt[:], crypto.Keccak256([]byte("sffl"), operatorId[:], quorumNumbers, []byte(time.Now().String())))
 	_, err = avsManager.avsWriter.RegisterOperatorInQuorumWithAVSRegistryCoordinator(
 		context.Background(),
 		operatorEcdsaKeyPair, operatorToAvsRegistrationSigSalt, operatorToAvsRegistrationSigExpiry,

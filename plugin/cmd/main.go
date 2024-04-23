@@ -6,7 +6,6 @@ import (
 	"log"
 	"math/big"
 	"os"
-	"time"
 
 	sdkclients "github.com/Layr-Labs/eigensdk-go/chainio/clients"
 	"github.com/Layr-Labs/eigensdk-go/chainio/clients/eth"
@@ -19,10 +18,10 @@ import (
 	"github.com/Layr-Labs/eigensdk-go/signerv2"
 	"github.com/Layr-Labs/eigensdk-go/utils"
 	"github.com/NethermindEth/near-sffl/core/chainio"
+	"github.com/NethermindEth/near-sffl/operator"
 	optypes "github.com/NethermindEth/near-sffl/operator/types"
 	"github.com/ethereum/go-ethereum/accounts/abi/bind"
 	"github.com/ethereum/go-ethereum/common"
-	"github.com/ethereum/go-ethereum/crypto"
 	"github.com/urfave/cli"
 )
 
@@ -160,6 +159,11 @@ func plugin(ctx *cli.Context) {
 		logger.Error("Failed to create avs writer", "err", err)
 		return
 	}
+	avsManager, err := operator.NewAvsManager(&avsConfig, clients.EthHttpClient, clients.EthWsClient, clients, txMgr, logger)
+	if err != nil {
+		logger.Error("Failed to create avs manager", "err", err)
+		return
+	}
 
 	if operationType == "opt-in" {
 		blsKeyPassword := ctx.GlobalString(BlsKeyPasswordFlag.Name)
@@ -179,26 +183,7 @@ func plugin(ctx *cli.Context) {
 			return
 		}
 
-		operatorId := blsKeypair.GetOperatorID()
-
-		// Register with registry coordination
-		quorumNumbers := []byte{0}
-		socket := "Not Needed"
-		sigValidForSeconds := int64(1_000_000)
-		operatorToAvsRegistrationSigSalt := [32]byte{}
-		copy(operatorToAvsRegistrationSigSalt[:], crypto.Keccak256([]byte("sffl"), operatorId[:], quorumNumbers, []byte(time.Now().String())))
-		operatorToAvsRegistrationSigExpiry := big.NewInt(int64(time.Now().Unix()) + sigValidForSeconds)
-		logger.Infof("Registering with registry coordination with quorum numbers %v and socket %s", quorumNumbers, socket)
-		r, err := clients.AvsRegistryChainWriter.RegisterOperatorInQuorumWithAVSRegistryCoordinator(
-			goCtx,
-			operatorEcdsaPrivateKey, operatorToAvsRegistrationSigSalt, operatorToAvsRegistrationSigExpiry,
-			blsKeypair, quorumNumbers, socket,
-		)
-		if err != nil {
-			logger.Error("Failed to assemble RegisterOperatorWithAVSRegistryCoordinator tx", "err", err)
-			return
-		}
-		logger.Infof("Registered with registry coordination successfully with tx hash %s", r.TxHash.Hex())
+		avsManager.RegisterOperatorWithAvs(ethHttpClient, operatorEcdsaPrivateKey, blsKeypair)
 	} else if operationType == "opt-out" {
 		fmt.Println("Opting out of slashing - unimplemented")
 	} else if operationType == "deposit" {
