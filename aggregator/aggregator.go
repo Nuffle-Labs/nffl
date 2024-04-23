@@ -330,6 +330,11 @@ func (agg *Aggregator) sendNewCheckpointTask() error {
 }
 
 func (agg *Aggregator) handleStateRootUpdateReachedQuorum(blsAggServiceResp types.MessageBlsAggregationServiceResponse) {
+	if blsAggServiceResp.Err != nil {
+		agg.logger.Error("Aggregator BLS service returned error", "err", blsAggServiceResp.Err)
+		return
+	}
+
 	agg.stateRootUpdatesLock.RLock()
 	msg, ok := agg.stateRootUpdates[blsAggServiceResp.MessageDigest]
 	agg.stateRootUpdatesLock.RUnlock()
@@ -342,11 +347,6 @@ func (agg *Aggregator) handleStateRootUpdateReachedQuorum(blsAggServiceResp type
 
 	if !ok {
 		agg.logger.Error("Aggregator could not find matching message")
-		return
-	}
-
-	if blsAggServiceResp.Err != nil {
-		agg.logger.Error("Aggregator BLS service returned error", "err", blsAggServiceResp.Err)
 		return
 	}
 
@@ -363,6 +363,11 @@ func (agg *Aggregator) handleStateRootUpdateReachedQuorum(blsAggServiceResp type
 }
 
 func (agg *Aggregator) handleOperatorSetUpdateReachedQuorum(ctx context.Context, blsAggServiceResp types.MessageBlsAggregationServiceResponse) {
+	if blsAggServiceResp.Err != nil {
+		agg.logger.Error("Aggregator BLS service returned error", "err", blsAggServiceResp.Err)
+		return
+	}
+
 	agg.operatorSetUpdatesLock.RLock()
 	msg, ok := agg.operatorSetUpdates[blsAggServiceResp.MessageDigest]
 	agg.operatorSetUpdatesLock.RUnlock()
@@ -375,11 +380,6 @@ func (agg *Aggregator) handleOperatorSetUpdateReachedQuorum(ctx context.Context,
 
 	if !ok {
 		agg.logger.Error("Aggregator could not find matching message")
-		return
-	}
-
-	if blsAggServiceResp.Err != nil {
-		agg.logger.Error("Aggregator BLS service returned error", "err", blsAggServiceResp.Err)
 		return
 	}
 
