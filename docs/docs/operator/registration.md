@@ -10,9 +10,10 @@ testnet starts functioning.
 
 ## Hardware Requirements
 
-Follow the hardware requirements on the [setup page](/docs/operator/setup) if
-you wish to re-use the same setup to run the operator. Simply opting-in,
-though, is not hardware-intensive.
+The opt-in process is not hardware-intensive - you should be able to do it with
+little to no specific requirements. If you wish to use the same setup to run
+the operator in the future, you can follow the hardware requirements on
+[Setup](./setup).
 
 ## Steps
 

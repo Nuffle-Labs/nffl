@@ -4,6 +4,15 @@ sidebar_position: 2
 
 # Setup
 
+:::info
+
+While the opt-in process for NEAR SFFL is currently underway - see
+[Registration](./registration) - the testnet is not completely operational
+just yet, so it's currently not required that operators run a node. Keep an
+eye out for updates!
+
+:::
+
 This guide will walk you through the steps required to set up your operator
 node on the NEAR SFFL testnet. The testnet serves as a sandbox environment
 for testing and development, allowing you to test both the AVS smart contracts
