@@ -262,8 +262,8 @@ loop:
 			}
 
 			if mqBlock.Block.Header().Root != rollupHeader.Root {
-				// TODO: Do smth here
 				attestor.logger.Warnf("StateRoot from MQ doesn't match one from Node")
+				break loop
 			}
 
 			attestor.logger.Info("MQ block found", "height", mqBlock.Block.Header().Number.Uint64(), "rollupId", mqBlock.RollupId)
