@@ -22,6 +22,7 @@ import (
 	optypes "github.com/NethermindEth/near-sffl/operator/types"
 	"github.com/ethereum/go-ethereum/accounts/abi/bind"
 	"github.com/ethereum/go-ethereum/common"
+	"github.com/ethereum/go-ethereum/crypto"
 	"github.com/urfave/cli"
 )
 
@@ -178,11 +179,14 @@ func plugin(ctx *cli.Context) {
 			return
 		}
 
+		operatorId := blsKeypair.GetOperatorID()
+
 		// Register with registry coordination
 		quorumNumbers := []byte{0}
 		socket := "Not Needed"
 		sigValidForSeconds := int64(1_000_000)
-		operatorToAvsRegistrationSigSalt := [32]byte{123}
+		operatorToAvsRegistrationSigSalt := [32]byte{}
+		copy(operatorToAvsRegistrationSigSalt[:], crypto.Keccak256([]byte("sffl"), operatorId[:], quorumNumbers, []byte(time.Now().String())))
 		operatorToAvsRegistrationSigExpiry := big.NewInt(int64(time.Now().Unix()) + sigValidForSeconds)
 		logger.Infof("Registering with registry coordination with quorum numbers %v and socket %s", quorumNumbers, socket)
 		r, err := clients.AvsRegistryChainWriter.RegisterOperatorInQuorumWithAVSRegistryCoordinator(
