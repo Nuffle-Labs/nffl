@@ -44,3 +44,10 @@ just yet.
 | SFFLRegistryRollup | [`0xc8B72887e184D033595e060A749212509Ec1B6C8`](https://sepolia-optimism.etherscan.io/address/0xc8B72887e184D033595e060A749212509Ec1B6C8) | [`0x08aA5922785793A90A472A0a581833e74db8939a`](https://sepolia-optimism.etherscan.io/address/0x08aA5922785793A90A472A0a581833e74db8939a) |
 | ProxyAdmin         | -                                                                                                                                        | [`0x7D8d41b1b983b720a3970cA5902c5381cB36b098`](https://sepolia-optimism.etherscan.io/address/0x7D8d41b1b983b720a3970cA5902c5381cB36b098) |
 | PauserRegistry     | -                                                                                                                                        | [`0xA782B1fc36666964a544a64F5559bf6aA75E73C0`](https://sepolia-optimism.etherscan.io/address/0xA782B1fc36666964a544a64F5559bf6aA75E73C0) |
+
+### NEAR Testnet
+
+| Network          | NEAR DA Contract                                                                                   |
+| ---------------- | -------------------------------------------------------------------------------------------------- |
+| Arbitrum Sepolia | [`sfrelayer421614-1.testnet`](https://testnet.nearblocks.io/address/sfrelayer421614-1.testnet)     |
+| Optimism Sepolia | [`sfrelayer11155420-1.testnet`](https://testnet.nearblocks.io/address/sfrelayer11155420-1.testnet) |
