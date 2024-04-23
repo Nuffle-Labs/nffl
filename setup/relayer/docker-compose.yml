@@ -1,16 +1,31 @@
 version: "3"
 
 services:
-  relayer:
+  relayer_421614:
     image: ghcr.io/nethermindeth/near-sffl/relayer:${SFFL_RELEASE}
-    container_name: near-sffl-relayer
+    container_name: near-sffl-relayer-421614
     volumes:
       - ${NEAR_KEYS_DIR}:/root/.near-credentials
     command:
       - --rpc-url
-      - ${ROLLUP_RPC_URL}
+      - wss://arbitrum-sepolia-rpc.publicnode.com
       - --da-account-id
-      - ${NEAR_DA_ACCOUNT_ID}
+      - sfrelayer421614-1.testnet
+      - --key-path
+      - /root/.near-credentials/${NEAR_CHAIN_ID}/${NEAR_DA_ACCOUNT_ID}.json
+      - --network
+      - ${NEAR_RPC_URL}
+
+  relayer_11155420:
+    image: ghcr.io/nethermindeth/near-sffl/relayer:${SFFL_RELEASE}
+    container_name: near-sffl-relayer-11155420
+    volumes:
+      - ${NEAR_KEYS_DIR}:/root/.near-credentials
+    command:
+      - --rpc-url
+      - wss://optimism-sepolia-rpc.publicnode.com
+      - --da-account-id
+      - sfrelayer11155420-1.testnet
       - --key-path
       - /root/.near-credentials/${NEAR_CHAIN_ID}/${NEAR_DA_ACCOUNT_ID}.json
       - --network
