@@ -30,10 +30,9 @@ var (
 	unknownRollupIdError = errors.New("notify: rollupId unknown")
 )
 
-func createEthClient(rpcUrl string, enableMetrics bool, registry *prometheus.Registry, logger sdklogging.Logger) (eth.Client, error) {
-	if enableMetrics {
-		rpcCallsCollector := rpccalls.NewCollector(rpcUrl, registry)
-		ethClient, err := eth.NewInstrumentedClient(rpcUrl, rpcCallsCollector)
+func createEthClient(rpcUrl string, collector *rpccalls.Collector, logger sdklogging.Logger) (eth.Client, error) {
+	if collector != nil {
+		ethClient, err := eth.NewInstrumentedClient(rpcUrl, collector)
 		if err != nil {
 			logger.Error("Cannot create http ethclient", "err", err)
 			return nil, err
@@ -63,11 +62,12 @@ type Attestorer interface {
 // In case same block doesn't arrive from MQ block is signed and sent
 // If it arrives it is compared and then sent to Aggregator
 type Attestor struct {
-	signedRootC     chan messages.SignedStateRootUpdateMessage
-	rollupIdsToUrls map[uint32]string
-	clients         map[uint32]eth.Client
-	notifier        Notifier
-	consumer        *consumer.Consumer
+	signedRootC        chan messages.SignedStateRootUpdateMessage
+	rollupIdsToUrls    map[uint32]string
+	clients            map[uint32]eth.Client
+	rpcCallsCollectors map[uint32]*rpccalls.Collector
+	notifier           Notifier
+	consumer           *consumer.Consumer
 
 	registry   *prometheus.Registry
 	config     *optypes.NodeConfig
@@ -99,12 +99,18 @@ func NewAttestor(config *optypes.NodeConfig, blsKeypair *bls.KeyPair, operatorId
 	}
 
 	for rollupId, url := range config.RollupIdsToRpcUrls {
-		client, err := createEthClient(url, config.EnableMetrics, registry, logger)
+		var rpcCallsCollector *rpccalls.Collector
+		if config.EnableMetrics {
+			rpcCallsCollector = rpccalls.NewCollector(url, registry)
+		}
+
+		client, err := createEthClient(url, rpcCallsCollector, logger)
 		if err != nil {
 			return nil, err
 		}
 
 		attestor.clients[rollupId] = client
+		attestor.rpcCallsCollectors[rollupId] = rpcCallsCollector
 	}
 
 	return &attestor, nil
@@ -176,7 +182,7 @@ func (attestor *Attestor) reconnectClient(rollupId uint32) (eth.Client, error) {
 	for i := 0; i < RECONNECTION_ATTEMPTS; i++ {
 		<-time.After(RECONNECTION_DELAY)
 
-		client, err = createEthClient(attestor.rollupIdsToUrls[rollupId], attestor.config.EnableMetrics, attestor.registry, attestor.logger)
+		client, err = createEthClient(attestor.rollupIdsToUrls[rollupId], attestor.rpcCallsCollectors[rollupId], attestor.logger)
 		if err == nil {
 			return client, nil
 		}
