@@ -9,8 +9,8 @@ sidebar_position: 5
 :::info
 
 While the opt-in process for NEAR SFFL is currently underway - see
-[Registration](./registration) - the testnet is not completely operational
-just yet.
+[Registration](./operator/registration) - the testnet is not completely
+operational just yet.
 
 :::
 

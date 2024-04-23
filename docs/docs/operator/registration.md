@@ -127,8 +127,8 @@ rollup_ids_to_rpc_urls:
 token_strategy_addr: 0x0000000000000000000000000000000000000000
 ```
 
-You'll need to refer to the [setup page](/docs/operator/setup) again later
-before running the operator for other important fields.
+You'll need to refer to the [Setup](./setup) again before running the node for
+other important fields.
 
 ### Step 6: Run the registration script
 
