@@ -11,7 +11,7 @@ echo "Using operator plugin to opt-in into NEAR SFFL"
 
 docker run --rm \
   -v $(pwd):/near-sffl/ \
-  -e OPERATOR_ECDSA_KEY_PASSWORD=$OPERATOR_ECDSA_KEY_PASSWORD \
-  -e OPERATOR_BLS_KEY_PASSWORD=$OPERATOR_BLS_KEY_PASSWORD \
+  -e ECDSA_KEY_PASSWORD=$OPERATOR_ECDSA_KEY_PASSWORD \
+  -e BLS_KEY_PASSWORD=$OPERATOR_BLS_KEY_PASSWORD \
   -e CONFIG=/app/config.yaml \
   ghcr.io/nethermindeth/near-sffl/operator-plugin:latest --config /near-sffl/config/operator.yaml --operation-type opt-in
