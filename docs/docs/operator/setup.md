@@ -220,7 +220,15 @@ This step is only available once the testnet deployment is completely made.
 
 This is the final step!
 
-Stop the previous execution with `Ctrl+C`. Then, run the following:
+Stop the previous execution with `Ctrl+C`. Then, update your repository state:
+```
+git stash
+git pull
+git stash pop
+```
+
+After that, double-check your `.env` and `config/operator.yaml` files, then
+simply run:
 ```
 source .env
 docker compose --profile indexer --profile operator pull
