@@ -14,4 +14,5 @@ docker run --rm \
   -e ECDSA_KEY_PASSWORD=$OPERATOR_ECDSA_KEY_PASSWORD \
   -e BLS_KEY_PASSWORD=$OPERATOR_BLS_KEY_PASSWORD \
   -e CONFIG=/app/config.yaml \
+  --pull=always \
   ghcr.io/nethermindeth/near-sffl/operator-plugin:latest --config /near-sffl/config/operator.yaml --operation-type opt-in
