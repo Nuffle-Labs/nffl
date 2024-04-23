@@ -2,6 +2,7 @@ package relayer
 
 import (
 	"context"
+	"errors"
 	"strings"
 	"time"
 
@@ -18,6 +19,7 @@ const (
 	NAMESPACE_ID               = 1
 	SUBMIT_BLOCK_INTERVAL      = 1500 * time.Millisecond
 	SUBMIT_BLOCK_RETRY_TIMEOUT = 1 * time.Second
+	SUBMIT_BLOCK_RETRIES       = 3
 )
 
 type Relayer struct {
@@ -60,47 +62,60 @@ func (r *Relayer) Start(ctx context.Context) error {
 	for {
 		select {
 		case blocks := <-blocksToSubmit:
-			blockNumbers := make([]uint64, len(blocks))
-			for i, block := range blocks {
-				blockNumbers[i] = block.Number().Uint64()
-			}
-			r.logger.Info("Submitting blocks to NEAR", "numbers", blockNumbers)
-
-			encodedBlocks, err := rlp.EncodeToBytes(blocks)
+			err := r.handleBlocks(blocks, ticker)
 			if err != nil {
-				r.logger.Error("Error RLP encoding block", "err", err.Error())
-				continue
+				r.logger.Error("Error handling blocks", "err", err)
 			}
-
-			out, err := r.nearClient.ForceSubmit(encodedBlocks)
-			if err != nil {
-				r.logger.Error("Error submitting block to NEAR", "err", err)
-
-				if strings.Contains(err.Error(), "InvalidNonce") || strings.Contains(err.Error(), "Expired") {
-					r.logger.Info("Invalid nonce or expired, resubmitting", "err", err)
-					time.Sleep(SUBMIT_BLOCK_RETRY_TIMEOUT)
-
-					out, err = r.nearClient.ForceSubmit(encodedBlocks)
-					if err != nil {
-						r.logger.Error("Error resubmitting block to NEAR", "err", err)
-					} else {
-						r.logger.Info(string(out))
-					}
-				}
-
-				if err != nil {
-					r.logger.Error("Error submitting block to NEAR", "err", err)
-					return err
-				}
-			} else {
-				r.logger.Info(string(out))
-			}
-
-			ticker.Reset(SUBMIT_BLOCK_INTERVAL)
 		case <-ctx.Done():
 			return ctx.Err()
 		}
 	}
+}
+
+func (r *Relayer) handleBlocks(blocks []*ethtypes.Block, ticker *time.Ticker) error {
+	defer ticker.Reset(SUBMIT_BLOCK_INTERVAL)
+
+	blockNumbers := make([]uint64, len(blocks))
+	for i, block := range blocks {
+		blockNumbers[i] = block.Number().Uint64()
+	}
+	r.logger.Info("Submitting blocks to NEAR", "numbers", blockNumbers)
+
+	encodedBlocks, err := rlp.EncodeToBytes(blocks)
+	if err != nil {
+		r.logger.Error("Error RLP encoding block", "err", err.Error())
+		return err
+	}
+
+	out, err := r.submitEncodedBlocks(encodedBlocks)
+	if err != nil {
+		r.logger.Error("Error submitting encoded blocks", "err", err)
+		return err
+	}
+
+	r.logger.Info(string(out))
+
+	return nil
+}
+
+func (r *Relayer) submitEncodedBlocks(encodedBlocks []byte) ([]byte, error) {
+	for i := 0; i < SUBMIT_BLOCK_RETRIES; i++ {
+		out, err := r.nearClient.ForceSubmit(encodedBlocks)
+		if err == nil {
+			return out, nil
+		}
+
+		r.logger.Error("Error submitting blocks to NEAR, resubmitting", "err", err)
+
+		if strings.Contains(err.Error(), "InvalidNonce") || strings.Contains(err.Error(), "Expired") {
+			r.logger.Info("Invalid nonce or expired, resubmitting", "err", err)
+			time.Sleep(SUBMIT_BLOCK_RETRY_TIMEOUT)
+		} else {
+			return nil, errors.New("unknown error while submitting block to NEAR")
+		}
+	}
+
+	return nil, errors.New("failed to submit blocks to NEAR after retries")
 }
 
 func (r *Relayer) listenToBlocks(ctx context.Context, blockBatchC chan []*ethtypes.Block, ticker *time.Ticker) {
