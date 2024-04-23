@@ -87,15 +87,16 @@ func NewAttestor(config *optypes.NodeConfig, blsKeypair *bls.KeyPair, operatorId
 	}, logger)
 
 	attestor := Attestor{
-		signedRootC: make(chan messages.SignedStateRootUpdateMessage),
-		clients:     make(map[uint32]eth.Client),
-		logger:      logger,
-		notifier:    NewNotifier(),
-		consumer:    consumer,
-		blsKeypair:  blsKeypair,
-		operatorId:  operatorId,
-		registry:    registry,
-		config:      config,
+		signedRootC:        make(chan messages.SignedStateRootUpdateMessage),
+		clients:            make(map[uint32]eth.Client),
+		rpcCallsCollectors: make(map[uint32]*rpccalls.Collector),
+		logger:             logger,
+		notifier:           NewNotifier(),
+		consumer:           consumer,
+		blsKeypair:         blsKeypair,
+		operatorId:         operatorId,
+		registry:           registry,
+		config:             config,
 	}
 
 	for rollupId, url := range config.RollupIdsToRpcUrls {
