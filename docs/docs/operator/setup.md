@@ -38,9 +38,13 @@ lscpu | grep -P '(?=.*avx )(?=.*sse4.2 )(?=.*cx16 )(?=.*popcnt )' > /dev/null \
 
 ## Steps
 
-> At this initial testnet stage, operators need to be whitelisted. If you are
-> interested and have not already been whitelisted, please contact the SFFL
-> team!
+:::note
+
+At this initial testnet stage, operators need to be whitelisted. If you are
+interested and have not already been whitelisted, please contact the SFFL
+team!
+
+:::
 
 ### Step 1: Complete EigenLayer Operator Registration
 
@@ -199,8 +203,11 @@ NEAR.
 
 ### Step 7: Run your operator
 
-> **Important:** This step is only available once the testnet deployment is
-> made.
+:::info
+
+This step is only available once the testnet deployment is completely made.
+
+:::
 
 This is the final step!
 

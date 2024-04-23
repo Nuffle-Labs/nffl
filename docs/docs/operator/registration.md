@@ -16,9 +16,13 @@ though, is not hardware-intensive.
 
 ## Steps
 
-> At this initial testnet stage, operators need to be whitelisted. If you are
-> interested and have not already been whitelisted, please contact the SFFL
-> team!
+:::note
+
+At this initial testnet stage, operators need to be whitelisted. If you are
+interested and have not already been whitelisted, please contact the SFFL
+team!
+
+:::
 
 ### Step 1: Complete EigenLayer Operator Registration
 
