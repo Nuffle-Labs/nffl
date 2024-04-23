@@ -14,6 +14,7 @@ import (
 	ethtypes "github.com/ethereum/go-ethereum/core/types"
 	"github.com/prometheus/client_golang/prometheus"
 
+	"github.com/NethermindEth/near-sffl/core"
 	"github.com/NethermindEth/near-sffl/core/types/messages"
 	"github.com/NethermindEth/near-sffl/operator/consumer"
 	optypes "github.com/NethermindEth/near-sffl/operator/types"
@@ -51,6 +52,7 @@ func createEthClient(rpcUrl string, collector *rpccalls.Collector, logger sdklog
 }
 
 type Attestorer interface {
+	core.Metricable
 	Start(ctx context.Context) error
 	Close() error
 	GetSignedRootC() <-chan messages.SignedStateRootUpdateMessage
@@ -69,17 +71,19 @@ type Attestor struct {
 	notifier           Notifier
 	consumer           *consumer.Consumer
 
-	registry   *prometheus.Registry
 	config     *optypes.NodeConfig
 	blsKeypair *bls.KeyPair
 	operatorId bls.OperatorId
 
-	logger sdklogging.Logger
+	logger   sdklogging.Logger
+	listener EventListener
+	// TODO(edwin): remove after https://github.com/Layr-Labs/eigensdk-go/pull/117 merged
+	registry *prometheus.Registry
 }
 
-func NewAttestor(config *optypes.NodeConfig, blsKeypair *bls.KeyPair, operatorId bls.OperatorId, logger sdklogging.Logger) (*Attestor, error) {
-	registry := prometheus.NewRegistry()
+var _ core.Metricable = (*Attestor)(nil)
 
+func NewAttestor(config *optypes.NodeConfig, blsKeypair *bls.KeyPair, operatorId bls.OperatorId, registry *prometheus.Registry, logger sdklogging.Logger) (*Attestor, error) {
 	consumer := consumer.NewConsumer(consumer.ConsumerConfig{
 		Addr:      config.NearDaIndexerRmqIpPortAddress,
 		RollupIds: config.NearDaIndexerRollupIds,
@@ -96,6 +100,7 @@ func NewAttestor(config *optypes.NodeConfig, blsKeypair *bls.KeyPair, operatorId
 		blsKeypair:         blsKeypair,
 		operatorId:         operatorId,
 		registry:           registry,
+		listener:    &SelectiveEventListener{},
 		config:             config,
 	}
 
@@ -115,6 +120,11 @@ func NewAttestor(config *optypes.NodeConfig, blsKeypair *bls.KeyPair, operatorId
 	}
 
 	return &attestor, nil
+}
+
+func (attestor *Attestor) WithMetrics(registry *prometheus.Registry) {
+	attestor.listener = MakeAttestorMetrics(registry)
+	attestor.consumer.WithMetrics(registry)
 }
 
 func (attestor *Attestor) Start(ctx context.Context) error {

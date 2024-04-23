@@ -17,10 +17,12 @@ import (
 	oppubkeysserv "github.com/Layr-Labs/eigensdk-go/services/operatorpubkeys"
 	"github.com/Layr-Labs/eigensdk-go/signerv2"
 	sdktypes "github.com/Layr-Labs/eigensdk-go/types"
+	"github.com/prometheus/client_golang/prometheus"
 
 	"github.com/NethermindEth/near-sffl/aggregator/database"
 	"github.com/NethermindEth/near-sffl/aggregator/types"
 	taskmanager "github.com/NethermindEth/near-sffl/contracts/bindings/SFFLTaskManager"
+	"github.com/NethermindEth/near-sffl/core"
 	"github.com/NethermindEth/near-sffl/core/chainio"
 	"github.com/NethermindEth/near-sffl/core/config"
 	coretypes "github.com/NethermindEth/near-sffl/core/types"
@@ -79,6 +81,10 @@ type Aggregator struct {
 	rollupBroadcaster    RollupBroadcasterer
 	client               eth.Client
 
+	// TODO(edwin): once rpc & rest decouple from aggregator fome it with them
+	rpcListener  RpcEventListener
+	restListener RestEventListener
+
 	taskBlsAggregationService              blsagg.BlsAggregationService
 	stateRootUpdateBlsAggregationService   MessageBlsAggregationService
 	operatorSetUpdateBlsAggregationService MessageBlsAggregationService
@@ -92,6 +98,8 @@ type Aggregator struct {
 	operatorSetUpdates                     map[coretypes.MessageDigest]messages.OperatorSetUpdateMessage
 	operatorSetUpdatesLock                 sync.RWMutex
 }
+
+var _ core.Metricable = (*Aggregator)(nil)
 
 // NewAggregator creates a new Aggregator with the provided config.
 // TODO: Remove this context once OperatorPubkeysServiceInMemory's API is
@@ -153,7 +161,7 @@ func NewAggregator(ctx context.Context, config *config.Config, logger logging.Lo
 		RegistryCoordinatorAddr:    config.SFFLRegistryCoordinatorAddr.String(),
 		OperatorStateRetrieverAddr: config.OperatorStateRetrieverAddr.String(),
 		AvsName:                    avsName,
-		PromMetricsIpPortAddress:   ":9090",
+		PromMetricsIpPortAddress:   config.MetricsIpPortAddress,
 	}
 	clients, err := clients.BuildAll(chainioConfig, config.EcdsaPrivateKey, logger)
 	if err != nil {
@@ -179,7 +187,7 @@ func NewAggregator(ctx context.Context, config *config.Config, logger logging.Lo
 	stateRootUpdateBlsAggregationService := NewMessageBlsAggregatorService(avsRegistryService, clients.EthHttpClient, logger)
 	operatorSetUpdateBlsAggregationService := NewMessageBlsAggregatorService(avsRegistryService, clients.EthHttpClient, logger)
 
-	return &Aggregator{
+	agg := &Aggregator{
 		logger:                                 logger,
 		serverIpPortAddr:                       config.AggregatorServerIpPortAddr,
 		restServerIpPortAddr:                   config.AggregatorRestServerIpPortAddr,
@@ -196,7 +204,17 @@ func NewAggregator(ctx context.Context, config *config.Config, logger logging.Lo
 		taskResponses:                          make(map[coretypes.TaskIndex]map[sdktypes.TaskResponseDigest]messages.CheckpointTaskResponse),
 		stateRootUpdates:                       make(map[coretypes.MessageDigest]messages.StateRootUpdateMessage),
 		operatorSetUpdates:                     make(map[coretypes.MessageDigest]messages.OperatorSetUpdateMessage),
-	}, nil
+	}
+	agg.WithMetrics(clients.PrometheusRegistry)
+
+	return agg, nil
+}
+
+func (agg *Aggregator) WithMetrics(registry *prometheus.Registry) {
+	agg.restListener = MakeRestServerMetrics(registry)
+	agg.rpcListener = MakeRpcServerMetrics(registry)
+
+	agg.msgDb.WithMetrics(registry)
 }
 
 func (agg *Aggregator) Start(ctx context.Context) error {

@@ -9,7 +9,10 @@ import (
 
 	"github.com/Layr-Labs/eigensdk-go/logging"
 	"github.com/ethereum/go-ethereum/core/types"
+	"github.com/prometheus/client_golang/prometheus"
 	rmq "github.com/rabbitmq/amqp091-go"
+
+	"github.com/NethermindEth/near-sffl/core"
 )
 
 const (
@@ -68,8 +71,11 @@ type Consumer struct {
 	channel           *rmq.Channel
 	chanClosedErrC    <-chan *rmq.Error
 
-	logger logging.Logger
+	logger        logging.Logger
+	eventListener EventListener
 }
+
+var _ core.Metricable = (*Consumer)(nil)
 
 func NewConsumer(config ConsumerConfig, logger logging.Logger) *Consumer {
 	ctx, cancel := context.WithCancel(context.Background())
@@ -80,11 +86,16 @@ func NewConsumer(config ConsumerConfig, logger logging.Logger) *Consumer {
 		receivedBlocksC:   make(chan BlockData),
 		contextCancelFunc: cancel,
 		logger:            logger,
+		eventListener:     &SelectiveListener{},
 	}
 
 	go consumer.Reconnect(config.Addr, ctx)
 
 	return &consumer
+}
+
+func (consumer *Consumer) WithMetrics(registry *prometheus.Registry) {
+	consumer.eventListener = MakeConsumerMetrics(registry)
 }
 
 func (consumer *Consumer) Reconnect(addr string, ctx context.Context) {
@@ -191,7 +202,7 @@ func (consumer *Consumer) setupChannel(conn *rmq.Connection, ctx context.Context
 		return err
 	}
 
-	listener := NewQueuesListener(consumer.receivedBlocksC, consumer.logger)
+	listener := NewQueuesListener(consumer.receivedBlocksC, consumer.eventListener, consumer.logger)
 	for _, rollupId := range consumer.rollupIds {
 		queue, err := channel.QueueDeclare(getQueueName(rollupId, consumer.id), true, false, false, false, nil)
 		if err != nil {

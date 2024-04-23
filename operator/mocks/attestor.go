@@ -4,7 +4,9 @@ import (
 	"context"
 
 	"github.com/Layr-Labs/eigensdk-go/crypto/bls"
+	"github.com/prometheus/client_golang/prometheus"
 
+	"github.com/NethermindEth/near-sffl/core"
 	messages "github.com/NethermindEth/near-sffl/core/types/messages"
 	"github.com/NethermindEth/near-sffl/operator/attestor"
 )
@@ -17,6 +19,8 @@ type MockAttestor struct {
 	signedRootC chan messages.SignedStateRootUpdateMessage
 }
 
+var _ core.Metricable = (*MockAttestor)(nil)
+
 func NewMockAttestor(blsKeypair *bls.KeyPair, operatorId bls.OperatorId) *MockAttestor {
 	consumer := NewMockConsumer()
 	return &MockAttestor{
@@ -26,6 +30,8 @@ func NewMockAttestor(blsKeypair *bls.KeyPair, operatorId bls.OperatorId) *MockAt
 		signedRootC: make(chan messages.SignedStateRootUpdateMessage),
 	}
 }
+
+func (mockAttestor *MockAttestor) WithMetrics(_ *prometheus.Registry) {}
 
 func (mockAttestor *MockAttestor) Start(ctx context.Context) error {
 	go func() {

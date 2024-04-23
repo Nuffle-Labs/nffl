@@ -49,11 +49,12 @@ type QueuesListener struct {
 	queueDeliveryCs    map[uint32]<-chan rmq.Delivery
 	queueDeliveryMutex sync.Mutex
 
-	logger logging.Logger
+	logger        logging.Logger
+	eventListener EventListener
 }
 
-func NewQueuesListener(receivedBlocksC chan<- BlockData, logger logging.Logger) *QueuesListener {
-	listener := &QueuesListener{
+func NewQueuesListener(receivedBlocksC chan<- BlockData, eventListener EventListener, logger logging.Logger) QueuesListener {
+	listener := QueuesListener{
 		receivedBlocksC: receivedBlocksC,
 		queueDeliveryCs: make(map[uint32]<-chan rmq.Delivery),
 		logger:          logger,

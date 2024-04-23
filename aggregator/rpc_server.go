@@ -43,6 +43,8 @@ func (agg *Aggregator) startServer() error {
 // rpc framework forces a reply type to exist, so we put bool as a placeholder
 func (agg *Aggregator) ProcessSignedCheckpointTaskResponse(signedCheckpointTaskResponse *messages.SignedCheckpointTaskResponse, reply *bool) error {
 	agg.logger.Infof("Received signed task response: %#v", signedCheckpointTaskResponse)
+	agg.rpcListener.IncSignedCheckpointTaskResponse()
+
 	taskIndex := signedCheckpointTaskResponse.TaskResponse.ReferenceTaskIndex
 	taskResponseDigest, err := signedCheckpointTaskResponse.TaskResponse.Digest()
 	if err != nil {
@@ -72,6 +74,8 @@ func (agg *Aggregator) ProcessSignedCheckpointTaskResponse(signedCheckpointTaskR
 
 func (agg *Aggregator) ProcessSignedStateRootUpdateMessage(signedStateRootUpdateMessage *messages.SignedStateRootUpdateMessage, reply *bool) error {
 	agg.logger.Infof("Received signed state root update message: %#v", signedStateRootUpdateMessage)
+	agg.rpcListener.IncSignedStateRootUpdateMessage()
+
 	messageDigest, err := signedStateRootUpdateMessage.Message.Digest()
 	if err != nil {
 		agg.logger.Error("Failed to get message digest", "err", err)
@@ -97,6 +101,8 @@ func (agg *Aggregator) ProcessSignedStateRootUpdateMessage(signedStateRootUpdate
 
 func (agg *Aggregator) ProcessSignedOperatorSetUpdateMessage(signedOperatorSetUpdateMessage *messages.SignedOperatorSetUpdateMessage, reply *bool) error {
 	agg.logger.Infof("Received signed operator set update message: %#v", signedOperatorSetUpdateMessage)
+	agg.rpcListener.IncSignedOperatorSetUpdateMessage()
+
 	messageDigest, err := signedOperatorSetUpdateMessage.Message.Digest()
 	if err != nil {
 		agg.logger.Error("Failed to get message digest", "err", err)
