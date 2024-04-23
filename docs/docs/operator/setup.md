@@ -131,8 +131,10 @@ enable_metrics: true
 node_api_ip_port_address: near-sffl-operator:9010
 enable_node_api: true
 
-# Whether to try and register the operator in the AVS and in EL on startup
-# If set, it will not re-register the operator if already registered
+# Whether to try and register the operator in the AVS and in EL on startup.
+# It will not re-register the operator if already registered.
+# If unset, the operator will not be registered on startup! You'll need to
+# manually register the operator - not recommended
 register_operator_on_startup: true
 
 # RMQ address and indexer rollup IDs
