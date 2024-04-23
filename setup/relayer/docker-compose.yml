@@ -12,7 +12,7 @@ services:
       - --da-account-id
       - sfrelayer421614-1.testnet
       - --key-path
-      - /root/.near-credentials/${NEAR_CHAIN_ID}/${NEAR_DA_ACCOUNT_ID}.json
+      - /root/.near-credentials/${NEAR_CHAIN_ID}/sfrelayer421614-1.testnet.json
       - --network
       - ${NEAR_RPC_URL}
 
@@ -27,6 +27,6 @@ services:
       - --da-account-id
       - sfrelayer11155420-1.testnet
       - --key-path
-      - /root/.near-credentials/${NEAR_CHAIN_ID}/${NEAR_DA_ACCOUNT_ID}.json
+      - /root/.near-credentials/${NEAR_CHAIN_ID}/sfrelayer11155420-1.testnet.json
       - --network
       - ${NEAR_RPC_URL}
