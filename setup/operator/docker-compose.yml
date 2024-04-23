@@ -42,6 +42,7 @@ services:
     command: 
       - --config
       - /near-sffl/config/indexer.yaml
+    restart: unless-stopped
     networks:
       - near-sffl
 
@@ -63,6 +64,7 @@ services:
       - OPERATOR_BLS_KEY_PASSWORD=${OPERATOR_BLS_KEY_PASSWORD}
       - OPERATOR_ECDSA_KEY_PASSWORD=${OPERATOR_ECDSA_KEY_PASSWORD}
     command: --config config/operator.yaml
+    restart: unless-stopped
     networks:
       - near-sffl
 
