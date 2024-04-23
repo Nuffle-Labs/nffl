@@ -1,10 +1,17 @@
 ---
-sidebar_position: 3
+sidebar_position: 2
 ---
 
-# Operator Setup
+# Setup
 
-## Introduction
+:::info
+
+While the opt-in process for NEAR SFFL is currently underway - see
+[Registration](./registration) - the testnet is not completely operational
+just yet, so it's currently not required that operators run a node. Keep an
+eye out for updates!
+
+:::
 
 This guide will walk you through the steps required to set up your operator
 node on the NEAR SFFL testnet. The testnet serves as a sandbox environment
@@ -38,11 +45,15 @@ lscpu | grep -P '(?=.*avx )(?=.*sse4.2 )(?=.*cx16 )(?=.*popcnt )' > /dev/null \
   || echo "Not supported"
 ```
 
-## Registration
+## Steps
 
-> At this initial testnet stage, operators need to be whitelisted. If you are
-> interested and have not already been whitelisted, please contact the SFFL
-> team!
+:::note
+
+At this initial testnet stage, operators need to be whitelisted. If you are
+interested and have not already been whitelisted, please contact the SFFL
+team!
+
+:::
 
 ### Step 1: Complete EigenLayer Operator Registration
 
@@ -109,8 +120,8 @@ production: false
 operator_address: 0xD5A0359da7B310917d7760385516B2426E86ab7f
 
 # AVS contract addresses
-avs_registry_coordinator_address: 0x692A6ee6eC6f857144d222832fB7Ff44216BC0A7
-operator_state_retriever_address: 0xDb2B0ac0964809bCc041d1d687bCDfe6210a8E25
+avs_registry_coordinator_address: 0x0069A298e68c09B047E5447b3b762E42114a99a2
+operator_state_retriever_address: 0x8D0b27Df027bc5C41855Da352Da4B5B2C406c1F0
 
 # AVS network RPCs
 # *Important*: The WS RPC must allow event subscriptions. As Public Node
@@ -119,16 +130,16 @@ eth_rpc_url: https://ethereum-holesky-rpc.publicnode.com
 eth_ws_url: wss://ethereum-holesky-rpc.publicnode.com # You should change this!
 
 # EigenLayer ECDSA and BLS private key paths
-ecdsa_private_key_store_path: keys/ecdsa.json
-bls_private_key_store_path: keys/bls.json
+ecdsa_private_key_store_path: /near-sffl/config/keys/ecdsa.json
+bls_private_key_store_path: /near-sffl/config/keys/bls.json
 
 # Aggregator server IP and port
 aggregator_server_ip_port_address: near-sffl-aggregator:8090
 
 # Operator EigenLayer metrics server IP and port
-eigen_metrics_ip_port_address: near-sffl-operator:9090
+eigen_metrics_ip_port_address: 0.0.0.0:9090
 enable_metrics: true
-node_api_ip_port_address: near-sffl-operator:9010
+node_api_ip_port_address: 0.0.0.0:9010
 enable_node_api: true
 
 # Whether to try and register the operator in the AVS and in EL on startup.
@@ -201,12 +212,23 @@ NEAR.
 
 ### Step 7: Run your operator
 
-> **Important:** This step is only available once the testnet deployment is
-> made.
+:::info
+
+This step is only available once the testnet deployment is completely made.
+
+:::
 
 This is the final step!
 
-Stop the previous execution with `Ctrl+C`. Then, run the following:
+Stop the previous execution with `Ctrl+C`. Then, update your repository state:
+```
+git stash
+git pull
+git stash pop
+```
+
+After that, double-check your `.env` and `config/operator.yaml` files, then
+simply run:
 ```
 source .env
 docker compose --profile indexer --profile operator pull

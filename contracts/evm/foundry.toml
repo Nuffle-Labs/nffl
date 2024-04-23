@@ -4,6 +4,8 @@ out = "out"
 libs = ["lib"]
 fs_permissions = [{ access = "read-write", path = "./"}]
 
+solc_version = "0.8.12"
+
 # This is a low optimizer_runs setting since the `RegistryCoordinator`
 # contract size is really high and we must extend it in SFFL. It would be
 # important to increase this value in the future, especially in a mainnet
