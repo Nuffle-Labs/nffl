@@ -39,3 +39,7 @@ aggregator.db
 
 # Dotenv files
 .env
+
+# Operator setup keys
+setup/operator/config/keys/bls.json
+setup/operator/config/keys/ecdsa.json
