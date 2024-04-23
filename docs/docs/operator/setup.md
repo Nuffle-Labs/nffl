@@ -1,10 +1,8 @@
 ---
-sidebar_position: 3
+sidebar_position: 2
 ---
 
-# Operator Setup
-
-## Introduction
+# Setup
 
 This guide will walk you through the steps required to set up your operator
 node on the NEAR SFFL testnet. The testnet serves as a sandbox environment
@@ -38,7 +36,7 @@ lscpu | grep -P '(?=.*avx )(?=.*sse4.2 )(?=.*cx16 )(?=.*popcnt )' > /dev/null \
   || echo "Not supported"
 ```
 
-## Registration
+## Steps
 
 > At this initial testnet stage, operators need to be whitelisted. If you are
 > interested and have not already been whitelisted, please contact the SFFL
