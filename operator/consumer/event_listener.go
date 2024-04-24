@@ -20,13 +20,13 @@ type SelectiveListener struct {
 
 func (l *SelectiveListener) OnArrival() {
 	if l.OnArrivalCb != nil {
-		l.OnArrival()
+		l.OnArrivalCb()
 	}
 }
 
 func (l *SelectiveListener) OnFormatError() {
 	if l.OnFormatErrorCb != nil {
-		l.OnFormatError()
+		l.OnFormatErrorCb()
 	}
 }
 

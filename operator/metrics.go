@@ -51,7 +51,6 @@ func MakeOperatorMetrics(registry *prometheus.Registry) OperatorEventListener {
 }
 
 func MakeRpcClientMetrics(registry *prometheus.Registry) RpcClientEventListener {
-
 	numMessagesReceived := promauto.With(registry).NewCounter(
 		prometheus.CounterOpts{
 			Namespace: OperatorNamespace,

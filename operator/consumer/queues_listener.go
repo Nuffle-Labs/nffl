@@ -53,14 +53,15 @@ type QueuesListener struct {
 	eventListener EventListener
 }
 
-func NewQueuesListener(receivedBlocksC chan<- BlockData, eventListener EventListener, logger logging.Logger) QueuesListener {
+func NewQueuesListener(receivedBlocksC chan<- BlockData, eventListener EventListener, logger logging.Logger) *QueuesListener {
 	listener := QueuesListener{
 		receivedBlocksC: receivedBlocksC,
 		queueDeliveryCs: make(map[uint32]<-chan rmq.Delivery),
 		logger:          logger,
+		eventListener:   eventListener,
 	}
 
-	return listener
+	return &listener
 }
 
 func (l *QueuesListener) Add(ctx context.Context, rollupId uint32, rollupDataC <-chan rmq.Delivery) error {
@@ -93,12 +94,15 @@ func (l *QueuesListener) listen(ctx context.Context, rollupId uint32, rollupData
 				return
 			}
 			l.logger.Info("New delivery", "rollupId", rollupId)
+			l.eventListener.OnArrival()
 
 			publishPayload := new(PublishPayload)
 			err := borsh.Deserialize(publishPayload, d.Body)
 			if err != nil {
 				l.logger.Error("Error deserializing payload")
+				l.eventListener.OnFormatError()
 				d.Reject(false)
+
 				continue
 			}
 
@@ -106,7 +110,9 @@ func (l *QueuesListener) listen(ctx context.Context, rollupId uint32, rollupData
 			err = borsh.Deserialize(submitRequest, publishPayload.Data)
 			if err != nil {
 				l.logger.Error("Invalid blob", "d.Body", d.Body, "err", err)
+				l.eventListener.OnFormatError()
 				d.Reject(false)
+
 				continue
 			}
 
@@ -114,6 +120,8 @@ func (l *QueuesListener) listen(ctx context.Context, rollupId uint32, rollupData
 				var blocks []*types.Block
 				if err := rlp.DecodeBytes(blob.Data, &blocks); err != nil {
 					l.logger.Warn("Invalid block", "rollupId", rollupId, "err", err)
+					l.eventListener.OnFormatError()
+
 					continue
 				}
 

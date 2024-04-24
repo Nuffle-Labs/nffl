@@ -85,7 +85,6 @@ var _ core.Metricable = (*Attestor)(nil)
 
 func NewAttestor(config *optypes.NodeConfig, blsKeypair *bls.KeyPair, operatorId bls.OperatorId, registry *prometheus.Registry, logger sdklogging.Logger) (*Attestor, error) {
 	consumer := consumer.NewConsumer(consumer.ConsumerConfig{
-		Addr:      config.NearDaIndexerRmqIpPortAddress,
 		RollupIds: config.NearDaIndexerRollupIds,
 		Id:        hex.EncodeToString(operatorId[:]),
 	}, logger)
@@ -100,7 +99,7 @@ func NewAttestor(config *optypes.NodeConfig, blsKeypair *bls.KeyPair, operatorId
 		blsKeypair:         blsKeypair,
 		operatorId:         operatorId,
 		registry:           registry,
-		listener:    &SelectiveEventListener{},
+		listener:           &SelectiveEventListener{},
 		config:             config,
 	}
 
@@ -128,6 +127,8 @@ func (attestor *Attestor) WithMetrics(registry *prometheus.Registry) {
 }
 
 func (attestor *Attestor) Start(ctx context.Context) error {
+	go attestor.consumer.Start(ctx, attestor.config.NearDaIndexerRmqIpPortAddress)
+
 	subscriptions := make(map[uint32]ethereum.Subscription)
 	headersCs := make(map[uint32]chan *ethtypes.Header)
 
@@ -256,6 +257,8 @@ loop:
 		select {
 		case <-timer:
 			attestor.logger.Info("MQ timeout", "rollupId", rollupId, "height", rollupHeader.Number.Uint64())
+			attestor.listener.OnMissedMQBlock()
+
 			break loop
 
 		case mqBlock := <-mqBlocksC:
@@ -273,6 +276,8 @@ loop:
 
 			if mqBlock.Block.Header().Root != rollupHeader.Root {
 				attestor.logger.Warnf("StateRoot from MQ doesn't match one from Node")
+				attestor.listener.OnBlockMismatch()
+
 				break loop
 			}
 

@@ -38,7 +38,6 @@ func getConsumerTag(rollupId uint32) string {
 }
 
 type ConsumerConfig struct {
-	Addr      string
 	RollupIds []uint32
 	Id        string
 }
@@ -78,18 +77,13 @@ type Consumer struct {
 var _ core.Metricable = (*Consumer)(nil)
 
 func NewConsumer(config ConsumerConfig, logger logging.Logger) *Consumer {
-	ctx, cancel := context.WithCancel(context.Background())
-
 	consumer := Consumer{
-		id:                config.Id,
-		rollupIds:         config.RollupIds,
-		receivedBlocksC:   make(chan BlockData),
-		contextCancelFunc: cancel,
-		logger:            logger,
-		eventListener:     &SelectiveListener{},
+		id:              config.Id,
+		rollupIds:       config.RollupIds,
+		receivedBlocksC: make(chan BlockData),
+		logger:          logger,
+		eventListener:   &SelectiveListener{},
 	}
-
-	go consumer.Reconnect(config.Addr, ctx)
 
 	return &consumer
 }
@@ -98,7 +92,14 @@ func (consumer *Consumer) WithMetrics(registry *prometheus.Registry) {
 	consumer.eventListener = MakeConsumerMetrics(registry)
 }
 
-func (consumer *Consumer) Reconnect(addr string, ctx context.Context) {
+func (consumer *Consumer) Start(ctx context.Context, addr string) {
+	ctx, cancel := context.WithCancel(ctx)
+	consumer.contextCancelFunc = cancel
+
+	go consumer.reconnect(ctx, addr)
+}
+
+func (consumer *Consumer) reconnect(ctx context.Context, addr string) {
 	for {
 		consumer.logger.Info("Reconnecting...")
 
@@ -117,7 +118,7 @@ func (consumer *Consumer) Reconnect(addr string, ctx context.Context) {
 			continue
 		}
 
-		if done := consumer.ResetChannel(conn, ctx); done {
+		if done := consumer.ResetChannel(ctx, conn); done {
 			return
 		}
 
@@ -165,11 +166,11 @@ func (consumer *Consumer) changeConnection(conn *rmq.Connection) {
 	consumer.connClosedErrC = conn.NotifyClose(connClosedErrC)
 }
 
-func (consumer *Consumer) ResetChannel(conn *rmq.Connection, ctx context.Context) bool {
+func (consumer *Consumer) ResetChannel(ctx context.Context, conn *rmq.Connection) bool {
 	for {
 		consumer.isReady = false
 
-		err := consumer.setupChannel(conn, ctx)
+		err := consumer.setupChannel(ctx, conn)
 		if err != nil {
 			consumer.logger.Warn("Channel setup failed", "err", err)
 
@@ -196,7 +197,7 @@ func (consumer *Consumer) ResetChannel(conn *rmq.Connection, ctx context.Context
 	}
 }
 
-func (consumer *Consumer) setupChannel(conn *rmq.Connection, ctx context.Context) error {
+func (consumer *Consumer) setupChannel(ctx context.Context, conn *rmq.Connection) error {
 	channel, err := conn.Channel()
 	if err != nil {
 		return err
@@ -254,7 +255,9 @@ func (consumer *Consumer) Close() error {
 	}
 
 	// shut down goroutines
-	consumer.contextCancelFunc()
+	if consumer.contextCancelFunc != nil {
+		consumer.contextCancelFunc()
+	}
 
 	err := consumer.channel.Close()
 	if err != nil {
