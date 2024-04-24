@@ -268,8 +268,8 @@ services:
         condition: service_completed_successfully
       aggregator:
         condition: service_started
-    ports:
-      - "9090:9090" # prometheus metrics port (defined in operator0-docker-compose.anvil.yaml file)
+    expose:
+      - 9090 # prometheus metrics port (defined in operator0-docker-compose.anvil.yaml file)
     volumes:
       - ./:/near-sffl/
     working_dir: /near-sffl
@@ -300,8 +300,8 @@ services:
     depends_on:
       operator0-health:
         condition: service_healthy
-    ports:
-      - "9091:9091" # prometheus metrics port (defined in operator1-docker-compose.anvil.yaml file)
+    expose:
+      - 9091 # prometheus metrics port (defined in operator1-docker-compose.anvil.yaml file)
     volumes:
       - ./:/near-sffl/
     working_dir: /near-sffl
@@ -319,7 +319,7 @@ services:
         condition: service_started
     command: sh -c "apt update && apt install -y netcat-traditional && sleep infinity"
     healthcheck:
-      test: ["CMD", "nc", "-zv", "near-sffl-operator1", "9090"]
+      test: ["CMD", "nc", "-zv", "near-sffl-operator1", "9091"]
       interval: 5s
       timeout: 75s
       retries: 15
@@ -361,8 +361,8 @@ services:
       - "--web.enable-lifecycle"
       - --web.enable-remote-write-receiver
     restart: unless-stopped
-    expose:
-      - 9090
+    ports:
+      - 9090:9090
     networks:
       - near-sffl
     # so that we can access the host from within the container
