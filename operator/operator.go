@@ -131,7 +131,26 @@ func NewOperatorFromConfig(c optypes.NodeConfig) (*Operator, error) {
 		logger.Warnf("OPERATOR_ECDSA_KEY_PASSWORD env var not set. using empty string")
 	}
 
-	reg := prometheus.NewRegistry()
+	ecdsaPrivateKey, err := sdkecdsa.ReadKey(c.EcdsaPrivateKeyStorePath, ecdsaKeyPassword)
+	if err != nil {
+		logger.Error("Failed to read ecdsa private key", "err", err)
+		return nil, err
+	}
+
+	chainioConfig := clients.BuildAllConfig{
+		EthHttpUrl:                 c.EthRpcUrl,
+		EthWsUrl:                   c.EthWsUrl,
+		RegistryCoordinatorAddr:    c.AVSRegistryCoordinatorAddress,
+		OperatorStateRetrieverAddr: c.OperatorStateRetrieverAddress,
+		AvsName:                    AVS_NAME,
+		PromMetricsIpPortAddress:   c.EigenMetricsIpPortAddress,
+	}
+	sdkClients, err := clients.BuildAll(chainioConfig, ecdsaPrivateKey, logger)
+	if err != nil {
+		panic(err)
+	}
+	reg := sdkClients.PrometheusRegistry
+
 	ethRpcClient, ethWsClient, err := createEthClients(&c, reg, logger)
 	if err != nil {
 		return nil, err
@@ -154,12 +173,6 @@ func NewOperatorFromConfig(c optypes.NodeConfig) (*Operator, error) {
 		panic(err)
 	}
 
-	ecdsaPrivateKey, err := sdkecdsa.ReadKey(c.EcdsaPrivateKeyStorePath, ecdsaKeyPassword)
-	if err != nil {
-		logger.Error("Failed to read ecdsa private key", "err", err)
-		return nil, err
-	}
-
 	txSender, err := wallet.NewPrivateKeyWallet(ethRpcClient, signerV2, common.HexToAddress(c.OperatorAddress), logger)
 	if err != nil {
 		logger.Error("Failed to create transaction sender", "err", err)
@@ -167,18 +180,6 @@ func NewOperatorFromConfig(c optypes.NodeConfig) (*Operator, error) {
 	}
 
 	txMgr := txmgr.NewSimpleTxManager(txSender, ethRpcClient, logger, signerV2, common.HexToAddress(c.OperatorAddress))
-	chainioConfig := clients.BuildAllConfig{
-		EthHttpUrl:                 c.EthRpcUrl,
-		EthWsUrl:                   c.EthWsUrl,
-		RegistryCoordinatorAddr:    c.AVSRegistryCoordinatorAddress,
-		OperatorStateRetrieverAddr: c.OperatorStateRetrieverAddress,
-		AvsName:                    AVS_NAME,
-		PromMetricsIpPortAddress:   c.EigenMetricsIpPortAddress,
-	}
-	sdkClients, err := clients.BuildAll(chainioConfig, ecdsaPrivateKey, logger)
-	if err != nil {
-		panic(err)
-	}
 
 	avsAndEigenMetrics := metrics.NewAvsAndEigenMetrics(AVS_NAME, sdkClients.Metrics, reg)
 	aggregatorRpcClient, err := NewAggregatorRpcClient(c.AggregatorServerIpPortAddress, logger, avsAndEigenMetrics)

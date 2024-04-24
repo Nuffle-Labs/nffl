@@ -8,20 +8,28 @@ global:
 
 # A scrape configuration containing exactly one endpoint to scrape.
 scrape_configs:
-
   - job_name: "prometheus"
     scrape_interval: 10s
     static_configs:
       - targets: ["localhost:9090"]
 
-  - job_name: "sffl-node"
+  - job_name: "sffl-operator0"
+    scrape_interval: 5s
+    static_configs:
+      - targets: ["near-sffl-operator0:9090"]
+        labels:
+          role: "operator"
+          instance: "0"
+
+  - job_name: "sffl-operator1"
     scrape_interval: 5s
     static_configs:
       # host.docker.internal might not work on linux
       # TODO: do https://stackoverflow.com/a/67158212/4971151
       # - targets: ["host.docker.internal:9090"]
-      - targets: ["sffl-operator1:9090"]
+      - targets: ["near-sffl-operator1:9091"]
         labels:
-          bot: "sffl-node"
+          role: "operator"
+          instance: "1"
     relabel_configs:
       # is this actually useful? We already have the job name
