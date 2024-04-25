@@ -121,9 +121,18 @@ func NewAttestor(config *optypes.NodeConfig, blsKeypair *bls.KeyPair, operatorId
 	return &attestor, nil
 }
 
-func (attestor *Attestor) WithMetrics(registry *prometheus.Registry) {
-	attestor.listener = MakeAttestorMetrics(registry)
-	attestor.consumer.WithMetrics(registry)
+func (attestor *Attestor) WithMetrics(registry *prometheus.Registry) error {
+	listener, err := MakeAttestorMetrics(registry)
+	if err != nil {
+		return err
+	}
+	attestor.listener = listener
+
+	if err = attestor.consumer.WithMetrics(registry); err != nil {
+		return err
+	}
+
+	return nil
 }
 
 func (attestor *Attestor) Start(ctx context.Context) error {

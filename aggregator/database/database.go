@@ -84,8 +84,14 @@ func (d *Database) Close() error {
 	return db.Close()
 }
 
-func (d *Database) WithMetrics(registry *prometheus.Registry) {
-	d.listener = MakeDBMetrics(registry)
+func (d *Database) WithMetrics(registry *prometheus.Registry) error {
+	listener, err := MakeDBMetrics(registry)
+	if err != nil {
+		return err
+	}
+
+	d.listener = listener
+	return nil
 }
 
 func (d *Database) StoreStateRootUpdate(stateRootUpdateMessage messages.StateRootUpdateMessage) error {

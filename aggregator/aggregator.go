@@ -205,16 +205,32 @@ func NewAggregator(ctx context.Context, config *config.Config, logger logging.Lo
 		stateRootUpdates:                       make(map[coretypes.MessageDigest]messages.StateRootUpdateMessage),
 		operatorSetUpdates:                     make(map[coretypes.MessageDigest]messages.OperatorSetUpdateMessage),
 	}
-	agg.WithMetrics(clients.PrometheusRegistry)
+
+	if err = agg.WithMetrics(clients.PrometheusRegistry); err != nil {
+		return nil, err
+	}
 
 	return agg, nil
 }
 
-func (agg *Aggregator) WithMetrics(registry *prometheus.Registry) {
-	agg.restListener = MakeRestServerMetrics(registry)
-	agg.rpcListener = MakeRpcServerMetrics(registry)
+func (agg *Aggregator) WithMetrics(registry *prometheus.Registry) error {
+	restListener, err := MakeRestServerMetrics(registry)
+	if err != nil {
+		return err
+	}
+	agg.restListener = restListener
 
-	agg.msgDb.WithMetrics(registry)
+	rpcListener, err := MakeRpcServerMetrics(registry)
+	if err != nil {
+		return err
+	}
+	agg.rpcListener = rpcListener
+
+	if err = agg.msgDb.WithMetrics(registry); err != nil {
+		return err
+	}
+
+	return nil
 }
 
 func (agg *Aggregator) Start(ctx context.Context) error {

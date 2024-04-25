@@ -1,8 +1,8 @@
 package operator
 
 import (
+	"fmt"
 	"github.com/prometheus/client_golang/prometheus"
-	"github.com/prometheus/client_golang/prometheus/promauto"
 )
 
 const OperatorNamespace = "sffl_operator"
@@ -35,32 +35,40 @@ func (l *SelectiveRpcClientListener) OnMessagesReceived() {
 	}
 }
 
-func MakeOperatorMetrics(registry *prometheus.Registry) OperatorEventListener {
-	numTasksReceived := promauto.With(registry).NewCounter(
+func MakeOperatorMetrics(registry *prometheus.Registry) (OperatorEventListener, error) {
+	numTasksReceived := prometheus.NewCounter(
 		prometheus.CounterOpts{
 			Namespace: OperatorNamespace,
 			Name:      "num_tasks_received",
 			Help:      "The number of tasks received by reading from the avs service manager contract",
 		})
 
+	if err := registry.Register(numTasksReceived); err != nil {
+		return nil, fmt.Errorf("error registering numTasksReceived counter: %w", err)
+	}
+
 	return &SelectiveOperatorListener{
 		OnTasksReceivedCb: func() {
 			numTasksReceived.Inc()
 		},
-	}
+	}, nil
 }
 
-func MakeRpcClientMetrics(registry *prometheus.Registry) RpcClientEventListener {
-	numMessagesReceived := promauto.With(registry).NewCounter(
+func MakeRpcClientMetrics(registry *prometheus.Registry) (RpcClientEventListener, error) {
+	numMessagesReceived := prometheus.NewCounter(
 		prometheus.CounterOpts{
 			Namespace: OperatorNamespace,
 			Name:      "num_messages_received",
 			Help:      "The number of messages received by the operator set",
 		})
 
+	if err := registry.Register(numMessagesReceived); err != nil {
+		return nil, fmt.Errorf("error registering numMessagesReceived counter: %w", err)
+	}
+
 	return &SelectiveRpcClientListener{
 		OnMessagesReceivedCb: func() {
 			numMessagesReceived.Inc()
 		},
-	}
+	}, nil
 }

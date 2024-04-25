@@ -31,7 +31,9 @@ func NewMockAttestor(blsKeypair *bls.KeyPair, operatorId bls.OperatorId) *MockAt
 	}
 }
 
-func (mockAttestor *MockAttestor) WithMetrics(_ *prometheus.Registry) {}
+func (mockAttestor *MockAttestor) WithMetrics(_ *prometheus.Registry) error {
+	return nil
+}
 
 func (mockAttestor *MockAttestor) Start(ctx context.Context) error {
 	go func() {

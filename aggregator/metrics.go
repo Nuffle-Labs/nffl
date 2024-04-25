@@ -1,8 +1,8 @@
 package aggregator
 
 import (
+	"fmt"
 	"github.com/prometheus/client_golang/prometheus"
-	"github.com/prometheus/client_golang/prometheus/promauto"
 )
 
 const AggregatorNamespace = "sffl_aggregator"
@@ -75,27 +75,42 @@ func (restl *SelectiveRestListener) APIErrors() {
 	}
 }
 
-func MakeRestServerMetrics(registry *prometheus.Registry) RestEventListener {
-	stateRootUpdateRequests := promauto.With(registry).NewCounter(prometheus.CounterOpts{
+func MakeRestServerMetrics(registry *prometheus.Registry) (RestEventListener, error) {
+	stateRootUpdateRequests := prometheus.NewCounter(prometheus.CounterOpts{
 		Namespace: AggregatorNamespace,
 		Name:      "state_root_update_requests_total",
 		Help:      "Total number of state root update requests received",
 	})
-	operatorSetUpdateRequests := promauto.With(registry).NewCounter(prometheus.CounterOpts{
+	if err := registry.Register(stateRootUpdateRequests); err != nil {
+		return nil, fmt.Errorf("error registering stateRootUpdateRequests counter: %w", err)
+	}
+
+	operatorSetUpdateRequests := prometheus.NewCounter(prometheus.CounterOpts{
 		Namespace: AggregatorNamespace,
 		Name:      "operator_set_update_requests_total",
 		Help:      "Total number of operator set update requests received",
 	})
-	checkpointMessagesRequests := promauto.With(registry).NewCounter(prometheus.CounterOpts{
+	if err := registry.Register(operatorSetUpdateRequests); err != nil {
+		return nil, fmt.Errorf("error registering operatorSetUpdateRequests counter: %w", err)
+	}
+
+	checkpointMessagesRequests := prometheus.NewCounter(prometheus.CounterOpts{
 		Namespace: AggregatorNamespace,
 		Name:      "checkpoint_messages_requests_total",
 		Help:      "Total number of checkpoint messages requests received",
 	})
-	apiErrors := promauto.With(registry).NewCounter(prometheus.CounterOpts{
+	if err := registry.Register(checkpointMessagesRequests); err != nil {
+		return nil, fmt.Errorf("error registering checkpointMessagesRequests counter: %w", err)
+	}
+
+	apiErrors := prometheus.NewCounter(prometheus.CounterOpts{
 		Namespace: AggregatorNamespace,
 		Name:      "api_errors_total",
 		Help:      "Total number of API errors",
 	})
+	if err := registry.Register(apiErrors); err != nil {
+		return nil, fmt.Errorf("error registering apiErrors counter: %w", err)
+	}
 
 	return &SelectiveRestListener{
 		IncStateRootUpdateRequestsCb: func() {
@@ -110,11 +125,11 @@ func MakeRestServerMetrics(registry *prometheus.Registry) RestEventListener {
 		APIErrorsCb: func() {
 			apiErrors.Inc()
 		},
-	}
+	}, nil
 }
 
-func MakeRpcServerMetrics(registry *prometheus.Registry) RpcEventListener {
-	numSignedCheckpointTaskResponse := promauto.With(registry).NewCounter(
+func MakeRpcServerMetrics(registry *prometheus.Registry) (RpcEventListener, error) {
+	numSignedCheckpointTaskResponse := prometheus.NewCounter(
 		prometheus.CounterOpts{
 			Namespace: AggregatorNamespace,
 			Name:      "num_signed_checkpoints_accepted_by_aggregator",
@@ -122,7 +137,11 @@ func MakeRpcServerMetrics(registry *prometheus.Registry) RpcEventListener {
 		},
 	)
 
-	numSignedStateRootUpdateMessage := promauto.With(registry).NewCounter(
+	if err := registry.Register(numSignedCheckpointTaskResponse); err != nil {
+		return nil, fmt.Errorf("error registering numSignedCheckpointTaskResponse counter: %w", err)
+	}
+
+	numSignedStateRootUpdateMessage := prometheus.NewCounter(
 		prometheus.CounterOpts{
 			Namespace: AggregatorNamespace,
 			Name:      "num_signed_roots_accepted_by_aggregator",
@@ -130,13 +149,21 @@ func MakeRpcServerMetrics(registry *prometheus.Registry) RpcEventListener {
 		},
 	)
 
-	numSignedOperatorSetUpdateMessage := promauto.With(registry).NewCounter(
+	if err := registry.Register(numSignedStateRootUpdateMessage); err != nil {
+		return nil, fmt.Errorf("error registering numSignedStateRootUpdateMessage counter: %w", err)
+	}
+
+	numSignedOperatorSetUpdateMessage := prometheus.NewCounter(
 		prometheus.CounterOpts{
 			Namespace: AggregatorNamespace,
 			Name:      "num_signed_operators_accepted_by_aggregator",
 			Help:      "The number of signed operator updates accepted by the aggregator",
 		},
 	)
+
+	if err := registry.Register(numSignedOperatorSetUpdateMessage); err != nil {
+		return nil, fmt.Errorf("error registering numSignedOperatorSetUpdateMessage counter: %w", err)
+	}
 
 	return &SelectiveRpcListener{
 		IncSignedCheckpointTaskResponseCb: func() {
@@ -148,5 +175,5 @@ func MakeRpcServerMetrics(registry *prometheus.Registry) RpcEventListener {
 		IncSignedOperatorSetUpdateMessageCb: func() {
 			numSignedOperatorSetUpdateMessage.Inc()
 		},
-	}
+	}, nil
 }

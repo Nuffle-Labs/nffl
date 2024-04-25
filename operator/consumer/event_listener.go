@@ -1,8 +1,8 @@
 package consumer
 
 import (
+	"fmt"
 	"github.com/prometheus/client_golang/prometheus"
-	"github.com/prometheus/client_golang/prometheus/promauto"
 )
 
 type EventListener interface {
@@ -30,23 +30,30 @@ func (l *SelectiveListener) OnFormatError() {
 	}
 }
 
-func MakeConsumerMetrics(registry *prometheus.Registry) EventListener {
-	numBlocksArrived := promauto.With(registry).NewCounter(
+func MakeConsumerMetrics(registry *prometheus.Registry) (EventListener, error) {
+	numBlocksArrived := prometheus.NewCounter(
 		prometheus.CounterOpts{
-			// TODO: different namespace?
 			Namespace: OperatorNamespace,
 			Subsystem: ConsumerSubsystem,
 			Name:      "num_of_mq_arrivals",
 			Help:      "The number of consumed blocks from MQ",
 		})
 
-	numFormatErrors := promauto.With(registry).NewCounter(
+	if err := registry.Register(numBlocksArrived); err != nil {
+		return nil, fmt.Errorf("error registering numBlocksArrived counter: %w", err)
+	}
+
+	numFormatErrors := prometheus.NewCounter(
 		prometheus.CounterOpts{
 			Namespace: OperatorNamespace,
 			Subsystem: ConsumerSubsystem,
 			Name:      "num_of_mismatched_blocks",
 			Help:      "The number of blocks from MQ with invalid format.",
 		})
+
+	if err := registry.Register(numFormatErrors); err != nil {
+		return nil, fmt.Errorf("error registering numFormatErrors counter: %w", err)
+	}
 
 	return &SelectiveListener{
 		OnArrivalCb: func() {
@@ -55,5 +62,5 @@ func MakeConsumerMetrics(registry *prometheus.Registry) EventListener {
 		OnFormatErrorCb: func() {
 			numFormatErrors.Inc()
 		},
-	}
+	}, nil
 }

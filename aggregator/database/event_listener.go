@@ -1,6 +1,7 @@
 package database
 
 import (
+	"fmt"
 	"math"
 	"time"
 
@@ -32,7 +33,7 @@ func (l *SelectiveListener) OnFetch(duration time.Duration) {
 	}
 }
 
-func MakeDBMetrics(registry *prometheus.Registry) EventListener {
+func MakeDBMetrics(registry *prometheus.Registry) (EventListener, error) {
 	latencyBuckets := []float64{
 		25,
 		50,
@@ -56,6 +57,11 @@ func MakeDBMetrics(registry *prometheus.Registry) EventListener {
 		Name:      "read_latency",
 		Buckets:   latencyBuckets,
 	})
+
+	if err := registry.Register(readLatencyHistogram); err != nil {
+		return nil, fmt.Errorf("error registering readLatencyHistogram: %w", err)
+	}
+
 	writeLatencyHistogram := prometheus.NewHistogram(prometheus.HistogramOpts{
 		Namespace: AggregatorNamespace,
 		Subsystem: DBSubsystem,
@@ -63,7 +69,10 @@ func MakeDBMetrics(registry *prometheus.Registry) EventListener {
 		Buckets:   latencyBuckets,
 	})
 
-	registry.MustRegister(readLatencyHistogram, writeLatencyHistogram)
+	if err := registry.Register(writeLatencyHistogram); err != nil {
+		return nil, fmt.Errorf("error registering writeLatencyHistogram: %w", err)
+	}
+
 	return &SelectiveListener{
 		OnStoreCb: func(duration time.Duration) {
 			writeLatencyHistogram.Observe(float64(duration.Microseconds()))
@@ -71,5 +80,5 @@ func MakeDBMetrics(registry *prometheus.Registry) EventListener {
 		OnFetchCb: func(duration time.Duration) {
 			readLatencyHistogram.Observe(float64(duration.Microseconds()))
 		},
-	}
+	}, nil
 }
