@@ -53,6 +53,7 @@ func createEthClient(rpcUrl string, collector *rpccalls.Collector, logger sdklog
 
 type Attestorer interface {
 	core.Metricable
+
 	Start(ctx context.Context) error
 	Close() error
 	GetSignedRootC() <-chan messages.SignedStateRootUpdateMessage

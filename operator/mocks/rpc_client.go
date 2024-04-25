@@ -12,6 +12,7 @@ import (
 	reflect "reflect"
 
 	messages "github.com/NethermindEth/near-sffl/core/types/messages"
+	prometheus "github.com/prometheus/client_golang/prometheus"
 	gomock "go.uber.org/mock/gomock"
 )
 
@@ -87,4 +88,18 @@ func (m *MockAggregatorRpcClienter) SendSignedStateRootUpdateToAggregator(arg0 *
 func (mr *MockAggregatorRpcClienterMockRecorder) SendSignedStateRootUpdateToAggregator(arg0 any) *gomock.Call {
 	mr.mock.ctrl.T.Helper()
 	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "SendSignedStateRootUpdateToAggregator", reflect.TypeOf((*MockAggregatorRpcClienter)(nil).SendSignedStateRootUpdateToAggregator), arg0)
+}
+
+// WithMetrics mocks base method.
+func (m *MockAggregatorRpcClienter) WithMetrics(arg0 *prometheus.Registry) error {
+	m.ctrl.T.Helper()
+	ret := m.ctrl.Call(m, "WithMetrics", arg0)
+	ret0, _ := ret[0].(error)
+	return ret0
+}
+
+// WithMetrics indicates an expected call of WithMetrics.
+func (mr *MockAggregatorRpcClienterMockRecorder) WithMetrics(arg0 any) *gomock.Call {
+	mr.mock.ctrl.T.Helper()
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "WithMetrics", reflect.TypeOf((*MockAggregatorRpcClienter)(nil).WithMetrics), arg0)
 }

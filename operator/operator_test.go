@@ -24,6 +24,7 @@ import (
 	"github.com/ethereum/go-ethereum/event"
 	"github.com/prometheus/client_golang/prometheus"
 	"github.com/stretchr/testify/assert"
+	gomock "go.uber.org/mock/gomock"
 )
 
 const MOCK_OPERATOR_BLS_PRIVATE_KEY = "69"
@@ -195,6 +196,7 @@ func createMockOperator() (*Operator, *AvsManager, *mocks.MockConsumer, error) {
 		operatorId: MOCK_OPERATOR_ID,
 		attestor:   mockAttestor,
 		avsManager: avsManager,
+		listener:   &SelectiveOperatorListener{},
 	}
 
 	return operator, avsManager, mockAttestor.MockGetConsumer(), nil

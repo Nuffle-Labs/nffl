@@ -1,6 +1,7 @@
 package main
 
 import (
+	"context"
 	"errors"
 	"log"
 	"os"
@@ -40,7 +41,7 @@ func main() {
 	}
 }
 
-func consumerMain(ctx *cli.Context) error {
+func consumerMain(cliCtx *cli.Context) error {
 	log.Println("Initializing Consumer")
 
 	logLevel := logging.Development
@@ -49,7 +50,7 @@ func consumerMain(ctx *cli.Context) error {
 		panic(err)
 	}
 
-	rollupIdsArg := ctx.GlobalInt64Slice("rollup-ids")
+	rollupIdsArg := cliCtx.GlobalInt64Slice("rollup-ids")
 	rollupIds := make([]uint32, len(rollupIdsArg))
 	for i, el := range rollupIdsArg {
 		if el < 0 {
@@ -60,10 +61,12 @@ func consumerMain(ctx *cli.Context) error {
 	}
 
 	consumer := consumer.NewConsumer(consumer.ConsumerConfig{
-		Id:        ctx.GlobalString("id"),
-		Addr:      ctx.GlobalString("rmq-address"),
+		Id:        cliCtx.GlobalString("id"),
 		RollupIds: rollupIds,
 	}, logger)
+
+	ctx := context.Background()
+	go consumer.Start(ctx, cliCtx.GlobalString("rmq-address"))
 
 	blockStream := consumer.GetBlockStream()
 
