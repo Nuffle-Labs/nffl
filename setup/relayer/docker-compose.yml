@@ -15,6 +15,7 @@ services:
       - /root/.near-credentials/${NEAR_CHAIN_ID}/sfrelayer421614-1.testnet.json
       - --network
       - ${NEAR_RPC_URL}
+    restart: unless-stopped
 
   relayer_11155420:
     image: ghcr.io/nethermindeth/near-sffl/relayer:${SFFL_RELEASE}
@@ -30,3 +31,4 @@ services:
       - /root/.near-credentials/${NEAR_CHAIN_ID}/sfrelayer11155420-1.testnet.json
       - --network
       - ${NEAR_RPC_URL}
+    restart: unless-stopped
