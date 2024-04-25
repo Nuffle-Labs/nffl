@@ -97,6 +97,7 @@ func (l *QueuesListener) listen(ctx context.Context, rollupId uint32, rollupData
 			err := borsh.Deserialize(publishPayload, d.Body)
 			if err != nil {
 				l.logger.Error("Error deserializing payload")
+				d.Reject(false)
 				continue
 			}
 
@@ -104,6 +105,7 @@ func (l *QueuesListener) listen(ctx context.Context, rollupId uint32, rollupData
 			err = borsh.Deserialize(submitRequest, publishPayload.Data)
 			if err != nil {
 				l.logger.Error("Invalid blob", "d.Body", d.Body, "err", err)
+				d.Reject(false)
 				continue
 			}
 
