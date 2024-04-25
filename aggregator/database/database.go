@@ -19,6 +19,8 @@ import (
 )
 
 type Databaser interface {
+	core.Metricable
+
 	Close() error
 	StoreStateRootUpdate(stateRootUpdateMessage messages.StateRootUpdateMessage) error
 	FetchStateRootUpdate(rollupId uint32, blockHeight uint64) (*messages.StateRootUpdateMessage, error)
@@ -29,8 +31,6 @@ type Databaser interface {
 	StoreOperatorSetUpdateAggregation(operatorSetUpdateMessage messages.OperatorSetUpdateMessage, aggregation messages.MessageBlsAggregation) error
 	FetchOperatorSetUpdateAggregation(id uint64) (*messages.MessageBlsAggregation, error)
 	FetchCheckpointMessages(fromTimestamp uint64, toTimestamp uint64) (*messages.CheckpointMessages, error)
-
-	core.Metricable
 }
 
 type Database struct {
