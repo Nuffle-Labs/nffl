@@ -167,6 +167,9 @@ func (c *Config) validate() {
 	if c.SFFLRegistryCoordinatorAddr == common.HexToAddress("") {
 		panic("Config: SFFLRegistryCoordinatorAddr is required")
 	}
+	if c.MetricsIpPortAddress == "" {
+		panic("Config: MetricsIpPortAddress shall be valid socket addr even if disabled")
+	}
 }
 
 var (

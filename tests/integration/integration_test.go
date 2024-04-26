@@ -460,6 +460,7 @@ func buildConfig(t *testing.T, sfflDeploymentRaw config.SFFLDeploymentRaw, addre
 		RegisterOperatorOnStartup:      aggConfigRaw.RegisterOperatorOnStartup,
 		AggregatorAddress:              aggregatorAddr,
 		RollupsInfo:                    rollupsInfo,
+		EnableMetrics:                  false,
 		MetricsIpPortAddress:           aggConfigRaw.MetricsIpPortAddress,
 	}
 }

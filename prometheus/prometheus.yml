@@ -31,5 +31,11 @@ scrape_configs:
         labels:
           role: "operator"
           instance: "1"
+
+  - job_name: "sffl-aggregator"
+    scrape_interval: 5s
+    static_configs:
+      - targets: ["near-sffl-aggregator:9091"]
+
     relabel_configs:
       # is this actually useful? We already have the job name

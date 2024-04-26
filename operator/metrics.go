@@ -5,7 +5,10 @@ import (
 	"github.com/prometheus/client_golang/prometheus"
 )
 
-const OperatorNamespace = "sffl_operator"
+const (
+	OperatorNamespace = "sffl_operator"
+	OperatorSubsytem  = "operator"
+)
 
 type OperatorEventListener interface {
 	OnTasksReceived()

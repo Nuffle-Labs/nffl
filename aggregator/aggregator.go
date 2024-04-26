@@ -12,6 +12,7 @@ import (
 	"github.com/Layr-Labs/eigensdk-go/chainio/clients/wallet"
 	"github.com/Layr-Labs/eigensdk-go/chainio/txmgr"
 	"github.com/Layr-Labs/eigensdk-go/logging"
+	"github.com/Layr-Labs/eigensdk-go/metrics"
 	"github.com/Layr-Labs/eigensdk-go/services/avsregistry"
 	blsagg "github.com/Layr-Labs/eigensdk-go/services/bls_aggregation"
 	oppubkeysserv "github.com/Layr-Labs/eigensdk-go/services/operatorpubkeys"
@@ -82,6 +83,8 @@ type Aggregator struct {
 	client               eth.Client
 
 	// TODO(edwin): once rpc & rest decouple from aggregator fome it with them
+	registry     *prometheus.Registry
+	metrics      metrics.Metrics
 	rpcListener  RpcEventListener
 	restListener RestEventListener
 
@@ -105,13 +108,40 @@ var _ core.Metricable = (*Aggregator)(nil)
 // TODO: Remove this context once OperatorPubkeysServiceInMemory's API is
 // changed and we can gracefully exit otherwise
 func NewAggregator(ctx context.Context, config *config.Config, logger logging.Logger) (*Aggregator, error) {
-	ethHttpClient, err := eth.NewClient(config.EthHttpRpcUrl)
+	chainioConfig := sdkclients.BuildAllConfig{
+		EthHttpUrl:                 config.EthHttpRpcUrl,
+		EthWsUrl:                   config.EthWsRpcUrl,
+		RegistryCoordinatorAddr:    config.SFFLRegistryCoordinatorAddr.String(),
+		OperatorStateRetrieverAddr: config.OperatorStateRetrieverAddr.String(),
+		AvsName:                    avsName,
+		PromMetricsIpPortAddress:   config.MetricsIpPortAddress,
+	}
+	clients, err := clients.BuildAll(chainioConfig, config.EcdsaPrivateKey, logger)
+	if err != nil {
+		logger.Errorf("Cannot create sdk clients", "err", err)
+		return nil, err
+	}
+	registry := clients.PrometheusRegistry
+
+	ethHttpClient, err := core.CreateEthClientWithCollector(
+		AggregatorNamespace,
+		config.EthHttpRpcUrl,
+		config.EnableMetrics,
+		registry,
+		logger,
+	)
 	if err != nil {
 		logger.Errorf("Cannot create http ethclient", "err", err)
 		return nil, err
 	}
 
-	ethWsClient, err := eth.NewClient(config.EthWsRpcUrl)
+	ethWsClient, err := core.CreateEthClientWithCollector(
+		AggregatorNamespace,
+		config.EthWsRpcUrl,
+		config.EnableMetrics,
+		registry,
+		logger,
+	)
 	if err != nil {
 		logger.Errorf("Cannot create ws ethclient", "err", err)
 		return nil, err
@@ -155,20 +185,6 @@ func NewAggregator(ctx context.Context, config *config.Config, logger logging.Lo
 		return nil, err
 	}
 
-	chainioConfig := sdkclients.BuildAllConfig{
-		EthHttpUrl:                 config.EthHttpRpcUrl,
-		EthWsUrl:                   config.EthWsRpcUrl,
-		RegistryCoordinatorAddr:    config.SFFLRegistryCoordinatorAddr.String(),
-		OperatorStateRetrieverAddr: config.OperatorStateRetrieverAddr.String(),
-		AvsName:                    avsName,
-		PromMetricsIpPortAddress:   config.MetricsIpPortAddress,
-	}
-	clients, err := clients.BuildAll(chainioConfig, config.EcdsaPrivateKey, logger)
-	if err != nil {
-		logger.Errorf("Cannot create sdk clients", "err", err)
-		return nil, err
-	}
-
 	msgDb, err := database.NewDatabase(config.AggregatorDatabasePath)
 	if err != nil {
 		logger.Errorf("Cannot create database", "err", err)
@@ -204,10 +220,16 @@ func NewAggregator(ctx context.Context, config *config.Config, logger logging.Lo
 		taskResponses:                          make(map[coretypes.TaskIndex]map[sdktypes.TaskResponseDigest]messages.CheckpointTaskResponse),
 		stateRootUpdates:                       make(map[coretypes.MessageDigest]messages.StateRootUpdateMessage),
 		operatorSetUpdates:                     make(map[coretypes.MessageDigest]messages.OperatorSetUpdateMessage),
+		restListener:                           &SelectiveRestListener{},
+		rpcListener:                            &SelectiveRpcListener{},
 	}
 
-	if err = agg.WithMetrics(clients.PrometheusRegistry); err != nil {
-		return nil, err
+	if config.EnableMetrics {
+		if err = agg.WithMetrics(registry); err != nil {
+			return nil, err
+		}
+		agg.metrics = clients.Metrics
+		agg.registry = registry
 	}
 
 	return agg, nil
@@ -235,6 +257,10 @@ func (agg *Aggregator) WithMetrics(registry *prometheus.Registry) error {
 
 func (agg *Aggregator) Start(ctx context.Context) error {
 	agg.logger.Infof("Starting aggregator.")
+
+	if agg.metrics != nil {
+		agg.metrics.Start(ctx, agg.registry)
+	}
 
 	agg.logger.Infof("Starting aggregator rpc server.")
 	go agg.startServer()

@@ -31,26 +31,6 @@ var (
 	unknownRollupIdError = errors.New("notify: rollupId unknown")
 )
 
-func createEthClient(rpcUrl string, collector *rpccalls.Collector, logger sdklogging.Logger) (eth.Client, error) {
-	if collector != nil {
-		ethClient, err := eth.NewInstrumentedClient(rpcUrl, collector)
-		if err != nil {
-			logger.Error("Cannot create http ethclient", "err", err)
-			return nil, err
-		}
-
-		return ethClient, nil
-	}
-
-	ethClient, err := eth.NewClient(rpcUrl)
-	if err != nil {
-		logger.Error("Cannot create http ethclient", "err", err)
-		return nil, err
-	}
-
-	return ethClient, nil
-}
-
 type Attestorer interface {
 	core.Metricable
 
@@ -107,10 +87,11 @@ func NewAttestor(config *optypes.NodeConfig, blsKeypair *bls.KeyPair, operatorId
 	for rollupId, url := range config.RollupIdsToRpcUrls {
 		var rpcCallsCollector *rpccalls.Collector
 		if config.EnableMetrics {
-			rpcCallsCollector = rpccalls.NewCollector(url, registry)
+			id := config.OperatorAddress + AttestorSubsystem
+			rpcCallsCollector = rpccalls.NewCollector(id+url, registry)
 		}
 
-		client, err := createEthClient(url, rpcCallsCollector, logger)
+		client, err := core.CreateEthClient(url, rpcCallsCollector, logger)
 		if err != nil {
 			return nil, err
 		}
@@ -204,7 +185,7 @@ func (attestor *Attestor) reconnectClient(rollupId uint32) (eth.Client, error) {
 	for i := 0; i < RECONNECTION_ATTEMPTS; i++ {
 		<-time.After(RECONNECTION_DELAY)
 
-		client, err = createEthClient(attestor.rollupIdsToUrls[rollupId], attestor.rpcCallsCollectors[rollupId], attestor.logger)
+		client, err = core.CreateEthClient(attestor.rollupIdsToUrls[rollupId], attestor.rpcCallsCollectors[rollupId], attestor.logger)
 		if err == nil {
 			return client, nil
 		}

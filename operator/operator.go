@@ -18,7 +18,6 @@ import (
 	sdklogging "github.com/Layr-Labs/eigensdk-go/logging"
 	"github.com/Layr-Labs/eigensdk-go/metrics"
 	"github.com/Layr-Labs/eigensdk-go/metrics/collectors/economic"
-	rpccalls "github.com/Layr-Labs/eigensdk-go/metrics/collectors/rpc_calls"
 	"github.com/Layr-Labs/eigensdk-go/nodeapi"
 	"github.com/Layr-Labs/eigensdk-go/signerv2"
 	sdktypes "github.com/Layr-Labs/eigensdk-go/types"
@@ -33,8 +32,10 @@ import (
 	optypes "github.com/NethermindEth/near-sffl/operator/types"
 )
 
-const AVS_NAME = "super-fast-finality-layer"
-const SEM_VER = "0.0.1"
+const (
+	AVS_NAME = "super-fast-finality-layer"
+	SEM_VER  = "0.0.1"
+)
 
 type Operator struct {
 	config    optypes.NodeConfig
@@ -66,37 +67,6 @@ type Operator struct {
 }
 
 var _ core.Metricable = (*Operator)(nil)
-
-func createEthClients(config *optypes.NodeConfig, registry *prometheus.Registry, logger sdklogging.Logger) (eth.Client, eth.Client, error) {
-	if config.EnableMetrics {
-		rpcCallsCollector := rpccalls.NewCollector(AVS_NAME, registry)
-		ethRpcClient, err := eth.NewInstrumentedClient(config.EthRpcUrl, rpcCallsCollector)
-		if err != nil {
-			logger.Errorf("Cannot create http ethclient", "err", err)
-			return nil, nil, err
-		}
-		ethWsClient, err := eth.NewInstrumentedClient(config.EthWsUrl, rpcCallsCollector)
-		if err != nil {
-			logger.Errorf("Cannot create ws ethclient", "err", err)
-			return nil, nil, err
-		}
-
-		return ethRpcClient, ethWsClient, nil
-	}
-
-	ethRpcClient, err := eth.NewClient(config.EthRpcUrl)
-	if err != nil {
-		logger.Errorf("Cannot create http ethclient", "err", err)
-		return nil, nil, err
-	}
-	ethWsClient, err := eth.NewClient(config.EthWsUrl)
-	if err != nil {
-		logger.Errorf("Cannot create ws ethclient", "err", err)
-		return nil, nil, err
-	}
-
-	return ethRpcClient, ethWsClient, nil
-}
 
 func createLogger(config *optypes.NodeConfig) (sdklogging.Logger, error) {
 	var logLevel sdklogging.LogLevel
@@ -156,7 +126,13 @@ func NewOperatorFromConfig(c optypes.NodeConfig) (*Operator, error) {
 	}
 	reg := sdkClients.PrometheusRegistry
 
-	ethRpcClient, ethWsClient, err := createEthClients(&c, reg, logger)
+	id := c.OperatorAddress + OperatorSubsytem
+	ethRpcClient, err := core.CreateEthClientWithCollector(id, c.EthRpcUrl, c.EnableMetrics, reg, logger)
+	if err != nil {
+		return nil, err
+	}
+
+	ethWsClient, err := core.CreateEthClientWithCollector(id, c.EthWsUrl, c.EnableMetrics, reg, logger)
 	if err != nil {
 		return nil, err
 	}
