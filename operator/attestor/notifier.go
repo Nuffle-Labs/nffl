@@ -28,7 +28,7 @@ func (notifier *Notifier) Subscribe(rollupId uint32) (<-chan consumer.BlockData,
 		notifier.rollupIdsToSubscribers[rollupId] = list.New()
 	}
 
-	notifierC := make(chan consumer.BlockData, 100)
+	notifierC := make(chan consumer.BlockData, 150)
 	id := notifier.rollupIdsToSubscribers[rollupId].PushBack(notifierC)
 
 	return notifierC, id
