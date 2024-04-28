@@ -17,8 +17,8 @@ import (
 
 const (
 	NAMESPACE_ID               = 1
-	SUBMIT_BLOCK_INTERVAL      = 1500 * time.Millisecond
-	SUBMIT_BLOCK_RETRY_TIMEOUT = 1 * time.Second
+	SUBMIT_BLOCK_INTERVAL      = 2500 * time.Millisecond
+	SUBMIT_BLOCK_RETRY_TIMEOUT = 2 * time.Second
 	SUBMIT_BLOCK_RETRIES       = 3
 )
 
