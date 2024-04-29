@@ -23,10 +23,11 @@ bls_private_key_store_path: /near-sffl/config/keys/bls.json
 aggregator_server_ip_port_address: near-sffl-aggregator:8090
 
 # Operator EigenLayer metrics server IP and port
-eigen_metrics_ip_port_address: 0.0.0.0:9090
 enable_metrics: true
-node_api_ip_port_address: 0.0.0.0:9010
+eigen_metrics_ip_port_address: near-sffl-operator:9091
+
 enable_node_api: true
+node_api_ip_port_address: near-sffl-operator:9010
 
 # Whether to try and register the operator in the AVS and in EL on startup.
 # It will not re-register the operator if already registered.

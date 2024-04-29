@@ -39,7 +39,7 @@ services:
       - ./:/near-sffl/
       - ${NEAR_HOME_DIR}:/root/.near
       - ${NEAR_KEYS_DIR}:/root/.near-credentials
-    command: 
+    command:
       - --config
       - /near-sffl/config/indexer.yaml
     restart: unless-stopped
@@ -56,7 +56,7 @@ services:
       indexer:
         condition: service_healthy
     ports:
-      - "127.0.0.1:9090:9090"
+      - "127.0.0.1:9091:9091"
     volumes:
       - ./:/near-sffl/
     working_dir: /near-sffl
@@ -76,7 +76,7 @@ services:
         condition: service_started
     command: sh -c "apt update && apt install -y netcat-traditional && sleep infinity"
     healthcheck:
-      test: ["CMD", "nc", "-zv", "near-sffl-operator", "9090"]
+      test: ["CMD", "nc", "-zv", "near-sffl-operator", "9091"]
       interval: 5s
       timeout: 75s
       retries: 15
@@ -89,7 +89,7 @@ services:
     container_name: grafana
     volumes:
       - grafana_data:/var/lib/grafana
-      - ./grafana/provisioning:/etc/grafana/provisioning
+      - ../../grafana/provisioning:/etc/grafana/provisioning
     environment:
       - GF_SECURITY_ADMIN_USER=${ADMIN_USER:-admin}
       - GF_SECURITY_ADMIN_PASSWORD=${ADMIN_PASSWORD:-admin}
@@ -116,8 +116,8 @@ services:
       - "--web.enable-lifecycle"
       - --web.enable-remote-write-receiver
     restart: unless-stopped
-    expose:
-      - 9090
+    ports:
+      - "127.0.0.1:9090:9090"
     networks:
       - near-sffl
     extra_hosts:
