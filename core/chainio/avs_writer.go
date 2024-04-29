@@ -2,6 +2,7 @@ package chainio
 
 import (
 	"context"
+	"time"
 
 	"github.com/NethermindEth/near-sffl/core/config"
 	"github.com/NethermindEth/near-sffl/core/types/messages"
@@ -107,6 +108,18 @@ func (w *AvsWriter) SendAggregatedResponse(
 	taskResponse messages.CheckpointTaskResponse,
 	aggregation messages.MessageBlsAggregation,
 ) (*types.Receipt, error) {
+	// Wait a block if the task TaskCreatedBlock is the same as the current block
+	currentBlock, err := w.client.BlockNumber(ctx)
+	if err != nil {
+		w.logger.Errorf("Error getting current block number")
+		return nil, err
+	}
+
+	if uint64(task.TaskCreatedBlock) == currentBlock {
+		w.logger.Info("Waiting roughly a block before sending aggregated response...")
+		time.Sleep(20 * time.Second)
+	}
+
 	txOpts, err := w.TxMgr.GetNoSendTxOpts()
 	if err != nil {
 		w.logger.Errorf("Error getting tx opts")
