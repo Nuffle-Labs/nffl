@@ -240,7 +240,27 @@ func (attestor *Attestor) processRollupHeaders(rollupId uint32, headersC chan *e
 func (attestor *Attestor) processHeader(rollupId uint32, rollupHeader *ethtypes.Header, ctx context.Context) {
 	attestor.logger.Info("Processing header", "rollupId", rollupId, "height", rollupHeader.Number.Uint64())
 
-	mqBlocksC, id := attestor.notifier.Subscribe(rollupId)
+	predicate := func(mqBlock consumer.BlockData) bool {
+		if mqBlock.RollupId != rollupId {
+			attestor.logger.Warnf("Subscriber expected rollupId: %v, but got %v", rollupId, mqBlock.RollupId)
+			return false
+		}
+
+		if rollupHeader.Number.Cmp(mqBlock.Block.Header().Number) != 0 {
+			return false
+		}
+
+		if mqBlock.Block.Header().Root != rollupHeader.Root {
+			attestor.logger.Warnf("StateRoot from MQ doesn't match one from Node")
+			attestor.listener.OnBlockMismatch()
+
+			return false
+		}
+
+		return true
+	}
+
+	mqBlocksC, id := attestor.notifier.Subscribe(rollupId, predicate)
 	defer attestor.notifier.Unsubscribe(rollupId, id)
 
 	transactionId := [32]byte{0}
@@ -257,25 +277,6 @@ loop:
 			break loop
 
 		case mqBlock := <-mqBlocksC:
-			attestor.logger.Info("Received MQ block", "height", mqBlock.Block.Header().Number.Uint64(), "expectedHeight", rollupHeader.Number.Uint64(), "rollupId", mqBlock.RollupId)
-
-			if mqBlock.RollupId != rollupId {
-				attestor.logger.Warnf("Subscriber expected rollupId: %v, but got %v", rollupId, mqBlock.RollupId)
-				continue loop
-			}
-
-			// Filter notifications
-			if rollupHeader.Number.Cmp(mqBlock.Block.Header().Number) != 0 {
-				continue loop
-			}
-
-			if mqBlock.Block.Header().Root != rollupHeader.Root {
-				attestor.logger.Warnf("StateRoot from MQ doesn't match one from Node")
-				attestor.listener.OnBlockMismatch()
-
-				break loop
-			}
-
 			attestor.logger.Info("MQ block found", "height", mqBlock.Block.Header().Number.Uint64(), "rollupId", mqBlock.RollupId)
 
 			daCommitment = mqBlock.Commitment

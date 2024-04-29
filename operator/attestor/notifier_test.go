@@ -36,7 +36,15 @@ func subscribe(notifier *Notifier, blocks []consumer.BlockData, subscribedWg *sy
 		unsubscribedWg.Add(1)
 
 		go func(block consumer.BlockData, notifier *Notifier) {
-			blocksC, id := notifier.Subscribe(block.RollupId)
+			predicate := func(mqBlock consumer.BlockData) bool {
+				if block.Block.Header().Number.Cmp(mqBlock.Block.Header().Number) != 0 {
+					return false
+				}
+
+				return true
+			}
+
+			blocksC, id := notifier.Subscribe(block.RollupId, predicate)
 			subscribedWg.Done()
 
 			defer func() {
@@ -98,7 +106,14 @@ func TestNotifierSubscribeAndUnsubscribe(t *testing.T) {
 	block := generateBlockData()
 	notifier := NewNotifier()
 
-	_, id := notifier.Subscribe(block.RollupId)
+	predicate := func(mqBlock consumer.BlockData) bool {
+		if block.Block.Header().Number.Cmp(mqBlock.Block.Header().Number) != 0 {
+			return false
+		}
+
+		return true
+	}
+	_, id := notifier.Subscribe(block.RollupId, predicate)
 	assert.Equal(t, notifier.rollupIdsToSubscribers[block.RollupId].Len(), 1)
 
 	notifier.Unsubscribe(block.RollupId, id)
