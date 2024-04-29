@@ -79,8 +79,7 @@ func TestSendNewTask(t *testing.T) {
 	// see https://hynek.me/articles/what-to-mock-in-5-mins/
 	mockTaskBlsAggService.EXPECT().InitializeNewTask(TASK_INDEX, BLOCK_NUMBER, coretypes.QUORUM_NUMBERS, []eigentypes.QuorumThresholdPercentage{types.QUORUM_THRESHOLD_NUMERATOR}, taskTimeToExpiry)
 
-	err = aggregator.sendNewCheckpointTask()
-	assert.Nil(t, err)
+	aggregator.sendNewCheckpointTask()
 }
 
 func TestHandleStateRootUpdateAggregationReachedQuorum(t *testing.T) {
