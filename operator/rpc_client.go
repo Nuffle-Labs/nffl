@@ -105,23 +105,26 @@ func (c *AggregatorRpcClient) InitializeClientIfNotExist() error {
 
 func (c *AggregatorRpcClient) handleRpcError(err error) error {
 	if err == rpc.ErrShutdown {
-		c.rpcClientLock.Lock()
-
-		if c.rpcClient != nil {
-			c.logger.Info("Closing RPC client due to shutdown")
-
-			err = c.rpcClient.Close()
-			if err != nil {
-				c.logger.Error("Error closing RPC client", "err", err)
-			}
-
-			c.rpcClient = nil
-		}
-
-		c.rpcClientLock.Unlock()
+		go c.handleRpcShutdown()
 	}
 
 	return nil
+}
+
+func (c *AggregatorRpcClient) handleRpcShutdown() {
+	c.rpcClientLock.Lock()
+	defer c.rpcClientLock.Unlock()
+
+	if c.rpcClient != nil {
+		c.logger.Info("Closing RPC client due to shutdown")
+
+		err := c.rpcClient.Close()
+		if err != nil {
+			c.logger.Error("Error closing RPC client", "err", err)
+		}
+
+		c.rpcClient = nil
+	}
 }
 
 func (c *AggregatorRpcClient) onTick() {
@@ -214,7 +217,7 @@ func (c *AggregatorRpcClient) sendOperatorMessage(sendCb func() error, message R
 	c.logger.Info("Sending request to aggregator")
 	err := sendCb()
 	if err != nil {
-		go c.handleRpcError(err)
+		c.handleRpcError(err)
 		appendProtected()
 		return
 	}
@@ -232,7 +235,7 @@ func (c *AggregatorRpcClient) sendRequest(sendCb func() error) error {
 
 	err := sendCb()
 	if err != nil {
-		go c.handleRpcError(err)
+		c.handleRpcError(err)
 		return err
 	}
 
