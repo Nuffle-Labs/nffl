@@ -3,6 +3,7 @@ package aggregator
 import (
 	"context"
 	"errors"
+	"fmt"
 	"time"
 
 	"github.com/Layr-Labs/eigensdk-go/logging"
@@ -171,7 +172,7 @@ func (b *RollupBroadcaster) BroadcastOperatorSetUpdate(ctx context.Context, mess
 	updateOperatorSet := func(writer *RollupWriter) {
 		err := writer.UpdateOperatorSet(ctx, message, signatureInfo)
 		if err != nil {
-			b.errorChan <- err
+			b.errorChan <- fmt.Errorf("failed to update operator set on writer %d: %w", writer.rollupId, err)
 		}
 	}
 
