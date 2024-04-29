@@ -215,8 +215,6 @@ func (c *AggregatorRpcClient) sendOperatorMessage(sendCb func() error, message R
 		appendProtected()
 		return
 	}
-
-	c.tryResendFromDeque()
 }
 
 func (c *AggregatorRpcClient) sendRequest(sendCb func() error) error {
