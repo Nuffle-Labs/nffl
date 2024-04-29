@@ -14,7 +14,6 @@ import (
 	sdklogging "github.com/Layr-Labs/eigensdk-go/logging"
 	blsaggservmock "github.com/Layr-Labs/eigensdk-go/services/mocks/blsagg"
 	eigentypes "github.com/Layr-Labs/eigensdk-go/types"
-	sdktypes "github.com/Layr-Labs/eigensdk-go/types"
 	gethtypes "github.com/ethereum/go-ethereum/core/types"
 
 	dbmocks "github.com/NethermindEth/near-sffl/aggregator/database/mocks"
@@ -35,7 +34,7 @@ var MOCK_OPERATOR_G1PUBKEY = MOCK_OPERATOR_KEYPAIR.GetPubKeyG1()
 var MOCK_OPERATOR_G2PUBKEY = MOCK_OPERATOR_KEYPAIR.GetPubKeyG2()
 var MOCK_OPERATOR_PUBKEY_DICT = map[eigentypes.OperatorId]types.OperatorInfo{
 	MOCK_OPERATOR_ID: {
-		OperatorPubkeys: sdktypes.OperatorPubkeys{
+		OperatorPubkeys: eigentypes.OperatorPubkeys{
 			G1Pubkey: MOCK_OPERATOR_G1PUBKEY,
 			G2Pubkey: MOCK_OPERATOR_G2PUBKEY,
 		},
@@ -170,7 +169,7 @@ func createMockAggregator(
 		operatorSetUpdateBlsAggregationService: mockOperatorSetUpdateBlsAggregationService,
 		msgDb:                                  mockMsgDb,
 		tasks:                                  make(map[coretypes.TaskIndex]taskmanager.CheckpointTask),
-		taskResponses:                          make(map[coretypes.TaskIndex]map[sdktypes.TaskResponseDigest]messages.CheckpointTaskResponse),
+		taskResponses:                          make(map[coretypes.TaskIndex]map[eigentypes.TaskResponseDigest]messages.CheckpointTaskResponse),
 		stateRootUpdates:                       make(map[coretypes.MessageDigest]messages.StateRootUpdateMessage),
 		operatorSetUpdates:                     make(map[coretypes.MessageDigest]messages.OperatorSetUpdateMessage),
 		rollupBroadcaster:                      mockRollupBroadcaster,

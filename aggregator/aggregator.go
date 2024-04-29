@@ -6,8 +6,7 @@ import (
 	"sync"
 	"time"
 
-	"github.com/Layr-Labs/eigensdk-go/chainio/clients"
-	sdkclients "github.com/Layr-Labs/eigensdk-go/chainio/clients"
+	eigenclients "github.com/Layr-Labs/eigensdk-go/chainio/clients"
 	"github.com/Layr-Labs/eigensdk-go/chainio/clients/eth"
 	"github.com/Layr-Labs/eigensdk-go/chainio/clients/wallet"
 	"github.com/Layr-Labs/eigensdk-go/chainio/txmgr"
@@ -18,7 +17,6 @@ import (
 	oppubkeysserv "github.com/Layr-Labs/eigensdk-go/services/operatorpubkeys"
 	"github.com/Layr-Labs/eigensdk-go/signerv2"
 	eigentypes "github.com/Layr-Labs/eigensdk-go/types"
-	sdktypes "github.com/Layr-Labs/eigensdk-go/types"
 	"github.com/prometheus/client_golang/prometheus"
 
 	"github.com/NethermindEth/near-sffl/aggregator/database"
@@ -94,7 +92,7 @@ type Aggregator struct {
 	operatorSetUpdateBlsAggregationService MessageBlsAggregationService
 	tasks                                  map[coretypes.TaskIndex]taskmanager.CheckpointTask
 	tasksLock                              sync.RWMutex
-	taskResponses                          map[coretypes.TaskIndex]map[sdktypes.TaskResponseDigest]messages.CheckpointTaskResponse
+	taskResponses                          map[coretypes.TaskIndex]map[eigentypes.TaskResponseDigest]messages.CheckpointTaskResponse
 	taskResponsesLock                      sync.RWMutex
 	msgDb                                  database.Databaser
 	stateRootUpdates                       map[coretypes.MessageDigest]messages.StateRootUpdateMessage
@@ -109,7 +107,7 @@ var _ core.Metricable = (*Aggregator)(nil)
 // TODO: Remove this context once OperatorPubkeysServiceInMemory's API is
 // changed and we can gracefully exit otherwise
 func NewAggregator(ctx context.Context, config *config.Config, logger logging.Logger) (*Aggregator, error) {
-	chainioConfig := sdkclients.BuildAllConfig{
+	chainioConfig := eigenclients.BuildAllConfig{
 		EthHttpUrl:                 config.EthHttpRpcUrl,
 		EthWsUrl:                   config.EthWsRpcUrl,
 		RegistryCoordinatorAddr:    config.SFFLRegistryCoordinatorAddr.String(),
@@ -117,7 +115,7 @@ func NewAggregator(ctx context.Context, config *config.Config, logger logging.Lo
 		AvsName:                    avsName,
 		PromMetricsIpPortAddress:   config.MetricsIpPortAddress,
 	}
-	clients, err := clients.BuildAll(chainioConfig, config.EcdsaPrivateKey, logger)
+	clients, err := eigenclients.BuildAll(chainioConfig, config.EcdsaPrivateKey, logger)
 	if err != nil {
 		logger.Errorf("Cannot create sdk clients", "err", err)
 		return nil, err
@@ -218,7 +216,7 @@ func NewAggregator(ctx context.Context, config *config.Config, logger logging.Lo
 		operatorSetUpdateBlsAggregationService: operatorSetUpdateBlsAggregationService,
 		msgDb:                                  msgDb,
 		tasks:                                  make(map[coretypes.TaskIndex]taskmanager.CheckpointTask),
-		taskResponses:                          make(map[coretypes.TaskIndex]map[sdktypes.TaskResponseDigest]messages.CheckpointTaskResponse),
+		taskResponses:                          make(map[coretypes.TaskIndex]map[eigentypes.TaskResponseDigest]messages.CheckpointTaskResponse),
 		stateRootUpdates:                       make(map[coretypes.MessageDigest]messages.StateRootUpdateMessage),
 		operatorSetUpdates:                     make(map[coretypes.MessageDigest]messages.OperatorSetUpdateMessage),
 		restListener:                           &SelectiveRestListener{},
