@@ -168,17 +168,20 @@ func (b *RollupBroadcaster) tryInitializeRollupOperatorSet(ctx context.Context, 
 }
 
 func (b *RollupBroadcaster) BroadcastOperatorSetUpdate(ctx context.Context, message messages.OperatorSetUpdateMessage, signatureInfo registryrollup.RollupOperatorsSignatureInfo) {
+	updateOperatorSet := func(writer *RollupWriter) {
+		err := writer.UpdateOperatorSet(ctx, message, signatureInfo)
+		if err != nil {
+			b.errorChan <- err
+		}
+	}
+
 	go func() {
 		for _, writer := range b.writers {
 			select {
 			case <-ctx.Done():
 				return
-
 			default:
-				err := writer.UpdateOperatorSet(ctx, message, signatureInfo)
-				if err != nil {
-					b.errorChan <- err
-				}
+				go updateOperatorSet(writer)
 			}
 		}
 	}()
