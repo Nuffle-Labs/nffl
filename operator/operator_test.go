@@ -48,8 +48,8 @@ func TestOperator(t *testing.T) {
 				FromTimestamp:    fromTimestamp,
 				ToTimestamp:      toTimestamp,
 				TaskCreatedBlock: 1000,
-				QuorumNumbers:    coretypes.QUORUM_NUMBERS,
-				QuorumThreshold:  aggtypes.QUORUM_THRESHOLD_NUMERATOR,
+				QuorumNumbers:    coretypes.QUORUM_NUMBERS_BYTES,
+				QuorumThreshold:  uint32(aggtypes.QUORUM_THRESHOLD_NUMERATOR),
 			},
 			Raw: types.Log{},
 		}

@@ -4,6 +4,7 @@ import (
 	"math/big"
 
 	"github.com/Layr-Labs/eigensdk-go/crypto/bls"
+	eigentypes "github.com/Layr-Labs/eigensdk-go/types"
 	"github.com/ethereum/go-ethereum/accounts/abi"
 	"golang.org/x/crypto/sha3"
 
@@ -76,4 +77,12 @@ func HashBNG1Point(input taskmanager.BN254G1Point) ([32]byte, error) {
 	}
 
 	return Keccak256(bytes), nil
+}
+
+func ConvertBytesToQuorumNumbers(input []byte) []eigentypes.QuorumNum {
+	output := make([]eigentypes.QuorumNum, len(input))
+	for i, b := range input {
+		output[i] = eigentypes.QuorumNum(b)
+	}
+	return output
 }

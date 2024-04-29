@@ -6,7 +6,6 @@ import (
 
 	"github.com/ethereum/go-ethereum/accounts/abi/bind"
 	"github.com/ethereum/go-ethereum/common"
-	gethcommon "github.com/ethereum/go-ethereum/common"
 
 	erc20mock "github.com/NethermindEth/near-sffl/contracts/bindings/ERC20Mock"
 	opsetupdatereg "github.com/NethermindEth/near-sffl/contracts/bindings/SFFLOperatorSetUpdateRegistry"
@@ -24,7 +23,7 @@ type AvsManagersBindings struct {
 	logger                    logging.Logger
 }
 
-func NewAvsManagersBindings(registryCoordinatorAddr, operatorStateRetrieverAddr gethcommon.Address, ethclient eth.Client, logger logging.Logger) (*AvsManagersBindings, error) {
+func NewAvsManagersBindings(registryCoordinatorAddr, operatorStateRetrieverAddr common.Address, ethclient eth.Client, logger logging.Logger) (*AvsManagersBindings, error) {
 	contractRegistryCoordinator, err := regcoord.NewContractSFFLRegistryCoordinator(registryCoordinatorAddr, ethclient)
 	if err != nil {
 		return nil, err

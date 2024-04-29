@@ -2,6 +2,7 @@ package messages
 
 import (
 	"github.com/Layr-Labs/eigensdk-go/crypto/bls"
+	eigentypes "github.com/Layr-Labs/eigensdk-go/types"
 	"github.com/ethereum/go-ethereum/accounts/abi"
 
 	taskmanager "github.com/NethermindEth/near-sffl/contracts/bindings/SFFLTaskManager"
@@ -19,7 +20,7 @@ type CheckpointTaskResponse struct {
 type SignedCheckpointTaskResponse struct {
 	TaskResponse CheckpointTaskResponse
 	BlsSignature bls.Signature
-	OperatorId   bls.OperatorId
+	OperatorId   eigentypes.OperatorId
 }
 
 type CheckpointMessages struct {

@@ -13,7 +13,7 @@ import (
 	"github.com/Layr-Labs/eigensdk-go/chainio/txmgr"
 	"github.com/Layr-Labs/eigensdk-go/crypto/bls"
 	sdklogging "github.com/Layr-Labs/eigensdk-go/logging"
-	eigenSdkTypes "github.com/Layr-Labs/eigensdk-go/types"
+	eigentypes "github.com/Layr-Labs/eigensdk-go/types"
 	"github.com/ethereum/go-ethereum/accounts/abi/bind"
 	"github.com/ethereum/go-ethereum/common"
 	"github.com/ethereum/go-ethereum/crypto"
@@ -230,7 +230,7 @@ func (avsManager *AvsManager) DepositIntoStrategy(operatorAddr common.Address, s
 }
 
 func (avsManager *AvsManager) RegisterOperatorWithEigenlayer(operatorAddr common.Address) error {
-	operator := eigenSdkTypes.Operator{
+	operator := eigentypes.Operator{
 		Address:                 operatorAddr.String(),
 		EarningsReceiverAddress: operatorAddr.String(),
 	}
@@ -250,7 +250,7 @@ func (avsManager *AvsManager) RegisterOperatorWithAvs(
 	blsKeyPair *bls.KeyPair,
 ) error {
 	// hardcode these things for now
-	quorumNumbers := []byte{0}
+	quorumNumbers := eigentypes.QuorumNums{0}
 	socket := "Not Needed"
 	curBlockNum, err := client.BlockNumber(context.Background())
 	if err != nil {
@@ -264,12 +264,12 @@ func (avsManager *AvsManager) RegisterOperatorWithAvs(
 		return err
 	}
 
-	operatorId := blsKeyPair.GetOperatorID()
+	operatorId := eigentypes.OperatorIdFromPubkey(blsKeyPair.GetPubKeyG1())
 
 	sigValidForSeconds := int64(1_000_000)
 	operatorToAvsRegistrationSigExpiry := big.NewInt(int64(curBlock.Time()) + sigValidForSeconds)
 	operatorToAvsRegistrationSigSalt := [32]byte{}
-	copy(operatorToAvsRegistrationSigSalt[:], crypto.Keccak256([]byte("sffl"), operatorId[:], quorumNumbers, []byte(time.Now().String())))
+	copy(operatorToAvsRegistrationSigSalt[:], crypto.Keccak256([]byte("sffl"), operatorId[:], quorumNumbers.UnderlyingType(), []byte(time.Now().String())))
 	_, err = avsManager.avsWriter.RegisterOperatorInQuorumWithAVSRegistryCoordinator(
 		context.Background(),
 		operatorEcdsaKeyPair, operatorToAvsRegistrationSigSalt, operatorToAvsRegistrationSigExpiry,

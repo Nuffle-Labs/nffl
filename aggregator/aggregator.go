@@ -6,8 +6,7 @@ import (
 	"sync"
 	"time"
 
-	"github.com/Layr-Labs/eigensdk-go/chainio/clients"
-	sdkclients "github.com/Layr-Labs/eigensdk-go/chainio/clients"
+	eigenclients "github.com/Layr-Labs/eigensdk-go/chainio/clients"
 	"github.com/Layr-Labs/eigensdk-go/chainio/clients/eth"
 	"github.com/Layr-Labs/eigensdk-go/chainio/clients/wallet"
 	"github.com/Layr-Labs/eigensdk-go/chainio/txmgr"
@@ -17,7 +16,7 @@ import (
 	blsagg "github.com/Layr-Labs/eigensdk-go/services/bls_aggregation"
 	oppubkeysserv "github.com/Layr-Labs/eigensdk-go/services/operatorpubkeys"
 	"github.com/Layr-Labs/eigensdk-go/signerv2"
-	sdktypes "github.com/Layr-Labs/eigensdk-go/types"
+	eigentypes "github.com/Layr-Labs/eigensdk-go/types"
 	"github.com/prometheus/client_golang/prometheus"
 
 	"github.com/NethermindEth/near-sffl/aggregator/database"
@@ -93,7 +92,7 @@ type Aggregator struct {
 	operatorSetUpdateBlsAggregationService MessageBlsAggregationService
 	tasks                                  map[coretypes.TaskIndex]taskmanager.CheckpointTask
 	tasksLock                              sync.RWMutex
-	taskResponses                          map[coretypes.TaskIndex]map[sdktypes.TaskResponseDigest]messages.CheckpointTaskResponse
+	taskResponses                          map[coretypes.TaskIndex]map[eigentypes.TaskResponseDigest]messages.CheckpointTaskResponse
 	taskResponsesLock                      sync.RWMutex
 	msgDb                                  database.Databaser
 	stateRootUpdates                       map[coretypes.MessageDigest]messages.StateRootUpdateMessage
@@ -108,7 +107,7 @@ var _ core.Metricable = (*Aggregator)(nil)
 // TODO: Remove this context once OperatorPubkeysServiceInMemory's API is
 // changed and we can gracefully exit otherwise
 func NewAggregator(ctx context.Context, config *config.Config, logger logging.Logger) (*Aggregator, error) {
-	chainioConfig := sdkclients.BuildAllConfig{
+	chainioConfig := eigenclients.BuildAllConfig{
 		EthHttpUrl:                 config.EthHttpRpcUrl,
 		EthWsUrl:                   config.EthWsRpcUrl,
 		RegistryCoordinatorAddr:    config.SFFLRegistryCoordinatorAddr.String(),
@@ -116,7 +115,7 @@ func NewAggregator(ctx context.Context, config *config.Config, logger logging.Lo
 		AvsName:                    avsName,
 		PromMetricsIpPortAddress:   config.MetricsIpPortAddress,
 	}
-	clients, err := clients.BuildAll(chainioConfig, config.EcdsaPrivateKey, logger)
+	clients, err := eigenclients.BuildAll(chainioConfig, config.EcdsaPrivateKey, logger)
 	if err != nil {
 		logger.Errorf("Cannot create sdk clients", "err", err)
 		return nil, err
@@ -171,7 +170,7 @@ func NewAggregator(ctx context.Context, config *config.Config, logger logging.Lo
 		return nil, err
 	}
 
-	txMgr := txmgr.NewSimpleTxManager(txSender, ethHttpClient, logger, signerV2, config.AggregatorAddress)
+	txMgr := txmgr.NewSimpleTxManager(txSender, ethHttpClient, logger, config.AggregatorAddress).WithGasLimitMultiplier(1.5)
 
 	avsWriter, err := chainio.BuildAvsWriterFromConfig(txMgr, config, ethHttpClient, logger)
 	if err != nil {
@@ -217,7 +216,7 @@ func NewAggregator(ctx context.Context, config *config.Config, logger logging.Lo
 		operatorSetUpdateBlsAggregationService: operatorSetUpdateBlsAggregationService,
 		msgDb:                                  msgDb,
 		tasks:                                  make(map[coretypes.TaskIndex]taskmanager.CheckpointTask),
-		taskResponses:                          make(map[coretypes.TaskIndex]map[sdktypes.TaskResponseDigest]messages.CheckpointTaskResponse),
+		taskResponses:                          make(map[coretypes.TaskIndex]map[eigentypes.TaskResponseDigest]messages.CheckpointTaskResponse),
 		stateRootUpdates:                       make(map[coretypes.MessageDigest]messages.StateRootUpdateMessage),
 		operatorSetUpdates:                     make(map[coretypes.MessageDigest]messages.OperatorSetUpdateMessage),
 		restListener:                           &SelectiveRestListener{},
@@ -378,14 +377,14 @@ func (agg *Aggregator) sendNewCheckpointTask() error {
 	agg.tasks[taskIndex] = newTask
 	agg.tasksLock.Unlock()
 
-	quorumThresholds := make([]uint32, len(newTask.QuorumNumbers))
+	quorumThresholds := make([]eigentypes.QuorumThresholdPercentage, len(newTask.QuorumNumbers))
 	for i, _ := range newTask.QuorumNumbers {
-		quorumThresholds[i] = newTask.QuorumThreshold
+		quorumThresholds[i] = eigentypes.QuorumThresholdPercentage(newTask.QuorumThreshold)
 	}
 	// TODO(samlaf): we use seconds for now, but we should ideally pass a blocknumber to the blsAggregationService
 	// and it should monitor the chain and only expire the task aggregation once the chain has reached that block number.
 	taskTimeToExpiry := taskChallengeWindowBlock * blockTimeSeconds
-	agg.taskBlsAggregationService.InitializeNewTask(taskIndex, newTask.TaskCreatedBlock, newTask.QuorumNumbers, quorumThresholds, taskTimeToExpiry)
+	agg.taskBlsAggregationService.InitializeNewTask(taskIndex, newTask.TaskCreatedBlock, core.ConvertBytesToQuorumNumbers(newTask.QuorumNumbers), quorumThresholds, taskTimeToExpiry)
 	return nil
 }
 

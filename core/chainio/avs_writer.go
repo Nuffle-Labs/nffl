@@ -6,13 +6,13 @@ import (
 	"github.com/NethermindEth/near-sffl/core/config"
 	"github.com/NethermindEth/near-sffl/core/types/messages"
 
-	gethcommon "github.com/ethereum/go-ethereum/common"
-	"github.com/ethereum/go-ethereum/core/types"
-
 	"github.com/Layr-Labs/eigensdk-go/chainio/clients/avsregistry"
 	"github.com/Layr-Labs/eigensdk-go/chainio/clients/eth"
 	"github.com/Layr-Labs/eigensdk-go/chainio/txmgr"
 	logging "github.com/Layr-Labs/eigensdk-go/logging"
+	eigentypes "github.com/Layr-Labs/eigensdk-go/types"
+	gethcommon "github.com/ethereum/go-ethereum/common"
+	"github.com/ethereum/go-ethereum/core/types"
 
 	taskmanager "github.com/NethermindEth/near-sffl/contracts/bindings/SFFLTaskManager"
 )
@@ -24,8 +24,8 @@ type AvsWriterer interface {
 		ctx context.Context,
 		fromTimestamp uint64,
 		toTimestamp uint64,
-		quorumThreshold uint32,
-		quorumNumbers []byte,
+		quorumThreshold eigentypes.QuorumThresholdPercentage,
+		quorumNumbers eigentypes.QuorumNums,
 	) (taskmanager.CheckpointTask, uint32, error)
 	RaiseChallenge(
 		ctx context.Context,
@@ -78,13 +78,13 @@ func NewAvsWriter(avsRegistryWriter avsregistry.AvsRegistryWriter, avsServiceBin
 }
 
 // returns the tx receipt, as well as the task index (which it gets from parsing the tx receipt logs)
-func (w *AvsWriter) SendNewCheckpointTask(ctx context.Context, fromTimestamp uint64, toTimestamp uint64, quorumThreshold uint32, quorumNumbers []byte) (taskmanager.CheckpointTask, uint32, error) {
+func (w *AvsWriter) SendNewCheckpointTask(ctx context.Context, fromTimestamp uint64, toTimestamp uint64, quorumThreshold eigentypes.QuorumThresholdPercentage, quorumNumbers eigentypes.QuorumNums) (taskmanager.CheckpointTask, uint32, error) {
 	txOpts, err := w.TxMgr.GetNoSendTxOpts()
 	if err != nil {
 		w.logger.Errorf("Error getting tx opts")
 		return taskmanager.CheckpointTask{}, 0, err
 	}
-	tx, err := w.AvsContractBindings.TaskManager.CreateCheckpointTask(txOpts, fromTimestamp, toTimestamp, quorumThreshold, quorumNumbers)
+	tx, err := w.AvsContractBindings.TaskManager.CreateCheckpointTask(txOpts, fromTimestamp, toTimestamp, uint32(quorumThreshold), quorumNumbers.UnderlyingType())
 	if err != nil {
 		w.logger.Errorf("Error assembling CreateCheckpointTask tx")
 		return taskmanager.CheckpointTask{}, 0, err
@@ -114,14 +114,6 @@ func (w *AvsWriter) SendAggregatedResponse(
 	}
 
 	tx, err := w.AvsContractBindings.TaskManager.RespondToCheckpointTask(txOpts, task, taskResponse.ToBinding(), aggregation.ExtractBindingMainnet())
-	if err != nil {
-		w.logger.Error("Error submitting SubmitTaskResponse tx while calling respondToTask", "err", err)
-		return nil, err
-	}
-
-	txOpts.GasLimit = tx.Gas() * 15 / 10
-
-	tx, err = w.AvsContractBindings.TaskManager.RespondToCheckpointTask(txOpts, task, taskResponse.ToBinding(), aggregation.ExtractBindingMainnet())
 	if err != nil {
 		w.logger.Error("Error submitting SubmitTaskResponse tx while calling respondToTask", "err", err)
 		return nil, err

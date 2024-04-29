@@ -20,6 +20,7 @@ import (
 	"github.com/Layr-Labs/eigensdk-go/metrics/collectors/economic"
 	"github.com/Layr-Labs/eigensdk-go/nodeapi"
 	"github.com/Layr-Labs/eigensdk-go/signerv2"
+	eigentypes "github.com/Layr-Labs/eigensdk-go/types"
 	sdktypes "github.com/Layr-Labs/eigensdk-go/types"
 	"github.com/ethereum/go-ethereum/accounts/abi/bind"
 	"github.com/ethereum/go-ethereum/common"
@@ -51,7 +52,7 @@ type Operator struct {
 
 	nodeApi      *nodeapi.NodeApi
 	blsKeypair   *bls.KeyPair
-	operatorId   bls.OperatorId
+	operatorId   eigentypes.OperatorId
 	operatorAddr common.Address
 
 	// ip address of aggregator
@@ -161,7 +162,7 @@ func NewOperatorFromConfig(c optypes.NodeConfig) (*Operator, error) {
 		return nil, err
 	}
 
-	txMgr := txmgr.NewSimpleTxManager(txSender, ethRpcClient, logger, signerV2, common.HexToAddress(c.OperatorAddress))
+	txMgr := txmgr.NewSimpleTxManager(txSender, ethRpcClient, logger, common.HexToAddress(c.OperatorAddress)).WithGasLimitMultiplier(1.5)
 
 	// Use eigen registry
 	reg = sdkClients.PrometheusRegistry
@@ -361,7 +362,7 @@ func (o *Operator) SignTaskResponse(taskResponse *messages.CheckpointTaskRespons
 	return signedCheckpointTaskResponse, nil
 }
 
-func SignOperatorSetUpdate(message messages.OperatorSetUpdateMessage, blsKeyPair *bls.KeyPair, operatorId bls.OperatorId) (*messages.SignedOperatorSetUpdateMessage, error) {
+func SignOperatorSetUpdate(message messages.OperatorSetUpdateMessage, blsKeyPair *bls.KeyPair, operatorId eigentypes.OperatorId) (*messages.SignedOperatorSetUpdateMessage, error) {
 	messageHash, err := message.Digest()
 	if err != nil {
 		return nil, err

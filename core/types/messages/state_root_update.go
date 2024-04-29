@@ -4,6 +4,7 @@ import (
 	"encoding/binary"
 
 	"github.com/Layr-Labs/eigensdk-go/crypto/bls"
+	eigentypes "github.com/Layr-Labs/eigensdk-go/types"
 	"github.com/ethereum/go-ethereum/accounts/abi"
 
 	servicemanager "github.com/NethermindEth/near-sffl/contracts/bindings/SFFLServiceManager"
@@ -23,7 +24,7 @@ type StateRootUpdateMessage struct {
 type SignedStateRootUpdateMessage struct {
 	Message      StateRootUpdateMessage
 	BlsSignature bls.Signature
-	OperatorId   bls.OperatorId
+	OperatorId   eigentypes.OperatorId
 }
 
 func NewStateRootUpdateMessageFromBinding(binding servicemanager.StateRootUpdateMessage) StateRootUpdateMessage {

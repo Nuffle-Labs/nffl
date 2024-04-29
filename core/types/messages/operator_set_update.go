@@ -5,6 +5,7 @@ import (
 	"math/big"
 
 	"github.com/Layr-Labs/eigensdk-go/crypto/bls"
+	eigentypes "github.com/Layr-Labs/eigensdk-go/types"
 	"github.com/ethereum/go-ethereum/accounts/abi"
 
 	registryrollup "github.com/NethermindEth/near-sffl/contracts/bindings/SFFLRegistryRollup"
@@ -21,7 +22,7 @@ type OperatorSetUpdateMessage struct {
 type SignedOperatorSetUpdateMessage struct {
 	Message      OperatorSetUpdateMessage
 	BlsSignature bls.Signature
-	OperatorId   bls.OperatorId
+	OperatorId   eigentypes.OperatorId
 }
 
 func NewOperatorSetUpdateMessageFromBinding(binding registryrollup.OperatorSetUpdateMessage) OperatorSetUpdateMessage {
