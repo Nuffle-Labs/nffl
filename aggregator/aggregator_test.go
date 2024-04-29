@@ -174,6 +174,8 @@ func createMockAggregator(
 		operatorSetUpdates:                     make(map[coretypes.MessageDigest]messages.OperatorSetUpdateMessage),
 		rollupBroadcaster:                      mockRollupBroadcaster,
 		client:                                 mockClient,
+		rpcListener:                            &SelectiveRpcListener{},
+		restListener:                           &SelectiveRestListener{},
 	}
 	return aggregator, mockAvsReader, mockAvsWriter, mockTaskBlsAggregationService, mockStateRootUpdateBlsAggregationService, mockOperatorSetUpdateBlsAggregationService, mockMsgDb, mockRollupBroadcaster, mockClient, nil
 }

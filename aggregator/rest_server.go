@@ -12,9 +12,9 @@ import (
 
 func (agg *Aggregator) startRestServer() error {
 	router := mux.NewRouter()
-	router.HandleFunc("/aggregation/state-root-update", agg.handleGetStateRootUpdateAggregation).Methods("GET")
-	router.HandleFunc("/aggregation/operator-set-update", agg.handleGetOperatorSetUpdateAggregation).Methods("GET")
-	router.HandleFunc("/checkpoint/messages", agg.handleGetCheckpointMessages).Methods("GET")
+	router.HandleFunc("/aggregation/state-root-update", wrapRequest(agg.restListener.APIErrors, agg.handleGetStateRootUpdateAggregation)).Methods("GET")
+	router.HandleFunc("/aggregation/operator-set-update", wrapRequest(agg.restListener.APIErrors, agg.handleGetOperatorSetUpdateAggregation)).Methods("GET")
+	router.HandleFunc("/checkpoint/messages", wrapRequest(agg.restListener.APIErrors, agg.handleGetCheckpointMessages)).Methods("GET")
 
 	err := http.ListenAndServe(agg.restServerIpPortAddr, router)
 	if err != nil {
@@ -24,30 +24,47 @@ func (agg *Aggregator) startRestServer() error {
 	return nil
 }
 
-func (agg *Aggregator) handleGetStateRootUpdateAggregation(w http.ResponseWriter, r *http.Request) {
+func wrapRequest(errorHandler func(), requestCallback func(w http.ResponseWriter, r *http.Request) error) func(w http.ResponseWriter, r *http.Request) {
+	if errorHandler == nil {
+		return func(w http.ResponseWriter, r *http.Request) {
+			_ = requestCallback(w, r)
+		}
+	}
+
+	return func(w http.ResponseWriter, r *http.Request) {
+		err := requestCallback(w, r)
+		if err != nil {
+			errorHandler()
+		}
+	}
+}
+
+func (agg *Aggregator) handleGetStateRootUpdateAggregation(w http.ResponseWriter, r *http.Request) error {
+	agg.restListener.IncStateRootUpdateRequests()
+
 	params := r.URL.Query()
 	rollupId, err := strconv.ParseUint(params.Get("rollupId"), 10, 32)
 	if err != nil {
 		http.Error(w, "Invalid rollupId", http.StatusBadRequest)
-		return
+		return err
 	}
 
 	blockHeight, err := strconv.ParseUint(params.Get("blockHeight"), 10, 64)
 	if err != nil {
 		http.Error(w, "Invalid blockHeight", http.StatusBadRequest)
-		return
+		return err
 	}
 
 	message, err := agg.msgDb.FetchStateRootUpdate(uint32(rollupId), blockHeight)
 	if err != nil {
 		http.Error(w, "StateRootUpdate not found", http.StatusNotFound)
-		return
+		return err
 	}
 
 	aggregation, err := agg.msgDb.FetchStateRootUpdateAggregation(uint32(rollupId), blockHeight)
 	if err != nil {
 		http.Error(w, "StateRootUpdate aggregation not found", http.StatusNotFound)
-		return
+		return err
 	}
 
 	w.WriteHeader(http.StatusOK)
@@ -56,26 +73,30 @@ func (agg *Aggregator) handleGetStateRootUpdateAggregation(w http.ResponseWriter
 		Message:     *message,
 		Aggregation: *aggregation,
 	})
+
+	return nil
 }
 
-func (agg *Aggregator) handleGetOperatorSetUpdateAggregation(w http.ResponseWriter, r *http.Request) {
+func (agg *Aggregator) handleGetOperatorSetUpdateAggregation(w http.ResponseWriter, r *http.Request) error {
+	agg.restListener.IncOperatorSetUpdateRequests()
+
 	params := r.URL.Query()
 	id, err := strconv.ParseUint(params.Get("id"), 10, 64)
 	if err != nil {
 		http.Error(w, "Invalid id", http.StatusBadRequest)
-		return
+		return err
 	}
 
 	message, err := agg.msgDb.FetchOperatorSetUpdate(id)
 	if err != nil {
 		http.Error(w, "OperatorSetUpdate not found", http.StatusNotFound)
-		return
+		return err
 	}
 
 	aggregation, err := agg.msgDb.FetchOperatorSetUpdateAggregation(id)
 	if err != nil {
 		http.Error(w, "OperatorSetUpdate aggregation not found", http.StatusNotFound)
-		return
+		return err
 	}
 
 	w.WriteHeader(http.StatusOK)
@@ -84,27 +105,30 @@ func (agg *Aggregator) handleGetOperatorSetUpdateAggregation(w http.ResponseWrit
 		Message:     *message,
 		Aggregation: *aggregation,
 	})
+
+	return nil
 }
 
-func (agg *Aggregator) handleGetCheckpointMessages(w http.ResponseWriter, r *http.Request) {
+func (agg *Aggregator) handleGetCheckpointMessages(w http.ResponseWriter, r *http.Request) error {
+	agg.restListener.IncCheckpointMessagesRequests()
 	params := r.URL.Query()
 
 	fromTimestamp, err := strconv.ParseUint(params.Get("fromTimestamp"), 10, 64)
 	if err != nil {
 		http.Error(w, "Invalid fromTimestamp", http.StatusBadRequest)
-		return
+		return err
 	}
 
 	toTimestamp, err := strconv.ParseUint(params.Get("toTimestamp"), 10, 64)
 	if err != nil {
 		http.Error(w, "Invalid toTimestamp", http.StatusBadRequest)
-		return
+		return err
 	}
 
 	checkpointMessages, err := agg.msgDb.FetchCheckpointMessages(fromTimestamp, toTimestamp)
 	if err != nil {
 		http.Error(w, "CheckpointMessages not found", http.StatusNotFound)
-		return
+		return err
 	}
 
 	w.WriteHeader(http.StatusOK)
@@ -112,4 +136,6 @@ func (agg *Aggregator) handleGetCheckpointMessages(w http.ResponseWriter, r *htt
 	json.NewEncoder(w).Encode(aggtypes.GetCheckpointMessagesResponse{
 		CheckpointMessages: *checkpointMessages,
 	})
+
+	return nil
 }

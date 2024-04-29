@@ -241,6 +241,8 @@ services:
         condition: service_completed_successfully
       rollup1-anvil-setup:
         condition: service_completed_successfully
+    ports:
+      - 9091
     volumes:
       - ./:/near-sffl/
     working_dir: /near-sffl

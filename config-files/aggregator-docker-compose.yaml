@@ -13,3 +13,7 @@ rollup_ids_to_rpc_urls:
 rollup_ids_to_registry_addresses:
   2: 0xe1Aa25618fA0c7A1CFDab5d6B456af611873b629
   3: 0xe1Aa25618fA0c7A1CFDab5d6B456af611873b629
+
+# metrics related
+enable_metrics: true
+metrics_ip_port_address: near-sffl-aggregator:9091

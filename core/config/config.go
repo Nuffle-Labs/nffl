@@ -19,9 +19,8 @@ import (
 // Config contains all of the configuration information for SFFL aggregators and challengers.
 // Operators use a separate config. (see config-files/operator.anvil.yaml)
 type Config struct {
-	EcdsaPrivateKey           *ecdsa.PrivateKey
-	BlsPrivateKey             *bls.PrivateKey
-	EigenMetricsIpPortAddress string
+	EcdsaPrivateKey *ecdsa.PrivateKey
+	BlsPrivateKey   *bls.PrivateKey
 	// we need the url for the eigensdk currently... eventually standardize api so as to
 	// only take an ethclient or an rpcUrl (and build the ethclient at each constructor site)
 	EthHttpRpcUrl                  string
@@ -36,6 +35,10 @@ type Config struct {
 	RegisterOperatorOnStartup      bool
 	// json:"-" skips this field when marshaling (only used for logging to stdout), since SignerFn doesnt implement marshalJson
 	AggregatorAddress common.Address
+
+	// metrics related
+	EnableMetrics        bool
+	MetricsIpPortAddress string
 }
 
 // These are read from ConfigFileFlag
@@ -50,6 +53,9 @@ type ConfigRaw struct {
 	RegisterOperatorOnStartup      bool                `yaml:"register_operator_on_startup"`
 	RollupIdsToRpcUrls             map[uint32]string   `yaml:"rollup_ids_to_rpc_urls"`
 	RollupIdsToRegistryAddresses   map[uint32]string   `yaml:"rollup_ids_to_registry_addresses"`
+
+	EnableMetrics        bool   `yaml:"enable_metrics"`
+	MetricsIpPortAddress string `yaml:"metrics_ip_port_address"`
 }
 
 // These are read from SFFLDeploymentFileFlag
@@ -145,6 +151,8 @@ func NewConfig(ctx *cli.Context, configRaw ConfigRaw, logger sdklogging.Logger) 
 		AggregatorCheckpointInterval:   time.Duration(configRaw.AggregatorCheckpointInterval) * time.Millisecond,
 		AggregatorAddress:              aggregatorAddr,
 		RollupsInfo:                    rollupsInfo,
+		EnableMetrics:                  configRaw.EnableMetrics,
+		MetricsIpPortAddress:           configRaw.MetricsIpPortAddress,
 	}
 	config.validate()
 
@@ -158,6 +166,9 @@ func (c *Config) validate() {
 
 	if c.SFFLRegistryCoordinatorAddr == common.HexToAddress("") {
 		panic("Config: SFFLRegistryCoordinatorAddr is required")
+	}
+	if c.MetricsIpPortAddress == "" {
+		panic("Config: MetricsIpPortAddress shall be valid socket addr even if disabled")
 	}
 }
 

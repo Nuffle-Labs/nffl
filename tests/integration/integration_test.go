@@ -395,8 +395,11 @@ func genOperatorConfig(t *testing.T, ctx context.Context, keyId string, mainnetA
 	}
 	nodeConfig.EnableNodeApi = false
 	nodeConfig.NodeApiIpPortAddress = "0.0.0.0:0"
-	nodeConfig.EnableMetrics = false
-	nodeConfig.EigenMetricsIpPortAddress = "0.0.0.0:0"
+	if keyId == "4" {
+		// TODO: fix, Now impossible because of eigensdk
+		nodeConfig.EnableMetrics = false
+		nodeConfig.EigenMetricsIpPortAddress = "0.0.0.0:0"
+	}
 
 	nodeConfig.NearDaIndexerRmqIpPortAddress, err = rabbitMq.AmqpURL(ctx)
 	if err != nil {
@@ -457,6 +460,8 @@ func buildConfig(t *testing.T, sfflDeploymentRaw config.SFFLDeploymentRaw, addre
 		RegisterOperatorOnStartup:      aggConfigRaw.RegisterOperatorOnStartup,
 		AggregatorAddress:              aggregatorAddr,
 		RollupsInfo:                    rollupsInfo,
+		EnableMetrics:                  false,
+		MetricsIpPortAddress:           aggConfigRaw.MetricsIpPortAddress,
 	}
 }
 

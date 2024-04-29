@@ -6,13 +6,16 @@ import (
 	"sync"
 	"time"
 
-	"github.com/NethermindEth/near-sffl/core/types/messages"
-	"github.com/NethermindEth/near-sffl/metrics"
-
 	"github.com/Layr-Labs/eigensdk-go/logging"
+	"github.com/prometheus/client_golang/prometheus"
+
+	"github.com/NethermindEth/near-sffl/core"
+	"github.com/NethermindEth/near-sffl/core/types/messages"
 )
 
 type AggregatorRpcClienter interface {
+	core.Metricable
+
 	SendSignedCheckpointTaskResponseToAggregator(signedCheckpointTaskResponse *messages.SignedCheckpointTaskResponse)
 	SendSignedStateRootUpdateToAggregator(signedStateRootUpdateMessage *messages.SignedStateRootUpdateMessage)
 	SendSignedOperatorSetUpdateToAggregator(signedOperatorSetUpdateMessage *messages.SignedOperatorSetUpdateMessage)
@@ -26,34 +29,45 @@ const (
 type RpcMessage = interface{}
 
 type AggregatorRpcClient struct {
-	rpcClientLock sync.Mutex
-	rpcClient     *rpc.Client
-
-	metrics              metrics.Metrics
-	logger               logging.Logger
+	rpcClientLock        sync.Mutex
+	rpcClient            *rpc.Client
 	aggregatorIpPortAddr string
 
 	unsentMessagesLock sync.Mutex
 	unsentMessages     []RpcMessage
+	resendTicker       *time.Ticker
 
-	resendTicker *time.Ticker
+	logger   logging.Logger
+	listener RpcClientEventListener
 }
 
-func NewAggregatorRpcClient(aggregatorIpPortAddr string, logger logging.Logger, metrics metrics.Metrics) (*AggregatorRpcClient, error) {
+var _ core.Metricable = (*AggregatorRpcClient)(nil)
+
+func NewAggregatorRpcClient(aggregatorIpPortAddr string, logger logging.Logger) (*AggregatorRpcClient, error) {
 	resendTicker := time.NewTicker(ResendInterval)
 
 	client := &AggregatorRpcClient{
 		// set to nil so that we can create an rpc client even if the aggregator is not running
 		rpcClient:            nil,
-		metrics:              metrics,
 		logger:               logger,
 		aggregatorIpPortAddr: aggregatorIpPortAddr,
 		unsentMessages:       make([]RpcMessage, 0),
 		resendTicker:         resendTicker,
+		listener:             &SelectiveRpcClientListener{},
 	}
 
 	go client.onTick()
 	return client, nil
+}
+
+func (c *AggregatorRpcClient) WithMetrics(registry *prometheus.Registry) error {
+	listener, err := MakeRpcClientMetrics(registry)
+	if err != nil {
+		return err
+	}
+
+	c.listener = listener
+	return nil
 }
 
 func (c *AggregatorRpcClient) dialAggregatorRpcClient() error {
@@ -203,7 +217,7 @@ func (c *AggregatorRpcClient) SendSignedCheckpointTaskResponseToAggregator(signe
 		}
 
 		c.logger.Info("Signed task response header accepted by aggregator.", "reply", reply)
-		c.metrics.IncNumMessagesAcceptedByAggregator()
+		c.listener.OnMessagesReceived()
 		return nil
 	}, signedCheckpointTaskResponse)
 }
@@ -220,7 +234,7 @@ func (c *AggregatorRpcClient) SendSignedStateRootUpdateToAggregator(signedStateR
 		}
 
 		c.logger.Info("Signed state root update message accepted by aggregator.", "reply", reply)
-		c.metrics.IncNumMessagesAcceptedByAggregator()
+		c.listener.OnMessagesReceived()
 		return nil
 	}, signedStateRootUpdateMessage)
 }
@@ -237,7 +251,7 @@ func (c *AggregatorRpcClient) SendSignedOperatorSetUpdateToAggregator(signedOper
 		}
 
 		c.logger.Info("Signed operator set update message accepted by aggregator.", "reply", reply)
-		c.metrics.IncNumMessagesAcceptedByAggregator()
+		c.listener.OnMessagesReceived()
 		return nil
 	}, signedOperatorSetUpdateMessage)
 }

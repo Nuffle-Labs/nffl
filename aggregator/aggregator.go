@@ -12,15 +12,18 @@ import (
 	"github.com/Layr-Labs/eigensdk-go/chainio/clients/wallet"
 	"github.com/Layr-Labs/eigensdk-go/chainio/txmgr"
 	"github.com/Layr-Labs/eigensdk-go/logging"
+	"github.com/Layr-Labs/eigensdk-go/metrics"
 	"github.com/Layr-Labs/eigensdk-go/services/avsregistry"
 	blsagg "github.com/Layr-Labs/eigensdk-go/services/bls_aggregation"
 	oppubkeysserv "github.com/Layr-Labs/eigensdk-go/services/operatorpubkeys"
 	"github.com/Layr-Labs/eigensdk-go/signerv2"
 	sdktypes "github.com/Layr-Labs/eigensdk-go/types"
+	"github.com/prometheus/client_golang/prometheus"
 
 	"github.com/NethermindEth/near-sffl/aggregator/database"
 	"github.com/NethermindEth/near-sffl/aggregator/types"
 	taskmanager "github.com/NethermindEth/near-sffl/contracts/bindings/SFFLTaskManager"
+	"github.com/NethermindEth/near-sffl/core"
 	"github.com/NethermindEth/near-sffl/core/chainio"
 	"github.com/NethermindEth/near-sffl/core/config"
 	coretypes "github.com/NethermindEth/near-sffl/core/types"
@@ -79,6 +82,12 @@ type Aggregator struct {
 	rollupBroadcaster    RollupBroadcasterer
 	client               eth.Client
 
+	// TODO(edwin): once rpc & rest decouple from aggregator fome it with them
+	registry     *prometheus.Registry
+	metrics      metrics.Metrics
+	rpcListener  RpcEventListener
+	restListener RestEventListener
+
 	taskBlsAggregationService              blsagg.BlsAggregationService
 	stateRootUpdateBlsAggregationService   MessageBlsAggregationService
 	operatorSetUpdateBlsAggregationService MessageBlsAggregationService
@@ -93,17 +102,46 @@ type Aggregator struct {
 	operatorSetUpdatesLock                 sync.RWMutex
 }
 
+var _ core.Metricable = (*Aggregator)(nil)
+
 // NewAggregator creates a new Aggregator with the provided config.
 // TODO: Remove this context once OperatorPubkeysServiceInMemory's API is
 // changed and we can gracefully exit otherwise
 func NewAggregator(ctx context.Context, config *config.Config, logger logging.Logger) (*Aggregator, error) {
-	ethHttpClient, err := eth.NewClient(config.EthHttpRpcUrl)
+	chainioConfig := sdkclients.BuildAllConfig{
+		EthHttpUrl:                 config.EthHttpRpcUrl,
+		EthWsUrl:                   config.EthWsRpcUrl,
+		RegistryCoordinatorAddr:    config.SFFLRegistryCoordinatorAddr.String(),
+		OperatorStateRetrieverAddr: config.OperatorStateRetrieverAddr.String(),
+		AvsName:                    avsName,
+		PromMetricsIpPortAddress:   config.MetricsIpPortAddress,
+	}
+	clients, err := clients.BuildAll(chainioConfig, config.EcdsaPrivateKey, logger)
+	if err != nil {
+		logger.Errorf("Cannot create sdk clients", "err", err)
+		return nil, err
+	}
+	registry := clients.PrometheusRegistry
+
+	ethHttpClient, err := core.CreateEthClientWithCollector(
+		AggregatorNamespace,
+		config.EthHttpRpcUrl,
+		config.EnableMetrics,
+		registry,
+		logger,
+	)
 	if err != nil {
 		logger.Errorf("Cannot create http ethclient", "err", err)
 		return nil, err
 	}
 
-	ethWsClient, err := eth.NewClient(config.EthWsRpcUrl)
+	ethWsClient, err := core.CreateEthClientWithCollector(
+		AggregatorNamespace,
+		config.EthWsRpcUrl,
+		config.EnableMetrics,
+		registry,
+		logger,
+	)
 	if err != nil {
 		logger.Errorf("Cannot create ws ethclient", "err", err)
 		return nil, err
@@ -147,20 +185,6 @@ func NewAggregator(ctx context.Context, config *config.Config, logger logging.Lo
 		return nil, err
 	}
 
-	chainioConfig := sdkclients.BuildAllConfig{
-		EthHttpUrl:                 config.EthHttpRpcUrl,
-		EthWsUrl:                   config.EthWsRpcUrl,
-		RegistryCoordinatorAddr:    config.SFFLRegistryCoordinatorAddr.String(),
-		OperatorStateRetrieverAddr: config.OperatorStateRetrieverAddr.String(),
-		AvsName:                    avsName,
-		PromMetricsIpPortAddress:   ":9090",
-	}
-	clients, err := clients.BuildAll(chainioConfig, config.EcdsaPrivateKey, logger)
-	if err != nil {
-		logger.Errorf("Cannot create sdk clients", "err", err)
-		return nil, err
-	}
-
 	msgDb, err := database.NewDatabase(config.AggregatorDatabasePath)
 	if err != nil {
 		logger.Errorf("Cannot create database", "err", err)
@@ -179,7 +203,7 @@ func NewAggregator(ctx context.Context, config *config.Config, logger logging.Lo
 	stateRootUpdateBlsAggregationService := NewMessageBlsAggregatorService(avsRegistryService, clients.EthHttpClient, logger)
 	operatorSetUpdateBlsAggregationService := NewMessageBlsAggregatorService(avsRegistryService, clients.EthHttpClient, logger)
 
-	return &Aggregator{
+	agg := &Aggregator{
 		logger:                                 logger,
 		serverIpPortAddr:                       config.AggregatorServerIpPortAddr,
 		restServerIpPortAddr:                   config.AggregatorRestServerIpPortAddr,
@@ -196,11 +220,47 @@ func NewAggregator(ctx context.Context, config *config.Config, logger logging.Lo
 		taskResponses:                          make(map[coretypes.TaskIndex]map[sdktypes.TaskResponseDigest]messages.CheckpointTaskResponse),
 		stateRootUpdates:                       make(map[coretypes.MessageDigest]messages.StateRootUpdateMessage),
 		operatorSetUpdates:                     make(map[coretypes.MessageDigest]messages.OperatorSetUpdateMessage),
-	}, nil
+		restListener:                           &SelectiveRestListener{},
+		rpcListener:                            &SelectiveRpcListener{},
+	}
+
+	if config.EnableMetrics {
+		if err = agg.WithMetrics(registry); err != nil {
+			return nil, err
+		}
+		agg.metrics = clients.Metrics
+		agg.registry = registry
+	}
+
+	return agg, nil
+}
+
+func (agg *Aggregator) WithMetrics(registry *prometheus.Registry) error {
+	restListener, err := MakeRestServerMetrics(registry)
+	if err != nil {
+		return err
+	}
+	agg.restListener = restListener
+
+	rpcListener, err := MakeRpcServerMetrics(registry)
+	if err != nil {
+		return err
+	}
+	agg.rpcListener = rpcListener
+
+	if err = agg.msgDb.WithMetrics(registry); err != nil {
+		return err
+	}
+
+	return nil
 }
 
 func (agg *Aggregator) Start(ctx context.Context) error {
 	agg.logger.Infof("Starting aggregator.")
+
+	if agg.metrics != nil {
+		agg.metrics.Start(ctx, agg.registry)
+	}
 
 	agg.logger.Infof("Starting aggregator rpc server.")
 	go agg.startServer()

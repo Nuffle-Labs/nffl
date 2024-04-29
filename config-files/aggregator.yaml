@@ -11,3 +11,7 @@ rollup_ids_to_rpc_urls:
   2: ws://localhost:8546
 rollup_ids_to_registry_addresses:
   2: 0x0000000000000000000000000000000000000000
+
+# metrics related
+enable_metrics: true
+metrics_ip_port_address: localhost:9091

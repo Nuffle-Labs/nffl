@@ -14,6 +14,7 @@ import (
 	ethtypes "github.com/ethereum/go-ethereum/core/types"
 	"github.com/prometheus/client_golang/prometheus"
 
+	"github.com/NethermindEth/near-sffl/core"
 	"github.com/NethermindEth/near-sffl/core/types/messages"
 	"github.com/NethermindEth/near-sffl/operator/consumer"
 	optypes "github.com/NethermindEth/near-sffl/operator/types"
@@ -30,27 +31,9 @@ var (
 	unknownRollupIdError = errors.New("notify: rollupId unknown")
 )
 
-func createEthClient(rpcUrl string, collector *rpccalls.Collector, logger sdklogging.Logger) (eth.Client, error) {
-	if collector != nil {
-		ethClient, err := eth.NewInstrumentedClient(rpcUrl, collector)
-		if err != nil {
-			logger.Error("Cannot create http ethclient", "err", err)
-			return nil, err
-		}
-
-		return ethClient, nil
-	}
-
-	ethClient, err := eth.NewClient(rpcUrl)
-	if err != nil {
-		logger.Error("Cannot create http ethclient", "err", err)
-		return nil, err
-	}
-
-	return ethClient, nil
-}
-
 type Attestorer interface {
+	core.Metricable
+
 	Start(ctx context.Context) error
 	Close() error
 	GetSignedRootC() <-chan messages.SignedStateRootUpdateMessage
@@ -69,19 +52,20 @@ type Attestor struct {
 	notifier           Notifier
 	consumer           *consumer.Consumer
 
-	registry   *prometheus.Registry
 	config     *optypes.NodeConfig
 	blsKeypair *bls.KeyPair
 	operatorId bls.OperatorId
 
-	logger sdklogging.Logger
+	logger   sdklogging.Logger
+	listener EventListener
+	// TODO(edwin): remove after https://github.com/Layr-Labs/eigensdk-go/pull/117 merged
+	registry *prometheus.Registry
 }
 
-func NewAttestor(config *optypes.NodeConfig, blsKeypair *bls.KeyPair, operatorId bls.OperatorId, logger sdklogging.Logger) (*Attestor, error) {
-	registry := prometheus.NewRegistry()
+var _ core.Metricable = (*Attestor)(nil)
 
+func NewAttestor(config *optypes.NodeConfig, blsKeypair *bls.KeyPair, operatorId bls.OperatorId, registry *prometheus.Registry, logger sdklogging.Logger) (*Attestor, error) {
 	consumer := consumer.NewConsumer(consumer.ConsumerConfig{
-		Addr:      config.NearDaIndexerRmqIpPortAddress,
 		RollupIds: config.NearDaIndexerRollupIds,
 		Id:        hex.EncodeToString(operatorId[:]),
 	}, logger)
@@ -96,16 +80,18 @@ func NewAttestor(config *optypes.NodeConfig, blsKeypair *bls.KeyPair, operatorId
 		blsKeypair:         blsKeypair,
 		operatorId:         operatorId,
 		registry:           registry,
+		listener:           &SelectiveEventListener{},
 		config:             config,
 	}
 
 	for rollupId, url := range config.RollupIdsToRpcUrls {
 		var rpcCallsCollector *rpccalls.Collector
 		if config.EnableMetrics {
-			rpcCallsCollector = rpccalls.NewCollector(url, registry)
+			id := config.OperatorAddress + AttestorSubsystem
+			rpcCallsCollector = rpccalls.NewCollector(id+url, registry)
 		}
 
-		client, err := createEthClient(url, rpcCallsCollector, logger)
+		client, err := core.CreateEthClient(url, rpcCallsCollector, logger)
 		if err != nil {
 			return nil, err
 		}
@@ -117,7 +103,23 @@ func NewAttestor(config *optypes.NodeConfig, blsKeypair *bls.KeyPair, operatorId
 	return &attestor, nil
 }
 
+func (attestor *Attestor) WithMetrics(registry *prometheus.Registry) error {
+	listener, err := MakeAttestorMetrics(registry)
+	if err != nil {
+		return err
+	}
+	attestor.listener = listener
+
+	if err = attestor.consumer.WithMetrics(registry); err != nil {
+		return err
+	}
+
+	return nil
+}
+
 func (attestor *Attestor) Start(ctx context.Context) error {
+	go attestor.consumer.Start(ctx, attestor.config.NearDaIndexerRmqIpPortAddress)
+
 	subscriptions := make(map[uint32]ethereum.Subscription)
 	headersCs := make(map[uint32]chan *ethtypes.Header)
 
@@ -183,7 +185,7 @@ func (attestor *Attestor) reconnectClient(rollupId uint32) (eth.Client, error) {
 	for i := 0; i < RECONNECTION_ATTEMPTS; i++ {
 		<-time.After(RECONNECTION_DELAY)
 
-		client, err = createEthClient(attestor.rollupIdsToUrls[rollupId], attestor.rpcCallsCollectors[rollupId], attestor.logger)
+		client, err = core.CreateEthClient(attestor.rollupIdsToUrls[rollupId], attestor.rpcCallsCollectors[rollupId], attestor.logger)
 		if err == nil {
 			return client, nil
 		}
@@ -246,6 +248,8 @@ loop:
 		select {
 		case <-timer:
 			attestor.logger.Info("MQ timeout", "rollupId", rollupId, "height", rollupHeader.Number.Uint64())
+			attestor.listener.OnMissedMQBlock()
+
 			break loop
 
 		case mqBlock := <-mqBlocksC:
@@ -263,6 +267,8 @@ loop:
 
 			if mqBlock.Block.Header().Root != rollupHeader.Root {
 				attestor.logger.Warnf("StateRoot from MQ doesn't match one from Node")
+				attestor.listener.OnBlockMismatch()
+
 				break loop
 			}
 

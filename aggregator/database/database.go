@@ -7,16 +7,20 @@ import (
 	"os"
 	"time"
 
+	"github.com/prometheus/client_golang/prometheus"
 	"gorm.io/driver/sqlite"
 	"gorm.io/gorm"
 	"gorm.io/gorm/clause"
 	"gorm.io/gorm/logger"
 
 	"github.com/NethermindEth/near-sffl/aggregator/database/models"
+	"github.com/NethermindEth/near-sffl/core"
 	"github.com/NethermindEth/near-sffl/core/types/messages"
 )
 
 type Databaser interface {
+	core.Metricable
+
 	Close() error
 	StoreStateRootUpdate(stateRootUpdateMessage messages.StateRootUpdateMessage) error
 	FetchStateRootUpdate(rollupId uint32, blockHeight uint64) (*messages.StateRootUpdateMessage, error)
@@ -30,9 +34,12 @@ type Databaser interface {
 }
 
 type Database struct {
-	db     *gorm.DB
-	dbPath string
+	db       *gorm.DB
+	dbPath   string
+	listener EventListener
 }
+
+var _ core.Metricable = (*Database)(nil)
 
 func NewDatabase(dbPath string) (*Database, error) {
 	logger := logger.New(
@@ -62,8 +69,9 @@ func NewDatabase(dbPath string) (*Database, error) {
 	)
 
 	return &Database{
-		db:     db,
-		dbPath: dbPath,
+		db:       db,
+		dbPath:   dbPath,
+		listener: &SelectiveListener{},
 	}, nil
 }
 
@@ -76,7 +84,20 @@ func (d *Database) Close() error {
 	return db.Close()
 }
 
+func (d *Database) WithMetrics(registry *prometheus.Registry) error {
+	listener, err := MakeDBMetrics(registry)
+	if err != nil {
+		return err
+	}
+
+	d.listener = listener
+	return nil
+}
+
 func (d *Database) StoreStateRootUpdate(stateRootUpdateMessage messages.StateRootUpdateMessage) error {
+	start := time.Now()
+	defer func() { d.listener.OnStore(time.Since(start)) }()
+
 	tx := d.db.
 		Clauses(clause.OnConflict{UpdateAll: true}).
 		Create(&models.StateRootUpdateMessage{
@@ -92,8 +113,10 @@ func (d *Database) StoreStateRootUpdate(stateRootUpdateMessage messages.StateRoo
 }
 
 func (d *Database) FetchStateRootUpdate(rollupId uint32, blockHeight uint64) (*messages.StateRootUpdateMessage, error) {
-	var model models.StateRootUpdateMessage
+	start := time.Now()
+	defer func() { d.listener.OnFetch(time.Since(start)) }()
 
+	var model models.StateRootUpdateMessage
 	tx := d.db.
 		Where("rollup_id = ?", rollupId).
 		Where("block_height = ?", blockHeight).
@@ -108,6 +131,9 @@ func (d *Database) FetchStateRootUpdate(rollupId uint32, blockHeight uint64) (*m
 }
 
 func (d *Database) StoreStateRootUpdateAggregation(stateRootUpdateMessage messages.StateRootUpdateMessage, aggregation messages.MessageBlsAggregation) error {
+	start := time.Now()
+	defer func() { d.listener.OnStore(time.Since(start)) }()
+
 	model := models.NewMessageBlsAggregationModel(aggregation)
 
 	err := d.db.
@@ -125,6 +151,9 @@ func (d *Database) StoreStateRootUpdateAggregation(stateRootUpdateMessage messag
 }
 
 func (d *Database) FetchStateRootUpdateAggregation(rollupId uint32, blockHeight uint64) (*messages.MessageBlsAggregation, error) {
+	start := time.Now()
+	defer func() { d.listener.OnFetch(time.Since(start)) }()
+
 	var model models.StateRootUpdateMessage
 
 	tx := d.db.
@@ -147,6 +176,9 @@ func (d *Database) FetchStateRootUpdateAggregation(rollupId uint32, blockHeight 
 }
 
 func (d *Database) StoreOperatorSetUpdate(operatorSetUpdateMessage messages.OperatorSetUpdateMessage) error {
+	start := time.Now()
+	defer func() { d.listener.OnStore(time.Since(start)) }()
+
 	tx := d.db.
 		Clauses(clause.OnConflict{UpdateAll: true}).
 		Create(&models.OperatorSetUpdateMessage{
@@ -159,6 +191,9 @@ func (d *Database) StoreOperatorSetUpdate(operatorSetUpdateMessage messages.Oper
 }
 
 func (d *Database) FetchOperatorSetUpdate(id uint64) (*messages.OperatorSetUpdateMessage, error) {
+	start := time.Now()
+	defer func() { d.listener.OnFetch(time.Since(start)) }()
+
 	var model models.OperatorSetUpdateMessage
 
 	tx := d.db.
@@ -173,6 +208,9 @@ func (d *Database) FetchOperatorSetUpdate(id uint64) (*messages.OperatorSetUpdat
 }
 
 func (d *Database) StoreOperatorSetUpdateAggregation(operatorSetUpdateMessage messages.OperatorSetUpdateMessage, aggregation messages.MessageBlsAggregation) error {
+	start := time.Now()
+	defer func() { d.listener.OnStore(time.Since(start)) }()
+
 	model := models.NewMessageBlsAggregationModel(aggregation)
 
 	err := d.db.
@@ -189,6 +227,9 @@ func (d *Database) StoreOperatorSetUpdateAggregation(operatorSetUpdateMessage me
 }
 
 func (d *Database) FetchOperatorSetUpdateAggregation(id uint64) (*messages.MessageBlsAggregation, error) {
+	start := time.Now()
+	defer func() { d.listener.OnFetch(time.Since(start)) }()
+
 	var model models.OperatorSetUpdateMessage
 
 	tx := d.db.
@@ -213,6 +254,9 @@ func (d *Database) FetchCheckpointMessages(fromTimestamp uint64, toTimestamp uin
 	if fromTimestamp > math.MaxInt64 || toTimestamp > math.MaxInt64 {
 		return nil, errors.New("timestamp does not fit in int64")
 	}
+
+	start := time.Now()
+	defer func() { d.listener.OnFetch(time.Since(start)) }()
 
 	var stateRootUpdates []models.StateRootUpdateMessage
 

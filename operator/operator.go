@@ -16,8 +16,8 @@ import (
 	"github.com/Layr-Labs/eigensdk-go/crypto/bls"
 	sdkecdsa "github.com/Layr-Labs/eigensdk-go/crypto/ecdsa"
 	sdklogging "github.com/Layr-Labs/eigensdk-go/logging"
+	"github.com/Layr-Labs/eigensdk-go/metrics"
 	"github.com/Layr-Labs/eigensdk-go/metrics/collectors/economic"
-	rpccalls "github.com/Layr-Labs/eigensdk-go/metrics/collectors/rpc_calls"
 	"github.com/Layr-Labs/eigensdk-go/nodeapi"
 	"github.com/Layr-Labs/eigensdk-go/signerv2"
 	sdktypes "github.com/Layr-Labs/eigensdk-go/types"
@@ -26,14 +26,16 @@ import (
 	"github.com/prometheus/client_golang/prometheus"
 
 	taskmanager "github.com/NethermindEth/near-sffl/contracts/bindings/SFFLTaskManager"
+	"github.com/NethermindEth/near-sffl/core"
 	"github.com/NethermindEth/near-sffl/core/types/messages"
-	"github.com/NethermindEth/near-sffl/metrics"
 	"github.com/NethermindEth/near-sffl/operator/attestor"
 	optypes "github.com/NethermindEth/near-sffl/operator/types"
 )
 
-const AVS_NAME = "super-fast-finality-layer"
-const SEM_VER = "0.0.1"
+const (
+	AVS_NAME = "super-fast-finality-layer"
+	SEM_VER  = "0.0.1"
+)
 
 type Operator struct {
 	config    optypes.NodeConfig
@@ -43,8 +45,10 @@ type Operator struct {
 	// this way, auditing this operator code makes it obvious that operators don't need to
 	// write to the chain during the course of their normal operations
 	// writing to the chain should be done via the cli only
-	metricsReg   *prometheus.Registry
-	metrics      metrics.Metrics
+	metricsReg *prometheus.Registry
+	metrics    metrics.Metrics
+	listener   OperatorEventListener
+
 	nodeApi      *nodeapi.NodeApi
 	blsKeypair   *bls.KeyPair
 	operatorId   bls.OperatorId
@@ -62,36 +66,7 @@ type Operator struct {
 	avsManager *AvsManager
 }
 
-func createEthClients(config *optypes.NodeConfig, registry *prometheus.Registry, logger sdklogging.Logger) (eth.Client, eth.Client, error) {
-	if config.EnableMetrics {
-		rpcCallsCollector := rpccalls.NewCollector(AVS_NAME, registry)
-		ethRpcClient, err := eth.NewInstrumentedClient(config.EthRpcUrl, rpcCallsCollector)
-		if err != nil {
-			logger.Errorf("Cannot create http ethclient", "err", err)
-			return nil, nil, err
-		}
-		ethWsClient, err := eth.NewInstrumentedClient(config.EthWsUrl, rpcCallsCollector)
-		if err != nil {
-			logger.Errorf("Cannot create ws ethclient", "err", err)
-			return nil, nil, err
-		}
-
-		return ethRpcClient, ethWsClient, nil
-	}
-
-	ethRpcClient, err := eth.NewClient(config.EthRpcUrl)
-	if err != nil {
-		logger.Errorf("Cannot create http ethclient", "err", err)
-		return nil, nil, err
-	}
-	ethWsClient, err := eth.NewClient(config.EthWsUrl)
-	if err != nil {
-		logger.Errorf("Cannot create ws ethclient", "err", err)
-		return nil, nil, err
-	}
-
-	return ethRpcClient, ethWsClient, nil
-}
+var _ core.Metricable = (*Operator)(nil)
 
 func createLogger(config *optypes.NodeConfig) (sdklogging.Logger, error) {
 	var logLevel sdklogging.LogLevel
@@ -151,11 +126,18 @@ func NewOperatorFromConfig(c optypes.NodeConfig) (*Operator, error) {
 	}
 	reg := sdkClients.PrometheusRegistry
 
-	ethRpcClient, ethWsClient, err := createEthClients(&c, reg, logger)
+	id := c.OperatorAddress + OperatorSubsytem
+	ethRpcClient, err := core.CreateEthClientWithCollector(id, c.EthRpcUrl, c.EnableMetrics, reg, logger)
 	if err != nil {
 		return nil, err
 	}
 
+	ethWsClient, err := core.CreateEthClientWithCollector(id, c.EthWsUrl, c.EnableMetrics, reg, logger)
+	if err != nil {
+		return nil, err
+	}
+
+	// TODO(edwin): I agree with below.
 	// TODO(samlaf): should we add the chainId to the config instead?
 	// this way we can prevent creating a signer that signs on mainnet by mistake
 	// if the config says chainId=5, then we can only create a goerli signer
@@ -181,8 +163,10 @@ func NewOperatorFromConfig(c optypes.NodeConfig) (*Operator, error) {
 
 	txMgr := txmgr.NewSimpleTxManager(txSender, ethRpcClient, logger, signerV2, common.HexToAddress(c.OperatorAddress))
 
-	avsAndEigenMetrics := metrics.NewAvsAndEigenMetrics(AVS_NAME, sdkClients.Metrics, reg)
-	aggregatorRpcClient, err := NewAggregatorRpcClient(c.AggregatorServerIpPortAddress, logger, avsAndEigenMetrics)
+	// Use eigen registry
+	reg = sdkClients.PrometheusRegistry
+
+	aggregatorRpcClient, err := NewAggregatorRpcClient(c.AggregatorServerIpPortAddress, logger)
 	if err != nil {
 		logger.Error("Cannot create AggregatorRpcClient. Is aggregator running?", "err", err)
 		return nil, err
@@ -205,11 +189,13 @@ func NewOperatorFromConfig(c optypes.NodeConfig) (*Operator, error) {
 	reg.MustRegister(economicMetricsCollector)
 
 	operator := &Operator{
-		config:                     c,
-		logger:                     logger,
-		ethClient:                  ethRpcClient,
-		metricsReg:                 reg,
-		metrics:                    avsAndEigenMetrics,
+		config:     c,
+		logger:     logger,
+		ethClient:  ethRpcClient,
+		metricsReg: reg,
+		// TODO: replace with noop in case not enabled
+		metrics:                    sdkClients.Metrics,
+		listener:                   &SelectiveOperatorListener{},
 		nodeApi:                    nodeApi,
 		avsManager:                 avsManager,
 		blsKeypair:                 blsKeyPair,
@@ -247,25 +233,40 @@ func NewOperatorFromConfig(c optypes.NodeConfig) (*Operator, error) {
 		"operatorG2Pubkey", operator.blsKeypair.GetPubKeyG2(),
 	)
 
-	attestor, err := attestor.NewAttestor(&c, blsKeyPair, operatorId, logger)
+	attestor, err := attestor.NewAttestor(&c, blsKeyPair, operatorId, reg, logger)
 	if err != nil {
 		return nil, err
 	}
 	operator.attestor = attestor
 
+	if c.EnableMetrics {
+		if err = operator.WithMetrics(reg); err != nil {
+			return nil, err
+		}
+	}
+
 	return operator, nil
 }
 
+func (o *Operator) WithMetrics(registry *prometheus.Registry) error {
+	listener, err := MakeOperatorMetrics(registry)
+	if err != nil {
+		return err
+	}
+	o.listener = listener
+
+	if err = o.attestor.WithMetrics(registry); err != nil {
+		return err
+	}
+
+	if err = o.aggregatorRpcClient.WithMetrics(registry); err != nil {
+		return err
+	}
+
+	return nil
+}
+
 func (o *Operator) Start(ctx context.Context) error {
-	if err := o.avsManager.Start(ctx, o.operatorAddr); err != nil {
-		return err
-	}
-
-	// TODO: hmm maybe remove start from attestor?
-	if err := o.attestor.Start(ctx); err != nil {
-		return err
-	}
-
 	o.logger.Infof("Starting operator.")
 
 	if o.config.EnableNodeApi {
@@ -279,6 +280,14 @@ func (o *Operator) Start(ctx context.Context) error {
 		metricsErrChan = make(chan error, 1)
 	}
 
+	if err := o.avsManager.Start(ctx, o.operatorAddr); err != nil {
+		return err
+	}
+
+	// TODO: hmm maybe remove start from attestor?
+	if err := o.attestor.Start(ctx); err != nil {
+		return err
+	}
 	// TODO: decide who have a right to sign
 	signedRootsC := o.attestor.GetSignedRootC()
 	checkpointTaskCreatedChan := o.avsManager.GetCheckpointTaskCreatedChan()
@@ -368,7 +377,7 @@ func SignOperatorSetUpdate(message messages.OperatorSetUpdateMessage, blsKeyPair
 }
 
 func (o *Operator) ProcessCheckpointTask(event *taskmanager.ContractSFFLTaskManagerCheckpointTaskCreated) {
-	o.metrics.IncNumTasksReceived()
+	o.listener.OnTasksReceived()
 
 	checkpointMessages, err := o.aggregatorRpcClient.GetAggregatedCheckpointMessages(
 		event.Task.FromTimestamp,
