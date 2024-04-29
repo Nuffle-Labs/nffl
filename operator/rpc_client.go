@@ -214,7 +214,7 @@ func (c *AggregatorRpcClient) sendOperatorMessage(sendCb func() error, message R
 	c.logger.Info("Sending request to aggregator")
 	err := sendCb()
 	if err != nil {
-		c.handleRpcError(err)
+		go c.handleRpcError(err)
 		appendProtected()
 		return
 	}
@@ -232,7 +232,7 @@ func (c *AggregatorRpcClient) sendRequest(sendCb func() error) error {
 
 	err := sendCb()
 	if err != nil {
-		c.handleRpcError(err)
+		go c.handleRpcError(err)
 		return err
 	}
 
