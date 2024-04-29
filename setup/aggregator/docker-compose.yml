@@ -19,6 +19,12 @@ services:
       - "4001:4001"
       - "4002:4002"
       - "9091:9091"
+    logging:
+      driver: "json-file"
+      options:
+        max-size: "1g"
+        max-file: "50"
+        compress: "true"
 
   grafana:
     image: grafana/grafana:9.4.1

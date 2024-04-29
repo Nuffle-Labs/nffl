@@ -16,6 +16,12 @@ services:
       - --network
       - ${NEAR_RPC_URL}
     restart: unless-stopped
+    logging:
+      driver: "json-file"
+      options:
+        max-size: "1g"
+        max-file: "20"
+        compress: "true"
 
   relayer_11155420:
     image: ghcr.io/nethermindeth/near-sffl/relayer:${SFFL_RELEASE}
@@ -32,3 +38,9 @@ services:
       - --network
       - ${NEAR_RPC_URL}
     restart: unless-stopped
+    logging:
+      driver: "json-file"
+      options:
+        max-size: "1g"
+        max-file: "20"
+        compress: "true"
