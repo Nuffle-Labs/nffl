@@ -83,6 +83,7 @@ func (c *AggregatorRpcClient) dialAggregatorRpcClient() error {
 
 	client, err := rpc.DialHTTP("tcp", c.aggregatorIpPortAddr)
 	if err != nil {
+		c.logger.Error("Error dialing aggregator rpc client", "err", err)
 		return err
 	}
 
@@ -107,6 +108,8 @@ func (c *AggregatorRpcClient) handleRpcError(err error) error {
 		c.rpcClientLock.Lock()
 
 		if c.rpcClient != nil {
+			c.logger.Info("Closing RPC client due to shutdown")
+
 			err = c.rpcClient.Close()
 			if err != nil {
 				c.logger.Error("Error closing RPC client", "err", err)
@@ -129,6 +132,7 @@ func (c *AggregatorRpcClient) onTick() {
 
 		err := c.InitializeClientIfNotExist()
 		if err != nil {
+			c.logger.Error("Error initializing client", "err", err)
 			continue
 		}
 
