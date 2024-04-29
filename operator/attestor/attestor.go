@@ -72,6 +72,7 @@ func NewAttestor(config *optypes.NodeConfig, blsKeypair *bls.KeyPair, operatorId
 
 	attestor := Attestor{
 		signedRootC:        make(chan messages.SignedStateRootUpdateMessage),
+		rollupIdsToUrls:    make(map[uint32]string),
 		clients:            make(map[uint32]eth.Client),
 		rpcCallsCollectors: make(map[uint32]*rpccalls.Collector),
 		logger:             logger,
@@ -95,6 +96,8 @@ func NewAttestor(config *optypes.NodeConfig, blsKeypair *bls.KeyPair, operatorId
 		if err != nil {
 			return nil, err
 		}
+
+		attestor.rollupIdsToUrls[rollupId] = url
 
 		attestor.clients[rollupId] = client
 		attestor.rpcCallsCollectors[rollupId] = rpcCallsCollector
