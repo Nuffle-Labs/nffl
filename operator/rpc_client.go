@@ -91,6 +91,18 @@ func (c *AggregatorRpcClient) InitializeClientIfNotExist() error {
 
 	return c.dialAggregatorRpcClient()
 }
+
+func (c *AggregatorRpcClient) handleRpcError(err error) error {
+	if err == rpc.ErrShutdown {
+		c.rpcClientLock.Lock()
+		defer c.rpcClientLock.Unlock()
+
+		return c.dialAggregatorRpcClient()
+	}
+
+	return nil
+}
+
 func (c *AggregatorRpcClient) onTick() {
 	tickerC := c.resendTicker.C
 	for {
@@ -179,6 +191,7 @@ func (c *AggregatorRpcClient) sendOperatorMessage(sendCb func() error, message R
 	c.logger.Info("Sending request to aggregator")
 	err = sendCb()
 	if err != nil {
+		c.handleRpcError(err)
 		appendProtected()
 		return
 	}
@@ -197,6 +210,7 @@ func (c *AggregatorRpcClient) sendRequest(sendCb func() error) error {
 
 	err = sendCb()
 	if err != nil {
+		c.handleRpcError(err)
 		return err
 	}
 
