@@ -65,7 +65,7 @@ func NewRollupWriter(
 		return nil, err
 	}
 
-	txMgr := txmgr.NewSimpleTxManager(txSender, client, logger, address)
+	txMgr := txmgr.NewSimpleTxManager(txSender, client, logger, address).WithGasLimitMultiplier(1.5)
 
 	sfflRegistryRollup, err := registryrollup.NewContractSFFLRegistryRollup(rollupInfo.SFFLRegistryRollupAddr, client)
 	if err != nil {

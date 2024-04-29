@@ -162,7 +162,7 @@ func NewOperatorFromConfig(c optypes.NodeConfig) (*Operator, error) {
 		return nil, err
 	}
 
-	txMgr := txmgr.NewSimpleTxManager(txSender, ethRpcClient, logger, common.HexToAddress(c.OperatorAddress))
+	txMgr := txmgr.NewSimpleTxManager(txSender, ethRpcClient, logger, common.HexToAddress(c.OperatorAddress)).WithGasLimitMultiplier(1.5)
 
 	// Use eigen registry
 	reg = sdkClients.PrometheusRegistry
