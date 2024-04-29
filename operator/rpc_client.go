@@ -1,6 +1,7 @@
 package operator
 
 import (
+	"errors"
 	"fmt"
 	"net/rpc"
 	"sync"
@@ -29,7 +30,7 @@ const (
 type RpcMessage = interface{}
 
 type AggregatorRpcClient struct {
-	rpcClientLock        sync.Mutex
+	rpcClientLock        sync.RWMutex
 	rpcClient            *rpc.Client
 	aggregatorIpPortAddr string
 
@@ -71,17 +72,6 @@ func (c *AggregatorRpcClient) WithMetrics(registry *prometheus.Registry) error {
 }
 
 func (c *AggregatorRpcClient) dialAggregatorRpcClient() error {
-	c.logger.Info("rpc client is nil. Dialing aggregator rpc client")
-
-	client, err := rpc.DialHTTP("tcp", c.aggregatorIpPortAddr)
-	if err != nil {
-		return err
-	}
-	c.rpcClient = client
-	return nil
-}
-
-func (c *AggregatorRpcClient) InitializeClientIfNotExist() error {
 	c.rpcClientLock.Lock()
 	defer c.rpcClientLock.Unlock()
 
@@ -89,15 +79,43 @@ func (c *AggregatorRpcClient) InitializeClientIfNotExist() error {
 		return nil
 	}
 
+	c.logger.Info("rpc client is nil. Dialing aggregator rpc client")
+
+	client, err := rpc.DialHTTP("tcp", c.aggregatorIpPortAddr)
+	if err != nil {
+		return err
+	}
+
+	c.rpcClient = client
+
+	return nil
+}
+
+func (c *AggregatorRpcClient) InitializeClientIfNotExist() error {
+	c.rpcClientLock.RLock()
+	if c.rpcClient != nil {
+		c.rpcClientLock.RUnlock()
+		return nil
+	}
+	c.rpcClientLock.RUnlock()
+
 	return c.dialAggregatorRpcClient()
 }
 
 func (c *AggregatorRpcClient) handleRpcError(err error) error {
 	if err == rpc.ErrShutdown {
 		c.rpcClientLock.Lock()
-		defer c.rpcClientLock.Unlock()
 
-		return c.dialAggregatorRpcClient()
+		if c.rpcClient != nil {
+			err = c.rpcClient.Close()
+			if err != nil {
+				c.logger.Error("Error closing RPC client", "err", err)
+			}
+
+			c.rpcClient = nil
+		}
+
+		c.rpcClientLock.Unlock()
 	}
 
 	return nil
@@ -176,20 +194,22 @@ func (c *AggregatorRpcClient) tryResendFromDeque() {
 }
 
 func (c *AggregatorRpcClient) sendOperatorMessage(sendCb func() error, message RpcMessage) {
+	c.rpcClientLock.RLock()
+	defer c.rpcClientLock.RUnlock()
+
 	appendProtected := func() {
 		c.unsentMessagesLock.Lock()
 		c.unsentMessages = append(c.unsentMessages, message)
 		c.unsentMessagesLock.Unlock()
 	}
 
-	err := c.InitializeClientIfNotExist()
-	if err != nil {
+	if c.rpcClient == nil {
 		appendProtected()
 		return
 	}
 
 	c.logger.Info("Sending request to aggregator")
-	err = sendCb()
+	err := sendCb()
 	if err != nil {
 		c.handleRpcError(err)
 		appendProtected()
@@ -200,15 +220,16 @@ func (c *AggregatorRpcClient) sendOperatorMessage(sendCb func() error, message R
 }
 
 func (c *AggregatorRpcClient) sendRequest(sendCb func() error) error {
-	err := c.InitializeClientIfNotExist()
-	if err != nil {
-		c.logger.Error("Could not reinitialize RPC client")
-		return err
+	c.rpcClientLock.RLock()
+	defer c.rpcClientLock.RUnlock()
+
+	if c.rpcClient == nil {
+		return errors.New("rpc client is nil")
 	}
 
 	c.logger.Info("Sending request to aggregator")
 
-	err = sendCb()
+	err := sendCb()
 	if err != nil {
 		c.handleRpcError(err)
 		return err
