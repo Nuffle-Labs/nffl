@@ -241,7 +241,7 @@ services:
         condition: service_completed_successfully
       rollup1-anvil-setup:
         condition: service_completed_successfully
-    ports:
+    expose:
       - 9091
     volumes:
       - ./:/near-sffl/

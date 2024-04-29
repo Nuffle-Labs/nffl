@@ -26,3 +26,7 @@ rollup_ids_to_rpc_urls:
 rollup_ids_to_registry_addresses:
   421614: 0x1988c716Acf7d92E5B252E6d72d13095230E4142
   11155420: 0xc8B72887e184D033595e060A749212509Ec1B6C8
+
+# metrics related
+enable_metrics: true
+metrics_ip_port_address: 127.0.0.1:9091
