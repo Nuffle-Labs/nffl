@@ -119,14 +119,6 @@ func (w *AvsWriter) SendAggregatedResponse(
 		return nil, err
 	}
 
-	txOpts.GasLimit = tx.Gas() * 15 / 10
-
-	tx, err = w.AvsContractBindings.TaskManager.RespondToCheckpointTask(txOpts, task, taskResponse.ToBinding(), aggregation.ExtractBindingMainnet())
-	if err != nil {
-		w.logger.Error("Error submitting SubmitTaskResponse tx while calling respondToTask", "err", err)
-		return nil, err
-	}
-
 	receipt, err := w.TxMgr.Send(ctx, tx)
 	if err != nil {
 		w.logger.Errorf("Error submitting CreateCheckpointTask tx")
