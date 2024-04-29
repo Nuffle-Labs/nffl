@@ -127,6 +127,11 @@ func (c *AggregatorRpcClient) onTick() {
 		// TODO(edwin): handle closed chan
 		<-tickerC
 
+		err := c.InitializeClientIfNotExist()
+		if err != nil {
+			continue
+		}
+
 		{
 			c.unsentMessagesLock.Lock()
 			if len(c.unsentMessages) == 0 {
@@ -134,11 +139,6 @@ func (c *AggregatorRpcClient) onTick() {
 				continue
 			}
 			c.unsentMessagesLock.Unlock()
-		}
-
-		err := c.InitializeClientIfNotExist()
-		if err != nil {
-			continue
 		}
 
 		c.tryResendFromDeque()
