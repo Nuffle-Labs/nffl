@@ -278,7 +278,7 @@ func (agg *Aggregator) Start(ctx context.Context) error {
 			return agg.Close()
 		case blsAggServiceResp := <-agg.taskBlsAggregationService.GetResponseChannel():
 			agg.logger.Info("Received response from taskBlsAggregationService", "blsAggServiceResp", blsAggServiceResp)
-			agg.sendAggregatedResponseToContract(blsAggServiceResp)
+			go agg.sendAggregatedResponseToContract(blsAggServiceResp)
 		case blsAggServiceResp := <-agg.stateRootUpdateBlsAggregationService.GetResponseChannel():
 			agg.logger.Info("Received response from stateRootUpdateBlsAggregationService", "blsAggServiceResp", blsAggServiceResp)
 			agg.handleStateRootUpdateReachedQuorum(blsAggServiceResp)
