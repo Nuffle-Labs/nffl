@@ -66,15 +66,16 @@ func BuildAvsWriter(txMgr txmgr.TxManager, registryCoordinatorAddr, operatorStat
 	if err != nil {
 		return nil, err
 	}
-	return NewAvsWriter(avsRegistryWriter, avsServiceBindings, logger, txMgr), nil
+	return NewAvsWriter(avsRegistryWriter, avsServiceBindings, ethHttpClient, logger, txMgr), nil
 }
 
-func NewAvsWriter(avsRegistryWriter avsregistry.AvsRegistryWriter, avsServiceBindings *AvsManagersBindings, logger logging.Logger, txMgr txmgr.TxManager) *AvsWriter {
+func NewAvsWriter(avsRegistryWriter avsregistry.AvsRegistryWriter, avsServiceBindings *AvsManagersBindings, client eth.Client, logger logging.Logger, txMgr txmgr.TxManager) *AvsWriter {
 	return &AvsWriter{
 		AvsRegistryWriter:   avsRegistryWriter,
 		AvsContractBindings: avsServiceBindings,
-		logger:              logger,
 		TxMgr:               txMgr,
+		client:              client,
+		logger:              logger,
 	}
 }
 
