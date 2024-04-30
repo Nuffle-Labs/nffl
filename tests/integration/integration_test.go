@@ -60,7 +60,7 @@ func TestIntegration(t *testing.T) {
 		setup.cleanup()
 	})
 
-	time.Sleep(30 * time.Second)
+	time.Sleep(55 * time.Second)
 
 	taskHash, err := setup.avsReader.AvsServiceBindings.TaskManager.AllCheckpointTaskHashes(&bind.CallOpts{}, 0)
 	if err != nil {

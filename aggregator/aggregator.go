@@ -325,6 +325,17 @@ func (agg *Aggregator) sendAggregatedResponseToContract(blsAggServiceResp blsagg
 		return
 	}
 
+	currentBlock, err := agg.client.BlockNumber(context.Background())
+	if err != nil {
+		agg.logger.Errorf("Error getting current block number", "err", err)
+		return
+	}
+
+	if uint64(task.TaskCreatedBlock) == currentBlock {
+		agg.logger.Info("Waiting roughly a block before sending aggregated response...")
+		time.Sleep(20 * time.Second)
+	}
+
 	_, err = agg.avsWriter.SendAggregatedResponse(context.Background(), task, taskResponse, aggregation)
 	if err != nil {
 		agg.logger.Error("Aggregator failed to respond to task", "err", err)
