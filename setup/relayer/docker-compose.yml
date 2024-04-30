@@ -7,6 +7,7 @@ services:
     volumes:
       - ${NEAR_KEYS_DIR}:/root/.near-credentials
     command:
+      - args
       - --rpc-url
       - wss://arbitrum-sepolia-rpc.publicnode.com
       - --da-account-id
@@ -15,6 +16,8 @@ services:
       - /root/.near-credentials/${NEAR_CHAIN_ID}/sfrelayer421614-1.testnet.json
       - --network
       - ${NEAR_RPC_URL}
+      - --metrics_addr
+      - near-sffl-relayer-421614:9091
     restart: unless-stopped
     logging:
       driver: "json-file"
@@ -28,15 +31,11 @@ services:
     container_name: near-sffl-relayer-11155420
     volumes:
       - ${NEAR_KEYS_DIR}:/root/.near-credentials
+      - ./config:/etc/relayer
     command:
-      - --rpc-url
-      - wss://optimism-sepolia-rpc.publicnode.com
-      - --da-account-id
-      - sfrelayer11155420-1.testnet
-      - --key-path
-      - /root/.near-credentials/${NEAR_CHAIN_ID}/sfrelayer11155420-1.testnet.json
-      - --network
-      - ${NEAR_RPC_URL}
+      - config
+      - --path
+      - /etc/relayer/relayer_11155420.yml
     restart: unless-stopped
     logging:
       driver: "json-file"

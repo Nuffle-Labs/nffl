@@ -3,6 +3,7 @@ package main
 import (
 	"context"
 	"encoding/json"
+	"github.com/Layr-Labs/eigensdk-go/utils"
 	"github.com/prometheus/client_golang/prometheus"
 	"github.com/prometheus/client_golang/prometheus/promhttp"
 	"log"
@@ -18,40 +19,59 @@ import (
 
 func main() {
 	app := cli.NewApp()
-	app.Flags = []cli.Flag{
-		cli.BoolFlag{
-			Name:  "production",
-			Usage: "Run in production logging mode",
-		},
-		cli.StringFlag{
-			Name:     "rpc-url",
-			Required: true,
-			Usage:    "Connect to the indicated RPC",
-		},
-		cli.StringFlag{
-			Name:     "da-account-id",
-			Required: true,
-			Usage:    "Publish block data to the indicated NEAR account",
-		},
-		cli.StringFlag{
-			Name:     "key-path",
-			Required: true,
-			Usage:    "Path to NEAR account's key file",
-		},
-		cli.StringFlag{
-			Name:  "network",
-			Value: "http://127.0.0.1:3030",
-			Usage: "Network for NEAR client to use (options: Mainnet, Testnet, Custom url, default: http://127.0.0.1:3030)",
-		},
-		cli.StringFlag{
-			Name:  "metrics-addr",
-			Value: "",
-			Usage: "Metrics scrape address",
-		},
-	}
 	app.Name = "sffl-test-relayer"
 	app.Usage = "SFFL Test Relayer"
 	app.Description = "Super Fast Finality testing service that reads block data from an EVM network and feeds it to a NEAR DA contract."
+	app.Commands = []cli.Command{
+		{
+			Name:  "args",
+			Usage: "Start the relayer with direct CLI options",
+			Flags: []cli.Flag{
+				cli.BoolFlag{
+					Name:  "production",
+					Usage: "Run in production logging mode",
+				},
+				cli.StringFlag{
+					Name:     "rpc-url",
+					Required: true,
+					Usage:    "Connect to the indicated RPC",
+				},
+				cli.StringFlag{
+					Name:     "da-account-id",
+					Required: true,
+					Usage:    "Publish block data to the indicated NEAR account",
+				},
+				cli.StringFlag{
+					Name:     "key-path",
+					Required: true,
+					Usage:    "Path to NEAR account's key file",
+				},
+				cli.StringFlag{
+					Name:  "network",
+					Value: "http://127.0.0.1:3030",
+					Usage: "Network for NEAR client to use (options: Mainnet, Testnet, Custom url, default: http://127.0.0.1:3030)",
+				},
+				cli.StringFlag{
+					Name:  "metrics-addr",
+					Value: "",
+					Usage: "Metrics scrape address",
+				},
+			},
+			Action: relayerMainFromArgs,
+		},
+		{
+			Name:  "config",
+			Usage: "Start the relayer using a configuration file",
+			Flags: []cli.Flag{
+				cli.StringFlag{
+					Name:     "path, p",
+					Usage:    "Load configuration from `FILE`",
+					Required: true,
+				},
+			},
+			Action: relayerMainFromConfig,
+		},
+	}
 
 	app.Action = relayerMain
 	err := app.Run(os.Args)
@@ -82,8 +102,8 @@ func startMetrics(metricsAddr string, reg prometheus.Gatherer) (<-chan error, fu
 	return errC, shutdown
 }
 
-func relayerMain(ctx *cli.Context) error {
-	config := &config.RelayerConfig{
+func relayerMainFromArgs(ctx *cli.Context) error {
+	config := config.RelayerConfig{
 		Production:  ctx.GlobalBool("production"),
 		RpcUrl:      ctx.GlobalString("rpc-url"),
 		DaAccountId: ctx.GlobalString("da-account-id"),
@@ -92,6 +112,20 @@ func relayerMain(ctx *cli.Context) error {
 		MetricsAddr: ctx.GlobalString("metrics-addr"),
 	}
 
+	return relayerMain(config)
+}
+
+func relayerMainFromConfig(c *cli.Context) error {
+	filePath := c.String("path")
+	config := config.RelayerConfig{}
+	if err := utils.ReadYamlConfig(filePath, &config); err != nil {
+		return err
+	}
+
+	return relayerMain(config)
+}
+
+func relayerMain(config config.RelayerConfig) error {
 	var logLevel sdklogging.LogLevel
 	if config.Production {
 		logLevel = sdklogging.Production
@@ -115,7 +149,7 @@ func relayerMain(ctx *cli.Context) error {
 	}
 
 	logger.Info("initializing relayer")
-	rel, err := relayer.NewRelayerFromConfig(config, logger)
+	rel, err := relayer.NewRelayerFromConfig(&config, logger)
 	if err != nil {
 		logger.Error("Error creating relayer", "err", err)
 		return err

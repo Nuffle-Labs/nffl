@@ -1,16 +1,17 @@
 package config
 
 type RelayerConfig struct {
-	Production  bool
-	RpcUrl      string
-	DaAccountId string
-	KeyPath     string
-	Network     string
-	MetricsAddr string
+	Production  bool   `yaml:"production"`
+	RpcUrl      string `yaml:"rpc_url"`
+	DaAccountId string `yaml:"da_account_id"`
+	KeyPath     string `yaml:"key_path"`
+	Network     string `yaml:"network"`
+	MetricsAddr string `yaml:"metrics_addr"`
 }
 
 func (c RelayerConfig) CompileCMD() []string {
 	var cmd []string
+	cmd = append(cmd, "args")
 	if c.Production {
 		cmd = append(cmd, "--production")
 	}

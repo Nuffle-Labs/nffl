@@ -101,9 +101,12 @@ services:
         condition: service_healthy
       indexer-setup:
         condition: service_completed_successfully
+    expose:
+      - 9091
     volumes:
       - near_cli_keys:/root/.near-credentials
     command:
+      - args
       - --rpc-url
       - ws://rollup0-anvil:8546
       - --da-account-id
@@ -112,6 +115,8 @@ services:
       - /root/.near-credentials/localnet/da2.test.near.json
       - --network
       - http://near-sffl-indexer:3030
+      - --metrics-addr
+      - rollup0-relayer:9091
     networks:
       - near-sffl
 
@@ -158,17 +163,15 @@ services:
         condition: service_healthy
       indexer-setup:
         condition: service_completed_successfully
+    expose:
+      - 9091
     volumes:
       - near_cli_keys:/root/.near-credentials
+      - ./config-files:/etc/relayer
     command:
-      - --rpc-url
-      - ws://rollup1-anvil:8547
-      - --da-account-id
-      - da3.test.near
-      - --key-path
-      - /root/.near-credentials/localnet/da3.test.near.json
-      - --network
-      - http://near-sffl-indexer:3030
+      - config
+      - --path
+      - /etc/relayer/relayer1-docker-compose.yaml
     networks:
       - near-sffl
 
