@@ -6,6 +6,7 @@ type RelayerConfig struct {
 	DaAccountId string
 	KeyPath     string
 	Network     string
+	MetricsAddr string
 }
 
 func (c RelayerConfig) CompileCMD() []string {
@@ -18,5 +19,9 @@ func (c RelayerConfig) CompileCMD() []string {
 	cmd = append(cmd, "--rpc-url", c.RpcUrl)
 	cmd = append(cmd, "--da-account-id", c.DaAccountId)
 	cmd = append(cmd, "--network", c.Network)
+	if c.MetricsAddr != "" {
+		cmd = append(cmd, "--metrics", c.MetricsAddr)
+	}
+
 	return cmd
 }
