@@ -129,25 +129,22 @@ func (c *AggregatorRpcClient) handleRpcShutdown() {
 
 func (c *AggregatorRpcClient) onTick() {
 	for {
-		select {
-		case <-c.resendTicker.C:
-			err := c.InitializeClientIfNotExist()
-			if err != nil {
-				c.logger.Error("Error initializing client", "err", err)
-				continue
-			}
+		<-c.resendTicker.C
 
-			c.unsentMessagesLock.Lock()
-			if len(c.unsentMessages) == 0 {
-				c.unsentMessagesLock.Unlock()
-				continue
-			}
-			c.unsentMessagesLock.Unlock()
-
-			c.tryResendFromDeque()
-		default:
+		err := c.InitializeClientIfNotExist()
+		if err != nil {
+			c.logger.Error("Error initializing client", "err", err)
 			continue
 		}
+
+		c.unsentMessagesLock.Lock()
+		if len(c.unsentMessages) == 0 {
+			c.unsentMessagesLock.Unlock()
+			continue
+		}
+		c.unsentMessagesLock.Unlock()
+
+		c.tryResendFromDeque()
 	}
 }
 
