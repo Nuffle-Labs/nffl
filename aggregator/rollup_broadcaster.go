@@ -3,6 +3,7 @@ package aggregator
 import (
 	"context"
 	"errors"
+	"fmt"
 	"time"
 
 	"github.com/Layr-Labs/eigensdk-go/logging"
@@ -168,17 +169,20 @@ func (b *RollupBroadcaster) tryInitializeRollupOperatorSet(ctx context.Context, 
 }
 
 func (b *RollupBroadcaster) BroadcastOperatorSetUpdate(ctx context.Context, message messages.OperatorSetUpdateMessage, signatureInfo registryrollup.RollupOperatorsSignatureInfo) {
+	updateOperatorSet := func(writer *RollupWriter) {
+		err := writer.UpdateOperatorSet(ctx, message, signatureInfo)
+		if err != nil {
+			b.errorChan <- fmt.Errorf("failed to update operator set on writer %d: %w", writer.rollupId, err)
+		}
+	}
+
 	go func() {
 		for _, writer := range b.writers {
 			select {
 			case <-ctx.Done():
 				return
-
 			default:
-				err := writer.UpdateOperatorSet(ctx, message, signatureInfo)
-				if err != nil {
-					b.errorChan <- err
-				}
+				go updateOperatorSet(writer)
 			}
 		}
 	}()

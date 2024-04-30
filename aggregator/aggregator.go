@@ -278,7 +278,7 @@ func (agg *Aggregator) Start(ctx context.Context) error {
 			return agg.Close()
 		case blsAggServiceResp := <-agg.taskBlsAggregationService.GetResponseChannel():
 			agg.logger.Info("Received response from taskBlsAggregationService", "blsAggServiceResp", blsAggServiceResp)
-			agg.sendAggregatedResponseToContract(blsAggServiceResp)
+			go agg.sendAggregatedResponseToContract(blsAggServiceResp)
 		case blsAggServiceResp := <-agg.stateRootUpdateBlsAggregationService.GetResponseChannel():
 			agg.logger.Info("Received response from stateRootUpdateBlsAggregationService", "blsAggServiceResp", blsAggServiceResp)
 			agg.handleStateRootUpdateReachedQuorum(blsAggServiceResp)
@@ -286,12 +286,7 @@ func (agg *Aggregator) Start(ctx context.Context) error {
 			agg.logger.Info("Received response from operatorSetUpdateBlsAggregationService", "blsAggServiceResp", blsAggServiceResp)
 			agg.handleOperatorSetUpdateReachedQuorum(ctx, blsAggServiceResp)
 		case <-ticker.C:
-			err := agg.sendNewCheckpointTask()
-			if err != nil {
-				agg.logger.Error("Failed to send new checkpoint task", "err", err)
-				continue
-			}
-
+			go agg.sendNewCheckpointTask()
 		case err := <-broadcasterErrorChan:
 			// TODO: proper error handling in all class
 			agg.logger.Error("Received error from broadcaster", "err", err)
@@ -311,8 +306,7 @@ func (agg *Aggregator) sendAggregatedResponseToContract(blsAggServiceResp blsagg
 	// TODO: check if blsAggServiceResp contains an err
 	if blsAggServiceResp.Err != nil {
 		agg.logger.Error("BlsAggregationServiceResponse contains an error", "err", blsAggServiceResp.Err)
-		// panicing to help with debugging (fail fast), but we shouldn't panic if we run this in production
-		panic(blsAggServiceResp.Err)
+		return
 	}
 
 	agg.logger.Info("Threshold reached. Sending aggregated response onchain.",
@@ -334,28 +328,29 @@ func (agg *Aggregator) sendAggregatedResponseToContract(blsAggServiceResp blsagg
 	_, err = agg.avsWriter.SendAggregatedResponse(context.Background(), task, taskResponse, aggregation)
 	if err != nil {
 		agg.logger.Error("Aggregator failed to respond to task", "err", err)
+		return
 	}
 }
 
 // sendNewCheckpointTask sends a new task to the task manager contract, and updates the Task dict struct
 // with the information of operators opted into quorum 0 at the block of task creation.
-func (agg *Aggregator) sendNewCheckpointTask() error {
+func (agg *Aggregator) sendNewCheckpointTask() {
 	blockNumber, err := agg.client.BlockNumber(context.Background())
 	if err != nil {
 		agg.logger.Error("Failed to get block number", "err", err)
-		return err
+		return
 	}
 
 	block, err := agg.client.BlockByNumber(context.Background(), big.NewInt(0).SetUint64(blockNumber))
 	if err != nil {
 		agg.logger.Error("Failed to get block", "err", err)
-		return err
+		return
 	}
 
 	lastCheckpointToTimestamp, err := agg.avsReader.GetLastCheckpointToTimestamp(context.Background())
 	if err != nil {
 		agg.logger.Error("Failed to get last checkpoint toTimestamp", "err", err)
-		return err
+		return
 	}
 
 	fromTimestamp := lastCheckpointToTimestamp + 1
@@ -370,7 +365,7 @@ func (agg *Aggregator) sendNewCheckpointTask() error {
 	newTask, taskIndex, err := agg.avsWriter.SendNewCheckpointTask(context.Background(), fromTimestamp, toTimestamp, types.QUORUM_THRESHOLD_NUMERATOR, coretypes.QUORUM_NUMBERS)
 	if err != nil {
 		agg.logger.Error("Aggregator failed to send checkpoint", "err", err)
-		return err
+		return
 	}
 
 	agg.tasksLock.Lock()
@@ -384,8 +379,11 @@ func (agg *Aggregator) sendNewCheckpointTask() error {
 	// TODO(samlaf): we use seconds for now, but we should ideally pass a blocknumber to the blsAggregationService
 	// and it should monitor the chain and only expire the task aggregation once the chain has reached that block number.
 	taskTimeToExpiry := taskChallengeWindowBlock * blockTimeSeconds
-	agg.taskBlsAggregationService.InitializeNewTask(taskIndex, newTask.TaskCreatedBlock, core.ConvertBytesToQuorumNumbers(newTask.QuorumNumbers), quorumThresholds, taskTimeToExpiry)
-	return nil
+	err = agg.taskBlsAggregationService.InitializeNewTask(taskIndex, newTask.TaskCreatedBlock, core.ConvertBytesToQuorumNumbers(newTask.QuorumNumbers), quorumThresholds, taskTimeToExpiry)
+	if err != nil {
+		agg.logger.Error("Failed to initialize new task", "err", err)
+		return
+	}
 }
 
 func (agg *Aggregator) handleStateRootUpdateReachedQuorum(blsAggServiceResp types.MessageBlsAggregationServiceResponse) {
