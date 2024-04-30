@@ -150,9 +150,21 @@ func (c *AggregatorRpcClient) tryResendFromDeque() {
 		if err != nil {
 			c.logger.Error("Couldn't resend message", "err", err)
 
-			if i == 0 && err == rpc.ErrShutdown {
-				c.logger.Error("Couldn't resend first message due to shutdown")
-				return
+			if err == rpc.ErrShutdown {
+				c.logger.Error("Couldn't resend message due to shutdown")
+
+				if errorPos == 0 {
+					c.unsentMessages = c.unsentMessages[i:]
+					return
+				}
+
+				for j := i; j < len(c.unsentMessages); j++ {
+					message := c.unsentMessages[j]
+					c.unsentMessages[errorPos] = message
+					errorPos++
+				}
+
+				break
 			}
 
 			c.unsentMessages[errorPos] = message
