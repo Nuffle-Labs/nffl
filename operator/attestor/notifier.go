@@ -7,9 +7,9 @@ import (
 	"github.com/NethermindEth/near-sffl/operator/consumer"
 )
 
-type Predicate = func(consumer.BlockData) bool
+type BlockPredicate = func(consumer.BlockData) bool
 type subscriberData struct {
-	predicate Predicate
+	predicate BlockPredicate
 	notifierC chan consumer.BlockData
 }
 
@@ -26,7 +26,7 @@ func NewNotifier() Notifier {
 	}
 }
 
-func (notifier *Notifier) Subscribe(rollupId uint32, predicate Predicate) (<-chan consumer.BlockData, *list.Element) {
+func (notifier *Notifier) Subscribe(rollupId uint32, predicate BlockPredicate) (<-chan consumer.BlockData, *list.Element) {
 	notifier.notifierLock.Lock()
 	defer notifier.notifierLock.Unlock()
 
