@@ -45,6 +45,12 @@ services:
     restart: unless-stopped
     networks:
       - near-sffl
+    logging:
+      driver: "json-file"
+      options:
+        max-size: "1g"
+        max-file: "10"
+        compress: "true"
 
   operator:
     profiles: [operator]
@@ -67,6 +73,12 @@ services:
     restart: unless-stopped
     networks:
       - near-sffl
+    logging:
+      driver: "json-file"
+      options:
+        max-size: "1g"
+        max-file: "50"
+        compress: "true"
 
   operator-health:
     profiles: [operator]
