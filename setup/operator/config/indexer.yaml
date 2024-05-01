@@ -3,8 +3,8 @@ rmq_address: amqp://rmq:5672
 
 # AVS network contract IDs
 da_contract_ids:
-  - sfrelayer421614-0.testnet
-  - sfrelayer11155420-0.testnet
+  - sfrelayer421614-0-1.testnet
+  - sfrelayer11155420-0-1.testnet
 
 # Rollup IDs, must follow the same order as da_contract_ids
 rollup_ids:
