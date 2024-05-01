@@ -174,7 +174,7 @@ You should set this to the address that was sent to you during whitelisting.
 It's also good to double-check all other configuration fields, such as the
 contract addresses.
 
-### Step 6: Set up your indexer
+### Step 7: Set up your indexer
 
 Follow the commands below in the operator setup directory:
 
@@ -191,7 +191,7 @@ near-sffl-indexer  | 2024-04-20T22:24:00.296255Z  INFO stats: #161784536 Waiting
 At this point, stop the execution with `Ctrl+C`. We're going to use NEAR's
 data snapshots to speed up the syncing process.
 
-### Step 7: Synchronize your NEAR node
+### Step 8: Synchronize your NEAR node
 
 In order to do that, follow the [instructions in NEAR Nodes](https://near-nodes.io/intro/node-data-snapshots).
 Do remember that you'll need to download the snapshot to
@@ -210,7 +210,7 @@ Your indexer should now continue the syncing process on it's own!
 Keep it running until it’s time to run the operator, as it’ll keep synced with
 NEAR.
 
-### Step 7: Run your operator
+### Step 9: Run your operator
 
 :::info
 
