@@ -3,6 +3,7 @@ package operator
 import (
 	"errors"
 	"fmt"
+	"net"
 	"net/rpc"
 	"sync"
 	"time"
@@ -14,6 +15,11 @@ import (
 	"github.com/NethermindEth/near-sffl/core/types/messages"
 )
 
+const (
+	ResendInterval = 2 * time.Second
+	MaxRetries     = 10
+)
+
 type AggregatorRpcClienter interface {
 	core.Metricable
 
@@ -23,11 +29,10 @@ type AggregatorRpcClienter interface {
 	GetAggregatedCheckpointMessages(fromTimestamp, toTimestamp uint64) (*messages.CheckpointMessages, error)
 }
 
-const (
-	ResendInterval = 2 * time.Second
-)
-
-type RpcMessage = interface{}
+type unsentRpcMessage struct {
+	Message interface{}
+	Retries int
+}
 
 type AggregatorRpcClient struct {
 	rpcClientLock        sync.RWMutex
@@ -35,7 +40,7 @@ type AggregatorRpcClient struct {
 	aggregatorIpPortAddr string
 
 	unsentMessagesLock sync.Mutex
-	unsentMessages     []RpcMessage
+	unsentMessages     []unsentRpcMessage
 	resendTicker       *time.Ticker
 
 	logger   logging.Logger
@@ -52,7 +57,7 @@ func NewAggregatorRpcClient(aggregatorIpPortAddr string, logger logging.Logger) 
 		rpcClient:            nil,
 		logger:               logger,
 		aggregatorIpPortAddr: aggregatorIpPortAddr,
-		unsentMessages:       make([]RpcMessage, 0),
+		unsentMessages:       make([]unsentRpcMessage, 0),
 		resendTicker:         resendTicker,
 		listener:             &SelectiveRpcClientListener{},
 	}
@@ -103,8 +108,20 @@ func (c *AggregatorRpcClient) InitializeClientIfNotExist() error {
 	return c.dialAggregatorRpcClient()
 }
 
-func (c *AggregatorRpcClient) handleRpcError(err error) error {
+func isShutdownOrNetworkError(err error) bool {
 	if err == rpc.ErrShutdown {
+		return true
+	}
+
+	if _, ok := err.(*net.OpError); ok {
+		return true
+	}
+
+	return false
+}
+
+func (c *AggregatorRpcClient) handleRpcError(err error) error {
+	if isShutdownOrNetworkError(err) {
 		go c.handleRpcShutdown()
 	}
 
@@ -159,7 +176,8 @@ func (c *AggregatorRpcClient) tryResendFromDeque() {
 
 	errorPos := 0
 	for i := 0; i < len(c.unsentMessages); i++ {
-		message := c.unsentMessages[i]
+		unsentRpcMessage := c.unsentMessages[i]
+		message := unsentRpcMessage.Message
 
 		// Assumes client exists
 		var err error
@@ -183,8 +201,8 @@ func (c *AggregatorRpcClient) tryResendFromDeque() {
 		if err != nil {
 			c.logger.Error("Couldn't resend message", "err", err)
 
-			if err == rpc.ErrShutdown {
-				c.logger.Error("Couldn't resend message due to shutdown")
+			if isShutdownOrNetworkError(err) {
+				c.logger.Error("Couldn't resend message due to shutdown or network error")
 
 				if errorPos == 0 {
 					c.unsentMessages = c.unsentMessages[i:]
@@ -192,15 +210,21 @@ func (c *AggregatorRpcClient) tryResendFromDeque() {
 				}
 
 				for j := i; j < len(c.unsentMessages); j++ {
-					message := c.unsentMessages[j]
-					c.unsentMessages[errorPos] = message
+					rpcMessage := c.unsentMessages[j]
+					c.unsentMessages[errorPos] = rpcMessage
 					errorPos++
 				}
 
 				break
 			}
 
-			c.unsentMessages[errorPos] = message
+			unsentRpcMessage.Retries++
+			if unsentRpcMessage.Retries >= MaxRetries {
+				c.logger.Error("Max retries reached, dropping message", "message", fmt.Sprintf("%#v", message))
+				continue
+			}
+
+			c.unsentMessages[errorPos] = unsentRpcMessage
 			errorPos++
 		}
 	}
@@ -208,13 +232,13 @@ func (c *AggregatorRpcClient) tryResendFromDeque() {
 	c.unsentMessages = c.unsentMessages[:errorPos]
 }
 
-func (c *AggregatorRpcClient) sendOperatorMessage(sendCb func() error, message RpcMessage) {
+func (c *AggregatorRpcClient) sendOperatorMessage(sendCb func() error, message interface{}) {
 	c.rpcClientLock.RLock()
 	defer c.rpcClientLock.RUnlock()
 
 	appendProtected := func() {
 		c.unsentMessagesLock.Lock()
-		c.unsentMessages = append(c.unsentMessages, message)
+		c.unsentMessages = append(c.unsentMessages, unsentRpcMessage{Message: message})
 		c.unsentMessagesLock.Unlock()
 	}
 
