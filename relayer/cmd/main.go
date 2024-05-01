@@ -3,14 +3,13 @@ package main
 import (
 	"context"
 	"encoding/json"
-	"github.com/Layr-Labs/eigensdk-go/utils"
-	"github.com/prometheus/client_golang/prometheus"
-	"github.com/prometheus/client_golang/prometheus/promhttp"
+	"fmt"
 	"log"
-	"net/http"
 	"os"
 
 	sdklogging "github.com/Layr-Labs/eigensdk-go/logging"
+	"github.com/Layr-Labs/eigensdk-go/utils"
+	"github.com/prometheus/client_golang/prometheus"
 	"github.com/urfave/cli"
 
 	"github.com/NethermindEth/near-sffl/relayer"
@@ -73,50 +72,29 @@ func main() {
 		},
 	}
 
-	app.Action = relayerMain
 	err := app.Run(os.Args)
 	if err != nil {
 		log.Fatalln("Application failed. Message:", err)
 	}
 }
 
-func startMetrics(metricsAddr string, reg prometheus.Gatherer) (<-chan error, func()) {
-	errC := make(chan error, 1)
-	server := &http.Server{Addr: metricsAddr, Handler: nil}
-
-	http.Handle("/metrics", promhttp.HandlerFor(reg, promhttp.HandlerOpts{}))
-
-	shutdown := func() {
-		if err := server.Shutdown(context.Background()); err != nil {
-			// Handle the error according to your application's needs, e.g., log it
-			log.Printf("Error shutting down metrics server: %v", err)
-		}
-	}
-
-	go func() {
-		if err := server.ListenAndServe(); err != nil && err != http.ErrServerClosed {
-			errC <- err
-		}
-	}()
-
-	return errC, shutdown
-}
-
 func relayerMainFromArgs(ctx *cli.Context) error {
 	config := config.RelayerConfig{
-		Production:  ctx.GlobalBool("production"),
-		RpcUrl:      ctx.GlobalString("rpc-url"),
-		DaAccountId: ctx.GlobalString("da-account-id"),
-		KeyPath:     ctx.GlobalString("key-path"),
-		Network:     ctx.GlobalString("network"),
-		MetricsAddr: ctx.GlobalString("metrics-addr"),
+		Production:  ctx.Bool("production"),
+		RpcUrl:      ctx.String("rpc-url"),
+		DaAccountId: ctx.String("da-account-id"),
+		KeyPath:     ctx.String("key-path"),
+		Network:     ctx.String("network"),
+		MetricsAddr: ctx.String("metrics-addr"),
 	}
+
+	fmt.Println("config.RpcUrl:", config.RpcUrl)
 
 	return relayerMain(config)
 }
 
-func relayerMainFromConfig(c *cli.Context) error {
-	filePath := c.String("path")
+func relayerMainFromConfig(ctx *cli.Context) error {
+	filePath := ctx.String("path")
 	config := config.RelayerConfig{}
 	if err := utils.ReadYamlConfig(filePath, &config); err != nil {
 		return err
@@ -161,7 +139,7 @@ func relayerMain(config config.RelayerConfig) error {
 			return err
 		}
 
-		_, shutdown := startMetrics(config.MetricsAddr, registry)
+		_, shutdown := relayer.StartMetrics(config.MetricsAddr, registry)
 		defer shutdown()
 	}
 

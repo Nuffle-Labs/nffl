@@ -21,7 +21,7 @@ func (c RelayerConfig) CompileCMD() []string {
 	cmd = append(cmd, "--da-account-id", c.DaAccountId)
 	cmd = append(cmd, "--network", c.Network)
 	if c.MetricsAddr != "" {
-		cmd = append(cmd, "--metrics", c.MetricsAddr)
+		cmd = append(cmd, "--metrics-addr", c.MetricsAddr)
 	}
 
 	return cmd

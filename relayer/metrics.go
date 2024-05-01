@@ -1,11 +1,15 @@
 package relayer
 
 import (
+	"context"
 	"fmt"
+	"log"
 	"math"
+	"net/http"
 	"time"
 
 	"github.com/prometheus/client_golang/prometheus"
+	"github.com/prometheus/client_golang/prometheus/promhttp"
 )
 
 const RelayerNamespace = "sffl_relayer"
@@ -101,4 +105,26 @@ func MakeRelayerMetrics(registry *prometheus.Registry) (EventListener, error) {
 			submissionDuration.Observe(float64(duration.Milliseconds()))
 		},
 	}, nil
+}
+
+func StartMetrics(metricsAddr string, reg prometheus.Gatherer) (<-chan error, func()) {
+	errC := make(chan error, 1)
+	server := &http.Server{Addr: metricsAddr, Handler: nil}
+
+	http.Handle("/metrics", promhttp.HandlerFor(reg, promhttp.HandlerOpts{}))
+
+	shutdown := func() {
+		if err := server.Shutdown(context.Background()); err != nil {
+			// Handle the error according to your application's needs, e.g., log it
+			log.Printf("Error shutting down metrics server: %v", err)
+		}
+	}
+
+	go func() {
+		if err := server.ListenAndServe(); err != nil && err != http.ErrServerClosed {
+			errC <- err
+		}
+	}()
+
+	return errC, shutdown
 }

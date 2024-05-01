@@ -1,6 +1,0 @@
-production: false
-rpc_url: wss://optimism-sepolia-rpc.publicnode.com
-da_account_id: sfrelayer11155420-1.testnet
-key_path: /root/.near-credentials/${NEAR_CHAIN_ID}/sfrelayer11155420-1.testnet.json
-network: https://rpc.testnet.near.org
-metrics_addr: near-sffl-relayer-11155420:9091

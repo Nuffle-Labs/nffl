@@ -1,6 +1,0 @@
-production: false
-rpc_url: wss://arbitrum-sepolia-rpc.publicnode.com
-da_account_id: sfrelayer421614-1.testnet
-key_path: /root/.near-credentials/${NEAR_CHAIN_ID}/sfrelayer421614-1.testnet.json
-network: https://rpc.testnet.near.org
-metrics_addr: near-sffl-relayer-421614:9091
