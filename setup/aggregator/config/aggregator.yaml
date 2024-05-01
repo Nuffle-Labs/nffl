@@ -24,8 +24,8 @@ rollup_ids_to_rpc_urls:
   421614: wss://arbitrum-sepolia-rpc.publicnode.com
   11155420: wss://optimism-sepolia-rpc.publicnode.com
 rollup_ids_to_registry_addresses:
-  421614: 0x1988c716Acf7d92E5B252E6d72d13095230E4142
-  11155420: 0xc8B72887e184D033595e060A749212509Ec1B6C8
+  421614: 0x4d2ba6aB863754F72716EbfD2A824d44d0B8d2c0
+  11155420: 0x96aD1164F2265e281f5d48207d8f0d3265EDFF4d
 
 # metrics related
 enable_metrics: true

@@ -1,26 +1,26 @@
 {
   "addresses": {
-    "blsApkRegistry": "0xe098E3dcA9f7913662A55ae7eF0B74fa987628f0",
-    "blsApkRegistryImpl": "0x86234647eBB7701002f1a26027e9645BadEF0010",
+    "blsApkRegistry": "0x8bee5A1372A292822a8249695efCbC245946b918",
+    "blsApkRegistryImpl": "0xBa33De73bccec62eA255B44763a5024a67E39c69",
     "deployer": "0x70d266e7089f15a963638Ec358D5975fc8dAfb6E",
-    "indexRegistry": "0xC34F6B8a00a2D3931371Fe75830260B6bcBf9BDB",
-    "indexRegistryImpl": "0x92C398BE767A420f29a19A9F73A59D07e6169037",
-    "operatorSetUpdateRegistry": "0x8D0b27Df027bc5C41855Da352Da4B5B2C406c1F0",
-    "operatorSetUpdateRegistryImpl": "0xA1585A624E8B7da1c15D16B007FA5a2A4504681D",
-    "operatorStateRetriever": "0x729273700C0a8717Cf2Dd93Ced664902882d476b",
-    "registryCoordinator": "0x0069A298e68c09B047E5447b3b762E42114a99a2",
-    "registryCoordinatorImpl": "0x0edB96Ff10864E4fdC2Ea74bfd6B707d3847Ce3D",
-    "sfflPauserReg": "0xb644FA287736c3765EF76aD554446329ab7Eb849",
-    "sfflProxyAdmin": "0x7116696AC76968743ed8b62E32B1a9Da627a815E",
-    "sfflServiceManager": "0x2344C0FE02Ccd2b32155Ca0ffcb1978a6d96a552",
-    "sfflServiceManagerImpl": "0x750954a384174dF80446D97eBbCaE6E1A084DE6E",
-    "sfflTaskManager": "0x00ee5871e23c7f9C1b99D9eDd1Cf022772a604FD",
-    "sfflTaskManagerImpl": "0xE4942E6a0744C69E9E14263e5366E30A702e137E",
-    "stakeRegistry": "0x85D95052Dc794aE86d4d445C4c8d52D9a49Fa3e2",
-    "stakeRegistryImpl": "0xae16156Ad88dd384963E64A0cEe6101F4F69A276"
+    "indexRegistry": "0xebD552a0773c79d359Dc086FCD6F60350fF864dF",
+    "indexRegistryImpl": "0x3D9925F9e2b747Ee29c6E4a3632B2253Bc85d153",
+    "operatorSetUpdateRegistry": "0x7330AD7e8b7AF356ce7a3505f681Dc197b747468",
+    "operatorSetUpdateRegistryImpl": "0xbcFFbE61e1773E966613078f51b8968eA01c7C4F",
+    "operatorStateRetriever": "0x92D97c26F43219B490E89B1b6308262ca3711c30",
+    "registryCoordinator": "0x1f82a2Bef8a3361a5A2Aa06F9d4b32D552151A0F",
+    "registryCoordinatorImpl": "0x8bCcb6bbAf0D058eD384093a0B170f56091b4177",
+    "sfflPauserReg": "0x5b1FfCe8b3eb1D3dA0B42F42B4d9cE2D4A28c8dF",
+    "sfflProxyAdmin": "0xD485151a125b11bb94Bf0d8370e39d66E9Dc6cFa",
+    "sfflServiceManager": "0x745c7BD3B2E02758FF74C27C717Aa146aa896701",
+    "sfflServiceManagerImpl": "0xa6a726891DB93d02F01d79F0224329ba6feA0882",
+    "sfflTaskManager": "0x2B1765E89c9737428e3E412BD4B3394245e38e3F",
+    "sfflTaskManagerImpl": "0x5e68A961570386c777CA9FFED8292c62b9Ef5e51",
+    "stakeRegistry": "0x5771D5572fE7b03FD5D0f99Da3FC47aCAee415c0",
+    "stakeRegistryImpl": "0xbcE8E6746802216DCFFaFf2ebf837bB2289DCc03"
   },
   "chainInfo": {
     "chainId": 17000,
-    "deploymentBlock": 1405071
+    "deploymentBlock": 1457960
   }
 }

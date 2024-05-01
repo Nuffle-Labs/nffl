@@ -10,9 +10,9 @@ services:
       - --rpc-url
       - wss://arbitrum-sepolia-rpc.publicnode.com
       - --da-account-id
-      - sfrelayer421614-1.testnet
+      - sfrelayer421614-0.testnet
       - --key-path
-      - /root/.near-credentials/${NEAR_CHAIN_ID}/sfrelayer421614-1.testnet.json
+      - /root/.near-credentials/${NEAR_CHAIN_ID}/sfrelayer421614-0.testnet.json
       - --network
       - ${NEAR_RPC_URL}
     restart: unless-stopped
@@ -32,9 +32,9 @@ services:
       - --rpc-url
       - wss://optimism-sepolia-rpc.publicnode.com
       - --da-account-id
-      - sfrelayer11155420-1.testnet
+      - sfrelayer11155420-0.testnet
       - --key-path
-      - /root/.near-credentials/${NEAR_CHAIN_ID}/sfrelayer11155420-1.testnet.json
+      - /root/.near-credentials/${NEAR_CHAIN_ID}/sfrelayer11155420-0.testnet.json
       - --network
       - ${NEAR_RPC_URL}
     restart: unless-stopped

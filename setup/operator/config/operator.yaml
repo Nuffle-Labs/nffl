@@ -6,8 +6,8 @@ production: false
 operator_address: 0xD5A0359da7B310917d7760385516B2426E86ab7f
 
 # AVS contract addresses
-avs_registry_coordinator_address: 0x0069A298e68c09B047E5447b3b762E42114a99a2
-operator_state_retriever_address: 0x8D0b27Df027bc5C41855Da352Da4B5B2C406c1F0
+avs_registry_coordinator_address: 0x1f82a2Bef8a3361a5A2Aa06F9d4b32D552151A0F
+operator_state_retriever_address: 0x92D97c26F43219B490E89B1b6308262ca3711c30
 
 # AVS network RPCs
 # *Important*: The WS RPC must allow event subscriptions. As Public Node
