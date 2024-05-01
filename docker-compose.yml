@@ -115,7 +115,7 @@ services:
       - /root/.near-credentials/localnet/da2.test.near.json
       - --network
       - http://near-sffl-indexer:3030
-      - --metrics-addr
+      - --metrics-ip-port-address
       - rollup0-relayer:9091
     networks:
       - near-sffl

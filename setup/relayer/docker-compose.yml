@@ -24,7 +24,7 @@ services:
       - /root/.near-credentials/${NEAR_CHAIN_ID}/sfrelayer421614-1.testnet.json
       - --network
       - ${NEAR_RPC_URL}
-      - --metrics-addr
+      - --metrics-ip-port-address
       - near-sffl-relayer-421614:9091
     restart: unless-stopped
     logging:
@@ -53,7 +53,7 @@ services:
       - /root/.near-credentials/${NEAR_CHAIN_ID}/sfrelayer11155420-1.testnet.json
       - --network
       - ${NEAR_RPC_URL}
-      - --metrics-addr
+      - --metrics-ip-port-address
       - near-sffl-relayer-11155420:9091
     restart: unless-stopped
     logging:

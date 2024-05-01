@@ -92,12 +92,12 @@ func compileContainerConfig(ctx context.Context, daAccountId, keyPath, indexerIp
 	}
 
 	return &config.RelayerConfig{
-		Production:  false,
-		DaAccountId: daAccountId,
-		KeyPath:     containerKeyPath,
-		RpcUrl:      fmt.Sprintf("ws://%s:%s", containerIp, port.Port()),
-		Network:     fmt.Sprintf("http://%s:%s", indexerIp, IndexerPort),
-		MetricsAddr: fmt.Sprintf("%s:%s", GetRelayerContainerName(anvil), MetricsPort),
+		Production:        false,
+		DaAccountId:       daAccountId,
+		KeyPath:           containerKeyPath,
+		RpcUrl:            fmt.Sprintf("ws://%s:%s", containerIp, port.Port()),
+		Network:           fmt.Sprintf("http://%s:%s", indexerIp, IndexerPort),
+		MetricsIpPortAddr: fmt.Sprintf("%s:%s", GetRelayerContainerName(anvil), MetricsPort),
 	}, nil
 }
 

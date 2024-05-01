@@ -51,7 +51,7 @@ func main() {
 					Usage: "Network for NEAR client to use (options: Mainnet, Testnet, Custom url, default: http://127.0.0.1:3030)",
 				},
 				cli.StringFlag{
-					Name:  "metrics-addr",
+					Name:  "metrics-ip-port-address",
 					Value: "",
 					Usage: "Metrics scrape address",
 				},
@@ -80,12 +80,12 @@ func main() {
 
 func relayerMainFromArgs(ctx *cli.Context) error {
 	config := config.RelayerConfig{
-		Production:  ctx.Bool("production"),
-		RpcUrl:      ctx.String("rpc-url"),
-		DaAccountId: ctx.String("da-account-id"),
-		KeyPath:     ctx.String("key-path"),
-		Network:     ctx.String("network"),
-		MetricsAddr: ctx.String("metrics-addr"),
+		Production:        ctx.Bool("production"),
+		RpcUrl:            ctx.String("rpc-url"),
+		DaAccountId:       ctx.String("da-account-id"),
+		KeyPath:           ctx.String("key-path"),
+		Network:           ctx.String("network"),
+		MetricsIpPortAddr: ctx.String("metrics-ip-port-address"),
 	}
 
 	fmt.Println("config.RpcUrl:", config.RpcUrl)
@@ -134,13 +134,13 @@ func relayerMain(config config.RelayerConfig) error {
 	}
 
 	ctx := context.Background()
-	if config.MetricsAddr != "" {
+	if config.MetricsIpPortAddr != "" {
 		registry := prometheus.NewRegistry()
 		if err = rel.WithMetrics(registry); err != nil {
 			return err
 		}
 
-		relayer.StartMetricsServer(ctx, config.MetricsAddr, registry, logger)
+		relayer.StartMetricsServer(ctx, config.MetricsIpPortAddr, registry, logger)
 	}
 
 	logger.Info("initialized relayer")
