@@ -167,6 +167,9 @@ func (c *AggregatorRpcClient) onTick() {
 
 // Expected to be called with initialized client.
 func (c *AggregatorRpcClient) tryResendFromDeque() {
+	c.rpcClientLock.RLock()
+	defer c.rpcClientLock.RUnlock()
+
 	c.unsentMessagesLock.Lock()
 	defer c.unsentMessagesLock.Unlock()
 
