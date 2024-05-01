@@ -133,20 +133,20 @@ func relayerMain(config config.RelayerConfig) error {
 		return err
 	}
 
+	ctx := context.Background()
 	if config.MetricsAddr != "" {
 		registry := prometheus.NewRegistry()
 		if err = rel.WithMetrics(registry); err != nil {
 			return err
 		}
 
-		_, shutdown := relayer.StartMetrics(config.MetricsAddr, registry)
-		defer shutdown()
+		relayer.StartMetricsServer(ctx, config.MetricsAddr, registry, logger)
 	}
 
 	logger.Info("initialized relayer")
 
 	logger.Info("starting relayer")
-	err = rel.Start(context.Background())
+	err = rel.Start(ctx)
 	if err != nil {
 		logger.Error("Error starting relayer", "err", err)
 		return err

@@ -3,11 +3,11 @@ package relayer
 import (
 	"context"
 	"fmt"
-	"log"
 	"math"
 	"net/http"
 	"time"
 
+	sdklogging "github.com/Layr-Labs/eigensdk-go/logging"
 	"github.com/prometheus/client_golang/prometheus"
 	"github.com/prometheus/client_golang/prometheus/promhttp"
 )
@@ -107,17 +107,18 @@ func MakeRelayerMetrics(registry *prometheus.Registry) (EventListener, error) {
 	}, nil
 }
 
-func StartMetrics(metricsAddr string, reg prometheus.Gatherer) (<-chan error, func()) {
+func startMetrics(metricsAddr string, reg prometheus.Gatherer) (<-chan error, func(ctx context.Context) error) {
 	errC := make(chan error, 1)
 	server := &http.Server{Addr: metricsAddr, Handler: nil}
 
 	http.Handle("/metrics", promhttp.HandlerFor(reg, promhttp.HandlerOpts{}))
 
-	shutdown := func() {
-		if err := server.Shutdown(context.Background()); err != nil {
-			// Handle the error according to your application's needs, e.g., log it
-			log.Printf("Error shutting down metrics server: %v", err)
+	shutdown := func(ctx context.Context) error {
+		if err := server.Shutdown(ctx); err != nil {
+			return err
 		}
+
+		return nil
 	}
 
 	go func() {
@@ -127,4 +128,46 @@ func StartMetrics(metricsAddr string, reg prometheus.Gatherer) (<-chan error, fu
 	}()
 
 	return errC, shutdown
+}
+
+func StartMetricsServer(ctx context.Context, metricsAddr string, reg prometheus.Gatherer, logger sdklogging.Logger) {
+	const (
+		RetryCount    = 3
+		RetryInterval = time.Second
+	)
+
+	errC, shutdownMetrics := startMetrics(metricsAddr, reg)
+	go func() {
+		retryCount := 0
+		for {
+			select {
+			case err := <-errC:
+				if err == nil {
+					continue
+				}
+
+				if retryCount >= RetryCount {
+					logger.Error("Failed to restart metrics server after multiple attempts", "err", err)
+					return
+				} else {
+					logger.Error("Metrics server error", "err", err)
+				}
+
+				err = shutdownMetrics(ctx)
+				if err != nil {
+					logger.Error("Error while shutting down", "err", err)
+					return
+				}
+
+				// Sleep before restart
+				time.Sleep(RetryInterval)
+
+				logger.Info("Attempting to restart metrics server")
+				errC, shutdownMetrics = startMetrics(metricsAddr, reg)
+				retryCount++
+			case <-ctx.Done():
+				return
+			}
+		}
+	}()
 }
