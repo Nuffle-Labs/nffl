@@ -3,7 +3,6 @@ package main
 import (
 	"context"
 	"encoding/json"
-	"fmt"
 	"log"
 	"os"
 
@@ -23,7 +22,7 @@ func main() {
 	app.Description = "Super Fast Finality testing service that reads block data from an EVM network and feeds it to a NEAR DA contract."
 	app.Commands = []cli.Command{
 		{
-			Name:  "args",
+			Name:  "run-args",
 			Usage: "Start the relayer with direct CLI options",
 			Flags: []cli.Flag{
 				cli.BoolFlag{
@@ -59,7 +58,7 @@ func main() {
 			Action: relayerMainFromArgs,
 		},
 		{
-			Name:  "config",
+			Name:  "run-config",
 			Usage: "Start the relayer using a configuration file",
 			Flags: []cli.Flag{
 				cli.StringFlag{
@@ -87,8 +86,6 @@ func relayerMainFromArgs(ctx *cli.Context) error {
 		Network:           ctx.String("network"),
 		MetricsIpPortAddr: ctx.String("metrics-ip-port-address"),
 	}
-
-	fmt.Println("config.RpcUrl:", config.RpcUrl)
 
 	return relayerMain(config)
 }

@@ -106,7 +106,7 @@ services:
     volumes:
       - near_cli_keys:/root/.near-credentials
     command:
-      - args
+      - run-args
       - --rpc-url
       - ws://rollup0-anvil:8546
       - --da-account-id
@@ -169,7 +169,7 @@ services:
       - near_cli_keys:/root/.near-credentials
       - ./config-files:/etc/relayer
     command:
-      - config
+      - run-config
       - --path
       - /etc/relayer/relayer1-docker-compose.yaml
     networks:

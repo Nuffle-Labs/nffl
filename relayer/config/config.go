@@ -11,7 +11,7 @@ type RelayerConfig struct {
 
 func (c RelayerConfig) CompileCMD() []string {
 	var cmd []string
-	cmd = append(cmd, "args")
+	cmd = append(cmd, "run-args")
 	if c.Production {
 		cmd = append(cmd, "--production")
 	}

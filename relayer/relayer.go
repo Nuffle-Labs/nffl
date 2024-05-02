@@ -3,8 +3,6 @@ package relayer
 import (
 	"context"
 	"errors"
-	"github.com/NethermindEth/near-sffl/core"
-	"github.com/prometheus/client_golang/prometheus"
 	"strings"
 	"time"
 
@@ -13,7 +11,9 @@ import (
 	ethtypes "github.com/ethereum/go-ethereum/core/types"
 	"github.com/ethereum/go-ethereum/rlp"
 	near "github.com/near/rollup-data-availability/gopkg/da-rpc"
+	"github.com/prometheus/client_golang/prometheus"
 
+	"github.com/NethermindEth/near-sffl/core"
 	"github.com/NethermindEth/near-sffl/relayer/config"
 )
 

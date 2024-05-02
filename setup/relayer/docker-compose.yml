@@ -15,7 +15,7 @@ services:
     expose:
       - 9091
     command:
-      - args
+      - run-args
       - --rpc-url
       - wss://arbitrum-sepolia-rpc.publicnode.com
       - --da-account-id
@@ -44,7 +44,7 @@ services:
     expose:
       - 9091
     command:
-      - args
+      - run-args
       - --rpc-url
       - wss://optimism-sepolia-rpc.publicnode.com
       - --da-account-id
