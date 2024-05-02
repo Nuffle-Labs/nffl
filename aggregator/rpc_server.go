@@ -42,7 +42,12 @@ func (agg *Aggregator) startServer() error {
 // reply doesn't need to be checked. If there are no errors, the task response is accepted
 // rpc framework forces a reply type to exist, so we put bool as a placeholder
 func (agg *Aggregator) ProcessSignedCheckpointTaskResponse(signedCheckpointTaskResponse *messages.SignedCheckpointTaskResponse, reply *bool) error {
-	agg.logger.Infof("Received signed task response: %#v", signedCheckpointTaskResponse)
+	if signedCheckpointTaskResponse.BlsSignature.G1Point != nil {
+		agg.logger.Infof("Received signed task response: %#v %s", signedCheckpointTaskResponse, signedCheckpointTaskResponse.BlsSignature.String())
+	} else {
+		agg.logger.Infof("Received signed task response: %#v", signedCheckpointTaskResponse)
+	}
+
 	agg.rpcListener.IncSignedCheckpointTaskResponse()
 
 	taskIndex := signedCheckpointTaskResponse.TaskResponse.ReferenceTaskIndex
@@ -73,7 +78,12 @@ func (agg *Aggregator) ProcessSignedCheckpointTaskResponse(signedCheckpointTaskR
 }
 
 func (agg *Aggregator) ProcessSignedStateRootUpdateMessage(signedStateRootUpdateMessage *messages.SignedStateRootUpdateMessage, reply *bool) error {
-	agg.logger.Infof("Received signed state root update message: %#v", signedStateRootUpdateMessage)
+	if signedStateRootUpdateMessage.BlsSignature.G1Point != nil {
+		agg.logger.Infof("Received signed state root update message: %#v %s", signedStateRootUpdateMessage, signedStateRootUpdateMessage.BlsSignature.String())
+	} else {
+		agg.logger.Infof("Received signed state root update message: %#v", signedStateRootUpdateMessage)
+	}
+
 	agg.rpcListener.IncSignedStateRootUpdateMessage()
 
 	messageDigest, err := signedStateRootUpdateMessage.Message.Digest()
@@ -100,7 +110,12 @@ func (agg *Aggregator) ProcessSignedStateRootUpdateMessage(signedStateRootUpdate
 }
 
 func (agg *Aggregator) ProcessSignedOperatorSetUpdateMessage(signedOperatorSetUpdateMessage *messages.SignedOperatorSetUpdateMessage, reply *bool) error {
-	agg.logger.Infof("Received signed operator set update message: %#v", signedOperatorSetUpdateMessage)
+	if signedOperatorSetUpdateMessage.BlsSignature.G1Point != nil {
+		agg.logger.Infof("Received signed operator set update message: %#v %s", signedOperatorSetUpdateMessage, signedOperatorSetUpdateMessage.BlsSignature.String())
+	} else {
+		agg.logger.Infof("Received signed operator set update message: %#v", signedOperatorSetUpdateMessage)
+	}
+
 	agg.rpcListener.IncSignedOperatorSetUpdateMessage()
 
 	messageDigest, err := signedOperatorSetUpdateMessage.Message.Digest()
