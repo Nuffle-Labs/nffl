@@ -122,6 +122,8 @@ func (r *Relayer) submitEncodedBlocks(encodedBlocks []byte) ([]byte, error) {
 		out, err := r.nearClient.ForceSubmit(encodedBlocks)
 		if err == nil {
 			r.listener.OnDaSubmitted(time.Since(startTime))
+			r.listener.OnRetriesRequired(i + 1)
+
 			return out, nil
 		}
 
@@ -129,6 +131,8 @@ func (r *Relayer) submitEncodedBlocks(encodedBlocks []byte) ([]byte, error) {
 
 		if strings.Contains(err.Error(), "InvalidNonce") || strings.Contains(err.Error(), "Expired") {
 			r.logger.Info("Invalid nonce or expired, resubmitting", "err", err)
+			r.listener.OnInvalidNonce()
+
 			time.Sleep(SUBMIT_BLOCK_RETRY_TIMEOUT)
 		} else {
 			return nil, errors.New("unknown error while submitting block to NEAR")

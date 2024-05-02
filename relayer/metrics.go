@@ -18,12 +18,16 @@ type EventListener interface {
 	OnBlockReceived()
 	OnDaSubmissionFailed()
 	OnDaSubmitted(duration time.Duration)
+	OnRetriesRequired(retries int)
+	OnInvalidNonce()
 }
 
 type SelectiveListener struct {
 	OnBlockReceivedCb      func()
 	OnDaSubmissionFailedCb func()
 	OnDaSubmittedCb        func(duration time.Duration)
+	OnRetriesRequiredCb    func(retries int)
+	OnInvalidNonceCb       func()
 }
 
 func (l *SelectiveListener) OnBlockReceived() {
@@ -41,6 +45,18 @@ func (l *SelectiveListener) OnDaSubmissionFailed() {
 func (l *SelectiveListener) OnDaSubmitted(duration time.Duration) {
 	if l.OnDaSubmittedCb != nil {
 		l.OnDaSubmittedCb(duration)
+	}
+}
+
+func (l *SelectiveListener) OnRetriesRequired(retries int) {
+	if l.OnRetriesRequiredCb != nil {
+		l.OnRetriesRequiredCb(retries)
+	}
+}
+
+func (l *SelectiveListener) OnInvalidNonce() {
+	if l.OnInvalidNonceCb != nil {
+		l.OnInvalidNonceCb()
 	}
 }
 
@@ -94,6 +110,26 @@ func MakeRelayerMetrics(registry *prometheus.Registry) (EventListener, error) {
 		return nil, fmt.Errorf("error registering submissionDuration histogram: %w", err)
 	}
 
+	retriesHistogram := prometheus.NewHistogram(prometheus.HistogramOpts{
+		Namespace: RelayerNamespace,
+		Name:      "retries_histogram",
+		Help:      "Histogram of retry counts",
+		Buckets:   prometheus.LinearBuckets(1, 1, SUBMIT_BLOCK_RETRIES),
+	})
+
+	if err := registry.Register(retriesHistogram); err != nil {
+		return nil, fmt.Errorf("error registering retriesHistogram histogram: %w", err)
+	}
+
+	numInvalidNonces := prometheus.NewCounter(prometheus.CounterOpts{
+		Namespace: RelayerNamespace,
+		Name:      "num_of_invalid_nonces",
+		Help:      "Number of InvalidNonce error",
+	})
+	if err := registry.Register(numInvalidNonces); err != nil {
+		return nil, fmt.Errorf("error registering numInvalidNonces count: %w", err)
+	}
+
 	return &SelectiveListener{
 		OnBlockReceivedCb: func() {
 			numBlocksReceived.Inc()
@@ -103,6 +139,12 @@ func MakeRelayerMetrics(registry *prometheus.Registry) (EventListener, error) {
 		},
 		OnDaSubmittedCb: func(duration time.Duration) {
 			submissionDuration.Observe(float64(duration.Milliseconds()))
+		},
+		OnRetriesRequiredCb: func(retries int) {
+			retriesHistogram.Observe(float64(retries))
+		},
+		OnInvalidNonceCb: func() {
+			numInvalidNonces.Inc()
 		},
 	}, nil
 }
