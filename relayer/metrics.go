@@ -114,7 +114,7 @@ func MakeRelayerMetrics(registry *prometheus.Registry) (EventListener, error) {
 		Namespace: RelayerNamespace,
 		Name:      "retries_histogram",
 		Help:      "Histogram of retry counts",
-		Buckets:   prometheus.LinearBuckets(1, 1, SUBMIT_BLOCK_RETRIES),
+		Buckets:   prometheus.LinearBuckets(0, 1, SUBMIT_BLOCK_RETRIES),
 	})
 
 	if err := registry.Register(retriesHistogram); err != nil {

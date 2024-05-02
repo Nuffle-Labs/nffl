@@ -133,7 +133,7 @@ func relayerMain(config config.RelayerConfig) error {
 	ctx := context.Background()
 	if config.MetricsIpPortAddr != "" {
 		registry := prometheus.NewRegistry()
-		if err = rel.WithMetrics(registry); err != nil {
+		if err = rel.EnableMetrics(registry); err != nil {
 			return err
 		}
 

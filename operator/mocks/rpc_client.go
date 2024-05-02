@@ -39,6 +39,20 @@ func (m *MockAggregatorRpcClienter) EXPECT() *MockAggregatorRpcClienterMockRecor
 	return m.recorder
 }
 
+// EnableMetrics mocks base method.
+func (m *MockAggregatorRpcClienter) EnableMetrics(arg0 *prometheus.Registry) error {
+	m.ctrl.T.Helper()
+	ret := m.ctrl.Call(m, "EnableMetrics", arg0)
+	ret0, _ := ret[0].(error)
+	return ret0
+}
+
+// EnableMetrics indicates an expected call of EnableMetrics.
+func (mr *MockAggregatorRpcClienterMockRecorder) EnableMetrics(arg0 any) *gomock.Call {
+	mr.mock.ctrl.T.Helper()
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "EnableMetrics", reflect.TypeOf((*MockAggregatorRpcClienter)(nil).EnableMetrics), arg0)
+}
+
 // GetAggregatedCheckpointMessages mocks base method.
 func (m *MockAggregatorRpcClienter) GetAggregatedCheckpointMessages(arg0, arg1 uint64) (*messages.CheckpointMessages, error) {
 	m.ctrl.T.Helper()
@@ -88,18 +102,4 @@ func (m *MockAggregatorRpcClienter) SendSignedStateRootUpdateToAggregator(arg0 *
 func (mr *MockAggregatorRpcClienterMockRecorder) SendSignedStateRootUpdateToAggregator(arg0 any) *gomock.Call {
 	mr.mock.ctrl.T.Helper()
 	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "SendSignedStateRootUpdateToAggregator", reflect.TypeOf((*MockAggregatorRpcClienter)(nil).SendSignedStateRootUpdateToAggregator), arg0)
-}
-
-// WithMetrics mocks base method.
-func (m *MockAggregatorRpcClienter) WithMetrics(arg0 *prometheus.Registry) error {
-	m.ctrl.T.Helper()
-	ret := m.ctrl.Call(m, "WithMetrics", arg0)
-	ret0, _ := ret[0].(error)
-	return ret0
-}
-
-// WithMetrics indicates an expected call of WithMetrics.
-func (mr *MockAggregatorRpcClienterMockRecorder) WithMetrics(arg0 any) *gomock.Call {
-	mr.mock.ctrl.T.Helper()
-	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "WithMetrics", reflect.TypeOf((*MockAggregatorRpcClienter)(nil).WithMetrics), arg0)
 }

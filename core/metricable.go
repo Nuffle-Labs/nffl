@@ -8,7 +8,7 @@ import (
 )
 
 type Metricable interface {
-	WithMetrics(registry *prometheus.Registry) error
+	EnableMetrics(registry *prometheus.Registry) error
 }
 
 func CreateEthClient(rpcUrl string, collector *rpccalls.Collector, logger sdklogging.Logger) (eth.Client, error) {

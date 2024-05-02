@@ -57,7 +57,7 @@ func NewRelayerFromConfig(config *config.RelayerConfig, logger sdklogging.Logger
 	}, nil
 }
 
-func (r *Relayer) WithMetrics(registry *prometheus.Registry) error {
+func (r *Relayer) EnableMetrics(registry *prometheus.Registry) error {
 	listener, err := MakeRelayerMetrics(registry)
 	if err != nil {
 		return err
@@ -122,7 +122,7 @@ func (r *Relayer) submitEncodedBlocks(encodedBlocks []byte) ([]byte, error) {
 		out, err := r.nearClient.ForceSubmit(encodedBlocks)
 		if err == nil {
 			r.listener.OnDaSubmitted(time.Since(startTime))
-			r.listener.OnRetriesRequired(i + 1)
+			r.listener.OnRetriesRequired(i)
 
 			return out, nil
 		}
