@@ -92,7 +92,7 @@ func (agg *Aggregator) ProcessSignedStateRootUpdateMessage(signedStateRootUpdate
 	}
 
 	if signedStateRootUpdateMessage.Message.Timestamp < uint64(time.Now().Unix())-60 {
-		agg.logger.Info("Received old message: %v", messageDigest)
+		agg.logger.Infof("Received old message: %d %v", signedStateRootUpdateMessage.Message.Timestamp, messageDigest)
 		return nil
 	}
 
