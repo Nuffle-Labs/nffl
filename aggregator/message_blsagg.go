@@ -182,6 +182,10 @@ func (mbas *MessageBlsAggregatorService) singleMessageAggregatorGoroutineFunc(
 			}
 		case <-messageExpiredTimer.C:
 			mbas.aggregatedResponsesC <- types.MessageBlsAggregationServiceResponse{
+				MessageBlsAggregation: messages.MessageBlsAggregation{
+					MessageDigest:  messageDigest,
+					EthBlockNumber: ethBlockNumber,
+				},
 				Err: MessageExpiredError,
 			}
 			return
