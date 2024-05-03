@@ -179,8 +179,8 @@ func (c *AggregatorRpcClient) tryResendFromDeque() {
 
 	errorPos := 0
 	for i := 0; i < len(c.unsentMessages); i++ {
-		unsentRpcMessage := c.unsentMessages[i]
-		message := unsentRpcMessage.Message
+		entry := c.unsentMessages[i]
+		message := entry.Message
 
 		// Assumes client exists
 		var err error
@@ -221,13 +221,13 @@ func (c *AggregatorRpcClient) tryResendFromDeque() {
 				break
 			}
 
-			unsentRpcMessage.Retries++
-			if unsentRpcMessage.Retries >= MaxRetries {
+			entry.Retries++
+			if entry.Retries >= MaxRetries {
 				c.logger.Error("Max retries reached, dropping message", "message", fmt.Sprintf("%#v", message))
 				continue
 			}
 
-			c.unsentMessages[errorPos] = unsentRpcMessage
+			c.unsentMessages[errorPos] = entry
 			errorPos++
 		}
 	}
