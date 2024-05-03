@@ -192,6 +192,10 @@ func (c *AggregatorRpcClient) tryResendFromDeque() {
 			err = c.rpcClient.Call("Aggregator.ProcessSignedCheckpointTaskResponse", message, &reply)
 
 		case *messages.SignedStateRootUpdateMessage:
+			if message.Message.Timestamp < uint64(time.Now().Unix())-60 {
+				c.logger.Infof("Dropping old message from timestamp %d, rollup ID %d, height %d", message.Message.Timestamp, message.Message.RollupId, message.Message.BlockHeight)
+				continue
+			}
 			err = c.rpcClient.Call("Aggregator.ProcessSignedStateRootUpdateMessage", message, &reply)
 
 		case *messages.SignedOperatorSetUpdateMessage:
