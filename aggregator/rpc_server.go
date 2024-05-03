@@ -5,6 +5,7 @@ import (
 	"errors"
 	"net/http"
 	"net/rpc"
+	"time"
 
 	eigentypes "github.com/Layr-Labs/eigensdk-go/types"
 
@@ -88,6 +89,11 @@ func (agg *Aggregator) ProcessSignedStateRootUpdateMessage(signedStateRootUpdate
 		agg.logger.Infof("Received signed state root update message: %v %#v %s", messageDigest, signedStateRootUpdateMessage, signedStateRootUpdateMessage.BlsSignature.String())
 	} else {
 		agg.logger.Infof("Received signed state root update message: %v %#v", messageDigest, signedStateRootUpdateMessage)
+	}
+
+	if signedStateRootUpdateMessage.Message.Timestamp < uint64(time.Now().Unix())-60 {
+		agg.logger.Info("Received old message: %v", messageDigest)
+		return nil
 	}
 
 	agg.rpcListener.IncSignedStateRootUpdateMessage()
