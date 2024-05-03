@@ -7,8 +7,8 @@ github.com/Azure/go-ansiterm v0.0.0-20210617225240-d185dfc1b5a1/go.mod h1:xomTg6
 github.com/BurntSushi/toml v1.3.2/go.mod h1:CxXYINrC8qIiEnFrOxCa7Jy5BFHlXnUU2pbicEuybxQ=
 github.com/DataDog/zstd v1.4.5 h1:EndNeuB0l9syBZhut0wns3gV1hL8zX8LIu6ZiVHWLIQ=
 github.com/DataDog/zstd v1.4.5/go.mod h1:1jcaCB/ufaK+sKp1NBhlGmpz41jOoPQ35bpF36t7BBo=
-github.com/Hyodar/rollup-data-availability v0.0.0-20240501114510-9eeb3d4ac2b6 h1:86kmrUrD/4++RTVsOl1f6HtrvTsUoIN1Vklo/UEeySk=
-github.com/Hyodar/rollup-data-availability v0.0.0-20240501114510-9eeb3d4ac2b6/go.mod h1:kzQi3/MdPKkid8rxflyA9oEBlaLAewXJMqCBXStBxQo=
+github.com/Hyodar/rollup-data-availability v0.0.0-20240503145929-4ef773b7bfa3 h1:0MNwAgHoOirDru9sCNN6X8g+QKqMa6jSILdIFk6QDP0=
+github.com/Hyodar/rollup-data-availability v0.0.0-20240503145929-4ef773b7bfa3/go.mod h1:kzQi3/MdPKkid8rxflyA9oEBlaLAewXJMqCBXStBxQo=
 github.com/Layr-Labs/eigensdk-go v0.1.4 h1:ROup2RMNrgLKNmWkic+pNHirR5pFyBFJ9FhnbY+i7hk=
 github.com/Layr-Labs/eigensdk-go v0.1.4/go.mod h1:HOSNuZcwaKbP4cnNk9c1hK2B2RitcMQ36Xj2msBBBpE=
 github.com/Microsoft/go-winio v0.6.1 h1:9/kr64B9VUZrLm5YYwbGtUJnMgqWVOdUAXu6Migciow=
