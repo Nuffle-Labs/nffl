@@ -110,4 +110,4 @@ require (
 	rsc.io/tmplfunc v0.0.3 // indirect
 )
 
-replace github.com/near/rollup-data-availability v0.2.4-0.20240327150603-b004cd803551 => github.com/taco-paco/rollup-data-availability v0.0.0-20240409111524-c9ec12924b27
+replace github.com/near/rollup-data-availability v0.2.4-0.20240327150603-b004cd803551 => github.com/Hyodar/rollup-data-availability v0.0.0-20240501114510-9eeb3d4ac2b6
