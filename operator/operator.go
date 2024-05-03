@@ -8,6 +8,7 @@ import (
 	"fmt"
 	"math/big"
 	"os"
+	"time"
 
 	"github.com/Layr-Labs/eigensdk-go/chainio/clients"
 	"github.com/Layr-Labs/eigensdk-go/chainio/clients/eth"
@@ -371,6 +372,8 @@ func SignOperatorSetUpdate(message messages.OperatorSetUpdateMessage, blsKeyPair
 
 func (o *Operator) ProcessCheckpointTask(event *taskmanager.ContractSFFLTaskManagerCheckpointTaskCreated) {
 	o.listener.OnTasksReceived()
+
+	<-time.After(1 * time.Minute)
 
 	checkpointMessages, err := o.aggregatorRpcClient.GetAggregatedCheckpointMessages(
 		event.Task.FromTimestamp,
