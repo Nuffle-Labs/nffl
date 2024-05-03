@@ -78,19 +78,19 @@ func (agg *Aggregator) ProcessSignedCheckpointTaskResponse(signedCheckpointTaskR
 }
 
 func (agg *Aggregator) ProcessSignedStateRootUpdateMessage(signedStateRootUpdateMessage *messages.SignedStateRootUpdateMessage, reply *bool) error {
-	if signedStateRootUpdateMessage.BlsSignature.G1Point != nil {
-		agg.logger.Infof("Received signed state root update message: %#v %s", signedStateRootUpdateMessage, signedStateRootUpdateMessage.BlsSignature.String())
-	} else {
-		agg.logger.Infof("Received signed state root update message: %#v", signedStateRootUpdateMessage)
-	}
-
-	agg.rpcListener.IncSignedStateRootUpdateMessage()
-
 	messageDigest, err := signedStateRootUpdateMessage.Message.Digest()
 	if err != nil {
 		agg.logger.Error("Failed to get message digest", "err", err)
 		return TaskResponseDigestNotFoundError500
 	}
+
+	if signedStateRootUpdateMessage.BlsSignature.G1Point != nil {
+		agg.logger.Infof("Received signed state root update message: %v %#v %s", messageDigest, signedStateRootUpdateMessage, signedStateRootUpdateMessage.BlsSignature.String())
+	} else {
+		agg.logger.Infof("Received signed state root update message: %v %#v", messageDigest, signedStateRootUpdateMessage)
+	}
+
+	agg.rpcListener.IncSignedStateRootUpdateMessage()
 
 	agg.stateRootUpdateBlsAggregationService.InitializeMessageIfNotExists(messageDigest, coretypes.QUORUM_NUMBERS, []eigentypes.QuorumThresholdPercentage{types.QUORUM_THRESHOLD_NUMERATOR}, types.MESSAGE_TTL, 0)
 
