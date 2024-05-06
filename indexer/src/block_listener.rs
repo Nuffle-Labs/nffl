@@ -1,5 +1,6 @@
 use futures::future::join_all;
 use near_indexer::near_primitives::{types::AccountId, views::ActionView};
+use prometheus::Registry;
 use std::{
     collections::HashMap,
     fmt::{self, Formatter},
@@ -7,6 +8,7 @@ use std::{
 use tokio::sync::mpsc;
 use tracing::info;
 
+use crate::metrics::{make_block_listener_metrics, BlockEventListener, Metricable};
 use crate::{errors::Result, INDEXER};
 
 #[derive(Clone, Debug)]
@@ -28,16 +30,17 @@ impl fmt::Display for CandidateData {
     }
 }
 
-pub(crate) struct BlockListener {
-    stream: mpsc::Receiver<near_indexer::StreamerMessage>,
-    receipt_sender: mpsc::Sender<CandidateData>,
-    addresses_to_rollup_ids: HashMap<AccountId, u32>,
-}
-
 #[derive(Clone, Debug, serde::Serialize, serde::Deserialize)]
 pub(crate) struct TransactionWithRollupId {
     pub(crate) rollup_id: u32,
     pub(crate) transaction: near_indexer::IndexerTransactionWithOutcome,
+}
+
+pub(crate) struct BlockListener {
+    stream: mpsc::Receiver<near_indexer::StreamerMessage>,
+    receipt_sender: mpsc::Sender<CandidateData>,
+    addresses_to_rollup_ids: HashMap<AccountId, u32>,
+    listener: Option<BlockEventListener>,
 }
 
 impl BlockListener {
@@ -50,6 +53,7 @@ impl BlockListener {
             stream,
             receipt_sender,
             addresses_to_rollup_ids,
+            listener: None,
         }
     }
 
@@ -80,6 +84,7 @@ impl BlockListener {
             mut stream,
             receipt_sender,
             addresses_to_rollup_ids,
+            listener,
         } = self;
 
         while let Some(streamer_message) = stream.recv().await {
@@ -107,7 +112,14 @@ impl BlockListener {
                 info!(target: INDEXER, "No candidate data found in the streamer message");
                 continue;
             }
-            info!(target: INDEXER, "Found {} candidate(s)", candidates_data.len());
+
+            {
+                let candidates_len = candidates_data.len();
+                info!(target: INDEXER, "Found {} candidate(s)", candidates_len);
+                if let Some(event_listener) = &listener {
+                    event_listener.num_candidates.inc_by(candidates_len as f64);
+                }
+            }
 
             let results = join_all(candidates_data.into_iter().map(|receipt| receipt_sender.send(receipt))).await;
             results.into_iter().collect::<Result<_, _>>()?;
@@ -124,6 +136,15 @@ impl BlockListener {
                 Ok(())
             },
         }
+    }
+}
+
+impl Metricable for BlockListener {
+    fn enable_metrics(&mut self, registry: Registry) -> Result<()> {
+        let listener = make_block_listener_metrics(registry)?;
+        self.listener = Some(listener);
+
+        Ok(())
     }
 }
 
