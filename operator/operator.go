@@ -204,7 +204,7 @@ func NewOperatorFromConfig(c optypes.NodeConfig) (*Operator, error) {
 		aggregatorServerIpPortAddr: c.AggregatorServerIpPortAddress,
 		aggregatorRpcClient:        aggregatorRpcClient,
 		sfflServiceManagerAddr:     common.HexToAddress(c.AVSRegistryCoordinatorAddress),
-		operatorId:                 [32]byte{0}, // this is set below
+		operatorId:                 eigentypes.OperatorIdFromPubkey(blsKeyPair.GetPubKeyG1()),
 	}
 
 	if c.RegisterOperatorOnStartup {
@@ -219,22 +219,14 @@ func NewOperatorFromConfig(c optypes.NodeConfig) (*Operator, error) {
 		operator.registerOperatorOnStartup(operatorEcdsaPrivateKey, common.HexToAddress(c.TokenStrategyAddr))
 	}
 
-	// OperatorId is set in contract during registration so we get it after registering operator.
-	operatorId, err := avsManager.GetOperatorId(&bind.CallOpts{}, operator.operatorAddr)
-	if err != nil {
-		logger.Error("Cannot get operator id", "err", err)
-		return nil, err
-	}
-
-	operator.operatorId = operatorId
 	logger.Info("Operator info",
-		"operatorId", operatorId,
+		"operatorId", operator.operatorId,
 		"operatorAddr", c.OperatorAddress,
 		"operatorG1Pubkey", operator.blsKeypair.GetPubKeyG1(),
 		"operatorG2Pubkey", operator.blsKeypair.GetPubKeyG2(),
 	)
 
-	attestor, err := attestor.NewAttestor(&c, blsKeyPair, operatorId, reg, logger)
+	attestor, err := attestor.NewAttestor(&c, blsKeyPair, operator.operatorId, reg, logger)
 	if err != nil {
 		return nil, err
 	}
