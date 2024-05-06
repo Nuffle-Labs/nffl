@@ -6,10 +6,12 @@ use lapin::{
     BasicProperties, ConnectionProperties, ExchangeKind,
 };
 use near_indexer::near_primitives::hash::CryptoHash;
+use prometheus::Registry;
 use tokio::sync::mpsc;
 use tracing::{error, info};
 
 use crate::errors::{Error, Result};
+use crate::metrics::{make_publisher_metrics, Metricable, PublisherListener};
 
 const PUBLISHER: &str = "publisher";
 const EXCHANGE_NAME: &str = "rollup_exchange";
@@ -75,8 +77,24 @@ impl RabbitBuilder {
 }
 
 #[derive(Clone)]
+pub struct RabbitPublisherHandler {
+    pub sender: mpsc::Sender<PublishData>,
+}
+
+impl RabbitPublisherHandler {
+    pub async fn publish(&mut self, publish_data: PublishData) -> Result<()> {
+        Ok(self.sender.send(publish_data).await?)
+    }
+
+    pub async fn closed(&self) {
+        self.sender.closed().await
+    }
+}
+
+#[derive(Clone)]
 pub struct RabbitPublisher {
-    sender: mpsc::Sender<PublishData>,
+    connection_pool: Pool,
+    listener: Option<PublisherListener>,
 }
 
 // TODO: try to put error in inner state?
@@ -84,14 +102,21 @@ impl RabbitPublisher {
     pub fn new(addr: &str) -> Result<Self> {
         let pool = create_connection_pool(addr.into())?;
 
-        let (sender, receiver) = mpsc::channel(100);
-        actix::spawn(Self::publisher(pool, receiver));
-
-        Ok(Self { sender })
+        Ok(Self {
+            connection_pool: pool,
+            listener: None,
+        })
     }
 
-    pub async fn publish(&mut self, publish_data: PublishData) -> Result<()> {
-        Ok(self.sender.send(publish_data).await?)
+    pub fn start(&self) -> Result<RabbitPublisherHandler> {
+        let (sender, receiver) = mpsc::channel(100);
+        actix::spawn(Self::publisher(
+            self.connection_pool.clone(),
+            self.listener.clone(),
+            receiver,
+        ));
+
+        Ok(RabbitPublisherHandler { sender })
     }
 
     async fn exchange_declare(connection: &Connection) -> Result<()> {
@@ -114,7 +139,11 @@ impl RabbitPublisher {
         Ok(())
     }
 
-    async fn publisher(connection_pool: Pool, mut receiver: mpsc::Receiver<PublishData>) {
+    async fn publisher(
+        connection_pool: Pool,
+        listener: Option<PublisherListener>,
+        mut receiver: mpsc::Receiver<PublishData>,
+    ) {
         const ERROR_CODE: i32 = 1;
 
         let mut connection = match connection_pool.get().await {
@@ -170,13 +199,28 @@ impl RabbitPublisher {
 
         let code = loop {
             match receiver.recv().await {
-                Some(publish_data) => match logic(connection_pool.clone(), connection, publish_data.clone()).await {
-                    Ok(new_connection) => connection = new_connection,
-                    Err(err) => {
-                        Self::handle_error(err, Some(publish_data));
-                        break ERROR_CODE;
+                Some(publish_data) => {
+                    let start_time = std::time::Instant::now();
+                    match logic(connection_pool.clone(), connection, publish_data.clone()).await {
+                        Ok(new_connection) => {
+                            let duration = start_time.elapsed();
+                            if let Some(listener) = &listener {
+                                listener.num_published_blocks.inc();
+                                listener.publish_duration_histogram.observe(duration.as_millis() as f64);
+                            }
+
+                            connection = new_connection;
+                        }
+                        Err(err) => {
+                            if let Some(listener) = &listener {
+                                listener.num_failed_publishes.inc();
+                            }
+
+                            Self::handle_error(err, Some(publish_data));
+                            break ERROR_CODE;
+                        }
                     }
-                },
+                }
                 None => break 0,
             };
         };
@@ -197,10 +241,6 @@ impl RabbitPublisher {
 
         error!(target: PUBLISHER, message = display(msg.as_str()));
     }
-
-    pub async fn closed(&self) {
-        self.sender.closed().await
-    }
 }
 
 pub(crate) fn create_connection_pool(addr: String) -> Result<Pool> {
@@ -213,4 +253,13 @@ pub(crate) fn create_connection_pool(addr: String) -> Result<Pool> {
     let pool: Pool = Pool::builder(manager).max_size(10).build()?;
 
     Ok(pool)
+}
+
+impl Metricable for RabbitPublisher {
+    fn enable_metrics(&mut self, registry: Registry) -> Result<()> {
+        let listener = make_publisher_metrics(registry)?;
+        self.listener = Some(listener);
+
+        Ok(())
+    }
 }

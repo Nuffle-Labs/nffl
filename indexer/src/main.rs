@@ -1,5 +1,6 @@
 use clap::Parser;
 use configs::{Opts, SubCommand};
+use prometheus::Registry;
 use tokio::sync::mpsc;
 use tracing::{error, info};
 
@@ -8,6 +9,7 @@ use crate::{
     candidates_validator::CandidatesValidator,
     configs::RunConfigArgs,
     errors::Result,
+    metrics::{run_metrics_server, Metricable},
     rabbit_publisher::RabbitBuilder,
 };
 
@@ -15,6 +17,7 @@ mod block_listener;
 mod candidates_validator;
 mod configs;
 mod errors;
+mod metrics;
 mod rabbit_publisher;
 
 const INDEXER: &str = "indexer";
@@ -30,6 +33,7 @@ fn run(home_dir: std::path::PathBuf, config: RunConfigArgs) -> Result<()> {
         validate_genesis: true,
     };
 
+    // TODO: refactor
     let system = actix::System::new();
     let block_res = system.block_on(async move {
         let indexer = near_indexer::Indexer::new(indexer_config).expect("Indexer::new()");
@@ -39,15 +43,32 @@ fn run(home_dir: std::path::PathBuf, config: RunConfigArgs) -> Result<()> {
         // TODO: define buffer: usize const
         let (sender, receiver) = mpsc::channel::<CandidateData>(100);
 
-        let rabbit_publisher = rabbit_builder.build()?;
+        let registry = Registry::new();
+        let mut rabbit_publisher = rabbit_builder.build()?;
+        if let Some(_) = config.metrics_ip_port_address {
+            rabbit_publisher.enable_metrics(registry.clone())?;
+        }
+        let publisher_handle = rabbit_publisher.start()?;
 
-        let block_listener = BlockListener::new(stream, sender, addresses_to_rollup_ids);
-        let receipt_validator = CandidatesValidator::new(view_client, receiver, rabbit_publisher);
+        let mut block_listener = BlockListener::new(stream, sender, addresses_to_rollup_ids);
+        let mut candidates_validator = CandidatesValidator::new(view_client, receiver, publisher_handle);
+        let server_handle = if let Some(metrics_addr) = config.metrics_ip_port_address {
+            block_listener.enable_metrics(registry.clone())?;
+            candidates_validator.enable_metrics(registry.clone())?;
+
+            Some(run_metrics_server(metrics_addr, registry))
+        } else {
+            None
+        };
 
         let result = tokio::select! {
-            result = receipt_validator.start() => result,
+            result = candidates_validator.start() => result,
             result = block_listener.start() => result,
         };
+
+        if let Some(handle) = server_handle {
+            handle.abort();
+        }
 
         result
     });
