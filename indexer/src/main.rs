@@ -34,15 +34,12 @@ fn run(home_dir: std::path::PathBuf, config: RunConfigArgs) -> Result<()> {
     };
 
     let system = actix::System::new();
-
     let registry = Registry::new();
-    let server_handle = system.block_on(async {
-        if let Some(metrics_addr) = config.metrics_ip_port_address {
-            Some(run_metrics_server(metrics_addr, registry.clone()))
-        } else {
-            None
-        }
-    });
+    let server_handle = if let Some(metrics_addr) = config.metrics_ip_port_address {
+        Some(system.runtime().spawn(run_metrics_server(metrics_addr, registry.clone())))
+    } else {
+        None
+    };
 
     // TODO: refactor
     let block_res = system.block_on(async move {

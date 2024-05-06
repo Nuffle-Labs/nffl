@@ -108,7 +108,7 @@ async fn metrics(registry: web::Data<Registry>) -> HttpResponse {
     }
 }
 
-async fn metrics_runner(metrics_addr: SocketAddr, registry: Registry) {
+pub async fn run_metrics_server(metrics_addr: SocketAddr, registry: Registry) {
     const RECONNECTION_RETRIES: u32 = 3;
     const RECONNECTION_INTERVAL: Duration = Duration::from_secs(1);
 
@@ -163,10 +163,6 @@ async fn metrics_runner(metrics_addr: SocketAddr, registry: Registry) {
             }
         }
     }
-}
-
-pub fn run_metrics_server(metrics_addr: SocketAddr, registry: Registry) -> JoinHandle<()> {
-    tokio::spawn(metrics_runner(metrics_addr, registry))
 }
 
 fn can_recover(error_kind: ErrorKind) -> bool {
