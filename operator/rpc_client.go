@@ -97,7 +97,7 @@ func (c *AggregatorRpcClient) dialAggregatorRpcClient() error {
 	}
 
 	var aggregatorRegistryCoordinatorAddress string
-	err = client.Call("Aggregator.GetRegistryCoordinatorAddress", nil, &aggregatorRegistryCoordinatorAddress)
+	err = client.Call("Aggregator.GetRegistryCoordinatorAddress", struct{}{}, &aggregatorRegistryCoordinatorAddress)
 	if err != nil {
 		c.logger.Info("Received error when getting registry coordinator address", "err", err)
 		return err
