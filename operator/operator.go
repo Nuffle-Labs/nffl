@@ -5,6 +5,7 @@ import (
 	"crypto/ecdsa"
 	"encoding/hex"
 	"encoding/json"
+	"errors"
 	"fmt"
 	"math/big"
 	"os"
@@ -205,6 +206,16 @@ func NewOperatorFromConfig(c optypes.NodeConfig) (*Operator, error) {
 		aggregatorRpcClient:        aggregatorRpcClient,
 		sfflServiceManagerAddr:     common.HexToAddress(c.AVSRegistryCoordinatorAddress),
 		operatorId:                 eigentypes.OperatorIdFromPubkey(blsKeyPair.GetPubKeyG1()),
+	}
+
+	registryCoordinatorAddress, err := operator.aggregatorRpcClient.GetRegistryCoordinatorAddress()
+	if err != nil {
+		logger.Error("Failed to get registry coordinator address from aggregator", "err", err)
+		return nil, err
+	}
+	if registryCoordinatorAddress != common.HexToAddress(c.AVSRegistryCoordinatorAddress).String() {
+		logger.Error("Registry coordinator address from aggregator does not match the one in the config", "aggregator", registryCoordinatorAddress, "config", c.AVSRegistryCoordinatorAddress)
+		return nil, errors.New("registry coordinator address from aggregator does not match the one in the config")
 	}
 
 	if c.RegisterOperatorOnStartup {

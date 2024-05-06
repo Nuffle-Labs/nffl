@@ -27,6 +27,7 @@ type AggregatorRpcClienter interface {
 	SendSignedStateRootUpdateToAggregator(signedStateRootUpdateMessage *messages.SignedStateRootUpdateMessage)
 	SendSignedOperatorSetUpdateToAggregator(signedOperatorSetUpdateMessage *messages.SignedOperatorSetUpdateMessage)
 	GetAggregatedCheckpointMessages(fromTimestamp, toTimestamp uint64) (*messages.CheckpointMessages, error)
+	GetRegistryCoordinatorAddress() (string, error)
 }
 
 type unsentRpcMessage struct {
@@ -60,6 +61,11 @@ func NewAggregatorRpcClient(aggregatorIpPortAddr string, logger logging.Logger) 
 		unsentMessages:       make([]unsentRpcMessage, 0),
 		resendTicker:         resendTicker,
 		listener:             &SelectiveRpcClientListener{},
+	}
+
+	err := client.InitializeClientIfNotExist()
+	if err != nil {
+		return nil, err
 	}
 
 	go client.onTick()
@@ -355,4 +361,23 @@ func (c *AggregatorRpcClient) GetAggregatedCheckpointMessages(fromTimestamp, toT
 	}
 
 	return &checkpointMessages, nil
+}
+
+func (c *AggregatorRpcClient) GetRegistryCoordinatorAddress() (string, error) {
+	var reply string
+	err := c.sendRequest(func() error {
+		err := c.rpcClient.Call("Aggregator.GetRegistryCoordinatorAddress", nil, &reply)
+		if err != nil {
+			c.logger.Info("Received error from aggregator", "err", err)
+			return err
+		}
+
+		c.logger.Info("Checkpoint messages fetched from aggregator")
+		return nil
+	})
+	if err != nil {
+		return "", err
+	}
+
+	return reply, nil
 }

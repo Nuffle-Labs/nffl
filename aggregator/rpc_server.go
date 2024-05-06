@@ -146,3 +146,8 @@ func (agg *Aggregator) GetAggregatedCheckpointMessages(args *GetAggregatedCheckp
 
 	return nil
 }
+
+func (agg *Aggregator) GetRegistryCoordinatorAddress(reply *string) error {
+	*reply = agg.config.SFFLRegistryCoordinatorAddr.String()
+	return nil
+}

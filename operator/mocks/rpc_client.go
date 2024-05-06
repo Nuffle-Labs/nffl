@@ -68,6 +68,21 @@ func (mr *MockAggregatorRpcClienterMockRecorder) GetAggregatedCheckpointMessages
 	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "GetAggregatedCheckpointMessages", reflect.TypeOf((*MockAggregatorRpcClienter)(nil).GetAggregatedCheckpointMessages), arg0, arg1)
 }
 
+// GetRegistryCoordinatorAddress mocks base method.
+func (m *MockAggregatorRpcClienter) GetRegistryCoordinatorAddress() (string, error) {
+	m.ctrl.T.Helper()
+	ret := m.ctrl.Call(m, "GetRegistryCoordinatorAddress")
+	ret0, _ := ret[0].(string)
+	ret1, _ := ret[1].(error)
+	return ret0, ret1
+}
+
+// GetRegistryCoordinatorAddress indicates an expected call of GetRegistryCoordinatorAddress.
+func (mr *MockAggregatorRpcClienterMockRecorder) GetRegistryCoordinatorAddress() *gomock.Call {
+	mr.mock.ctrl.T.Helper()
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "GetRegistryCoordinatorAddress", reflect.TypeOf((*MockAggregatorRpcClienter)(nil).GetRegistryCoordinatorAddress))
+}
+
 // SendSignedCheckpointTaskResponseToAggregator mocks base method.
 func (m *MockAggregatorRpcClienter) SendSignedCheckpointTaskResponseToAggregator(arg0 *messages.SignedCheckpointTaskResponse) {
 	m.ctrl.T.Helper()
