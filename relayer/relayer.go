@@ -11,7 +11,9 @@ import (
 	ethtypes "github.com/ethereum/go-ethereum/core/types"
 	"github.com/ethereum/go-ethereum/rlp"
 	near "github.com/near/rollup-data-availability/gopkg/da-rpc"
+	"github.com/prometheus/client_golang/prometheus"
 
+	"github.com/NethermindEth/near-sffl/core"
 	"github.com/NethermindEth/near-sffl/relayer/config"
 )
 
@@ -23,13 +25,16 @@ const (
 )
 
 type Relayer struct {
-	logger      sdklogging.Logger
 	rpcClient   eth.Client
 	rpcUrl      string
 	daAccountId string
+	logger      sdklogging.Logger
+	listener    EventListener
 
 	nearClient *near.Config
 }
+
+var _ core.Metricable = (*Relayer)(nil)
 
 func NewRelayerFromConfig(config *config.RelayerConfig, logger sdklogging.Logger) (*Relayer, error) {
 	rpcClient, err := eth.NewClient(config.RpcUrl)
@@ -43,12 +48,23 @@ func NewRelayerFromConfig(config *config.RelayerConfig, logger sdklogging.Logger
 	}
 
 	return &Relayer{
-		logger:      logger,
 		rpcClient:   rpcClient,
 		rpcUrl:      config.RpcUrl,
 		daAccountId: config.DaAccountId,
 		nearClient:  nearClient,
+		logger:      logger,
+		listener:    &SelectiveListener{},
 	}, nil
+}
+
+func (r *Relayer) EnableMetrics(registry *prometheus.Registry) error {
+	listener, err := MakeRelayerMetrics(registry)
+	if err != nil {
+		return err
+	}
+
+	r.listener = listener
+	return nil
 }
 
 func (r *Relayer) Start(ctx context.Context) error {
@@ -90,6 +106,8 @@ func (r *Relayer) handleBlocks(blocks []*ethtypes.Block, ticker *time.Ticker) er
 	out, err := r.submitEncodedBlocks(encodedBlocks)
 	if err != nil {
 		r.logger.Error("Error submitting encoded blocks", "err", err)
+		r.listener.OnDaSubmissionFailed()
+
 		return err
 	}
 
@@ -99,16 +117,25 @@ func (r *Relayer) handleBlocks(blocks []*ethtypes.Block, ticker *time.Ticker) er
 }
 
 func (r *Relayer) submitEncodedBlocks(encodedBlocks []byte) ([]byte, error) {
+	startTime := time.Now()
 	for i := 0; i < SUBMIT_BLOCK_RETRIES; i++ {
 		out, err := r.nearClient.ForceSubmit(encodedBlocks)
 		if err == nil {
+			r.listener.OnDaSubmitted(time.Since(startTime))
+			r.listener.OnRetriesRequired(i)
+
 			return out, nil
 		}
 
 		r.logger.Error("Error submitting blocks to NEAR, resubmitting", "err", err)
 
-		if strings.Contains(err.Error(), "InvalidNonce") || strings.Contains(err.Error(), "Expired") {
-			r.logger.Info("Invalid nonce or expired, resubmitting", "err", err)
+		if strings.Contains(err.Error(), "InvalidNonce") {
+			r.logger.Info("Invalid nonce, resubmitting", "err", err)
+			r.listener.OnInvalidNonce()
+			time.Sleep(SUBMIT_BLOCK_RETRY_TIMEOUT)
+		} else if strings.Contains(err.Error(), "Expired") {
+			r.logger.Info("Expired, resubmitting", "err", err)
+			r.listener.OnExpiredTx()
 			time.Sleep(SUBMIT_BLOCK_RETRY_TIMEOUT)
 		} else {
 			return nil, errors.New("unknown error while submitting block to NEAR")
@@ -148,6 +175,8 @@ func (r *Relayer) listenToBlocks(ctx context.Context, blockBatchC chan []*ethtyp
 			r.logger.Info("Resubscribed to rollup block headers")
 		case header := <-headers:
 			r.logger.Info("Received rollup block header", "number", header.Number.Uint64())
+			r.listener.OnBlockReceived()
+
 			blockWithNoTransactions := ethtypes.NewBlockWithHeader(header)
 			blocks = append(blocks, blockWithNoTransactions)
 		case <-ticker.C:

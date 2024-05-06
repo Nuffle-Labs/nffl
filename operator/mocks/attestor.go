@@ -32,7 +32,7 @@ func NewMockAttestor(blsKeypair *bls.KeyPair, operatorId eigentypes.OperatorId) 
 	}
 }
 
-func (mockAttestor *MockAttestor) WithMetrics(_ *prometheus.Registry) error {
+func (mockAttestor *MockAttestor) EnableMetrics(_ *prometheus.Registry) error {
 	return nil
 }
 

@@ -66,7 +66,7 @@ func NewAggregatorRpcClient(aggregatorIpPortAddr string, logger logging.Logger) 
 	return client, nil
 }
 
-func (c *AggregatorRpcClient) WithMetrics(registry *prometheus.Registry) error {
+func (c *AggregatorRpcClient) EnableMetrics(registry *prometheus.Registry) error {
 	listener, err := MakeRpcClientMetrics(registry)
 	if err != nil {
 		return err

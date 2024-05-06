@@ -241,7 +241,7 @@ func NewOperatorFromConfig(c optypes.NodeConfig) (*Operator, error) {
 	operator.attestor = attestor
 
 	if c.EnableMetrics {
-		if err = operator.WithMetrics(reg); err != nil {
+		if err = operator.EnableMetrics(reg); err != nil {
 			return nil, err
 		}
 	}
@@ -249,18 +249,18 @@ func NewOperatorFromConfig(c optypes.NodeConfig) (*Operator, error) {
 	return operator, nil
 }
 
-func (o *Operator) WithMetrics(registry *prometheus.Registry) error {
+func (o *Operator) EnableMetrics(registry *prometheus.Registry) error {
 	listener, err := MakeOperatorMetrics(registry)
 	if err != nil {
 		return err
 	}
 	o.listener = listener
 
-	if err = o.attestor.WithMetrics(registry); err != nil {
+	if err = o.attestor.EnableMetrics(registry); err != nil {
 		return err
 	}
 
-	if err = o.aggregatorRpcClient.WithMetrics(registry); err != nil {
+	if err = o.aggregatorRpcClient.EnableMetrics(registry); err != nil {
 		return err
 	}
 

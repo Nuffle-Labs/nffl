@@ -224,7 +224,7 @@ func NewAggregator(ctx context.Context, config *config.Config, logger logging.Lo
 	}
 
 	if config.EnableMetrics {
-		if err = agg.WithMetrics(registry); err != nil {
+		if err = agg.EnableMetrics(registry); err != nil {
 			return nil, err
 		}
 		agg.metrics = clients.Metrics
@@ -234,7 +234,7 @@ func NewAggregator(ctx context.Context, config *config.Config, logger logging.Lo
 	return agg, nil
 }
 
-func (agg *Aggregator) WithMetrics(registry *prometheus.Registry) error {
+func (agg *Aggregator) EnableMetrics(registry *prometheus.Registry) error {
 	restListener, err := MakeRestServerMetrics(registry)
 	if err != nil {
 		return err
@@ -247,7 +247,7 @@ func (agg *Aggregator) WithMetrics(registry *prometheus.Registry) error {
 	}
 	agg.rpcListener = rpcListener
 
-	if err = agg.msgDb.WithMetrics(registry); err != nil {
+	if err = agg.msgDb.EnableMetrics(registry); err != nil {
 		return err
 	}
 
