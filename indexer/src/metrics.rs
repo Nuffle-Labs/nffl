@@ -3,11 +3,14 @@ use prometheus::{
     core::{AtomicF64, GenericCounter},
     Counter, Encoder, Histogram, HistogramOpts, Opts, Registry, TextEncoder,
 };
-use std::{io::ErrorKind, net::SocketAddr};
+use std::{io::ErrorKind, net::SocketAddr, time::Duration};
 use tokio::task::JoinHandle;
+use tracing::{error, info};
 
-use crate::{errors::Result, INDEXER};
+use crate::errors::Result;
 
+const METRICS: &str = "metrics";
+const INDEXER_NAMESPACE: &str = "sffl_indexer";
 const CANDIDATES_SUBSYSTEM: &str = "candidates_validator";
 const LISTENER_SUBSYSTEM: &str = "block_listener";
 const PUBLISHER_SUBSYSTEM: &str = "rabbit_publisher";
@@ -35,14 +38,14 @@ pub trait Metricable {
 
 pub(crate) fn make_candidates_validator_metrics(registry: Registry) -> Result<CandidatesListener> {
     let opts = Opts::new("num_of_successful_candidates", "Number of successful candidates")
-        .namespace(INDEXER)
+        .namespace(INDEXER_NAMESPACE)
         .subsystem(CANDIDATES_SUBSYSTEM);
     let num_successful = Counter::with_opts(opts)?;
 
     registry.register(Box::new(num_successful.clone()))?;
 
     let opts = Opts::new("num_of_failed_candidates", "Number of rejected candidates")
-        .namespace(INDEXER)
+        .namespace(INDEXER_NAMESPACE)
         .subsystem(CANDIDATES_SUBSYSTEM);
     let num_failed = Counter::with_opts(opts)?;
 
@@ -56,7 +59,7 @@ pub(crate) fn make_candidates_validator_metrics(registry: Registry) -> Result<Ca
 
 pub(crate) fn make_block_listener_metrics(registry: Registry) -> Result<BlockEventListener> {
     let opts = Opts::new("num_of_candidates", "Number of candidates indexed")
-        .namespace(INDEXER)
+        .namespace(INDEXER_NAMESPACE)
         .subsystem(LISTENER_SUBSYSTEM);
     let num_candidates = Counter::with_opts(opts)?;
     registry.register(Box::new(num_candidates.clone()))?;
@@ -66,21 +69,21 @@ pub(crate) fn make_block_listener_metrics(registry: Registry) -> Result<BlockEve
 
 pub(crate) fn make_publisher_metrics(registry: Registry) -> Result<PublisherListener> {
     let opts = Opts::new("num_of_published_blocks", "Number of published blocks to MQ")
-        .namespace(INDEXER)
+        .namespace(INDEXER_NAMESPACE)
         .subsystem(PUBLISHER_SUBSYSTEM);
     let num_published_blocks = Counter::with_opts(opts)?;
 
     registry.register(Box::new(num_published_blocks.clone()))?;
 
     let opts = Opts::new("num_failed_published", "Number of failed publishes to MQ")
-        .namespace(INDEXER)
+        .namespace(INDEXER_NAMESPACE)
         .subsystem(PUBLISHER_SUBSYSTEM);
     let num_failed_publishes = Counter::with_opts(opts)?;
 
     registry.register(Box::new(num_failed_publishes.clone()))?;
 
     let publish_duration_opts = HistogramOpts::new("publish_duration_seconds", "Time spent in publishing messages")
-        .namespace(INDEXER)
+        .namespace(INDEXER_NAMESPACE)
         .subsystem(PUBLISHER_SUBSYSTEM)
         .buckets(vec![5., 10., 25., 50., 100., 250., 500., 1000., 2500., 5000., 10000.]); // ms
     let publish_duration_histogram = Histogram::with_opts(publish_duration_opts)?;
@@ -124,6 +127,7 @@ async fn metrics_runner(metrics_addr: SocketAddr, registry: Registry) {
     let mut timeout = false;
     for _ in 0..RECONNECTION_RETRIES {
         if timeout {
+            info!(target: METRICS, "reconnecting");
             tokio::time::sleep(RECONNECTION_INTERVAL).await;
         }
 
@@ -131,6 +135,7 @@ async fn metrics_runner(metrics_addr: SocketAddr, registry: Registry) {
             Ok(v) => v,
             Err(err) => {
                 if !can_recover(err.kind()) {
+                    error!(target: METRICS, "Couldn't create server with code: {}", err.kind());
                     return;
                 }
 
@@ -142,9 +147,14 @@ async fn metrics_runner(metrics_addr: SocketAddr, registry: Registry) {
         };
 
         match metrics_server.run().await {
-            Ok(_) => return, // Graceful shutdown
+            Ok(()) => {
+                // Graceful shutdown
+                info!(target: METRICS, "Server shutdown gracefully");
+                return;
+            }
             Err(err) => {
                 if !can_recover(err.kind()) {
+                    error!(target: METRICS, "Error while running server: {}", err.kind());
                     return;
                 }
 
