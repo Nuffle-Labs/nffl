@@ -189,6 +189,8 @@ services:
         condition: service_completed_successfully
     ports:
       - "3030:3030"
+    expose:
+      - 9090 # prometheus port
     volumes:
       - near_cli_data:/root/.near
       - near_cli_keys:/root/.near-credentials
@@ -203,6 +205,8 @@ services:
       - "2"
       - --rollup-ids
       - "3"
+      - --metrics-ip-port-address
+      - "0.0.0.0:9090"
     networks:
       - near-sffl
 

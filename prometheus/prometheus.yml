@@ -37,5 +37,10 @@ scrape_configs:
     static_configs:
       - targets: ["near-sffl-aggregator:9091"]
 
+  - job_name: "sffl-indexer"
+    scrape_interval: 5s
+    static_configs:
+      - targets: ["near-sffl-indexer:9090"]
+
     relabel_configs:
       # is this actually useful? We already have the job name
