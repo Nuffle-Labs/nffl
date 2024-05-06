@@ -33,8 +33,18 @@ fn run(home_dir: std::path::PathBuf, config: RunConfigArgs) -> Result<()> {
         validate_genesis: true,
     };
 
-    // TODO: refactor
     let system = actix::System::new();
+
+    let registry = Registry::new();
+    let server_handle = system.block_on(async {
+        if let Some(metrics_addr) = config.metrics_ip_port_address {
+            Some(run_metrics_server(metrics_addr, registry.clone()))
+        } else {
+            None
+        }
+    });
+
+    // TODO: refactor
     let block_res = system.block_on(async move {
         let indexer = near_indexer::Indexer::new(indexer_config).expect("Indexer::new()");
         let stream = indexer.streamer();
@@ -42,8 +52,6 @@ fn run(home_dir: std::path::PathBuf, config: RunConfigArgs) -> Result<()> {
 
         // TODO: define buffer: usize const
         let (sender, receiver) = mpsc::channel::<CandidateData>(100);
-
-        let registry = Registry::new();
         let mut rabbit_publisher = rabbit_builder.build()?;
         if let Some(_) = config.metrics_ip_port_address {
             rabbit_publisher.enable_metrics(registry.clone())?;
@@ -52,26 +60,22 @@ fn run(home_dir: std::path::PathBuf, config: RunConfigArgs) -> Result<()> {
 
         let mut block_listener = BlockListener::new(stream, sender, addresses_to_rollup_ids);
         let mut candidates_validator = CandidatesValidator::new(view_client, receiver, publisher_handle);
-        let server_handle = if let Some(metrics_addr) = config.metrics_ip_port_address {
+        if let Some(_) = config.metrics_ip_port_address {
             block_listener.enable_metrics(registry.clone())?;
             candidates_validator.enable_metrics(registry.clone())?;
-
-            Some(run_metrics_server(metrics_addr, registry))
-        } else {
-            None
-        };
+        }
 
         let result = tokio::select! {
             result = candidates_validator.start() => result,
             result = block_listener.start() => result,
         };
 
-        if let Some(handle) = server_handle {
-            handle.abort();
-        }
-
         result
     });
+
+    if let Some(handle) = server_handle {
+        handle.abort();
+    }
 
     // Run until publishing finished
     system.run()?;
