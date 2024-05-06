@@ -9,6 +9,7 @@ import (
 	"time"
 
 	"github.com/Layr-Labs/eigensdk-go/logging"
+	"github.com/ethereum/go-ethereum/common"
 	"github.com/prometheus/client_golang/prometheus"
 
 	"github.com/NethermindEth/near-sffl/core"
@@ -36,9 +37,10 @@ type unsentRpcMessage struct {
 }
 
 type AggregatorRpcClient struct {
-	rpcClientLock        sync.RWMutex
-	rpcClient            *rpc.Client
-	aggregatorIpPortAddr string
+	rpcClientLock              sync.RWMutex
+	rpcClient                  *rpc.Client
+	aggregatorIpPortAddr       string
+	registryCoordinatorAddress common.Address
 
 	unsentMessagesLock sync.Mutex
 	unsentMessages     []unsentRpcMessage
@@ -50,22 +52,18 @@ type AggregatorRpcClient struct {
 
 var _ core.Metricable = (*AggregatorRpcClient)(nil)
 
-func NewAggregatorRpcClient(aggregatorIpPortAddr string, logger logging.Logger) (*AggregatorRpcClient, error) {
+func NewAggregatorRpcClient(aggregatorIpPortAddr string, registryCoordinatorAddress common.Address, logger logging.Logger) (*AggregatorRpcClient, error) {
 	resendTicker := time.NewTicker(ResendInterval)
 
 	client := &AggregatorRpcClient{
 		// set to nil so that we can create an rpc client even if the aggregator is not running
-		rpcClient:            nil,
-		logger:               logger,
-		aggregatorIpPortAddr: aggregatorIpPortAddr,
-		unsentMessages:       make([]unsentRpcMessage, 0),
-		resendTicker:         resendTicker,
-		listener:             &SelectiveRpcClientListener{},
-	}
-
-	err := client.InitializeClientIfNotExist()
-	if err != nil {
-		return nil, err
+		rpcClient:                  nil,
+		logger:                     logger,
+		aggregatorIpPortAddr:       aggregatorIpPortAddr,
+		registryCoordinatorAddress: registryCoordinatorAddress,
+		unsentMessages:             make([]unsentRpcMessage, 0),
+		resendTicker:               resendTicker,
+		listener:                   &SelectiveRpcClientListener{},
 	}
 
 	go client.onTick()
@@ -96,6 +94,18 @@ func (c *AggregatorRpcClient) dialAggregatorRpcClient() error {
 	if err != nil {
 		c.logger.Error("Error dialing aggregator rpc client", "err", err)
 		return err
+	}
+
+	var aggregatorRegistryCoordinatorAddress string
+	err = client.Call("Aggregator.GetRegistryCoordinatorAddress", nil, &aggregatorRegistryCoordinatorAddress)
+	if err != nil {
+		c.logger.Info("Received error when getting registry coordinator address", "err", err)
+		return err
+	}
+
+	if common.HexToAddress(aggregatorRegistryCoordinatorAddress).Cmp(c.registryCoordinatorAddress) != 0 {
+		c.logger.Error("Registry coordinator address from aggregator does not match the one in the config", "aggregator", aggregatorRegistryCoordinatorAddress, "config", c.registryCoordinatorAddress.String())
+		return errors.New("mismatching registry coordinator address from aggregator")
 	}
 
 	c.rpcClient = client
