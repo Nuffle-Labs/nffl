@@ -398,20 +398,22 @@ func (agg *Aggregator) sendNewCheckpointTask() {
 }
 
 func (agg *Aggregator) handleStateRootUpdateReachedQuorum(blsAggServiceResp types.MessageBlsAggregationServiceResponse) {
-	if blsAggServiceResp.Err != nil {
-		agg.logger.Error("Aggregator BLS service returned error", "err", blsAggServiceResp.Err)
-		return
-	}
-
 	agg.stateRootUpdatesLock.RLock()
 	msg, ok := agg.stateRootUpdates[blsAggServiceResp.MessageDigest]
 	agg.stateRootUpdatesLock.RUnlock()
 
-	defer func() {
-		agg.stateRootUpdatesLock.Lock()
-		delete(agg.stateRootUpdates, blsAggServiceResp.MessageDigest)
-		agg.stateRootUpdatesLock.Unlock()
-	}()
+	if blsAggServiceResp.Finished {
+		defer func() {
+			agg.stateRootUpdatesLock.Lock()
+			delete(agg.stateRootUpdates, blsAggServiceResp.MessageDigest)
+			agg.stateRootUpdatesLock.Unlock()
+		}()
+	}
+
+	if blsAggServiceResp.Err != nil {
+		agg.logger.Error("Aggregator BLS service returned error", "err", blsAggServiceResp.Err)
+		return
+	}
 
 	if !ok {
 		agg.logger.Error("Aggregator could not find matching message")
@@ -431,28 +433,32 @@ func (agg *Aggregator) handleStateRootUpdateReachedQuorum(blsAggServiceResp type
 }
 
 func (agg *Aggregator) handleOperatorSetUpdateReachedQuorum(ctx context.Context, blsAggServiceResp types.MessageBlsAggregationServiceResponse) {
+	agg.operatorSetUpdatesLock.RLock()
+	msg, ok := agg.operatorSetUpdates[blsAggServiceResp.MessageDigest]
+	agg.operatorSetUpdatesLock.RUnlock()
+
+	if blsAggServiceResp.Finished {
+		defer func() {
+			agg.operatorSetUpdatesLock.Lock()
+			delete(agg.operatorSetUpdates, blsAggServiceResp.MessageDigest)
+			agg.operatorSetUpdatesLock.Unlock()
+
+			if blsAggServiceResp.Err == nil {
+				signatureInfo := blsAggServiceResp.ExtractBindingRollup()
+				agg.rollupBroadcaster.BroadcastOperatorSetUpdate(ctx, msg, signatureInfo)
+			}
+		}()
+	}
+
 	if blsAggServiceResp.Err != nil {
 		agg.logger.Error("Aggregator BLS service returned error", "err", blsAggServiceResp.Err)
 		return
 	}
 
-	agg.operatorSetUpdatesLock.RLock()
-	msg, ok := agg.operatorSetUpdates[blsAggServiceResp.MessageDigest]
-	agg.operatorSetUpdatesLock.RUnlock()
-
-	defer func() {
-		agg.operatorSetUpdatesLock.Lock()
-		delete(agg.operatorSetUpdates, blsAggServiceResp.MessageDigest)
-		agg.operatorSetUpdatesLock.Unlock()
-	}()
-
 	if !ok {
 		agg.logger.Error("Aggregator could not find matching message")
 		return
 	}
-
-	signatureInfo := blsAggServiceResp.ExtractBindingRollup()
-	agg.rollupBroadcaster.BroadcastOperatorSetUpdate(ctx, msg, signatureInfo)
 
 	err := agg.msgDb.StoreOperatorSetUpdate(msg)
 	if err != nil {

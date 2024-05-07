@@ -21,10 +21,21 @@ type OperatorInfo struct {
 	OperatorAddr    common.Address
 }
 
+type MessageBlsAggregationStatus int32
+
+const (
+	MessageBlsAggregationStatusNone MessageBlsAggregationStatus = iota
+	MessageBlsAggregationStatusFullStakeThresholdMet
+	MessageBlsAggregationStatusThresholdNotReached
+	MessageBlsAggregationStatusThresholdReached
+)
+
 type MessageBlsAggregationServiceResponse struct {
 	messages.MessageBlsAggregation
 
-	Err error
+	Status   MessageBlsAggregationStatus
+	Finished bool
+	Err      error
 }
 
 type GetStateRootUpdateAggregationResponse struct {
