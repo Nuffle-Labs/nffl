@@ -3,16 +3,11 @@ use configs::{Opts, SubCommand};
 use prometheus::Registry;
 use tracing::{error, info};
 
-use crate::{
-    errors::Error,
-    block_listener::BlockListener,
-    rabbit_publisher::RabbitPublisher,
-    candidates_validator::CandidatesValidator,
-    configs::RunConfigArgs,
-    errors::Result,
-    metrics::{Metricable},
-};
 use crate::metrics_server::MetricsServer;
+use crate::{
+    block_listener::BlockListener, candidates_validator::CandidatesValidator, configs::RunConfigArgs, errors::Error,
+    errors::Result, metrics::Metricable, rabbit_publisher::RabbitPublisher,
+};
 
 mod block_listener;
 mod candidates_validator;
@@ -37,11 +32,7 @@ fn run(home_dir: std::path::PathBuf, config: RunConfigArgs) -> Result<()> {
     let registry = Registry::new();
     let server_handle = if let Some(metrics_addr) = config.metrics_ip_port_address {
         let metrics_server = MetricsServer::new(metrics_addr, registry.clone());
-        Some(
-            system
-                .runtime()
-                .spawn(metrics_server.run()),
-        )
+        Some(system.runtime().spawn(metrics_server.run()))
     } else {
         None
     };

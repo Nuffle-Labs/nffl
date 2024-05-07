@@ -1,7 +1,7 @@
+use actix_web::dev::Server;
 use actix_web::{web, App, HttpResponse, HttpServer, ResponseError};
 use prometheus::{Encoder, Registry, TextEncoder};
 use std::{io::ErrorKind, net::SocketAddr, time::Duration};
-use actix_web::dev::Server;
 use tracing::{error, info};
 
 use crate::errors::Result;
@@ -12,21 +12,21 @@ enum ServerState {
     WaitingForConnection,
     WaitingForReconnection,
     Shutdown,
-    Exit(std::io::Error)
+    Exit(std::io::Error),
 }
 
 pub struct MetricsServer {
     metrics_addr: SocketAddr,
     registry: Registry,
-    next_step: ServerState
+    next_step: ServerState,
 }
 
 impl MetricsServer {
-    pub fn new(metrics_addr: SocketAddr, registry: Registry) ->Self {
+    pub fn new(metrics_addr: SocketAddr, registry: Registry) -> Self {
         Self {
             metrics_addr,
             registry,
-            next_step: ServerState::WaitingForConnection
+            next_step: ServerState::WaitingForConnection,
         }
     }
 
@@ -38,7 +38,7 @@ impl MetricsServer {
                     .app_data(registry_data.clone())
                     .service(web::resource("/metrics").route(web::get().to(metrics)))
             })
-                .bind(self.metrics_addr)?;
+            .bind(self.metrics_addr)?;
 
             Ok::<_, std::io::Error>(metrics_server)
         };
@@ -80,9 +80,7 @@ impl MetricsServer {
         let mut retries = 0;
         loop {
             self.next_step = match self.next_step {
-                ServerState::WaitingForConnection => {
-                    self.reconnect().await
-                }
+                ServerState::WaitingForConnection => self.reconnect().await,
                 ServerState::Exit(err) => return Err(err.into()),
                 ServerState::Shutdown => return Ok(()),
                 ServerState::WaitingForReconnection => {
