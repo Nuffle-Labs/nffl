@@ -90,8 +90,6 @@ impl BlockListener {
         self.indexer.client_actors()
     }
 
-    async fn kek(){}
-
     async fn process_stream(self, candidates_sender: mpsc::Sender<CandidateData>) -> Result<()> {
         let Self {
             indexer,

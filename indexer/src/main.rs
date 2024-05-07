@@ -4,20 +4,22 @@ use prometheus::Registry;
 use tracing::{error, info};
 
 use crate::{
-    block_listener::{BlockListener},
+    errors::Error,
+    block_listener::BlockListener,
+    rabbit_publisher::RabbitPublisher,
     candidates_validator::CandidatesValidator,
     configs::RunConfigArgs,
     errors::Result,
-    metrics::{run_metrics_server, Metricable},
+    metrics::{Metricable},
 };
-use crate::errors::Error;
-use crate::rabbit_publisher::RabbitPublisher;
+use crate::metrics_server::MetricsServer;
 
 mod block_listener;
 mod candidates_validator;
 mod configs;
 mod errors;
 mod metrics;
+mod metrics_server;
 mod rabbit_publisher;
 
 const INDEXER: &str = "indexer";
@@ -34,10 +36,11 @@ fn run(home_dir: std::path::PathBuf, config: RunConfigArgs) -> Result<()> {
     let system = actix::System::new();
     let registry = Registry::new();
     let server_handle = if let Some(metrics_addr) = config.metrics_ip_port_address {
+        let metrics_server = MetricsServer::new(metrics_addr, registry.clone());
         Some(
             system
                 .runtime()
-                .spawn(run_metrics_server(metrics_addr, registry.clone())),
+                .spawn(metrics_server.run()),
         )
     } else {
         None
@@ -119,17 +122,3 @@ fn main() -> Result<()> {
         SubCommand::Run(params) => run(home_dir, read_config(params.config, params.run_config_args)?),
     }
 }
-
-// listens block from indexer
-// validates candidates
-// pulishes blocks and reconnects.
-
-// indexer returns receiver for publisher.
-// publisher listens and published messages from it.
-
-// indexer - block_listener + candidates validator. receiver - candidate_listener receiver
-
-// block_listener creates indexer streamer
-
-// candidates validator is created with sender or returns stream?
-// candidates validator return sender on cre
