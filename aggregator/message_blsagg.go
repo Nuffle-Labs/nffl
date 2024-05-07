@@ -352,7 +352,7 @@ func (mbas *MessageBlsAggregatorService) getMessageBlsAggregationStatus(messageD
 	return types.MessageBlsAggregationStatusThresholdNotReached, nil
 }
 
-func (mbas *MessageBlsAggregatorService) getMessageBlsAggregationResponse(messageDigest coretypes.MessageDigest, validationInfo signedMessageDigestValidationInfo, finished bool) types.MessageBlsAggregationServiceResponse {
+func (mbas *MessageBlsAggregatorService) getMessageBlsAggregationResponse(messageDigest coretypes.MessageDigest, validationInfo signedMessageDigestValidationInfo, forceFinished bool) types.MessageBlsAggregationServiceResponse {
 	defaultAggregation := messages.MessageBlsAggregation{
 		MessageDigest:  messageDigest,
 		EthBlockNumber: validationInfo.ethBlockNumber,
@@ -412,10 +412,12 @@ func (mbas *MessageBlsAggregatorService) getMessageBlsAggregationResponse(messag
 		}
 	}
 
+	fullStakeThresholdMet := status == types.MessageBlsAggregationStatusFullStakeThresholdMet
+
 	return types.MessageBlsAggregationServiceResponse{
 		Err:                   nil,
 		Status:                status,
-		Finished:              finished,
+		Finished:              fullStakeThresholdMet || forceFinished,
 		MessageBlsAggregation: aggregation,
 	}
 }
