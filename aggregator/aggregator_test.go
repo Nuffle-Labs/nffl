@@ -97,6 +97,7 @@ func TestHandleStateRootUpdateAggregationReachedQuorum(t *testing.T) {
 		MessageBlsAggregation: messages.MessageBlsAggregation{
 			MessageDigest: msgDigest,
 		},
+		Finished: true,
 	}
 
 	aggregator.stateRootUpdates[msgDigest] = msg
@@ -129,6 +130,7 @@ func TestHandleOperatorSetUpdateAggregationReachedQuorum(t *testing.T) {
 			SignersApkG2:        bls.NewZeroG2Point(),
 			SignersAggSigG1:     bls.NewZeroSignature(),
 		},
+		Finished: true,
 	}
 
 	aggregator.operatorSetUpdates[msgDigest] = msg
