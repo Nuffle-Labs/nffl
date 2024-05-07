@@ -420,6 +420,8 @@ func (agg *Aggregator) handleStateRootUpdateReachedQuorum(blsAggServiceResp type
 		return
 	}
 
+	agg.logger.Info("Storing state root update", "digest", blsAggServiceResp.MessageDigest, "status", blsAggServiceResp.Status)
+
 	err := agg.msgDb.StoreStateRootUpdate(msg)
 	if err != nil {
 		agg.logger.Error("Aggregator could not store message")
@@ -459,6 +461,8 @@ func (agg *Aggregator) handleOperatorSetUpdateReachedQuorum(ctx context.Context,
 		agg.logger.Error("Aggregator could not find matching message")
 		return
 	}
+
+	agg.logger.Info("Storing operator set update", "digest", blsAggServiceResp.MessageDigest, "status", blsAggServiceResp.Status)
 
 	err := agg.msgDb.StoreOperatorSetUpdate(msg)
 	if err != nil {
