@@ -202,8 +202,8 @@ func (mbas *MessageBlsAggregatorService) singleMessageAggregatorGoroutineFunc(
 			mbas.logger.Debug("Message goroutine received new signed message digest", "messageDigest", messageDigest)
 
 			err := mbas.handleSignedMessageDigest(signedMessageDigest, validationInfo)
+			signedMessageDigest.SignatureVerificationErrorC <- err
 			if err != nil {
-				signedMessageDigest.SignatureVerificationErrorC <- err
 				continue
 			}
 
