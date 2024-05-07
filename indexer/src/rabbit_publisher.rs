@@ -95,7 +95,7 @@ impl RabbitPublisher {
     }
 
     pub fn start(self) {
-        tokio::spawn(self.publisher());
+        actix::spawn(self.publisher());
     }
 
     async fn exchange_declare(connection: &Connection) -> Result<()> {

@@ -5,7 +5,6 @@ use std::{
     collections::HashMap,
     fmt::{self, Formatter},
 };
-use near_indexer::StreamerMessage;
 use tokio::sync::mpsc;
 use tokio::sync::mpsc::Receiver;
 use tokio::task::JoinHandle;
@@ -93,13 +92,14 @@ impl BlockListener {
 
     async fn kek(){}
 
-    async fn process_stream(self, mut stream: mpsc::Receiver<StreamerMessage>, candidates_sender: mpsc::Sender<CandidateData>) -> Result<()> {
+    async fn process_stream(self, candidates_sender: mpsc::Sender<CandidateData>) -> Result<()> {
         let Self {
             indexer,
             addresses_to_rollup_ids,
             listener,
         } = self;
 
+        let mut stream = indexer.streamer();
         while let Some(streamer_message) = stream.recv().await {
             info!(target: INDEXER, "Received strexamer message");
 
@@ -150,8 +150,7 @@ impl BlockListener {
     // TODO: return handle or errC
     pub(crate) fn start(self) -> (JoinHandle<Result<()>>, Receiver<CandidateData>) {
         let (sender, receiver) = mpsc::channel(100);
-        let stream = self.indexer.streamer();
-        let handle = tokio::spawn(self.process_stream(stream, sender));
+        let handle = actix::spawn(self.process_stream(sender));
 
         (handle, receiver)
     }

@@ -158,7 +158,7 @@ impl CandidatesValidator {
         let queue_protected = sync::Arc::new(Mutex::new(VecDeque::new()));
 
         let (done_sender, done_receiver) = mpsc::channel(1);
-        tokio::spawn(Self::ticker(
+        actix::spawn(Self::ticker(
             done_receiver,
             queue_protected.clone(),
             rmq_handle.clone(),
@@ -223,7 +223,7 @@ impl CandidatesValidator {
     // TODO: JoinHandle or errC
     pub(crate) fn start(self) -> mpsc::Receiver<PublishData> {
         let (sender, receiver) = mpsc::channel(100);
-        tokio::spawn(self.process_candidates(RabbitPublisherHandle { sender }));
+        actix::spawn(self.process_candidates(RabbitPublisherHandle { sender }));
 
         receiver
     }
