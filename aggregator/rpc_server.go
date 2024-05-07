@@ -91,6 +91,10 @@ func (agg *Aggregator) ProcessSignedStateRootUpdateMessage(signedStateRootUpdate
 		0,
 	)
 
+	agg.stateRootUpdatesLock.Lock()
+	agg.stateRootUpdates[messageDigest] = signedStateRootUpdateMessage.Message
+	agg.stateRootUpdatesLock.Unlock()
+
 	err = agg.stateRootUpdateBlsAggregationService.ProcessNewSignature(
 		context.Background(), messageDigest,
 		&signedStateRootUpdateMessage.BlsSignature, signedStateRootUpdateMessage.OperatorId,
@@ -98,10 +102,6 @@ func (agg *Aggregator) ProcessSignedStateRootUpdateMessage(signedStateRootUpdate
 	if err != nil {
 		return err
 	}
-
-	agg.stateRootUpdatesLock.Lock()
-	agg.stateRootUpdates[messageDigest] = signedStateRootUpdateMessage.Message
-	agg.stateRootUpdatesLock.Unlock()
 
 	return nil
 }
@@ -131,6 +131,10 @@ func (agg *Aggregator) ProcessSignedOperatorSetUpdateMessage(signedOperatorSetUp
 		uint64(blockNumber)-1,
 	)
 
+	agg.operatorSetUpdatesLock.Lock()
+	agg.operatorSetUpdates[messageDigest] = signedOperatorSetUpdateMessage.Message
+	agg.operatorSetUpdatesLock.Unlock()
+
 	err = agg.operatorSetUpdateBlsAggregationService.ProcessNewSignature(
 		context.Background(), messageDigest,
 		&signedOperatorSetUpdateMessage.BlsSignature, signedOperatorSetUpdateMessage.OperatorId,
@@ -138,10 +142,6 @@ func (agg *Aggregator) ProcessSignedOperatorSetUpdateMessage(signedOperatorSetUp
 	if err != nil {
 		return err
 	}
-
-	agg.operatorSetUpdatesLock.Lock()
-	agg.operatorSetUpdates[messageDigest] = signedOperatorSetUpdateMessage.Message
-	agg.operatorSetUpdatesLock.Unlock()
 
 	return nil
 }
