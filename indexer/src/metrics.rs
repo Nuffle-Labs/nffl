@@ -4,7 +4,6 @@ use prometheus::{
     Counter, Encoder, Histogram, HistogramOpts, Opts, Registry, TextEncoder,
 };
 use std::{io::ErrorKind, net::SocketAddr, time::Duration};
-use tokio::task::JoinHandle;
 use tracing::{error, info};
 
 use crate::errors::Result;

@@ -5,7 +5,10 @@ use std::{
     collections::HashMap,
     fmt::{self, Formatter},
 };
+use near_indexer::StreamerMessage;
 use tokio::sync::mpsc;
+use tokio::sync::mpsc::Receiver;
+use tokio::task::JoinHandle;
 use tracing::info;
 
 use crate::metrics::{make_block_listener_metrics, BlockEventListener, Metricable};
@@ -36,23 +39,23 @@ pub(crate) struct TransactionWithRollupId {
     pub(crate) transaction: near_indexer::IndexerTransactionWithOutcome,
 }
 
+// TODO: rename to wrapper?
 pub(crate) struct BlockListener {
-    stream: mpsc::Receiver<near_indexer::StreamerMessage>,
-    receipt_sender: mpsc::Sender<CandidateData>,
     addresses_to_rollup_ids: HashMap<AccountId, u32>,
     listener: Option<BlockEventListener>,
+    indexer: near_indexer::Indexer,
 }
 
 impl BlockListener {
     pub(crate) fn new(
-        stream: mpsc::Receiver<near_indexer::StreamerMessage>,
-        receipt_sender: mpsc::Sender<CandidateData>,
         addresses_to_rollup_ids: HashMap<AccountId, u32>,
+        indexer_config: near_indexer::IndexerConfig,
     ) -> Self {
+        let indexer = near_indexer::Indexer::new(indexer_config).expect("Indexer::new()");
+
         Self {
-            stream,
-            receipt_sender,
             addresses_to_rollup_ids,
+            indexer,
             listener: None,
         }
     }
@@ -79,16 +82,26 @@ impl BlockListener {
         }
     }
 
-    async fn process_stream(self) -> Result<()> {
+    pub fn client_actors(
+        &self,
+    ) -> (
+        actix::Addr<near_client::ViewClientActor>,
+        actix::Addr<near_client::ClientActor>,
+    ) {
+        self.indexer.client_actors()
+    }
+
+    async fn kek(){}
+
+    async fn process_stream(self, mut stream: mpsc::Receiver<StreamerMessage>, candidates_sender: mpsc::Sender<CandidateData>) -> Result<()> {
         let Self {
-            mut stream,
-            receipt_sender,
+            indexer,
             addresses_to_rollup_ids,
             listener,
         } = self;
 
         while let Some(streamer_message) = stream.recv().await {
-            info!(target: INDEXER, "Received streamer message");
+            info!(target: INDEXER, "Received strexamer message");
 
             // TODO: check receipt_receiver is closed?
             let candidates_data: Vec<CandidateData> = streamer_message
@@ -121,21 +134,26 @@ impl BlockListener {
                 }
             }
 
-            let results = join_all(candidates_data.into_iter().map(|receipt| receipt_sender.send(receipt))).await;
+            // TODOL try_send instead checking for capacity. Not to stall
+            let results = join_all(
+                candidates_data
+                    .into_iter()
+                    .map(|receipt| candidates_sender.send(receipt)),
+            )
+            .await;
             results.into_iter().collect::<Result<_, _>>()?;
         }
 
         Ok(())
     }
 
-    pub(crate) async fn start(self) -> Result<()> {
-        let sender = self.receipt_sender.clone();
-        tokio::select! {
-            result = self.process_stream() => result,
-            _ = sender.closed() => {
-                Ok(())
-            },
-        }
+    // TODO: return handle or errC
+    pub(crate) fn start(self) -> (JoinHandle<Result<()>>, Receiver<CandidateData>) {
+        let (sender, receiver) = mpsc::channel(100);
+        let stream = self.indexer.streamer();
+        let handle = tokio::spawn(self.process_stream(stream, sender));
+
+        (handle, receiver)
     }
 }
 

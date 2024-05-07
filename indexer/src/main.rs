@@ -1,17 +1,17 @@
 use clap::Parser;
 use configs::{Opts, SubCommand};
 use prometheus::Registry;
-use tokio::sync::mpsc;
 use tracing::{error, info};
 
 use crate::{
-    block_listener::{BlockListener, CandidateData},
+    block_listener::{BlockListener},
     candidates_validator::CandidatesValidator,
     configs::RunConfigArgs,
     errors::Result,
     metrics::{run_metrics_server, Metricable},
-    rabbit_publisher::RabbitBuilder,
 };
+use crate::errors::Error;
+use crate::rabbit_publisher::RabbitPublisher;
 
 mod block_listener;
 mod candidates_validator;
@@ -24,8 +24,6 @@ const INDEXER: &str = "indexer";
 
 fn run(home_dir: std::path::PathBuf, config: RunConfigArgs) -> Result<()> {
     let addresses_to_rollup_ids = config.compile_addresses_to_ids_map()?;
-    let rabbit_builder = RabbitBuilder::new(config.rmq_address);
-
     let indexer_config = near_indexer::IndexerConfig {
         home_dir,
         sync_mode: near_indexer::SyncModeEnum::LatestSynced,
@@ -36,38 +34,37 @@ fn run(home_dir: std::path::PathBuf, config: RunConfigArgs) -> Result<()> {
     let system = actix::System::new();
     let registry = Registry::new();
     let server_handle = if let Some(metrics_addr) = config.metrics_ip_port_address {
-        Some(system.runtime().spawn(run_metrics_server(metrics_addr, registry.clone())))
+        Some(
+            system
+                .runtime()
+                .spawn(run_metrics_server(metrics_addr, registry.clone())),
+        )
     } else {
         None
     };
 
     // TODO: refactor
     let block_res = system.block_on(async move {
-        let indexer = near_indexer::Indexer::new(indexer_config).expect("Indexer::new()");
-        let stream = indexer.streamer();
-        let (view_client, _) = indexer.client_actors();
-
-        // TODO: define buffer: usize const
-        let (sender, receiver) = mpsc::channel::<CandidateData>(100);
-        let mut rabbit_publisher = rabbit_builder.build()?;
-        if let Some(_) = config.metrics_ip_port_address {
-            rabbit_publisher.enable_metrics(registry.clone())?;
-        }
-        let publisher_handle = rabbit_publisher.start()?;
-
-        let mut block_listener = BlockListener::new(stream, sender, addresses_to_rollup_ids);
-        let mut candidates_validator = CandidatesValidator::new(view_client, receiver, publisher_handle);
+        let mut block_listener = BlockListener::new(addresses_to_rollup_ids, indexer_config);
         if let Some(_) = config.metrics_ip_port_address {
             block_listener.enable_metrics(registry.clone())?;
+        }
+
+        let (view_client, _) = block_listener.client_actors();
+        let (block_handle, candidates_stream) = block_listener.start();
+        let mut candidates_validator = CandidatesValidator::new(view_client, candidates_stream);
+        if let Some(_) = config.metrics_ip_port_address {
             candidates_validator.enable_metrics(registry.clone())?;
         }
 
-        let result = tokio::select! {
-            result = candidates_validator.start() => result,
-            result = block_listener.start() => result,
-        };
+        let validated_stream = candidates_validator.start();
+        let mut rmq_publisher = RabbitPublisher::new(&config.rmq_address, validated_stream)?;
+        if let Some(_) = config.metrics_ip_port_address {
+            rmq_publisher.enable_metrics(registry.clone())?;
+        }
+        rmq_publisher.start();
 
-        result
+        Ok::<_, Error>(block_handle.await?)
     });
 
     if let Some(handle) = server_handle {
@@ -77,7 +74,7 @@ fn run(home_dir: std::path::PathBuf, config: RunConfigArgs) -> Result<()> {
     // Run until publishing finished
     system.run()?;
 
-    block_res.map_err(|err| {
+    block_res?.map_err(|err| {
         error!(target: INDEXER, "Indexer Error: {}", err);
         err
     })
@@ -122,3 +119,17 @@ fn main() -> Result<()> {
         SubCommand::Run(params) => run(home_dir, read_config(params.config, params.run_config_args)?),
     }
 }
+
+// listens block from indexer
+// validates candidates
+// pulishes blocks and reconnects.
+
+// indexer returns receiver for publisher.
+// publisher listens and published messages from it.
+
+// indexer - block_listener + candidates validator. receiver - candidate_listener receiver
+
+// block_listener creates indexer streamer
+
+// candidates validator is created with sender or returns stream?
+// candidates validator return sender on cre
