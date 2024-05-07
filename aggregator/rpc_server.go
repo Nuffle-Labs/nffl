@@ -73,14 +73,14 @@ func (agg *Aggregator) ProcessSignedCheckpointTaskResponse(signedCheckpointTaskR
 }
 
 func (agg *Aggregator) ProcessSignedStateRootUpdateMessage(signedStateRootUpdateMessage *messages.SignedStateRootUpdateMessage, reply *bool) error {
-	agg.logger.Infof("Received signed state root update message: %#v", signedStateRootUpdateMessage)
-	agg.rpcListener.IncSignedStateRootUpdateMessage()
-
 	messageDigest, err := signedStateRootUpdateMessage.Message.Digest()
 	if err != nil {
 		agg.logger.Error("Failed to get message digest", "err", err)
 		return TaskResponseDigestNotFoundError500
 	}
+
+	agg.logger.Infof("Received signed state root update message: %#v %#v", signedStateRootUpdateMessage, messageDigest)
+	agg.rpcListener.IncSignedStateRootUpdateMessage()
 
 	agg.stateRootUpdateBlsAggregationService.InitializeMessageIfNotExists(
 		messageDigest,
