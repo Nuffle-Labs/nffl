@@ -472,7 +472,7 @@ func startAnvilTestContainer(t *testing.T, ctx context.Context, name, exposedPor
 	}
 
 	req := testcontainers.ContainerRequest{
-		Image:        "ghcr.io/foundry-rs/foundry:latest",
+		Image:        "ghcr.io/foundry-rs/foundry:latest@sha256:8b843eb65cc7b155303b316f65d27173c862b37719dc095ef3a2ef27ce8d3c00",
 		Name:         name,
 		Entrypoint:   []string{"anvil"},
 		ExposedPorts: []string{exposedPort + "/tcp"},
