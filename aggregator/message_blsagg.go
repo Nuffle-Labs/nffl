@@ -71,6 +71,7 @@ type MessageBlsAggregationService interface {
 		quorumNumbers []eigentypes.QuorumNum,
 		quorumThresholdPercentages []eigentypes.QuorumThresholdPercentage,
 		timeToExpiry time.Duration,
+		aggregationTimeout time.Duration,
 		ethBlockNumber uint64,
 	) error
 
@@ -115,6 +116,7 @@ func (mbas *MessageBlsAggregatorService) InitializeMessageIfNotExists(
 	quorumNumbers []eigentypes.QuorumNum,
 	quorumThresholdPercentages []eigentypes.QuorumThresholdPercentage,
 	timeToExpiry time.Duration,
+	aggregationTimeout time.Duration,
 	ethBlockNumber uint64,
 ) error {
 	mbas.messageChansLock.Lock()
@@ -126,7 +128,15 @@ func (mbas *MessageBlsAggregatorService) InitializeMessageIfNotExists(
 
 	signedMessageDigestsC := make(chan SignedMessageDigest)
 	mbas.signedMessageDigestsCs[messageDigest] = signedMessageDigestsC
-	go mbas.singleMessageAggregatorGoroutineFunc(messageDigest, quorumNumbers, quorumThresholdPercentages, timeToExpiry, signedMessageDigestsC, ethBlockNumber)
+	go mbas.singleMessageAggregatorGoroutineFunc(
+		messageDigest,
+		quorumNumbers,
+		quorumThresholdPercentages,
+		timeToExpiry,
+		aggregationTimeout,
+		signedMessageDigestsC,
+		ethBlockNumber,
+	)
 
 	return nil
 }
@@ -164,6 +174,7 @@ func (mbas *MessageBlsAggregatorService) singleMessageAggregatorGoroutineFunc(
 	quorumNumbers []eigentypes.QuorumNum,
 	quorumThresholdPercentages []eigentypes.QuorumThresholdPercentage,
 	timeToExpiry time.Duration,
+	aggregationTimeout time.Duration,
 	signedMessageDigestsC <-chan SignedMessageDigest,
 	ethBlockNumber uint64,
 ) {
@@ -207,7 +218,7 @@ func (mbas *MessageBlsAggregatorService) singleMessageAggregatorGoroutineFunc(
 			if aggregation.Status == types.MessageBlsAggregationStatusThresholdReached && !thresholdReached {
 				thresholdReached = true
 				stopTimer(messageExpiredTimer)
-				thresholdReachedTimer.Reset(time.Minute)
+				thresholdReachedTimer.Reset(aggregationTimeout)
 			} else if aggregation.Status == types.MessageBlsAggregationStatusFullStakeThresholdMet {
 				return
 			}

@@ -82,7 +82,14 @@ func (agg *Aggregator) ProcessSignedStateRootUpdateMessage(signedStateRootUpdate
 		return TaskResponseDigestNotFoundError500
 	}
 
-	agg.stateRootUpdateBlsAggregationService.InitializeMessageIfNotExists(messageDigest, coretypes.QUORUM_NUMBERS, []eigentypes.QuorumThresholdPercentage{types.QUORUM_THRESHOLD_NUMERATOR}, types.MESSAGE_TTL, 0)
+	agg.stateRootUpdateBlsAggregationService.InitializeMessageIfNotExists(
+		messageDigest,
+		coretypes.QUORUM_NUMBERS,
+		[]eigentypes.QuorumThresholdPercentage{types.QUORUM_THRESHOLD_NUMERATOR},
+		types.MESSAGE_TTL,
+		types.MESSAGE_BLS_AGGREGATION_TIMEOUT,
+		0,
+	)
 
 	err = agg.stateRootUpdateBlsAggregationService.ProcessNewSignature(
 		context.Background(), messageDigest,
@@ -115,7 +122,14 @@ func (agg *Aggregator) ProcessSignedOperatorSetUpdateMessage(signedOperatorSetUp
 		return OperatorSetUpdateBlockNotFoundError500
 	}
 
-	agg.operatorSetUpdateBlsAggregationService.InitializeMessageIfNotExists(messageDigest, coretypes.QUORUM_NUMBERS, []eigentypes.QuorumThresholdPercentage{types.QUORUM_THRESHOLD_NUMERATOR}, types.MESSAGE_TTL, uint64(blockNumber)-1)
+	agg.operatorSetUpdateBlsAggregationService.InitializeMessageIfNotExists(
+		messageDigest,
+		coretypes.QUORUM_NUMBERS,
+		[]eigentypes.QuorumThresholdPercentage{types.QUORUM_THRESHOLD_NUMERATOR},
+		types.MESSAGE_TTL,
+		types.MESSAGE_BLS_AGGREGATION_TIMEOUT,
+		uint64(blockNumber)-1,
+	)
 
 	err = agg.operatorSetUpdateBlsAggregationService.ProcessNewSignature(
 		context.Background(), messageDigest,

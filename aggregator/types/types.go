@@ -15,6 +15,7 @@ const QUORUM_THRESHOLD_NUMERATOR = eigentypes.QuorumThresholdPercentage(100)
 const QUERY_FILTER_FROM_BLOCK = uint64(1)
 
 const MESSAGE_TTL = 1 * time.Minute
+const MESSAGE_BLS_AGGREGATION_TIMEOUT = 30 * time.Second
 
 type OperatorInfo struct {
 	OperatorPubkeys eigentypes.OperatorPubkeys

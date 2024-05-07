@@ -72,7 +72,7 @@ func TestProcessSignedStateRootUpdateMessage(t *testing.T) {
 
 	mockMessageBlsAggServ.EXPECT().ProcessNewSignature(context.Background(), messageDigest,
 		&signedMessage.BlsSignature, signedMessage.OperatorId)
-	mockMessageBlsAggServ.EXPECT().InitializeMessageIfNotExists(messageDigest, coretypes.QUORUM_NUMBERS, []eigentypes.QuorumThresholdPercentage{types.QUORUM_THRESHOLD_NUMERATOR}, types.MESSAGE_TTL, uint64(0))
+	mockMessageBlsAggServ.EXPECT().InitializeMessageIfNotExists(messageDigest, coretypes.QUORUM_NUMBERS, []eigentypes.QuorumThresholdPercentage{types.QUORUM_THRESHOLD_NUMERATOR}, types.MESSAGE_TTL, types.MESSAGE_BLS_AGGREGATION_TIMEOUT, uint64(0))
 	err = aggregator.ProcessSignedStateRootUpdateMessage(signedMessage, nil)
 	assert.Nil(t, err)
 }
@@ -101,7 +101,7 @@ func TestProcessOperatorSetUpdateMessage(t *testing.T) {
 
 	mockMessageBlsAggServ.EXPECT().ProcessNewSignature(context.Background(), messageDigest,
 		&signedMessage.BlsSignature, signedMessage.OperatorId)
-	mockMessageBlsAggServ.EXPECT().InitializeMessageIfNotExists(messageDigest, coretypes.QUORUM_NUMBERS, []eigentypes.QuorumThresholdPercentage{types.QUORUM_THRESHOLD_NUMERATOR}, types.MESSAGE_TTL, uint64(9))
+	mockMessageBlsAggServ.EXPECT().InitializeMessageIfNotExists(messageDigest, coretypes.QUORUM_NUMBERS, []eigentypes.QuorumThresholdPercentage{types.QUORUM_THRESHOLD_NUMERATOR}, types.MESSAGE_TTL, types.MESSAGE_BLS_AGGREGATION_TIMEOUT, uint64(9))
 	err = aggregator.ProcessSignedOperatorSetUpdateMessage(signedMessage, nil)
 	assert.Nil(t, err)
 }
