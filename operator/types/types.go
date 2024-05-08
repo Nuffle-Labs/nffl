@@ -20,4 +20,5 @@ type NodeConfig struct {
 	NearDaIndexerRmqIpPortAddress string            `yaml:"near_da_indexer_rmq_ip_port_address"`
 	NearDaIndexerRollupIds        []uint32          `yaml:"near_da_indexer_rollup_ids"`
 	RollupIdsToRpcUrls            map[uint32]string `yaml:"rollup_ids_to_rpc_urls"`
+	TaskResponseWaitMs            uint32            `yaml:"task_response_wait_ms"`
 }

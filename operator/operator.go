@@ -8,6 +8,7 @@ import (
 	"fmt"
 	"math/big"
 	"os"
+	"time"
 
 	"github.com/Layr-Labs/eigensdk-go/chainio/clients"
 	"github.com/Layr-Labs/eigensdk-go/chainio/clients/eth"
@@ -50,10 +51,11 @@ type Operator struct {
 	metrics    metrics.Metrics
 	listener   OperatorEventListener
 
-	nodeApi      *nodeapi.NodeApi
-	blsKeypair   *bls.KeyPair
-	operatorId   eigentypes.OperatorId
-	operatorAddr common.Address
+	nodeApi          *nodeapi.NodeApi
+	blsKeypair       *bls.KeyPair
+	operatorId       eigentypes.OperatorId
+	operatorAddr     common.Address
+	taskResponseWait time.Duration
 
 	// ip address of aggregator
 	aggregatorServerIpPortAddr string
@@ -205,6 +207,7 @@ func NewOperatorFromConfig(c optypes.NodeConfig) (*Operator, error) {
 		aggregatorRpcClient:        aggregatorRpcClient,
 		sfflServiceManagerAddr:     common.HexToAddress(c.AVSRegistryCoordinatorAddress),
 		operatorId:                 eigentypes.OperatorIdFromPubkey(blsKeyPair.GetPubKeyG1()),
+		taskResponseWait:           time.Duration(c.TaskResponseWaitMs) * time.Millisecond,
 	}
 
 	if c.RegisterOperatorOnStartup {
@@ -371,6 +374,10 @@ func SignOperatorSetUpdate(message messages.OperatorSetUpdateMessage, blsKeyPair
 
 func (o *Operator) ProcessCheckpointTask(event *taskmanager.ContractSFFLTaskManagerCheckpointTaskCreated) {
 	o.listener.OnTasksReceived()
+
+	if o.taskResponseWait > 0 {
+		<-time.After(o.taskResponseWait)
+	}
 
 	checkpointMessages, err := o.aggregatorRpcClient.GetAggregatedCheckpointMessages(
 		event.Task.FromTimestamp,
