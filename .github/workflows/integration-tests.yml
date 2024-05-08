@@ -50,7 +50,7 @@ jobs:
         with:
           load: true
           context: .
-          file: ./relayer/Dockerfile
+          file: ./relayer/cmd/Dockerfile
           tags: near-sffl-test-relayer
           cache-from: type=gha,scope=relayer
           cache-to: type=gha,mode=max,scope=relayer
