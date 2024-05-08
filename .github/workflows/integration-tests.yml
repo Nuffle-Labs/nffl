@@ -42,8 +42,8 @@ jobs:
           context: .
           file: ./indexer/Dockerfile
           tags: near-sffl-indexer
-          cache-from: type=local,src=/tmp/.buildx-cache,scope=indexer
-          cache-to: type=local,dest=/tmp/.buildx-cache-new,scope=indexer
+          cache-from: type=gha,scope=indexer
+          cache-to: type=gha,mode=max,scope=indexer
 
       - name: Build relayer container
         uses: docker/build-push-action@v4
@@ -52,13 +52,8 @@ jobs:
           context: .
           file: ./relayer/Dockerfile
           tags: near-sffl-test-relayer
-          cache-from: type=local,src=/tmp/.buildx-cache,scope=relayer
-          cache-to: type=local,dest=/tmp/.buildx-cache-new,scope=relayer
-
-      - name: Move cache
-        run: |
-          rm -rf /tmp/.buildx-cache
-          mv /tmp/.buildx-cache-new /tmp/.buildx-cache
+          cache-from: type=gha,scope=relayer
+          cache-to: type=gha,mode=max,scope=relayer
 
       - name: Install Node.js
         uses: actions/setup-node@v3
