@@ -54,3 +54,5 @@ rollup_ids_to_rpc_urls:
   1: ws://mainnet-anvil:8545
   2: ws://rollup0-anvil:8546
   3: ws://rollup1-anvil:8547
+
+task_response_wait_ms: 10000
