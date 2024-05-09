@@ -180,22 +180,13 @@ func (mbas *MessageBlsAggregatorService) singleMessageAggregatorGoroutineFunc(
 ) {
 	defer mbas.closeMessageGoroutine(messageDigest)
 
-	stopTimer := func(timer *time.Timer) {
-		if !timer.Stop() {
-			<-timer.C
-		}
-	}
-
 	validationInfo := mbas.fetchValidationInfo(quorumNumbers, quorumThresholdPercentages, ethBlockNumber)
-	messageExpiredTimer := time.NewTimer(timeToExpiry)
 
 	thresholdReached := false
-	thresholdReachedTimer := time.NewTimer(0)
-	stopTimer(thresholdReachedTimer)
+	messageExpiredTimer := time.NewTimer(timeToExpiry)
+	defer messageExpiredTimer.Stop()
 
-	defer stopTimer(messageExpiredTimer)
-	defer stopTimer(thresholdReachedTimer)
-
+loop:
 	for {
 		select {
 		case signedMessageDigest := <-signedMessageDigestsC:
@@ -215,10 +206,10 @@ func (mbas *MessageBlsAggregatorService) singleMessageAggregatorGoroutineFunc(
 
 			mbas.aggregatedResponsesC <- aggregation
 
-			if aggregation.Status == types.MessageBlsAggregationStatusThresholdReached && !thresholdReached {
+			if aggregation.Status == types.MessageBlsAggregationStatusThresholdReached {
 				thresholdReached = true
-				stopTimer(messageExpiredTimer)
-				thresholdReachedTimer.Reset(aggregationTimeout)
+				messageExpiredTimer.Stop()
+				break loop
 			} else if aggregation.Status == types.MessageBlsAggregationStatusFullStakeThresholdMet {
 				return
 			}
@@ -233,11 +224,41 @@ func (mbas *MessageBlsAggregatorService) singleMessageAggregatorGoroutineFunc(
 			}
 
 			return
-		case <-thresholdReachedTimer.C:
-			if !thresholdReached {
+		}
+	}
+
+	if thresholdReached {
+		mbas.singleMessageAggregatorThresholdReached(messageDigest, validationInfo, signedMessageDigestsC, aggregationTimeout)
+	}
+}
+
+func (mbas *MessageBlsAggregatorService) singleMessageAggregatorThresholdReached(
+	messageDigest coretypes.MessageDigest,
+	validationInfo signedMessageDigestValidationInfo,
+	signedMessageDigestsC <-chan SignedMessageDigest,
+	aggregationTimeout time.Duration,
+) {
+	thresholdReachedTimer := time.NewTimer(aggregationTimeout)
+	defer thresholdReachedTimer.Stop()
+
+	for {
+		select {
+		case signedMessageDigest := <-signedMessageDigestsC:
+			mbas.logger.Debug("Message goroutine received new signed message digest", "messageDigest", messageDigest)
+
+			err := mbas.handleSignedMessageDigest(signedMessageDigest, validationInfo)
+			signedMessageDigest.SignatureVerificationErrorC <- err
+			if err != nil {
 				continue
 			}
 
+			aggregation := mbas.getMessageBlsAggregationResponse(messageDigest, validationInfo, false)
+			mbas.aggregatedResponsesC <- aggregation
+
+			if aggregation.Status == types.MessageBlsAggregationStatusFullStakeThresholdMet {
+				return
+			}
+		case <-thresholdReachedTimer.C:
 			mbas.aggregatedResponsesC <- mbas.getMessageBlsAggregationResponse(messageDigest, validationInfo, true)
 			return
 		}
