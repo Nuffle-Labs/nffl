@@ -1,6 +1,6 @@
 use prometheus::{
     core::{AtomicF64, GenericCounter},
-    Counter, Encoder, Histogram, HistogramOpts, Opts, Registry, TextEncoder,
+    Counter, Histogram, HistogramOpts, Opts, Registry,
 };
 
 use crate::errors::Result;
@@ -16,6 +16,7 @@ pub struct CandidatesListener {
     pub num_failed: GenericCounter<AtomicF64>,
 }
 
+#[derive(Clone)]
 pub struct BlockEventListener {
     pub num_candidates: GenericCounter<AtomicF64>,
 }

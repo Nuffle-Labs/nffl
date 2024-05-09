@@ -1,5 +1,4 @@
-use actix_web::dev::Server;
-use actix_web::{web, App, HttpResponse, HttpServer, ResponseError};
+use actix_web::{web, App, HttpResponse, HttpServer};
 use prometheus::{Encoder, Registry, TextEncoder};
 use std::{io::ErrorKind, net::SocketAddr, time::Duration};
 use tracing::{error, info};
@@ -30,13 +29,24 @@ impl MetricsServer {
         }
     }
 
+    async fn metrics(registry: web::Data<Registry>) -> HttpResponse {
+        let metric_families = registry.gather();
+        let mut buffer = Vec::new();
+        let encoder = TextEncoder::new();
+
+        match encoder.encode(&metric_families, &mut buffer) {
+            Ok(_) => HttpResponse::Ok().content_type(encoder.format_type()).body(buffer),
+            Err(e) => HttpResponse::InternalServerError().body(e.to_string()),
+        }
+    }
+
     async fn reconnect(&self) -> ServerState {
         let create_server = |registry: Registry| {
             let registry_data = web::Data::new(registry);
             let metrics_server = HttpServer::new(move || {
                 App::new()
                     .app_data(registry_data.clone())
-                    .service(web::resource("/metrics").route(web::get().to(metrics)))
+                    .service(web::resource("/metrics").route(web::get().to(Self::metrics)))
             })
             .bind(self.metrics_addr)?;
 

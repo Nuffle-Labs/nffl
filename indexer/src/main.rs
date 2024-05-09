@@ -3,16 +3,17 @@ use configs::{Opts, SubCommand};
 use prometheus::Registry;
 use tracing::{error, info};
 
-use crate::metrics_server::MetricsServer;
 use crate::{
-    block_listener::BlockListener, candidates_validator::CandidatesValidator, configs::RunConfigArgs, errors::Error,
-    errors::Result, metrics::Metricable, rabbit_publisher::RabbitPublisher,
+    candidates_validator::CandidatesValidator, configs::RunConfigArgs, errors::Error, errors::Result,
+    indexer_wrapper::IndexerWrapper, metrics::Metricable, metrics_server::MetricsServer,
+    rabbit_publisher::RabbitPublisher,
 };
 
 mod block_listener;
 mod candidates_validator;
 mod configs;
 mod errors;
+mod indexer_wrapper;
 mod metrics;
 mod metrics_server;
 mod rabbit_publisher;
@@ -39,24 +40,24 @@ fn run(home_dir: std::path::PathBuf, config: RunConfigArgs) -> Result<()> {
 
     // TODO: refactor
     let block_res = system.block_on(async move {
-        let mut block_listener = BlockListener::new(addresses_to_rollup_ids, indexer_config);
+        let mut indexer = IndexerWrapper::new(indexer_config, addresses_to_rollup_ids);
         if let Some(_) = config.metrics_ip_port_address {
-            block_listener.enable_metrics(registry.clone())?;
+            indexer.enable_metrics(registry.clone())?;
         }
 
-        let (view_client, _) = block_listener.client_actors();
-        let (block_handle, candidates_stream) = block_listener.start();
-        let mut candidates_validator = CandidatesValidator::new(view_client, candidates_stream);
+        let (view_client, _) = indexer.client_actors();
+        let (block_handle, candidates_stream) = indexer.run();
+        let mut candidates_validator = CandidatesValidator::new(view_client);
         if let Some(_) = config.metrics_ip_port_address {
             candidates_validator.enable_metrics(registry.clone())?;
         }
 
-        let validated_stream = candidates_validator.start();
-        let mut rmq_publisher = RabbitPublisher::new(&config.rmq_address, validated_stream)?;
+        let validated_stream = candidates_validator.run(candidates_stream);
+        let mut rmq_publisher = RabbitPublisher::new(&config.rmq_address)?;
         if let Some(_) = config.metrics_ip_port_address {
             rmq_publisher.enable_metrics(registry.clone())?;
         }
-        rmq_publisher.start();
+        rmq_publisher.run(validated_stream);
 
         Ok::<_, Error>(block_handle.await?)
     });

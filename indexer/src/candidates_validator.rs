@@ -8,10 +8,10 @@ use tokio::{
 };
 use tracing::info;
 
-use crate::metrics::{make_candidates_validator_metrics, CandidatesListener, Metricable};
 use crate::{
     block_listener::CandidateData,
     errors::Result,
+    metrics::{make_candidates_validator_metrics, CandidatesListener, Metricable},
     rabbit_publisher::RabbitPublisherHandle,
     rabbit_publisher::{get_routing_key, PublishData, PublishOptions, PublishPayload, PublisherContext},
 };
@@ -19,22 +19,17 @@ use crate::{
 const CANDIDATES_VALIDATOR: &str = "candidates_validator";
 
 type ProtectedQueue = sync::Arc<Mutex<VecDeque<CandidateData>>>;
-type ProtectedPublisher = sync::Arc<Mutex<RabbitPublisherHandle>>;
 
+#[derive(Clone)]
 pub(crate) struct CandidatesValidator {
     view_client: actix::Addr<near_client::ViewClientActor>,
-    receiver: mpsc::Receiver<CandidateData>,
     listener: Option<CandidatesListener>,
 }
 
 impl CandidatesValidator {
-    pub(crate) fn new(
-        view_client: actix::Addr<near_client::ViewClientActor>,
-        receiver: mpsc::Receiver<CandidateData>,
-    ) -> Self {
+    pub(crate) fn new(view_client: actix::Addr<near_client::ViewClientActor>) -> Self {
         Self {
             view_client,
-            receiver,
             listener: None,
         }
     }
@@ -148,12 +143,12 @@ impl CandidatesValidator {
         Ok(())
     }
 
-    async fn process_candidates(self, mut rmq_handle: RabbitPublisherHandle) -> Result<()> {
-        let Self {
-            mut receiver,
-            view_client,
-            listener,
-        } = self;
+    async fn process_candidates(
+        self,
+        mut receiver: mpsc::Receiver<CandidateData>,
+        mut rmq_handle: RabbitPublisherHandle,
+    ) -> Result<()> {
+        let Self { view_client, listener } = self;
 
         let queue_protected = sync::Arc::new(Mutex::new(VecDeque::new()));
 
@@ -221,9 +216,12 @@ impl CandidatesValidator {
     }
 
     // TODO: JoinHandle or errC
-    pub(crate) fn start(self) -> mpsc::Receiver<PublishData> {
+    pub(crate) fn run(&self, candidates_receiver: mpsc::Receiver<CandidateData>) -> mpsc::Receiver<PublishData> {
         let (sender, receiver) = mpsc::channel(100);
-        actix::spawn(self.process_candidates(RabbitPublisherHandle { sender }));
+        actix::spawn(
+            self.clone()
+                .process_candidates(candidates_receiver, RabbitPublisherHandle { sender }),
+        );
 
         receiver
     }

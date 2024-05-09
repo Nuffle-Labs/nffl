@@ -76,26 +76,24 @@ impl RabbitPublisherHandle {
     }
 }
 
+#[derive(Clone)]
 pub struct RabbitPublisher {
     connection_pool: Pool,
-    receiver: mpsc::Receiver<PublishData>,
     listener: Option<PublisherListener>,
 }
 
-// TODO: try to put error in inner state?
 impl RabbitPublisher {
-    pub fn new(addr: &str, receiver: mpsc::Receiver<PublishData>) -> Result<Self> {
+    pub fn new(addr: &str) -> Result<Self> {
         let connection_pool = create_connection_pool(addr.into())?;
 
         Ok(Self {
-            receiver,
             connection_pool,
             listener: None,
         })
     }
 
-    pub fn start(self) {
-        actix::spawn(self.publisher());
+    pub fn run(&self, receiver: mpsc::Receiver<PublishData>) {
+        actix::spawn(self.clone().publisher(receiver));
     }
 
     async fn exchange_declare(connection: &Connection) -> Result<()> {
@@ -118,12 +116,11 @@ impl RabbitPublisher {
         Ok(())
     }
 
-    async fn publisher(self) {
+    async fn publisher(self, mut receiver: mpsc::Receiver<PublishData>) {
         const ERROR_CODE: i32 = 1;
 
         let Self {
             connection_pool,
-            mut receiver,
             listener,
         } = self;
         let mut connection = match connection_pool.get().await {

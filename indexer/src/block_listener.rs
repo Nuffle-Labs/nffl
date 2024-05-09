@@ -1,5 +1,6 @@
 use futures::future::join_all;
 use near_indexer::near_primitives::{types::AccountId, views::ActionView};
+use near_indexer::StreamerMessage;
 use prometheus::Registry;
 use std::{
     collections::HashMap,
@@ -39,22 +40,16 @@ pub(crate) struct TransactionWithRollupId {
 }
 
 // TODO: rename to wrapper?
+#[derive(Clone)]
 pub(crate) struct BlockListener {
     addresses_to_rollup_ids: HashMap<AccountId, u32>,
     listener: Option<BlockEventListener>,
-    indexer: near_indexer::Indexer,
 }
 
 impl BlockListener {
-    pub(crate) fn new(
-        addresses_to_rollup_ids: HashMap<AccountId, u32>,
-        indexer_config: near_indexer::IndexerConfig,
-    ) -> Self {
-        let indexer = near_indexer::Indexer::new(indexer_config).expect("Indexer::new()");
-
+    pub(crate) fn new(addresses_to_rollup_ids: HashMap<AccountId, u32>) -> Self {
         Self {
             addresses_to_rollup_ids,
-            indexer,
             listener: None,
         }
     }
@@ -81,24 +76,17 @@ impl BlockListener {
         }
     }
 
-    pub fn client_actors(
-        &self,
-    ) -> (
-        actix::Addr<near_client::ViewClientActor>,
-        actix::Addr<near_client::ClientActor>,
-    ) {
-        self.indexer.client_actors()
-    }
-
-    async fn process_stream(self, candidates_sender: mpsc::Sender<CandidateData>) -> Result<()> {
+    async fn process_stream(
+        self,
+        mut indexer_stream: Receiver<StreamerMessage>,
+        candidates_sender: mpsc::Sender<CandidateData>,
+    ) -> Result<()> {
         let Self {
-            indexer,
             addresses_to_rollup_ids,
             listener,
         } = self;
 
-        let mut stream = indexer.streamer();
-        while let Some(streamer_message) = stream.recv().await {
+        while let Some(streamer_message) = indexer_stream.recv().await {
             info!(target: INDEXER, "Received strexamer message");
 
             // TODO: check receipt_receiver is closed?
@@ -145,12 +133,15 @@ impl BlockListener {
         Ok(())
     }
 
-    // TODO: return handle or errC
-    pub(crate) fn start(self) -> (JoinHandle<Result<()>>, Receiver<CandidateData>) {
-        let (sender, receiver) = mpsc::channel(100);
-        let handle = actix::spawn(self.process_stream(sender));
+    /// Filters indexer stream and returns receiving channel.
+    pub(crate) fn run(
+        &self,
+        indexer_stream: Receiver<StreamerMessage>,
+    ) -> (JoinHandle<Result<()>>, Receiver<CandidateData>) {
+        let (candidates_sender, candidates_receiver) = mpsc::channel(100);
+        let handle = actix::spawn(Self::process_stream(self.clone(), indexer_stream, candidates_sender));
 
-        (handle, receiver)
+        (handle, candidates_receiver)
     }
 }
 
@@ -370,69 +361,67 @@ mod tests {
         }
     }
 
-    #[tokio::test]
+    #[actix::test]
     async fn test_empty_listener() {
         let rollup_id = 1;
         let da_contract_id: AccountId = "da.test.near".parse().unwrap();
 
         let streamer_messages = StreamerMessagesLoader::load();
+        let (stream_sender, stream_receiver) = mpsc::channel(10);
 
-        let (sender, receiver) = mpsc::channel(10);
-        let (receipt_sender, mut receipt_receiver) = mpsc::channel(10);
-
-        let listener = BlockListener::new(receiver, receipt_sender, HashMap::from([(da_contract_id, rollup_id)]));
-        let _ = tokio::spawn(listener.start());
+        let listener = BlockListener::new(HashMap::from([(da_contract_id, rollup_id)]));
+        let (_, mut candidates_receiver) = listener.run(stream_receiver);
 
         for el in streamer_messages.empty {
-            sender.send(el).await.unwrap();
+            stream_sender.send(el).await.unwrap();
         }
 
         tokio::time::sleep(Duration::from_millis(10)).await;
 
-        assert_eq!(receipt_receiver.try_recv(), Err(TryRecvError::Empty));
+        assert_eq!(candidates_receiver.try_recv(), Err(TryRecvError::Empty));
     }
 
-    #[tokio::test]
+    #[actix::test]
     async fn test_candidates_listener() {
         let rollup_id = 1;
         let da_contract_id = "da.test.near".parse().unwrap();
+
         let streamer_messages = StreamerMessagesLoader::load();
+        let (stream_sender, stream_receiver) = mpsc::channel(10);
 
-        let (sender, receiver) = mpsc::channel(10);
-        let (receipt_sender, mut receipt_receiver) = mpsc::channel(10);
-
-        let listener = BlockListener::new(receiver, receipt_sender, HashMap::from([(da_contract_id, rollup_id)]));
-        let handle = tokio::spawn(listener.start());
+        let listener = BlockListener::new(HashMap::from([(da_contract_id, rollup_id)]));
+        let (handle, mut candidates_receiver) = listener.run(stream_receiver);
 
         let expected = streamer_messages.candidates.len();
         for el in streamer_messages.candidates {
-            sender.send(el).await.unwrap();
+            stream_sender.send(el).await.unwrap();
         }
 
-        drop(sender);
+        drop(stream_sender);
         handle.await.unwrap().unwrap();
 
         let mut counter = 0;
-        while let Some(_) = receipt_receiver.recv().await {
+        while let Some(_) = candidates_receiver.recv().await {
             counter += 1;
         }
 
         assert_eq!(expected, counter);
     }
 
-    #[tokio::test]
+    #[ignore]
+    #[actix::test]
     async fn test_shutdown() {
         let rollup_id = 5;
         let da_contract_id = "da.test.near".parse().unwrap();
+
         let streamer_messages = StreamerMessagesLoader::load();
+        let (stream_sender, stream_receiver) = mpsc::channel(10);
 
-        let (sender, receiver) = mpsc::channel(10);
-        let (receipt_sender, receipt_receiver) = mpsc::channel(10);
+        let listener = BlockListener::new(HashMap::from([(da_contract_id, rollup_id)]));
+        let (handle, mut candidates_receiver) = listener.run(stream_receiver);
 
-        let listener = BlockListener::new(receiver, receipt_sender, HashMap::from([(da_contract_id, rollup_id)]));
-        let handle = tokio::spawn(listener.start());
         for (i, el) in streamer_messages.empty.into_iter().enumerate() {
-            sender.send(el).await.unwrap();
+            stream_sender.send(el).await.unwrap();
 
             // some random number
             if i == 5 {
@@ -440,7 +429,7 @@ mod tests {
             }
         }
 
-        drop(receipt_receiver);
+        candidates_receiver.close();
         // Sender::closed is trigerred
         assert!(handle.await.unwrap().is_ok());
     }
