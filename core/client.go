@@ -2,13 +2,13 @@ package core
 
 import (
 	"context"
-	"log"
 	"math/big"
 	"strings"
 	"sync"
 	"time"
 
 	"github.com/Layr-Labs/eigensdk-go/chainio/clients/eth"
+	"github.com/Layr-Labs/eigensdk-go/logging"
 	"github.com/ethereum/go-ethereum"
 	"github.com/ethereum/go-ethereum/core/types"
 )
@@ -26,7 +26,7 @@ type SafeEthClient struct {
 	clientLock            sync.RWMutex
 	reinitSubscribersLock sync.Mutex
 	wg                    sync.WaitGroup
-	logger                *log.Logger
+	logger                logging.Logger
 	rpcUrl                string
 	reinitInterval        time.Duration
 	reinitSubscribers     []chan bool
@@ -34,7 +34,7 @@ type SafeEthClient struct {
 	closeC                chan struct{}
 }
 
-func NewSafeEthClient(rpcUrl string, logger *log.Logger, opts ...SafeEthClientOption) (*SafeEthClient, error) {
+func NewSafeEthClient(rpcUrl string, logger logging.Logger, opts ...SafeEthClientOption) (*SafeEthClient, error) {
 	client, err := eth.NewClient(rpcUrl)
 	if err != nil {
 		return nil, err
@@ -73,7 +73,7 @@ func (c *SafeEthClient) reinit() bool {
 
 	client, err := eth.NewClient(c.rpcUrl)
 	if err != nil {
-		c.logger.Printf("Failed to reinitialize client: %v", err)
+		c.logger.Errorf("Failed to reinitialize client: %v", err)
 
 		return false
 	}
@@ -186,7 +186,7 @@ func (c *SafeEthClient) SubscribeFilterLogs(ctx context.Context, q ethereum.Filt
 
 	sub, err := c.Client.SubscribeFilterLogs(ctx, q, ch2)
 	if err != nil {
-		c.logger.Printf("Failed to resubscribe: %v", err)
+		c.logger.Errorf("Failed to resubscribe: %v", err)
 		return nil, err
 	}
 
@@ -196,7 +196,7 @@ func (c *SafeEthClient) SubscribeFilterLogs(ctx context.Context, q ethereum.Filt
 	resubFilterLogs := func() error {
 		currentBlock, err := c.Client.BlockNumber(ctx)
 		if err != nil {
-			c.logger.Printf("Failed to get current block number: %v", err)
+			c.logger.Errorf("Failed to get current block number: %v", err)
 			return err
 		}
 
@@ -221,7 +221,7 @@ func (c *SafeEthClient) SubscribeFilterLogs(ctx context.Context, q ethereum.Filt
 				Topics:    q.Topics,
 			})
 			if err != nil {
-				c.logger.Printf("Failed to get missed logs: %v", err)
+				c.logger.Errorf("Failed to get missed logs: %v", err)
 				return err
 			} else {
 				for _, log := range logs {
@@ -248,7 +248,7 @@ func (c *SafeEthClient) SubscribeFilterLogs(ctx context.Context, q ethereum.Filt
 
 		sub, err = c.Client.SubscribeFilterLogs(ctx, q, ch2)
 		if err != nil {
-			c.logger.Printf("Failed to resubscribe: %v", err)
+			c.logger.Errorf("Failed to resubscribe: %v", err)
 			return err
 		}
 
