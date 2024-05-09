@@ -128,7 +128,7 @@ func (attestor *Attestor) Start(ctx context.Context) error {
 	headersCs := make(map[uint32]chan *ethtypes.Header)
 
 	for rollupId, client := range attestor.clients {
-		headersC := make(chan *ethtypes.Header)
+		headersC := make(chan *ethtypes.Header, 100)
 		subscription, err := client.SubscribeNewHead(ctx, headersC)
 		if err != nil {
 			attestor.logger.Fatalf("Failed to subscribe to new header: %v, for rollupId: %v", err, rollupId)
