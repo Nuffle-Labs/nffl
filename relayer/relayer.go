@@ -175,6 +175,8 @@ func (r *Relayer) listenToBlocks(ctx context.Context, blockBatchC chan []*ethtyp
 			r.logger.Error("Error while subscribing", "err", err)
 			return err
 		}
+
+		sub.Unsubscribe()
 		sub = newSubscription
 
 		return nil
@@ -185,7 +187,6 @@ func (r *Relayer) listenToBlocks(ctx context.Context, blockBatchC chan []*ethtyp
 		case err := <-sub.Err():
 			r.logger.Errorf("error on rollup block subscription: %s", err.Error())
 
-			sub.Unsubscribe()
 			err = reinitializeSubscription()
 			if err != nil {
 				reinitializeTicker.Reset(REINITIALIZE_DELAY)
