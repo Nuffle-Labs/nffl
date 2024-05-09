@@ -166,9 +166,10 @@ func (c *SafeEthClient) WatchReinit() <-chan bool {
 }
 
 type SafeSubscription struct {
-	sub     ethereum.Subscription
-	subLock sync.RWMutex
-	errC    chan error
+	sub          ethereum.Subscription
+	lock         sync.Mutex
+	errC         chan error
+	unsubscribed bool
 }
 
 func NewSafeSubscription(sub ethereum.Subscription) *SafeSubscription {
@@ -183,17 +184,23 @@ func (s *SafeSubscription) Err() <-chan error {
 }
 
 func (s *SafeSubscription) Unsubscribe() {
-	s.subLock.RLock()
-	defer s.subLock.RUnlock()
+	s.lock.Lock()
+
+	if s.unsubscribed {
+		s.lock.Unlock()
+		return
+	}
 
 	s.sub.Unsubscribe()
+	s.unsubscribed = true
+	s.lock.Unlock()
 
-	close(s.errC)
+	<-s.errC
 }
 
 func (s *SafeSubscription) SetUnderlyingSub(sub ethereum.Subscription) {
-	s.subLock.Lock()
-	defer s.subLock.Unlock()
+	s.lock.Lock()
+	defer s.lock.Unlock()
 
 	s.sub = sub
 }
