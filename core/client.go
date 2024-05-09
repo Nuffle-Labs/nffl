@@ -52,6 +52,7 @@ func NewSafeEthClient(rpcUrl string, logger logging.Logger, opts ...SafeEthClien
 
 	client, err := safeClient.createClient()
 	if err != nil {
+		logger.Error("Failed to create client", "err", err)
 		return nil, err
 	}
 	safeClient.Client = client
@@ -59,6 +60,7 @@ func NewSafeEthClient(rpcUrl string, logger logging.Logger, opts ...SafeEthClien
 	safeClient.wg.Add(1)
 	go safeClient.handleReinit()
 
+	logger.Info("Created new SafeEthClient", "rpcUrl", rpcUrl)
 	return safeClient, nil
 }
 
@@ -82,12 +84,14 @@ func (c *SafeEthClient) createClient() (eth.Client, error) {
 		if err != nil {
 			return nil, err
 		}
+		c.logger.Debug("Created new eth client without collector")
 		return client, nil
 	} else {
 		client, err := eth.NewInstrumentedClient(c.rpcUrl, c.collector)
 		if err != nil {
 			return nil, err
 		}
+		c.logger.Debug("Created new instrumented eth client with collector")
 		return client, nil
 	}
 }
@@ -98,12 +102,12 @@ func (c *SafeEthClient) reinit() bool {
 
 	client, err := c.createClient()
 	if err != nil {
-		c.logger.Errorf("Failed to reinitialize client: %v", err)
-
+		c.logger.Error("Failed to reinitialize client", "err", err)
 		return false
 	}
 
 	c.Client = client
+	c.logger.Info("Successfully reinitialized client")
 	return true
 }
 
@@ -116,6 +120,7 @@ func (c *SafeEthClient) notifySubscribers(success bool) {
 		close(ch)
 	}
 	c.reinitSubscribers = nil
+	c.logger.Debug("Notified subscribers of reinit", "success", success)
 }
 
 func (c *SafeEthClient) handleReinit() {
@@ -127,6 +132,7 @@ func (c *SafeEthClient) handleReinit() {
 	isReinitializing := false
 	handleEvent := func() {
 		isReinitializing = true
+		c.logger.Info("Reinitializing client")
 
 		go func() {
 			success := c.reinit()
@@ -144,14 +150,17 @@ func (c *SafeEthClient) handleReinit() {
 	for {
 		select {
 		case <-c.closeC:
+			c.logger.Info("Received close signal, stopping reinit handler")
 			return
 		case <-c.reinitC:
 			if isReinitializing {
+				c.logger.Debug("Already reinitializing, ignoring reinit signal")
 				continue
 			}
-
+			c.logger.Debug("Received reinit signal")
 			handleEvent()
 		case <-reinitTicker.C:
+			c.logger.Debug("Reinit ticker fired")
 			handleEvent()
 		}
 	}
@@ -162,6 +171,7 @@ func (c *SafeEthClient) WatchReinit() <-chan bool {
 	c.reinitSubscribersLock.Lock()
 	c.reinitSubscribers = append(c.reinitSubscribers, ch)
 	c.reinitSubscribersLock.Unlock()
+	c.logger.Debug("Added reinit watcher")
 	return ch
 }
 
@@ -212,16 +222,19 @@ func (c *SafeEthClient) SubscribeFilterLogs(ctx context.Context, q ethereum.Filt
 
 	currentBlock, err := c.Client.BlockNumber(ctx)
 	if err != nil {
+		c.logger.Error("Failed to get current block number", "err", err)
 		return nil, err
 	}
+	c.logger.Debug("Got current block number", "block", currentBlock)
 
 	ch2 := make(chan types.Log)
 
 	sub, err := c.Client.SubscribeFilterLogs(ctx, q, ch2)
 	if err != nil {
-		c.logger.Errorf("Failed to resubscribe: %v", err)
+		c.logger.Error("Failed to subscribe to logs", "err", err)
 		return nil, err
 	}
+	c.logger.Info("Subscribed to logs")
 
 	safeSub := NewSafeSubscription(sub)
 	lastBlock := currentBlock
@@ -229,9 +242,10 @@ func (c *SafeEthClient) SubscribeFilterLogs(ctx context.Context, q ethereum.Filt
 	resubFilterLogs := func() error {
 		currentBlock, err := c.Client.BlockNumber(ctx)
 		if err != nil {
-			c.logger.Errorf("Failed to get current block number: %v", err)
+			c.logger.Error("Failed to get current block number", "err", err)
 			return err
 		}
+		c.logger.Debug("Got current block number for resub", "block", currentBlock)
 
 		fromBlock := max(lastBlock+1, currentBlock-BLOCK_MAX_RANGE)
 
@@ -254,9 +268,10 @@ func (c *SafeEthClient) SubscribeFilterLogs(ctx context.Context, q ethereum.Filt
 				Topics:    q.Topics,
 			})
 			if err != nil {
-				c.logger.Errorf("Failed to get missed logs: %v", err)
+				c.logger.Error("Failed to get missed logs", "err", err)
 				return err
 			} else {
+				c.logger.Info("Got missed logs on resubscribe", "count", len(logs))
 				for _, log := range logs {
 					ch2 <- log
 				}
@@ -279,9 +294,10 @@ func (c *SafeEthClient) SubscribeFilterLogs(ctx context.Context, q ethereum.Filt
 
 		sub, err = c.Client.SubscribeFilterLogs(ctx, q, ch2)
 		if err != nil {
-			c.logger.Errorf("Failed to resubscribe: %v", err)
+			c.logger.Error("Failed to resubscribe to logs", "err", err)
 			return err
 		}
+		c.logger.Info("Resubscribed to logs")
 
 		safeSub.SetUnderlyingSub(sub)
 
@@ -302,6 +318,7 @@ func (c *SafeEthClient) SubscribeFilterLogs(ctx context.Context, q ethereum.Filt
 		for {
 			select {
 			case <-safeSub.Err():
+				c.logger.Debug("Safe subscription ended")
 				return
 			case success := <-reinitC:
 				reinitC = c.WatchReinit()
@@ -315,16 +332,19 @@ func (c *SafeEthClient) SubscribeFilterLogs(ctx context.Context, q ethereum.Filt
 				lastBlock = max(lastBlock, log.BlockNumber)
 				ch <- log
 			case <-ticker.C:
+				c.logger.Debug("Resub ticker fired")
 				err := resub()
 				if err != nil {
 					c.handleClientError(err)
 				}
 			case <-sub.Err():
+				c.logger.Info("Underlying subscription ended, resubscribing")
 				err := resub()
 				if err != nil {
 					c.handleClientError(err)
 				}
 			case <-ctx.Done():
+				c.logger.Info("Context done, ending subscription")
 				safeSub.Unsubscribe()
 				return
 			}
@@ -340,6 +360,7 @@ func (c *SafeEthClient) Close() {
 
 	close(c.closeC)
 	c.wg.Wait()
+	c.logger.Info("SafeEthClient closed")
 }
 
 func (c *SafeEthClient) isConnectionError(err error) bool {
@@ -355,7 +376,10 @@ func (c *SafeEthClient) isConnectionError(err error) bool {
 
 func (c *SafeEthClient) handleClientError(err error) {
 	if c.isConnectionError(err) {
+		c.logger.Error("Connection error detected, triggering reinit", "err", err)
 		c.triggerReinit()
+	} else {
+		c.logger.Error("Client error detected", "err", err)
 	}
 }
 
@@ -366,8 +390,10 @@ func (c *SafeEthClient) triggerReinit() {
 func (c *SafeEthClient) SubscribeNewHead(ctx context.Context, ch chan<- *types.Header) (ethereum.Subscription, error) {
 	sub, err := c.Client.SubscribeNewHead(ctx, ch)
 	if err != nil {
+		c.logger.Error("Failed to subscribe to new heads", "err", err)
 		return nil, err
 	}
+	c.logger.Info("Subscribed to new heads")
 
 	safeSub := NewSafeSubscription(sub)
 
@@ -377,8 +403,10 @@ func (c *SafeEthClient) SubscribeNewHead(ctx context.Context, ch chan<- *types.H
 
 		sub, err = c.Client.SubscribeNewHead(ctx, ch)
 		if err != nil {
+			c.logger.Error("Failed to resubscribe to new heads", "err", err)
 			return err
 		}
+		c.logger.Info("Resubscribed to new heads")
 
 		safeSub.SetUnderlyingSub(sub)
 
@@ -394,6 +422,7 @@ func (c *SafeEthClient) SubscribeNewHead(ctx context.Context, ch chan<- *types.H
 		for {
 			select {
 			case <-safeSub.Err():
+				c.logger.Info("Safe subscription to new heads ended")
 				return
 			case success := <-reinitC:
 				reinitC = c.WatchReinit()
@@ -404,11 +433,13 @@ func (c *SafeEthClient) SubscribeNewHead(ctx context.Context, ch chan<- *types.H
 					}
 				}
 			case <-sub.Err():
+				c.logger.Info("Underlying subscription to new heads ended, resubscribing")
 				err := resub()
 				if err != nil {
 					c.handleClientError(err)
 				}
 			case <-ctx.Done():
+				c.logger.Info("Context done, ending new heads subscription")
 				safeSub.Unsubscribe()
 				return
 			}
@@ -421,13 +452,16 @@ func (c *SafeEthClient) SubscribeNewHead(ctx context.Context, ch chan<- *types.H
 func (c *SafeEthClient) GetClientAndVersion() (string, error) {
 	client, err := ethclient.Dial(c.rpcUrl)
 	if err != nil {
+		c.logger.Error("Failed to dial client for version", "err", err)
 		return "", err
 	}
 
 	var clientVersion string
 	err = client.Client().Call(&clientVersion, "web3_clientVersion")
 	if err != nil {
+		c.logger.Error("Failed to get client version", "err", err)
 		return "unavailable", nil
 	}
+	c.logger.Info("Got client version", "version", clientVersion)
 	return clientVersion, nil
 }
