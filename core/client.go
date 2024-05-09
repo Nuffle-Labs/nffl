@@ -370,8 +370,9 @@ func (c *SafeEthClient) isConnectionError(err error) bool {
 
 	isConnectionReset := strings.Contains(err.Error(), "connection reset")
 	isConnectionRefused := strings.Contains(err.Error(), "connection refused")
+	isAbnormalClosure := strings.Contains(err.Error(), "abnormal closure")
 
-	return isConnectionReset || isConnectionRefused
+	return isConnectionReset || isConnectionRefused || isAbnormalClosure
 }
 
 func (c *SafeEthClient) handleClientError(err error) {
