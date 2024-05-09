@@ -4,6 +4,7 @@ import (
 	"context"
 	"encoding/hex"
 	"errors"
+	"sync"
 	"time"
 
 	"github.com/Layr-Labs/eigensdk-go/chainio/clients/eth"
@@ -50,6 +51,7 @@ type Attestor struct {
 	signedRootC        chan messages.SignedStateRootUpdateMessage
 	rollupIdsToUrls    map[uint32]string
 	clients            map[uint32]eth.Client
+	clientsLock        sync.Mutex
 	rpcCallsCollectors map[uint32]*rpccalls.Collector
 	notifier           Notifier
 	consumer           *consumer.Consumer
@@ -210,7 +212,10 @@ func (attestor *Attestor) processRollupHeaders(rollupId uint32, headersC chan *e
 			attestor.logger.Error("Error while reconnecting client", "rollupId", rollupId, "err", err)
 			return err
 		}
+
+		attestor.clientsLock.Lock()
 		attestor.clients[rollupId] = client
+		attestor.clientsLock.Unlock()
 
 		newSubscription, err := client.SubscribeNewHead(ctx, headersC)
 		if err != nil {
