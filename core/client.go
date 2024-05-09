@@ -202,6 +202,7 @@ func (s *SafeSubscription) SetUnderlyingSub(sub ethereum.Subscription) {
 	s.lock.Lock()
 	defer s.lock.Unlock()
 
+	s.sub.Unsubscribe()
 	s.sub = sub
 }
 
@@ -270,8 +271,6 @@ func (c *SafeEthClient) SubscribeFilterLogs(ctx context.Context, q ethereum.Filt
 	resub := func() error {
 		c.clientLock.RLock()
 		defer c.clientLock.RUnlock()
-
-		safeSub.Unsubscribe()
 
 		err := resubFilterLogs()
 		if err != nil {
@@ -375,8 +374,6 @@ func (c *SafeEthClient) SubscribeNewHead(ctx context.Context, ch chan<- *types.H
 	resub := func() error {
 		c.clientLock.RLock()
 		defer c.clientLock.RUnlock()
-
-		safeSub.Unsubscribe()
 
 		sub, err = c.Client.SubscribeNewHead(ctx, ch)
 		if err != nil {
