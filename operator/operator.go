@@ -60,7 +60,7 @@ type Operator struct {
 	// rpc client to send signed task responses to aggregator
 	aggregatorRpcClient AggregatorRpcClienter
 	// needed when opting in to avs (allow this service manager contract to slash operator)
-	sfflServiceManagerAddr common.Address
+	registryCoordinatorAddr common.Address
 	// NEAR DA indexer consumer
 	attestor attestor.Attestorer
 	// Avs Manager
@@ -167,7 +167,8 @@ func NewOperatorFromConfig(c optypes.NodeConfig) (*Operator, error) {
 	// Use eigen registry
 	reg = sdkClients.PrometheusRegistry
 
-	aggregatorRpcClient, err := NewAggregatorRpcClient(c.AggregatorServerIpPortAddress, logger)
+	registryCoordinatorAddress := common.HexToAddress(c.AVSRegistryCoordinatorAddress)
+	aggregatorRpcClient, err := NewAggregatorRpcClient(c.AggregatorServerIpPortAddress, registryCoordinatorAddress, logger)
 	if err != nil {
 		logger.Error("Cannot create AggregatorRpcClient. Is aggregator running?", "err", err)
 		return nil, err
@@ -203,7 +204,7 @@ func NewOperatorFromConfig(c optypes.NodeConfig) (*Operator, error) {
 		operatorAddr:               common.HexToAddress(c.OperatorAddress),
 		aggregatorServerIpPortAddr: c.AggregatorServerIpPortAddress,
 		aggregatorRpcClient:        aggregatorRpcClient,
-		sfflServiceManagerAddr:     common.HexToAddress(c.AVSRegistryCoordinatorAddress),
+		registryCoordinatorAddr:    registryCoordinatorAddress,
 		operatorId:                 eigentypes.OperatorIdFromPubkey(blsKeyPair.GetPubKeyG1()),
 	}
 

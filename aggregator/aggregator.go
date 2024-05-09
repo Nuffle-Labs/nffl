@@ -72,6 +72,7 @@ const (
 // Upon sending a task onchain (or receiving a CheckpointTaskCreated Event if the tasks were sent by an external task generator), the aggregator can get the list of all operators opted into each quorum at that
 // block number by calling the getOperatorState() function of the BLSOperatorStateRetriever.sol contract.
 type Aggregator struct {
+	config               *config.Config
 	logger               logging.Logger
 	serverIpPortAddr     string
 	restServerIpPortAddr string
@@ -203,6 +204,7 @@ func NewAggregator(ctx context.Context, config *config.Config, logger logging.Lo
 	operatorSetUpdateBlsAggregationService := NewMessageBlsAggregatorService(avsRegistryService, clients.EthHttpClient, logger)
 
 	agg := &Aggregator{
+		config:                                 config,
 		logger:                                 logger,
 		serverIpPortAddr:                       config.AggregatorServerIpPortAddr,
 		restServerIpPortAddr:                   config.AggregatorRestServerIpPortAddr,
