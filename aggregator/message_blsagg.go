@@ -182,14 +182,14 @@ func (mbas *MessageBlsAggregatorService) singleMessageAggregatorGoroutineFunc(
 
 	validationInfo := mbas.fetchValidationInfo(quorumNumbers, quorumThresholdPercentages, ethBlockNumber)
 
-	shouldWaitForFullStake := mbas.singleMessageAggregatorPreThreshold(messageDigest, validationInfo, timeToExpiry, signedMessageDigestsC)
+	shouldWaitForFullStake := mbas.handleSignedMessagePreThreshold(messageDigest, validationInfo, timeToExpiry, signedMessageDigestsC)
 
 	if shouldWaitForFullStake {
-		mbas.singleMessageAggregatorThresholdReached(messageDigest, validationInfo, signedMessageDigestsC, aggregationTimeout)
+		mbas.handleSignedMessageThresholdReached(messageDigest, validationInfo, signedMessageDigestsC, aggregationTimeout)
 	}
 }
 
-func (mbas *MessageBlsAggregatorService) singleMessageAggregatorPreThreshold(
+func (mbas *MessageBlsAggregatorService) handleSignedMessagePreThreshold(
 	messageDigest coretypes.MessageDigest,
 	validationInfo signedMessageDigestValidationInfo,
 	timeToExpiry time.Duration,
@@ -237,7 +237,7 @@ func (mbas *MessageBlsAggregatorService) singleMessageAggregatorPreThreshold(
 	}
 }
 
-func (mbas *MessageBlsAggregatorService) singleMessageAggregatorThresholdReached(
+func (mbas *MessageBlsAggregatorService) handleSignedMessageThresholdReached(
 	messageDigest coretypes.MessageDigest,
 	validationInfo signedMessageDigestValidationInfo,
 	signedMessageDigestsC <-chan SignedMessageDigest,
