@@ -28,6 +28,8 @@ pub enum Error {
     PrometheusError(#[from] prometheus::Error),
     #[error("{0}")]
     ActixErrorKind(std::io::ErrorKind),
+    #[error{"0"}]
+    JoinError(#[from] tokio::task::JoinError),
 }
 
 impl<T> From<SendError<T>> for Error {

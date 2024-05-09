@@ -61,27 +61,12 @@ pub struct PublishData {
     pub cx: PublisherContext,
 }
 
-pub struct RabbitBuilder {
-    addr: String,
-}
-
-impl RabbitBuilder {
-    pub fn new(addr: String) -> Self {
-        Self { addr }
-    }
-
-    /// Shall be called within actix runtime
-    pub fn build(self) -> Result<RabbitPublisher> {
-        RabbitPublisher::new(&self.addr)
-    }
-}
-
 #[derive(Clone)]
-pub struct RabbitPublisherHandler {
+pub struct RabbitPublisherHandle {
     pub sender: mpsc::Sender<PublishData>,
 }
 
-impl RabbitPublisherHandler {
+impl RabbitPublisherHandle {
     pub async fn publish(&mut self, publish_data: PublishData) -> Result<()> {
         Ok(self.sender.send(publish_data).await?)
     }
@@ -97,26 +82,18 @@ pub struct RabbitPublisher {
     listener: Option<PublisherListener>,
 }
 
-// TODO: try to put error in inner state?
 impl RabbitPublisher {
     pub fn new(addr: &str) -> Result<Self> {
-        let pool = create_connection_pool(addr.into())?;
+        let connection_pool = create_connection_pool(addr.into())?;
 
         Ok(Self {
-            connection_pool: pool,
+            connection_pool,
             listener: None,
         })
     }
 
-    pub fn start(&self) -> Result<RabbitPublisherHandler> {
-        let (sender, receiver) = mpsc::channel(100);
-        actix::spawn(Self::publisher(
-            self.connection_pool.clone(),
-            self.listener.clone(),
-            receiver,
-        ));
-
-        Ok(RabbitPublisherHandler { sender })
+    pub fn run(&self, receiver: mpsc::Receiver<PublishData>) {
+        actix::spawn(self.clone().publisher(receiver));
     }
 
     async fn exchange_declare(connection: &Connection) -> Result<()> {
@@ -139,13 +116,13 @@ impl RabbitPublisher {
         Ok(())
     }
 
-    async fn publisher(
-        connection_pool: Pool,
-        listener: Option<PublisherListener>,
-        mut receiver: mpsc::Receiver<PublishData>,
-    ) {
+    async fn publisher(self, mut receiver: mpsc::Receiver<PublishData>) {
         const ERROR_CODE: i32 = 1;
 
+        let Self {
+            connection_pool,
+            listener,
+        } = self;
         let mut connection = match connection_pool.get().await {
             Ok(connection) => connection,
             Err(err) => {
