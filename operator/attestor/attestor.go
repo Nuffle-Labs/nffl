@@ -222,6 +222,8 @@ func (attestor *Attestor) processRollupHeaders(rollupId uint32, headersC chan *e
 			attestor.logger.Error("Error while subscribing", "rollupId", rollupId, "err", err)
 			return err
 		}
+
+		subscription.Unsubscribe()
 		subscription = newSubscription
 
 		return nil
@@ -231,7 +233,6 @@ func (attestor *Attestor) processRollupHeaders(rollupId uint32, headersC chan *e
 		select {
 		case <-subscription.Err():
 			attestor.logger.Error("Header subscription error", "rollupId", rollupId)
-			subscription.Unsubscribe()
 			err := reinitializeSubscription()
 			if err != nil {
 				reinitializeTicker.Reset(REINITIALIZE_DELAY)
