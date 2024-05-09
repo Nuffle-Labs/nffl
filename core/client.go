@@ -17,6 +17,7 @@ const (
 	BLOCK_CHUNK_SIZE = 1000
 	BLOCK_MAX_RANGE  = 10000
 	RESUB_INTERVAL   = 5 * time.Minute
+	REINIT_INTERVAL  = 1 * time.Minute
 )
 
 type SafeEthClient struct {
@@ -27,40 +28,43 @@ type SafeEthClient struct {
 	wg                    sync.WaitGroup
 	logger                *log.Logger
 	rpcUrl                string
-	retryCount            int
-	retryTimeout          time.Duration
 	reinitInterval        time.Duration
 	reinitSubscribers     []chan bool
-	reinitTicker          *time.Ticker
 	reinitC               chan struct{}
 	closeC                chan struct{}
 }
 
-func NewSafeEthClient(rpcUrl string, retryCount int, retryTimeout time.Duration, reinitInterval time.Duration, logger *log.Logger) (*SafeEthClient, error) {
+func NewSafeEthClient(rpcUrl string, logger *log.Logger, opts ...SafeEthClientOption) (*SafeEthClient, error) {
 	client, err := eth.NewClient(rpcUrl)
 	if err != nil {
 		return nil, err
 	}
 
-	reinitTicker := time.NewTicker(reinitInterval)
-	defer reinitTicker.Stop()
-
 	safeClient := &SafeEthClient{
 		Client:         client,
 		logger:         logger,
 		rpcUrl:         rpcUrl,
-		retryCount:     retryCount,
-		retryTimeout:   retryTimeout,
-		reinitInterval: reinitInterval,
-		reinitTicker:   reinitTicker,
+		reinitInterval: REINIT_INTERVAL,
 		reinitC:        make(chan struct{}),
 		closeC:         make(chan struct{}),
+	}
+
+	for _, opt := range opts {
+		opt(safeClient)
 	}
 
 	safeClient.wg.Add(1)
 	go safeClient.handleReinit()
 
 	return safeClient, nil
+}
+
+type SafeEthClientOption func(*SafeEthClient)
+
+func WithReinitInterval(interval time.Duration) SafeEthClientOption {
+	return func(c *SafeEthClient) {
+		c.reinitInterval = interval
+	}
 }
 
 func (c *SafeEthClient) reinit() bool {
@@ -92,6 +96,9 @@ func (c *SafeEthClient) notifySubscribers(success bool) {
 func (c *SafeEthClient) handleReinit() {
 	defer c.wg.Done()
 
+	reinitTicker := time.NewTicker(c.reinitInterval)
+	defer reinitTicker.Stop()
+
 	isReinitializing := false
 	handleEvent := func() {
 		isReinitializing = true
@@ -100,9 +107,9 @@ func (c *SafeEthClient) handleReinit() {
 			success := c.reinit()
 			if success {
 				isReinitializing = false
-				c.reinitTicker.Stop()
+				reinitTicker.Stop()
 			} else {
-				c.reinitTicker.Reset(c.reinitInterval)
+				reinitTicker.Reset(c.reinitInterval)
 			}
 
 			c.notifySubscribers(success)
@@ -119,7 +126,7 @@ func (c *SafeEthClient) handleReinit() {
 			}
 
 			handleEvent()
-		case <-c.reinitTicker.C:
+		case <-reinitTicker.C:
 			handleEvent()
 		}
 	}
