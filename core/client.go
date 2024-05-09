@@ -9,8 +9,10 @@ import (
 
 	"github.com/Layr-Labs/eigensdk-go/chainio/clients/eth"
 	"github.com/Layr-Labs/eigensdk-go/logging"
+	rpccalls "github.com/Layr-Labs/eigensdk-go/metrics/collectors/rpc_calls"
 	"github.com/ethereum/go-ethereum"
 	"github.com/ethereum/go-ethereum/core/types"
+	"github.com/ethereum/go-ethereum/ethclient"
 )
 
 const (
@@ -32,16 +34,11 @@ type SafeEthClient struct {
 	reinitSubscribers     []chan bool
 	reinitC               chan struct{}
 	closeC                chan struct{}
+	collector             *rpccalls.Collector
 }
 
 func NewSafeEthClient(rpcUrl string, logger logging.Logger, opts ...SafeEthClientOption) (*SafeEthClient, error) {
-	client, err := eth.NewClient(rpcUrl)
-	if err != nil {
-		return nil, err
-	}
-
 	safeClient := &SafeEthClient{
-		Client:         client,
 		logger:         logger,
 		rpcUrl:         rpcUrl,
 		reinitInterval: REINIT_INTERVAL,
@@ -52,6 +49,12 @@ func NewSafeEthClient(rpcUrl string, logger logging.Logger, opts ...SafeEthClien
 	for _, opt := range opts {
 		opt(safeClient)
 	}
+
+	client, err := safeClient.createClient()
+	if err != nil {
+		return nil, err
+	}
+	safeClient.Client = client
 
 	safeClient.wg.Add(1)
 	go safeClient.handleReinit()
@@ -67,11 +70,33 @@ func WithReinitInterval(interval time.Duration) SafeEthClientOption {
 	}
 }
 
+func WithCollector(collector *rpccalls.Collector) SafeEthClientOption {
+	return func(c *SafeEthClient) {
+		c.collector = collector
+	}
+}
+
+func (c *SafeEthClient) createClient() (eth.Client, error) {
+	if c.collector == nil {
+		client, err := eth.NewClient(c.rpcUrl)
+		if err != nil {
+			return nil, err
+		}
+		return client, nil
+	} else {
+		client, err := eth.NewInstrumentedClient(c.rpcUrl, c.collector)
+		if err != nil {
+			return nil, err
+		}
+		return client, nil
+	}
+}
+
 func (c *SafeEthClient) reinit() bool {
 	c.clientLock.Lock()
 	defer c.clientLock.Unlock()
 
-	client, err := eth.NewClient(c.rpcUrl)
+	client, err := c.createClient()
 	if err != nil {
 		c.logger.Errorf("Failed to reinitialize client: %v", err)
 
@@ -387,4 +412,18 @@ func (c *SafeEthClient) SubscribeNewHead(ctx context.Context, ch chan<- *types.H
 	}()
 
 	return safeSub, nil
+}
+
+func (c *SafeEthClient) GetClientAndVersion() (string, error) {
+	client, err := ethclient.Dial(c.rpcUrl)
+	if err != nil {
+		return "", err
+	}
+
+	var clientVersion string
+	err = client.Client().Call(&clientVersion, "web3_clientVersion")
+	if err != nil {
+		return "unavailable", nil
+	}
+	return clientVersion, nil
 }
