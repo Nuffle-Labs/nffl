@@ -15,6 +15,7 @@ const PUBLISHER: &str = "publisher";
 const EXCHANGE_NAME: &str = "rollup_exchange";
 const DEFAULT_ROUTING_KEY: &str = "da-mq";
 const PERSISTENT_DELIVERY_MODE: u8 = 2;
+const MESSAGE_TTL_MS: u32 = 120_000;
 
 pub(crate) type Connection = deadpool::managed::Object<Manager>;
 
@@ -36,7 +37,9 @@ impl Default for PublishOptions {
             exchange: EXCHANGE_NAME.into(),
             routing_key: DEFAULT_ROUTING_KEY.into(),
             basic_publish_options: BasicPublishOptions::default(),
-            basic_properties: BasicProperties::default().with_delivery_mode(PERSISTENT_DELIVERY_MODE),
+            basic_properties: BasicProperties::default()
+                .with_delivery_mode(PERSISTENT_DELIVERY_MODE)
+                .with_expiration(MESSAGE_TTL_MS.to_string().into()),
         }
     }
 }
