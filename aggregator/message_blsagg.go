@@ -182,11 +182,22 @@ func (mbas *MessageBlsAggregatorService) singleMessageAggregatorGoroutineFunc(
 
 	validationInfo := mbas.fetchValidationInfo(quorumNumbers, quorumThresholdPercentages, ethBlockNumber)
 
-	thresholdReached := false
+	shouldWaitForFullStake := mbas.singleMessageAggregatorPreThreshold(messageDigest, validationInfo, timeToExpiry, signedMessageDigestsC)
+
+	if shouldWaitForFullStake {
+		mbas.singleMessageAggregatorThresholdReached(messageDigest, validationInfo, signedMessageDigestsC, aggregationTimeout)
+	}
+}
+
+func (mbas *MessageBlsAggregatorService) singleMessageAggregatorPreThreshold(
+	messageDigest coretypes.MessageDigest,
+	validationInfo signedMessageDigestValidationInfo,
+	timeToExpiry time.Duration,
+	signedMessageDigestsC <-chan SignedMessageDigest,
+) bool {
 	messageExpiredTimer := time.NewTimer(timeToExpiry)
 	defer messageExpiredTimer.Stop()
 
-loop:
 	for {
 		select {
 		case signedMessageDigest := <-signedMessageDigestsC:
@@ -207,28 +218,22 @@ loop:
 			mbas.aggregatedResponsesC <- aggregation
 
 			if aggregation.Status == types.MessageBlsAggregationStatusThresholdReached {
-				thresholdReached = true
-				messageExpiredTimer.Stop()
-				break loop
+				return true
 			} else if aggregation.Status == types.MessageBlsAggregationStatusFullStakeThresholdMet {
-				return
+				return false
 			}
 		case <-messageExpiredTimer.C:
 			mbas.aggregatedResponsesC <- types.MessageBlsAggregationServiceResponse{
 				MessageBlsAggregation: messages.MessageBlsAggregation{
 					MessageDigest:  messageDigest,
-					EthBlockNumber: ethBlockNumber,
+					EthBlockNumber: validationInfo.ethBlockNumber,
 				},
 				Finished: true,
 				Err:      MessageExpiredError,
 			}
 
-			return
+			return false
 		}
-	}
-
-	if thresholdReached {
-		mbas.singleMessageAggregatorThresholdReached(messageDigest, validationInfo, signedMessageDigestsC, aggregationTimeout)
 	}
 }
 
