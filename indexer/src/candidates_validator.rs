@@ -3,7 +3,7 @@ use near_o11y::WithSpanContextExt;
 use prometheus::Registry;
 use std::{collections::VecDeque, sync, time::Duration};
 use tokio::{
-    sync::{mpsc, Mutex},
+    sync::{mpsc, oneshot, Mutex},
     time,
 };
 use tracing::info;
@@ -35,7 +35,7 @@ impl CandidatesValidator {
     }
 
     async fn ticker(
-        mut done: mpsc::Receiver<()>,
+        mut done: oneshot::Receiver<()>,
         queue_protected: ProtectedQueue,
         mut rmq_handle: RabbitPublisherHandle,
         view_client: actix::Addr<near_client::ViewClientActor>,
@@ -51,7 +51,7 @@ impl CandidatesValidator {
                     let _ = Self::flush(&mut queue, &mut rmq_handle, &view_client, listener.clone()).await;
                     interval.reset();
                 },
-                _ = done.recv() => {
+                _ = &mut done => {
                     return
                 }
             }
@@ -152,7 +152,7 @@ impl CandidatesValidator {
 
         let queue_protected = sync::Arc::new(Mutex::new(VecDeque::new()));
 
-        let (done_sender, done_receiver) = mpsc::channel(1);
+        let (done_sender, done_receiver) = oneshot::channel();
         actix::spawn(Self::ticker(
             done_receiver,
             queue_protected.clone(),
@@ -212,7 +212,8 @@ impl CandidatesValidator {
             }
         }
 
-        Ok(done_sender.send(()).await?)
+        let _ = done_sender.send(());
+        Ok(())
     }
 
     // TODO: JoinHandle or errC
