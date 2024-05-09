@@ -15,6 +15,7 @@ import (
 	"github.com/ethereum/go-ethereum/common"
 
 	registryrollup "github.com/NethermindEth/near-sffl/contracts/bindings/SFFLRegistryRollup"
+	"github.com/NethermindEth/near-sffl/core"
 	"github.com/NethermindEth/near-sffl/core/config"
 	"github.com/NethermindEth/near-sffl/core/types/messages"
 )
@@ -44,7 +45,7 @@ func NewRollupWriter(
 	address common.Address,
 	logger logging.Logger,
 ) (*RollupWriter, error) {
-	client, err := eth.NewClient(rollupInfo.RpcUrl)
+	client, err := core.NewSafeEthClient(rollupInfo.RpcUrl, logger)
 	if err != nil {
 		return nil, err
 	}

@@ -22,9 +22,6 @@ const (
 	SUBMIT_BLOCK_INTERVAL      = 2500 * time.Millisecond
 	SUBMIT_BLOCK_RETRY_TIMEOUT = 2 * time.Second
 	SUBMIT_BLOCK_RETRIES       = 3
-	RECONNECTION_ATTEMPTS      = 5
-	RECONNECTION_DELAY         = time.Second
-	REINITIALIZE_DELAY         = time.Minute
 )
 
 type Relayer struct {
@@ -40,7 +37,7 @@ type Relayer struct {
 var _ core.Metricable = (*Relayer)(nil)
 
 func NewRelayerFromConfig(config *config.RelayerConfig, logger sdklogging.Logger) (*Relayer, error) {
-	rpcClient, err := eth.NewClient(config.RpcUrl)
+	rpcClient, err := core.NewSafeEthClient(config.RpcUrl, logger)
 	if err != nil {
 		return nil, err
 	}
@@ -159,41 +156,11 @@ func (r *Relayer) listenToBlocks(ctx context.Context, blockBatchC chan []*ethtyp
 
 	var blocks []*ethtypes.Block
 
-	reinitializeTicker := time.NewTicker(REINITIALIZE_DELAY)
-	reinitializeTicker.Stop()
-
-	defer reinitializeTicker.Stop()
-
-	reinitializeSubscription := func() error {
-		client, err := r.reconnectClient()
-		if err != nil {
-			r.logger.Error("Error while reconnecting client", "err", err)
-			return err
-		}
-		r.rpcClient = client
-
-		newSubscription, err := client.SubscribeNewHead(ctx, headers)
-		if err != nil {
-			r.logger.Error("Error while subscribing", "err", err)
-			return err
-		}
-
-		sub.Unsubscribe()
-		sub = newSubscription
-
-		return nil
-	}
-
 	for {
 		select {
 		case err := <-sub.Err():
-			r.logger.Errorf("error on rollup block subscription: %s", err.Error())
-
-			err = reinitializeSubscription()
-			if err != nil {
-				reinitializeTicker.Reset(REINITIALIZE_DELAY)
-			}
-
+			r.logger.Error("Error on rollup block subscription", "err", err)
+			return
 		case header := <-headers:
 			r.logger.Info("Received rollup block header", "number", header.Number.Uint64())
 			r.listener.OnBlockReceived()
@@ -208,31 +175,8 @@ func (r *Relayer) listenToBlocks(ctx context.Context, blockBatchC chan []*ethtyp
 				ticker.Stop()
 			}
 
-		case <-reinitializeTicker.C:
-			r.logger.Info("Reinitializing header subscription")
-
-			err := reinitializeSubscription()
-			if err == nil {
-				reinitializeTicker.Stop()
-			}
-
 		case <-ctx.Done():
 			return
 		}
 	}
-}
-
-func (r *Relayer) reconnectClient() (eth.Client, error) {
-	var err error
-	var client eth.Client
-	for i := 0; i < RECONNECTION_ATTEMPTS; i++ {
-		<-time.After(RECONNECTION_DELAY)
-
-		client, err = eth.NewClient(r.rpcUrl)
-		if err == nil {
-			return client, nil
-		}
-	}
-
-	return nil, err
 }

@@ -25,9 +25,6 @@ import (
 const (
 	MQ_WAIT_TIMEOUT        = 30 * time.Second
 	MQ_REBROADCAST_TIMEOUT = 15 * time.Second
-	RECONNECTION_ATTEMPTS  = 5
-	RECONNECTION_DELAY     = time.Second
-	REINITIALIZE_DELAY     = time.Minute
 )
 
 var (
@@ -96,7 +93,7 @@ func NewAttestor(config *optypes.NodeConfig, blsKeypair *bls.KeyPair, operatorId
 			rpcCallsCollector = rpccalls.NewCollector(id+url, registry)
 		}
 
-		client, err := core.CreateEthClient(url, rpcCallsCollector, logger)
+		client, err := core.NewSafeEthClient(url, logger, core.WithCollector(rpcCallsCollector))
 		if err != nil {
 			return nil, err
 		}
@@ -194,75 +191,19 @@ func (attestor *Attestor) processMQBlocks(ctx context.Context) {
 	}
 }
 
-func (attestor *Attestor) reconnectClient(rollupId uint32) (eth.Client, error) {
-	var err error
-	var client eth.Client
-	for i := 0; i < RECONNECTION_ATTEMPTS; i++ {
-		<-time.After(RECONNECTION_DELAY)
-
-		client, err = core.CreateEthClient(attestor.rollupIdsToUrls[rollupId], attestor.rpcCallsCollectors[rollupId], attestor.logger)
-		if err == nil {
-			return client, nil
-		}
-	}
-
-	return nil, err
-}
-
 // Spawns routines for new headers that die in one minute
 func (attestor *Attestor) processRollupHeaders(rollupId uint32, headersC chan *ethtypes.Header, subscription ethereum.Subscription, ctx context.Context) {
-	reinitializeTicker := time.NewTicker(REINITIALIZE_DELAY)
-	reinitializeTicker.Stop()
-
-	defer reinitializeTicker.Stop()
-
-	reinitializeSubscription := func() error {
-		client, err := attestor.reconnectClient(rollupId)
-		if err != nil {
-			attestor.logger.Error("Error while reconnecting client", "rollupId", rollupId, "err", err)
-			return err
-		}
-
-		attestor.clientsLock.Lock()
-		attestor.clients[rollupId] = client
-		attestor.clientsLock.Unlock()
-
-		newSubscription, err := client.SubscribeNewHead(ctx, headersC)
-		if err != nil {
-			attestor.logger.Error("Error while subscribing", "rollupId", rollupId, "err", err)
-			return err
-		}
-
-		subscription.Unsubscribe()
-		subscription = newSubscription
-
-		return nil
-	}
-
 	for {
 		select {
 		case <-subscription.Err():
 			attestor.logger.Error("Header subscription error", "rollupId", rollupId)
-			err := reinitializeSubscription()
-			if err != nil {
-				reinitializeTicker.Reset(REINITIALIZE_DELAY)
-			}
-
+			return
 		case header, ok := <-headersC:
 			if !ok {
 				return
 			}
 
 			go attestor.processHeader(rollupId, header, ctx)
-
-		case <-reinitializeTicker.C:
-			attestor.logger.Info("Reinitializing header subscription", "rollupId", rollupId)
-
-			err := reinitializeSubscription()
-			if err == nil {
-				reinitializeTicker.Stop()
-			}
-
 		case <-ctx.Done():
 			subscription.Unsubscribe()
 			close(headersC)
