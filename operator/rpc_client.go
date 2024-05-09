@@ -103,7 +103,7 @@ func (c *AggregatorRpcClient) dialAggregatorRpcClient() error {
 	}
 
 	if common.HexToAddress(aggregatorRegistryCoordinatorAddress).Cmp(c.registryCoordinatorAddress) != 0 {
-		c.logger.Error("Registry coordinator address from aggregator does not match the one in the config", "aggregator", aggregatorRegistryCoordinatorAddress, "config", c.registryCoordinatorAddress.String())
+		c.logger.Fatal("Registry coordinator address from aggregator does not match the one in the config", "aggregator", aggregatorRegistryCoordinatorAddress, "config", c.registryCoordinatorAddress.String())
 		return errors.New("mismatching registry coordinator address from aggregator")
 	}
 
