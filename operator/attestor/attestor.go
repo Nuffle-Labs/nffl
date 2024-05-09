@@ -236,7 +236,6 @@ func (attestor *Attestor) processRollupHeaders(rollupId uint32, headersC chan *e
 			if err != nil {
 				reinitializeTicker.Reset(REINITIALIZE_DELAY)
 			}
-			continue
 
 		case header, ok := <-headersC:
 			if !ok {
@@ -244,7 +243,6 @@ func (attestor *Attestor) processRollupHeaders(rollupId uint32, headersC chan *e
 			}
 
 			go attestor.processHeader(rollupId, header, ctx)
-			continue
 
 		case <-reinitializeTicker.C:
 			attestor.logger.Info("Reinitializing header subscription", "rollupId", rollupId)
