@@ -206,6 +206,8 @@ func (attestor *Attestor) processRollupHeaders(rollupId uint32, headersC chan *e
 	reinitializeTicker := time.NewTicker(REINITIALIZE_DELAY)
 	reinitializeTicker.Stop()
 
+	defer reinitializeTicker.Stop()
+
 	reinitializeSubscription := func() error {
 		client, err := attestor.reconnectClient(rollupId)
 		if err != nil {
