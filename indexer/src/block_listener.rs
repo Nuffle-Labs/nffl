@@ -39,7 +39,6 @@ pub(crate) struct TransactionWithRollupId {
     pub(crate) transaction: near_indexer::IndexerTransactionWithOutcome,
 }
 
-// TODO: rename to wrapper?
 #[derive(Clone)]
 pub(crate) struct BlockListener {
     addresses_to_rollup_ids: HashMap<AccountId, u32>,
@@ -87,7 +86,7 @@ impl BlockListener {
         } = self;
 
         while let Some(streamer_message) = indexer_stream.recv().await {
-            info!(target: INDEXER, "Received strexamer message");
+            info!(target: INDEXER, "Received streamer message");
 
             // TODO: check receipt_receiver is closed?
             let candidates_data: Vec<CandidateData> = streamer_message
@@ -115,12 +114,12 @@ impl BlockListener {
             {
                 let candidates_len = candidates_data.len();
                 info!(target: INDEXER, "Found {} candidate(s)", candidates_len);
-                if let Some(event_listener) = &listener {
-                    event_listener.num_candidates.inc_by(candidates_len as f64);
-                }
+                listener
+                    .as_ref()
+                    .map(|listener| listener.num_candidates.inc_by(candidates_len as f64));
             }
 
-            // TODOL try_send instead checking for capacity. Not to stall
+            // TODO: try_send instead checking for capacity. Not to stall
             let results = join_all(
                 candidates_data
                     .into_iter()
@@ -138,7 +137,7 @@ impl BlockListener {
         &self,
         indexer_stream: Receiver<StreamerMessage>,
     ) -> (JoinHandle<Result<()>>, Receiver<CandidateData>) {
-        let (candidates_sender, candidates_receiver) = mpsc::channel(100);
+        let (candidates_sender, candidates_receiver) = mpsc::channel(1000);
         let handle = actix::spawn(Self::process_stream(self.clone(), indexer_stream, candidates_sender));
 
         (handle, candidates_receiver)
@@ -429,8 +428,8 @@ mod tests {
             }
         }
 
-        candidates_receiver.close();
-        // Sender::closed is trigerred
+        drop(candidates_receiver);
+        // Sender::closed is triggered
         assert!(handle.await.unwrap().is_ok());
     }
 }

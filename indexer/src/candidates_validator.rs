@@ -79,18 +79,13 @@ impl CandidatesValidator {
                 }
                 FinalExecutionStatus::SuccessValue(_) => {
                     info!(target: CANDIDATES_VALIDATOR, "Candidate status now successful, candidate_data: {}", candidate_data);
-                    if let Some(listener) = &listener {
-                        listener.num_successful.inc();
-                    }
-
+                    listener.as_ref().map(|l| l.num_successful.inc());
                     Self::send(candidate_data, rmq_handle).await?;
                     queue.pop_front();
                 }
                 FinalExecutionStatus::Failure(_) => {
                     info!(target: CANDIDATES_VALIDATOR, "Execution failed, not sending to RabbitMQ");
-                    if let Some(listener) = &listener {
-                        listener.num_failed.inc();
-                    }
+                    listener.as_ref().map(|l| l.num_failed.inc());
 
                     queue.pop_front();
                 }
@@ -180,9 +175,7 @@ impl CandidatesValidator {
             let final_status = match candidate_data.transaction.outcome.execution_outcome.outcome.status {
                 ExecutionStatusView::Failure(_) => {
                     info!(target: CANDIDATES_VALIDATOR, "Execution failed, not sending to RabbitMQ");
-                    if let Some(listener) = &listener {
-                        listener.num_failed.inc();
-                    }
+                    listener.as_ref().map(|l| l.num_failed.inc());
 
                     continue;
                 }
@@ -197,17 +190,13 @@ impl CandidatesValidator {
                 }
                 FinalExecutionStatus::SuccessValue(_) => {
                     info!(target: CANDIDATES_VALIDATOR, "Candidate executed successfully, candidate_data: {}", candidate_data);
-                    if let Some(listener) = &listener {
-                        listener.num_successful.inc();
-                    }
+                    listener.as_ref().map(|l| l.num_successful.inc());
 
                     Self::send(&candidate_data, &mut rmq_handle).await?;
                 }
                 FinalExecutionStatus::Failure(_) => {
                     info!(target: CANDIDATES_VALIDATOR, "Execution failed, not sending to RabbitMQ");
-                    if let Some(listener) = &listener {
-                        listener.num_failed.inc();
-                    }
+                    listener.as_ref().map(|l| l.num_failed.inc());
                 }
             }
         }
@@ -218,7 +207,7 @@ impl CandidatesValidator {
 
     // TODO: JoinHandle or errC
     pub(crate) fn run(&self, candidates_receiver: mpsc::Receiver<CandidateData>) -> mpsc::Receiver<PublishData> {
-        let (sender, receiver) = mpsc::channel(100);
+        let (sender, receiver) = mpsc::channel(1000);
         actix::spawn(
             self.clone()
                 .process_candidates(candidates_receiver, RabbitPublisherHandle { sender }),

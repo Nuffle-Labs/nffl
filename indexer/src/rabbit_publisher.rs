@@ -181,17 +181,15 @@ impl RabbitPublisher {
                     match logic(connection_pool.clone(), connection, publish_data.clone()).await {
                         Ok(new_connection) => {
                             let duration = start_time.elapsed();
-                            if let Some(listener) = &listener {
-                                listener.num_published_blocks.inc();
-                                listener.publish_duration_histogram.observe(duration.as_millis() as f64);
-                            }
+                            listener.as_ref().map(|l| {
+                                l.num_published_blocks.inc();
+                                l.publish_duration_histogram.observe(duration.as_millis() as f64);
+                            });
 
                             connection = new_connection;
                         }
                         Err(err) => {
-                            if let Some(listener) = &listener {
-                                listener.num_failed_publishes.inc();
-                            }
+                            listener.as_ref().map(|l| l.num_failed_publishes.inc());
 
                             Self::handle_error(err, Some(publish_data));
                             break ERROR_CODE;
