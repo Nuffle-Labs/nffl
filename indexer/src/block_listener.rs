@@ -2,36 +2,21 @@ use futures::future::join_all;
 use near_indexer::near_primitives::{types::AccountId, views::ActionView};
 use near_indexer::StreamerMessage;
 use prometheus::Registry;
+use std::collections::VecDeque;
+use std::time::Duration;
 use std::{
     collections::HashMap,
     fmt::{self, Formatter},
+    sync,
 };
-use tokio::sync::mpsc;
-use tokio::sync::mpsc::Receiver;
-use tokio::task::JoinHandle;
+use tokio::sync::mpsc::error::TrySendError;
+use tokio::sync::{oneshot, Mutex};
+use tokio::{sync::mpsc, sync::mpsc::Receiver, task::JoinHandle, time};
 use tracing::info;
 
 use crate::metrics::{make_block_listener_metrics, BlockEventListener, Metricable};
-use crate::{errors::Result, INDEXER};
-
-#[derive(Clone, Debug)]
-pub(crate) struct CandidateData {
-    pub rollup_id: u32,
-    pub transaction: near_indexer::IndexerTransactionWithOutcome,
-    pub payloads: Vec<Vec<u8>>,
-}
-
-impl fmt::Display for CandidateData {
-    fn fmt(&self, f: &mut Formatter<'_>) -> fmt::Result {
-        f.write_fmt(format_args!(
-            "rollup_id: {}, id: {}, signer_id: {}, receiver_id {}",
-            self.rollup_id,
-            self.transaction.transaction.hash,
-            self.transaction.transaction.signer_id,
-            self.transaction.transaction.receiver_id
-        ))
-    }
-}
+use crate::types::CandidateData;
+use crate::{errors::Result, types, INDEXER};
 
 #[derive(Clone, Debug, serde::Serialize, serde::Deserialize)]
 pub(crate) struct TransactionWithRollupId {
@@ -75,20 +60,71 @@ impl BlockListener {
         }
     }
 
+    async fn ticker(
+        mut done: oneshot::Receiver<()>,
+        queue_protected: types::ProtectedQueue,
+        candidates_sender: mpsc::Sender<CandidateData>,
+    ) {
+        let mut interval = time::interval(Duration::from_secs(1));
+        loop {
+            tokio::select! {
+                _ = interval.tick() => {
+                    let mut queue = queue_protected.lock().await;
+                    let _ = Self::flush(&mut queue, &candidates_sender);
+                    interval.reset();
+                },
+                _ = &mut done => {
+                    return
+                }
+            }
+        }
+    }
+
+    fn flush(queue: &mut VecDeque<CandidateData>, candidates_sender: &mpsc::Sender<CandidateData>) -> bool {
+        if queue.is_empty() {
+            return true;
+        }
+
+        info!(target: INDEXER, "Flushing");
+        while let Some(candidate) = queue.front() {
+            match candidates_sender.try_send(candidate.clone()) {
+                Ok(_) => {
+                    let _ = queue.pop_front();
+                }
+                Err(err) => {
+                    return match err {
+                        TrySendError::Full(_) => false,
+                        // TODO: Handle this or maybe not
+                        TrySendError::Closed(_) => false,
+                    };
+                }
+            }
+        }
+
+        true
+    }
+
     async fn process_stream(
         self,
         mut indexer_stream: Receiver<StreamerMessage>,
         candidates_sender: mpsc::Sender<CandidateData>,
-    ) -> Result<()> {
+    ) {
         let Self {
             addresses_to_rollup_ids,
             listener,
         } = self;
 
+        let queue_protected = sync::Arc::new(Mutex::new(VecDeque::new()));
+        let (done_sender, done_receiver) = oneshot::channel();
+        actix::spawn(Self::ticker(
+            done_receiver,
+            queue_protected.clone(),
+            candidates_sender.clone(),
+        ));
+
         while let Some(streamer_message) = indexer_stream.recv().await {
             info!(target: INDEXER, "Received streamer message");
 
-            // TODO: check receipt_receiver is closed?
             let candidates_data: Vec<CandidateData> = streamer_message
                 .shards
                 .into_iter()
@@ -111,6 +147,18 @@ impl BlockListener {
                 continue;
             }
 
+            // TODO: attempt flushing even if no new candidates or not?
+            // Flushing old messages before new one
+            {
+                let mut queue = queue_protected.lock().await;
+                let flushed = Self::flush(&mut queue, &candidates_sender);
+                if !flushed {
+                    info!(target: INDEXER, "Not flushed, so enqueuing candidate data");
+                    queue.extend(candidates_data);
+                    continue;
+                }
+            }
+
             {
                 let candidates_len = candidates_data.len();
                 info!(target: INDEXER, "Found {} candidate(s)", candidates_len);
@@ -119,24 +167,32 @@ impl BlockListener {
                     .map(|listener| listener.num_candidates.inc_by(candidates_len as f64));
             }
 
-            // TODO: try_send instead checking for capacity. Not to stall
-            let results = join_all(
-                candidates_data
-                    .into_iter()
-                    .map(|receipt| candidates_sender.send(receipt)),
-            )
-            .await;
-            results.into_iter().collect::<Result<_, _>>()?;
+            let mut iter = candidates_data.into_iter();
+            while let Some(candidate) = iter.next() {
+                match candidates_sender.try_send(candidate) {
+                    Ok(_) => {}
+                    Err(err) => match err {
+                        TrySendError::Full(candidate) => {
+                            let mut queue = queue_protected.lock().await;
+                            queue.push_back(candidate);
+                            queue.extend(iter);
+
+                            break;
+                        }
+                        TrySendError::Closed(candidate) => {
+                            //TODO: wow
+                            break;
+                        }
+                    },
+                }
+            }
         }
 
-        Ok(())
+        let _ = done_sender.send(());
     }
 
     /// Filters indexer stream and returns receiving channel.
-    pub(crate) fn run(
-        &self,
-        indexer_stream: Receiver<StreamerMessage>,
-    ) -> (JoinHandle<Result<()>>, Receiver<CandidateData>) {
+    pub(crate) fn run(&self, indexer_stream: Receiver<StreamerMessage>) -> (JoinHandle<()>, Receiver<CandidateData>) {
         let (candidates_sender, candidates_receiver) = mpsc::channel(1000);
         let handle = actix::spawn(Self::process_stream(self.clone(), indexer_stream, candidates_sender));
 
@@ -155,7 +211,8 @@ impl Metricable for BlockListener {
 
 #[cfg(test)]
 mod tests {
-    use crate::block_listener::{BlockListener, CandidateData, TransactionWithRollupId};
+    use crate::block_listener::{BlockListener, TransactionWithRollupId};
+    use crate::types::CandidateData;
     use near_crypto::{KeyType, PublicKey, Signature};
     use near_indexer::near_primitives::hash::CryptoHash;
     use near_indexer::near_primitives::types::AccountId;

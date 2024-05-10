@@ -8,17 +8,16 @@ use tokio::{
 };
 use tracing::info;
 
+use crate::types::CandidateData;
 use crate::{
-    block_listener::CandidateData,
     errors::Result,
     metrics::{make_candidates_validator_metrics, CandidatesListener, Metricable},
     rabbit_publisher::RabbitPublisherHandle,
     rabbit_publisher::{get_routing_key, PublishData, PublishOptions, PublishPayload, PublisherContext},
+    types,
 };
 
 const CANDIDATES_VALIDATOR: &str = "candidates_validator";
-
-type ProtectedQueue = sync::Arc<Mutex<VecDeque<CandidateData>>>;
 
 #[derive(Clone)]
 pub(crate) struct CandidatesValidator {
@@ -36,7 +35,7 @@ impl CandidatesValidator {
 
     async fn ticker(
         mut done: oneshot::Receiver<()>,
-        queue_protected: ProtectedQueue,
+        queue_protected: types::ProtectedQueue,
         mut rmq_handle: RabbitPublisherHandle,
         view_client: actix::Addr<near_client::ViewClientActor>,
         listener: Option<CandidatesListener>,
@@ -100,7 +99,8 @@ impl CandidatesValidator {
         candidate_data: &CandidateData,
     ) -> Result<FinalExecutionStatus> {
         info!(target: CANDIDATES_VALIDATOR, "Fetching execution outcome for candidate data");
-        Ok(view_client
+        // TODO: clean
+        let kek = view_client
             .send(
                 near_client::TxStatus {
                     tx_hash: candidate_data.transaction.transaction.hash,
@@ -109,7 +109,8 @@ impl CandidatesValidator {
                 }
                 .with_span_context(),
             )
-            .await??
+            .await;
+        Ok(kek??
             .execution_outcome
             .map(|x| x.into_outcome().status)
             .unwrap_or(FinalExecutionStatus::NotStarted))
@@ -146,7 +147,6 @@ impl CandidatesValidator {
         let Self { view_client, listener } = self;
 
         let queue_protected = sync::Arc::new(Mutex::new(VecDeque::new()));
-
         let (done_sender, done_receiver) = oneshot::channel();
         actix::spawn(Self::ticker(
             done_receiver,

@@ -99,7 +99,6 @@ impl MetricsServer {
                         ServerState::Shutdown
                     } else {
                         info!(target: METRICS, "Reconnecting server");
-
                         retries += 1;
                         tokio::time::sleep(RECONNECTION_INTERVAL).await;
                         self.reconnect().await
