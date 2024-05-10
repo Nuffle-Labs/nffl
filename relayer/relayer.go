@@ -162,6 +162,8 @@ func (r *Relayer) listenToBlocks(ctx context.Context, blockBatchC chan []*ethtyp
 	reinitializeTicker := time.NewTicker(REINITIALIZE_DELAY)
 	reinitializeTicker.Stop()
 
+	defer reinitializeTicker.Stop()
+
 	reinitializeSubscription := func() error {
 		client, err := r.reconnectClient()
 		if err != nil {
