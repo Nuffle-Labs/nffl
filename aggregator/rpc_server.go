@@ -85,7 +85,7 @@ func (agg *Aggregator) ProcessSignedStateRootUpdateMessage(signedStateRootUpdate
 	agg.stateRootUpdateBlsAggregationService.InitializeMessageIfNotExists(
 		messageDigest,
 		coretypes.QUORUM_NUMBERS,
-		[]eigentypes.QuorumThresholdPercentage{types.QUORUM_THRESHOLD_NUMERATOR},
+		[]eigentypes.QuorumThresholdPercentage{types.MESSAGE_AGGREGATION_QUORUM_THRESHOLD},
 		types.MESSAGE_TTL,
 		types.MESSAGE_BLS_AGGREGATION_TIMEOUT,
 		0,
@@ -125,7 +125,7 @@ func (agg *Aggregator) ProcessSignedOperatorSetUpdateMessage(signedOperatorSetUp
 	agg.operatorSetUpdateBlsAggregationService.InitializeMessageIfNotExists(
 		messageDigest,
 		coretypes.QUORUM_NUMBERS,
-		[]eigentypes.QuorumThresholdPercentage{types.QUORUM_THRESHOLD_NUMERATOR},
+		[]eigentypes.QuorumThresholdPercentage{types.MESSAGE_AGGREGATION_QUORUM_THRESHOLD},
 		types.MESSAGE_TTL,
 		types.MESSAGE_BLS_AGGREGATION_TIMEOUT,
 		uint64(blockNumber)-1,

@@ -68,7 +68,7 @@ func TestSendNewTask(t *testing.T) {
 	)
 
 	mockAvsWriterer.EXPECT().SendNewCheckpointTask(
-		context.Background(), FROM_TIMESTAMP, TO_TIMESTAMP, types.QUORUM_THRESHOLD_NUMERATOR, coretypes.QUORUM_NUMBERS,
+		context.Background(), FROM_TIMESTAMP, TO_TIMESTAMP, types.TASK_QUORUM_THRESHOLD, coretypes.QUORUM_NUMBERS,
 	).Return(aggmocks.MockSendNewCheckpointTask(BLOCK_NUMBER, TASK_INDEX, FROM_TIMESTAMP, TO_TIMESTAMP))
 	mockAvsReaderer.EXPECT().GetLastCheckpointToTimestamp(context.Background()).Return(FROM_TIMESTAMP-1, nil)
 
@@ -77,7 +77,7 @@ func TestSendNewTask(t *testing.T) {
 	// make sure that initializeNewTask was called on the blsAggService
 	// maybe there's a better way to do this? There's a saying "don't mock 3rd party code"
 	// see https://hynek.me/articles/what-to-mock-in-5-mins/
-	mockTaskBlsAggService.EXPECT().InitializeNewTask(TASK_INDEX, BLOCK_NUMBER, coretypes.QUORUM_NUMBERS, []eigentypes.QuorumThresholdPercentage{types.QUORUM_THRESHOLD_NUMERATOR}, taskTimeToExpiry)
+	mockTaskBlsAggService.EXPECT().InitializeNewTask(TASK_INDEX, BLOCK_NUMBER, coretypes.QUORUM_NUMBERS, []eigentypes.QuorumThresholdPercentage{types.TASK_AGGREGATION_QUORUM_THRESHOLD}, taskTimeToExpiry)
 
 	aggregator.sendNewCheckpointTask()
 }

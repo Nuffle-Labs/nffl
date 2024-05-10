@@ -373,7 +373,7 @@ func (agg *Aggregator) sendNewCheckpointTask() {
 
 	agg.logger.Info("Aggregator sending new task", "fromTimestamp", fromTimestamp, "toTimestamp", toTimestamp)
 	// Send checkpoint to the task manager contract
-	newTask, taskIndex, err := agg.avsWriter.SendNewCheckpointTask(context.Background(), fromTimestamp, toTimestamp, types.QUORUM_THRESHOLD_NUMERATOR, coretypes.QUORUM_NUMBERS)
+	newTask, taskIndex, err := agg.avsWriter.SendNewCheckpointTask(context.Background(), fromTimestamp, toTimestamp, types.TASK_QUORUM_THRESHOLD, coretypes.QUORUM_NUMBERS)
 	if err != nil {
 		agg.logger.Error("Aggregator failed to send checkpoint", "err", err)
 		return
@@ -385,7 +385,7 @@ func (agg *Aggregator) sendNewCheckpointTask() {
 
 	quorumThresholds := make([]eigentypes.QuorumThresholdPercentage, len(newTask.QuorumNumbers))
 	for i, _ := range newTask.QuorumNumbers {
-		quorumThresholds[i] = eigentypes.QuorumThresholdPercentage(newTask.QuorumThreshold)
+		quorumThresholds[i] = types.TASK_AGGREGATION_QUORUM_THRESHOLD
 	}
 	// TODO(samlaf): we use seconds for now, but we should ideally pass a blocknumber to the blsAggregationService
 	// and it should monitor the chain and only expire the task aggregation once the chain has reached that block number.
