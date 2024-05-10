@@ -1,8 +1,9 @@
 use near_indexer::near_primitives::views::{ExecutionStatusView, FinalExecutionStatus};
 use near_o11y::WithSpanContextExt;
+use prometheus::Registry;
 use std::{collections::VecDeque, sync, time::Duration};
 use tokio::{
-    sync::{mpsc, Mutex},
+    sync::{mpsc, oneshot, Mutex},
     time,
 };
 use tracing::info;
@@ -10,39 +11,35 @@ use tracing::info;
 use crate::{
     block_listener::CandidateData,
     errors::Result,
-    rabbit_publisher::RabbitPublisher,
+    metrics::{make_candidates_validator_metrics, CandidatesListener, Metricable},
+    rabbit_publisher::RabbitPublisherHandle,
     rabbit_publisher::{get_routing_key, PublishData, PublishOptions, PublishPayload, PublisherContext},
 };
 
 const CANDIDATES_VALIDATOR: &str = "candidates_validator";
 
 type ProtectedQueue = sync::Arc<Mutex<VecDeque<CandidateData>>>;
-type ProtectedPublisher = sync::Arc<Mutex<RabbitPublisher>>;
 
+#[derive(Clone)]
 pub(crate) struct CandidatesValidator {
     view_client: actix::Addr<near_client::ViewClientActor>,
-    receiver: mpsc::Receiver<CandidateData>,
-    rabbit_publisher: RabbitPublisher,
+    listener: Option<CandidatesListener>,
 }
 
 impl CandidatesValidator {
-    pub(crate) fn new(
-        view_client: actix::Addr<near_client::ViewClientActor>,
-        receiver: mpsc::Receiver<CandidateData>,
-        rabbit_publisher: RabbitPublisher,
-    ) -> Self {
+    pub(crate) fn new(view_client: actix::Addr<near_client::ViewClientActor>) -> Self {
         Self {
             view_client,
-            receiver,
-            rabbit_publisher,
+            listener: None,
         }
     }
 
     async fn ticker(
-        mut done: mpsc::Receiver<()>,
+        mut done: oneshot::Receiver<()>,
         queue_protected: ProtectedQueue,
-        publisher_protected: ProtectedPublisher,
+        mut rmq_handle: RabbitPublisherHandle,
         view_client: actix::Addr<near_client::ViewClientActor>,
+        listener: Option<CandidatesListener>,
     ) {
         info!(target: CANDIDATES_VALIDATOR, "Starting ticker");
         let mut interval = time::interval(Duration::from_secs(2));
@@ -51,10 +48,10 @@ impl CandidatesValidator {
             tokio::select! {
                 _ = interval.tick() => {
                     let mut queue = queue_protected.lock().await;
-                    let _ = Self::flush(&mut queue, publisher_protected.clone(), &view_client).await;
+                    let _ = Self::flush(&mut queue, &mut rmq_handle, &view_client, listener.clone()).await;
                     interval.reset();
                 },
-                _ = done.recv() => {
+                _ = &mut done => {
                     return
                 }
             }
@@ -64,8 +61,9 @@ impl CandidatesValidator {
     // Assumes queue is under mutex
     async fn flush(
         queue: &mut VecDeque<CandidateData>,
-        publisher_protected: ProtectedPublisher,
+        rmq_handle: &mut RabbitPublisherHandle,
         view_client: &actix::Addr<near_client::ViewClientActor>,
+        listener: Option<CandidatesListener>,
     ) -> Result<bool> {
         if queue.is_empty() {
             return Ok(true);
@@ -81,11 +79,14 @@ impl CandidatesValidator {
                 }
                 FinalExecutionStatus::SuccessValue(_) => {
                     info!(target: CANDIDATES_VALIDATOR, "Candidate status now successful, candidate_data: {}", candidate_data);
-                    Self::send(candidate_data, publisher_protected.clone()).await?;
+                    listener.as_ref().map(|l| l.num_successful.inc());
+                    Self::send(candidate_data, rmq_handle).await?;
                     queue.pop_front();
                 }
                 FinalExecutionStatus::Failure(_) => {
                     info!(target: CANDIDATES_VALIDATOR, "Execution failed, not sending to RabbitMQ");
+                    listener.as_ref().map(|l| l.num_failed.inc());
+
                     queue.pop_front();
                 }
             };
@@ -114,11 +115,10 @@ impl CandidatesValidator {
             .unwrap_or(FinalExecutionStatus::NotStarted))
     }
 
-    async fn send(candidate_data: &CandidateData, publisher_protected: ProtectedPublisher) -> Result<()> {
+    async fn send(candidate_data: &CandidateData, rmq_handle: &mut RabbitPublisherHandle) -> Result<()> {
         // TODO: is sequential order important here?
-        let mut rabbit_publisher = publisher_protected.lock().await;
         for data in candidate_data.clone().payloads {
-            rabbit_publisher
+            rmq_handle
                 .publish(PublishData {
                     publish_options: PublishOptions {
                         routing_key: get_routing_key(candidate_data.rollup_id),
@@ -138,22 +138,22 @@ impl CandidatesValidator {
         Ok(())
     }
 
-    async fn process_candidates(self) -> Result<()> {
-        let Self {
-            mut receiver,
-            rabbit_publisher,
-            view_client,
-        } = self;
+    async fn process_candidates(
+        self,
+        mut receiver: mpsc::Receiver<CandidateData>,
+        mut rmq_handle: RabbitPublisherHandle,
+    ) -> Result<()> {
+        let Self { view_client, listener } = self;
 
         let queue_protected = sync::Arc::new(Mutex::new(VecDeque::new()));
-        let publisher_protected = sync::Arc::new(Mutex::new(rabbit_publisher));
 
-        let (done_sender, done_receiver) = mpsc::channel(1);
-        tokio::spawn(Self::ticker(
+        let (done_sender, done_receiver) = oneshot::channel();
+        actix::spawn(Self::ticker(
             done_receiver,
             queue_protected.clone(),
-            publisher_protected.clone(),
+            rmq_handle.clone(),
             view_client.clone(),
+            listener.clone(),
         ));
 
         while let Some(candidate_data) = receiver.recv().await {
@@ -163,7 +163,7 @@ impl CandidatesValidator {
                 let mut queue = queue_protected.lock().await;
                 // TODO(edwin): handle errors/ unwrap_or(false)?
                 info!(target: CANDIDATES_VALIDATOR, "Flushing enqueued candidates");
-                let flushed = Self::flush(&mut queue, publisher_protected.clone(), &view_client).await?;
+                let flushed = Self::flush(&mut queue, &mut rmq_handle, &view_client, listener.clone()).await?;
 
                 if !flushed {
                     info!(target: CANDIDATES_VALIDATOR, "Not flushed, so enqueuing candidate data");
@@ -173,7 +173,12 @@ impl CandidatesValidator {
             }
 
             let final_status = match candidate_data.transaction.outcome.execution_outcome.outcome.status {
-                ExecutionStatusView::Failure(_) => continue,
+                ExecutionStatusView::Failure(_) => {
+                    info!(target: CANDIDATES_VALIDATOR, "Execution failed, not sending to RabbitMQ");
+                    listener.as_ref().map(|l| l.num_failed.inc());
+
+                    continue;
+                }
                 _ => Self::fetch_execution_outcome(&view_client, &candidate_data).await?,
             };
 
@@ -185,24 +190,38 @@ impl CandidatesValidator {
                 }
                 FinalExecutionStatus::SuccessValue(_) => {
                     info!(target: CANDIDATES_VALIDATOR, "Candidate executed successfully, candidate_data: {}", candidate_data);
-                    Self::send(&candidate_data, publisher_protected.clone()).await?;
+                    listener.as_ref().map(|l| l.num_successful.inc());
+
+                    Self::send(&candidate_data, &mut rmq_handle).await?;
                 }
                 FinalExecutionStatus::Failure(_) => {
                     info!(target: CANDIDATES_VALIDATOR, "Execution failed, not sending to RabbitMQ");
+                    listener.as_ref().map(|l| l.num_failed.inc());
                 }
             }
         }
 
-        Ok(done_sender.send(()).await?)
+        let _ = done_sender.send(());
+        Ok(())
     }
 
-    pub(crate) async fn start(self) -> Result<()> {
-        let rabbit_publisher = self.rabbit_publisher.clone();
-        tokio::select! {
-            result = self.process_candidates() => result,
-            _ = rabbit_publisher.closed() => {
-                Ok(())
-            }
-        }
+    // TODO: JoinHandle or errC
+    pub(crate) fn run(&self, candidates_receiver: mpsc::Receiver<CandidateData>) -> mpsc::Receiver<PublishData> {
+        let (sender, receiver) = mpsc::channel(1000);
+        actix::spawn(
+            self.clone()
+                .process_candidates(candidates_receiver, RabbitPublisherHandle { sender }),
+        );
+
+        receiver
+    }
+}
+
+impl Metricable for CandidatesValidator {
+    fn enable_metrics(&mut self, registry: Registry) -> Result<()> {
+        let listener = make_candidates_validator_metrics(registry)?;
+        self.listener = Some(listener);
+
+        Ok(())
     }
 }

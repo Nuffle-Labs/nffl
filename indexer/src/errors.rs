@@ -24,6 +24,12 @@ pub enum Error {
     TxStatusError(String),
     #[error("Number of da_contract_ids shall match rollup_ids")]
     IDsAndContractAddressesError,
+    #[error(transparent)]
+    PrometheusError(#[from] prometheus::Error),
+    #[error("{0}")]
+    ActixErrorKind(std::io::ErrorKind),
+    #[error{"0"}]
+    JoinError(#[from] tokio::task::JoinError),
 }
 
 impl<T> From<SendError<T>> for Error {
@@ -42,6 +48,12 @@ impl From<near_client_primitives::types::TxStatusError> for Error {
             near_client_primitives::types::TxStatusError::InternalError(err) => Self::TxStatusError(err),
             near_client_primitives::types::TxStatusError::TimeoutError => Self::TxStatusError("Timeout".into()),
         }
+    }
+}
+
+impl From<std::io::ErrorKind> for Error {
+    fn from(value: std::io::ErrorKind) -> Self {
+        Error::ActixErrorKind(value)
     }
 }
 

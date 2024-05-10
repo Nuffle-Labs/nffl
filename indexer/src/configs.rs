@@ -1,5 +1,6 @@
 use near_indexer::near_primitives::types::{AccountId, Gas};
 use std::collections::HashMap;
+use std::net::SocketAddr;
 
 use crate::errors::{Error, Result};
 
@@ -47,6 +48,9 @@ pub(crate) struct RunConfigArgs {
     /// Target Rollup ID
     #[clap(long)]
     pub rollup_ids: Vec<u32>,
+    /// Metrics socket addr
+    #[clap(long)]
+    pub metrics_ip_port_address: Option<SocketAddr>,
 }
 
 impl RunConfigArgs {
