@@ -95,6 +95,7 @@ impl MetricsServer {
                 ServerState::Shutdown => return Ok(()),
                 ServerState::WaitingForReconnection => {
                     if retries == RECONNECTION_RETRIES {
+                        info!(target: METRICS, "Reconnection attempts limit reached");
                         ServerState::Shutdown
                     } else {
                         info!(target: METRICS, "Reconnecting server");

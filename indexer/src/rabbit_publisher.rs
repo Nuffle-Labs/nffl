@@ -175,29 +175,28 @@ impl RabbitPublisher {
         };
 
         let code = loop {
-            match receiver.recv().await {
-                Some(publish_data) => {
-                    let start_time = std::time::Instant::now();
-                    match logic(connection_pool.clone(), connection, publish_data.clone()).await {
-                        Ok(new_connection) => {
-                            let duration = start_time.elapsed();
-                            listener.as_ref().map(|l| {
-                                l.num_published_blocks.inc();
-                                l.publish_duration_histogram.observe(duration.as_millis() as f64);
-                            });
+            if let Some(publish_data) = receiver.recv().await {
+                let start_time = std::time::Instant::now();
+                match logic(connection_pool.clone(), connection, publish_data.clone()).await {
+                    Ok(new_connection) => {
+                        let duration = start_time.elapsed();
+                        listener.as_ref().map(|l| {
+                            l.num_published_blocks.inc();
+                            l.publish_duration_histogram.observe(duration.as_millis() as f64);
+                        });
 
-                            connection = new_connection;
-                        }
-                        Err(err) => {
-                            listener.as_ref().map(|l| l.num_failed_publishes.inc());
+                        connection = new_connection;
+                    }
+                    Err(err) => {
+                        listener.as_ref().map(|l| l.num_failed_publishes.inc());
 
-                            Self::handle_error(err, Some(publish_data));
-                            break ERROR_CODE;
-                        }
+                        Self::handle_error(err, Some(publish_data));
+                        break ERROR_CODE;
                     }
                 }
-                None => break 0,
-            };
+            } else {
+                break 0;
+            }
         };
 
         receiver.close();
