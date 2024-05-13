@@ -8,7 +8,6 @@ use tokio::{
 };
 use tracing::info;
 
-use crate::types::CandidateData;
 use crate::{
     errors::Result,
     metrics::{make_candidates_validator_metrics, CandidatesListener, Metricable},
@@ -35,7 +34,7 @@ impl CandidatesValidator {
 
     async fn ticker(
         mut done: oneshot::Receiver<()>,
-        queue_protected: types::ProtectedQueue<CandidateData>,
+        queue_protected: types::ProtectedQueue<types::CandidateData>,
         mut rmq_handle: RabbitPublisherHandle,
         view_client: actix::Addr<near_client::ViewClientActor>,
         listener: Option<CandidatesListener>,
@@ -59,7 +58,7 @@ impl CandidatesValidator {
 
     // Assumes queue is under mutex
     async fn flush(
-        queue: &mut VecDeque<CandidateData>,
+        queue: &mut VecDeque<types::CandidateData>,
         rmq_handle: &mut RabbitPublisherHandle,
         view_client: &actix::Addr<near_client::ViewClientActor>,
         listener: Option<CandidatesListener>,
@@ -96,7 +95,7 @@ impl CandidatesValidator {
 
     async fn fetch_execution_outcome(
         view_client: &actix::Addr<near_client::ViewClientActor>,
-        candidate_data: &CandidateData,
+        candidate_data: &types::CandidateData,
     ) -> Result<FinalExecutionStatus> {
         info!(target: CANDIDATES_VALIDATOR, "Fetching execution outcome for candidate data");
         Ok(view_client
@@ -114,7 +113,7 @@ impl CandidatesValidator {
             .unwrap_or(FinalExecutionStatus::NotStarted))
     }
 
-    async fn send(candidate_data: &CandidateData, rmq_handle: &mut RabbitPublisherHandle) -> Result<()> {
+    async fn send(candidate_data: &types::CandidateData, rmq_handle: &mut RabbitPublisherHandle) -> Result<()> {
         // TODO: is sequential order important here?
         for data in candidate_data.clone().payloads {
             rmq_handle
@@ -139,7 +138,7 @@ impl CandidatesValidator {
 
     async fn process_candidates(
         self,
-        mut receiver: mpsc::Receiver<CandidateData>,
+        mut receiver: mpsc::Receiver<types::CandidateData>,
         mut rmq_handle: RabbitPublisherHandle,
     ) -> Result<()> {
         let Self { view_client, listener } = self;
@@ -204,7 +203,7 @@ impl CandidatesValidator {
     }
 
     // TODO: JoinHandle or errC
-    pub(crate) fn run(&self, candidates_receiver: mpsc::Receiver<CandidateData>) -> mpsc::Receiver<PublishData> {
+    pub(crate) fn run(&self, candidates_receiver: mpsc::Receiver<types::CandidateData>) -> mpsc::Receiver<PublishData> {
         let (sender, receiver) = mpsc::channel(1000);
         actix::spawn(
             self.clone()

@@ -3,8 +3,7 @@ use prometheus::Registry;
 use std::collections::HashMap;
 use tokio::{sync::mpsc::Receiver, task::JoinHandle};
 
-use crate::types::CandidateData;
-use crate::{block_listener::BlockListener, errors::Result, metrics::Metricable};
+use crate::{block_listener::BlockListener, errors::Result, metrics::Metricable, types};
 
 pub struct IndexerWrapper {
     indexer: near_indexer::Indexer,
@@ -31,7 +30,7 @@ impl IndexerWrapper {
         self.indexer.client_actors()
     }
 
-    pub fn run(self) -> (JoinHandle<()>, Receiver<CandidateData>) {
+    pub fn run(self) -> (JoinHandle<()>, Receiver<types::CandidateData>) {
         let indexer_stream = self.indexer.streamer();
         self.block_listener.run(indexer_stream)
     }

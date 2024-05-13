@@ -1,15 +1,17 @@
-use near_indexer::near_primitives::{types::AccountId, views::ActionView};
-use near_indexer::StreamerMessage;
-use prometheus::Registry;
-use std::collections::VecDeque;
-use std::time::Duration;
-use std::{
-    collections::HashMap,
-    sync,
+use near_indexer::{
+    near_primitives::{types::AccountId, views::ActionView},
+    StreamerMessage,
 };
-use tokio::sync::mpsc::error::TrySendError;
-use tokio::sync::{oneshot, Mutex};
-use tokio::{sync::mpsc, sync::mpsc::Receiver, task::JoinHandle, time};
+use prometheus::Registry;
+use std::{collections::HashMap, collections::VecDeque, sync, time::Duration};
+use tokio::{
+    sync::{
+        mpsc::{self, error::TrySendError, Receiver},
+        oneshot, Mutex,
+    },
+    task::JoinHandle,
+    time,
+};
 use tracing::info;
 
 use crate::{
@@ -123,7 +125,7 @@ impl BlockListener {
                     let _ = queue.pop_front();
                 }
                 // TODO: return TrySendError instead
-                Err(_) => return false
+                Err(_) => return false,
             }
         }
 
