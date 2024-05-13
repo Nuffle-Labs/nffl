@@ -20,6 +20,7 @@ const (
 	BLOCK_MAX_RANGE  = 10000
 	RESUB_INTERVAL   = 5 * time.Minute
 	REINIT_INTERVAL  = 1 * time.Minute
+	HEADER_TIMEOUT   = 1 * time.Minute
 )
 
 type SafeEthClient struct {
@@ -397,12 +398,13 @@ func (c *SafeEthClient) SubscribeNewHead(ctx context.Context, ch chan<- *types.H
 	c.logger.Info("Subscribed to new heads")
 
 	safeSub := NewSafeSubscription(sub)
+	intermediateC := make(chan *types.Header, 100)
 
 	resub := func() error {
 		c.clientLock.RLock()
 		defer c.clientLock.RUnlock()
 
-		sub, err = c.Client.SubscribeNewHead(ctx, ch)
+		sub, err = c.Client.SubscribeNewHead(ctx, intermediateC)
 		if err != nil {
 			c.logger.Error("Failed to resubscribe to new heads", "err", err)
 			return err
@@ -419,9 +421,14 @@ func (c *SafeEthClient) SubscribeNewHead(ctx context.Context, ch chan<- *types.H
 		defer c.wg.Done()
 
 		reinitC := c.WatchReinit()
+		headerTicker := time.NewTicker(HEADER_TIMEOUT)
+		receivedBlock := false
 
 		for {
 			select {
+			case header := <-intermediateC:
+				receivedBlock = true
+				ch <- header
 			case <-safeSub.Err():
 				c.logger.Info("Safe subscription to new heads ended")
 				return
@@ -438,6 +445,16 @@ func (c *SafeEthClient) SubscribeNewHead(ctx context.Context, ch chan<- *types.H
 				err := resub()
 				if err != nil {
 					c.handleClientError(err)
+				}
+			case <-headerTicker.C:
+				c.logger.Info("Header ticker fired, ending subscription")
+				if receivedBlock {
+					receivedBlock = false
+				} else {
+					err := resub()
+					if err != nil {
+						c.handleClientError(err)
+					}
 				}
 			case <-ctx.Done():
 				c.logger.Info("Context done, ending new heads subscription")
