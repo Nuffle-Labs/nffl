@@ -3,7 +3,7 @@ use std::fmt::Formatter;
 use std::{fmt, sync};
 use tokio::sync::Mutex;
 
-pub(crate) type ProtectedQueue = sync::Arc<Mutex<VecDeque<CandidateData>>>;
+pub(crate) type ProtectedQueue<T> = sync::Arc<Mutex<VecDeque<T>>>;
 
 #[derive(Clone, Debug)]
 pub(crate) struct CandidateData {

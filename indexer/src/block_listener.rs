@@ -1,4 +1,3 @@
-use futures::future::join_all;
 use near_indexer::near_primitives::{types::AccountId, views::ActionView};
 use near_indexer::StreamerMessage;
 use prometheus::Registry;
@@ -6,7 +5,6 @@ use std::collections::VecDeque;
 use std::time::Duration;
 use std::{
     collections::HashMap,
-    fmt::{self, Formatter},
     sync,
 };
 use tokio::sync::mpsc::error::TrySendError;
@@ -14,12 +12,33 @@ use tokio::sync::{oneshot, Mutex};
 use tokio::{sync::mpsc, sync::mpsc::Receiver, task::JoinHandle, time};
 use tracing::info;
 
-use crate::metrics::{make_block_listener_metrics, BlockEventListener, Metricable};
-use crate::types::CandidateData;
-use crate::{errors::Result, types, INDEXER};
+use crate::{
+    errors::Result,
+    metrics::{make_block_listener_metrics, BlockEventListener, Metricable},
+    types,
+    types::CandidateData,
+    INDEXER,
+};
+
+#[cfg(not(test))]
+const EXPIRATION_TIMEOUT: Duration = Duration::from_secs(6);
+#[cfg(test)]
+const EXPIRATION_TIMEOUT: Duration = Duration::from_millis(200);
+
+#[derive(Clone)]
+struct ExpirableCandidatesData {
+    timestamp: time::Instant,
+    inner: CandidateData,
+}
+
+impl From<ExpirableCandidatesData> for CandidateData {
+    fn from(value: ExpirableCandidatesData) -> Self {
+        value.inner
+    }
+}
 
 #[derive(Clone, Debug, serde::Serialize, serde::Deserialize)]
-pub(crate) struct TransactionWithRollupId {
+struct TransactionWithRollupId {
     pub(crate) rollup_id: u32,
     pub(crate) transaction: near_indexer::IndexerTransactionWithOutcome,
 }
@@ -62,10 +81,15 @@ impl BlockListener {
 
     async fn ticker(
         mut done: oneshot::Receiver<()>,
-        queue_protected: types::ProtectedQueue,
+        queue_protected: types::ProtectedQueue<ExpirableCandidatesData>,
         candidates_sender: mpsc::Sender<CandidateData>,
     ) {
-        let mut interval = time::interval(Duration::from_secs(1));
+        #[cfg(not(test))]
+        const FLUSH_INTERVAL: Duration = Duration::from_secs(1);
+        #[cfg(test)]
+        const FLUSH_INTERVAL: Duration = Duration::from_millis(100);
+
+        let mut interval = time::interval(FLUSH_INTERVAL);
         loop {
             tokio::select! {
                 _ = interval.tick() => {
@@ -80,30 +104,33 @@ impl BlockListener {
         }
     }
 
-    fn flush(queue: &mut VecDeque<CandidateData>, candidates_sender: &mpsc::Sender<CandidateData>) -> bool {
+    fn flush(queue: &mut VecDeque<ExpirableCandidatesData>, candidates_sender: &mpsc::Sender<CandidateData>) -> bool {
         if queue.is_empty() {
             return true;
         }
 
         info!(target: INDEXER, "Flushing");
+
+        let now = time::Instant::now();
         while let Some(candidate) = queue.front() {
-            match candidates_sender.try_send(candidate.clone()) {
+            if now.duration_since(candidate.timestamp) >= EXPIRATION_TIMEOUT {
+                queue.pop_front();
+                continue;
+            }
+
+            match candidates_sender.try_send(candidate.clone().into()) {
                 Ok(_) => {
                     let _ = queue.pop_front();
                 }
-                Err(err) => {
-                    return match err {
-                        TrySendError::Full(_) => false,
-                        // TODO: Handle this or maybe not
-                        TrySendError::Closed(_) => false,
-                    };
-                }
+                // TODO: return TrySendError instead
+                Err(_) => return false
             }
         }
 
         true
     }
 
+    // TODO: introduce Task struct
     async fn process_stream(
         self,
         mut indexer_stream: Receiver<StreamerMessage>,
@@ -154,7 +181,13 @@ impl BlockListener {
                 let flushed = Self::flush(&mut queue, &candidates_sender);
                 if !flushed {
                     info!(target: INDEXER, "Not flushed, so enqueuing candidate data");
-                    queue.extend(candidates_data);
+
+                    let timestamp = time::Instant::now();
+                    queue.extend(
+                        candidates_data
+                            .into_iter()
+                            .map(|el| ExpirableCandidatesData { timestamp, inner: el }),
+                    );
                     continue;
                 }
             }
@@ -174,14 +207,18 @@ impl BlockListener {
                     Err(err) => match err {
                         TrySendError::Full(candidate) => {
                             let mut queue = queue_protected.lock().await;
-                            queue.push_back(candidate);
-                            queue.extend(iter);
+
+                            let timestamp = time::Instant::now();
+                            queue.push_back(ExpirableCandidatesData {
+                                timestamp,
+                                inner: candidate,
+                            });
+                            queue.extend(iter.map(|el| ExpirableCandidatesData { timestamp, inner: el }));
 
                             break;
                         }
-                        TrySendError::Closed(candidate) => {
-                            //TODO: wow
-                            break;
+                        TrySendError::Closed(_) => {
+                            return;
                         }
                     },
                 }
@@ -194,6 +231,17 @@ impl BlockListener {
     /// Filters indexer stream and returns receiving channel.
     pub(crate) fn run(&self, indexer_stream: Receiver<StreamerMessage>) -> (JoinHandle<()>, Receiver<CandidateData>) {
         let (candidates_sender, candidates_receiver) = mpsc::channel(1000);
+        let handle = actix::spawn(Self::process_stream(self.clone(), indexer_stream, candidates_sender));
+
+        (handle, candidates_receiver)
+    }
+
+    #[cfg(test)]
+    pub(crate) fn test_run(
+        &self,
+        indexer_stream: Receiver<StreamerMessage>,
+    ) -> (JoinHandle<()>, Receiver<CandidateData>) {
+        let (candidates_sender, candidates_receiver) = mpsc::channel(1);
         let handle = actix::spawn(Self::process_stream(self.clone(), indexer_stream, candidates_sender));
 
         (handle, candidates_receiver)
@@ -211,7 +259,7 @@ impl Metricable for BlockListener {
 
 #[cfg(test)]
 mod tests {
-    use crate::block_listener::{BlockListener, TransactionWithRollupId};
+    use crate::block_listener::{BlockListener, TransactionWithRollupId, EXPIRATION_TIMEOUT};
     use crate::types::CandidateData;
     use near_crypto::{KeyType, PublicKey, Signature};
     use near_indexer::near_primitives::hash::CryptoHash;
@@ -454,7 +502,7 @@ mod tests {
         }
 
         drop(stream_sender);
-        handle.await.unwrap().unwrap();
+        handle.await.unwrap();
 
         let mut counter = 0;
         while let Some(_) = candidates_receiver.recv().await {
@@ -487,6 +535,31 @@ mod tests {
 
         drop(candidates_receiver);
         // Sender::closed is triggered
-        assert!(handle.await.unwrap().is_ok());
+        assert!(handle.await.is_ok());
+    }
+
+    #[actix::test]
+    async fn test_expiration() {
+        let rollup_id = 1;
+        let da_contract_id = "da.test.near".parse().unwrap();
+
+        let streamer_messages = StreamerMessagesLoader::load();
+        let (stream_sender, stream_receiver) = mpsc::channel(10);
+
+        let listener = BlockListener::new(HashMap::from([(da_contract_id, rollup_id)]));
+        let (handle, mut candidates_receiver) = listener.test_run(stream_receiver);
+
+        let expected = streamer_messages.candidates.len();
+        for el in streamer_messages.candidates {
+            stream_sender.send(el).await.unwrap();
+        }
+
+        // Let messages expire
+        tokio::time::sleep(2 * EXPIRATION_TIMEOUT).await;
+
+        // There shall be first message available
+        assert!(candidates_receiver.try_recv().is_ok(), "Receiver shall have one value");
+        // The rest shall be expired
+        assert_eq!(Err(TryRecvError::Empty), candidates_receiver.try_recv());
     }
 }

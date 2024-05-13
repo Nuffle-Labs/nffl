@@ -35,7 +35,7 @@ impl CandidatesValidator {
 
     async fn ticker(
         mut done: oneshot::Receiver<()>,
-        queue_protected: types::ProtectedQueue,
+        queue_protected: types::ProtectedQueue<CandidateData>,
         mut rmq_handle: RabbitPublisherHandle,
         view_client: actix::Addr<near_client::ViewClientActor>,
         listener: Option<CandidatesListener>,
@@ -99,8 +99,7 @@ impl CandidatesValidator {
         candidate_data: &CandidateData,
     ) -> Result<FinalExecutionStatus> {
         info!(target: CANDIDATES_VALIDATOR, "Fetching execution outcome for candidate data");
-        // TODO: clean
-        let kek = view_client
+        Ok(view_client
             .send(
                 near_client::TxStatus {
                     tx_hash: candidate_data.transaction.transaction.hash,
@@ -109,8 +108,7 @@ impl CandidatesValidator {
                 }
                 .with_span_context(),
             )
-            .await;
-        Ok(kek??
+            .await??
             .execution_outcome
             .map(|x| x.into_outcome().status)
             .unwrap_or(FinalExecutionStatus::NotStarted))
