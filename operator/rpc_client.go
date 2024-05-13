@@ -203,14 +203,30 @@ func (c *AggregatorRpcClient) tryResendFromDeque() {
 
 		switch message := message.(type) {
 		case *messages.SignedCheckpointTaskResponse:
-			// TODO(edwin): handle error
 			err = c.rpcClient.Call("Aggregator.ProcessSignedCheckpointTaskResponse", message, &reply)
+			if err != nil {
+				c.listener.IncErroredCheckpointSubmissions(true)
+			} else {
+				c.listener.IncCheckpointTaskResponseSubmissions(true)
+				c.listener.ObserveLastCheckpointIdResponded(message.TaskResponse.ReferenceTaskIndex)
+			}
 
 		case *messages.SignedStateRootUpdateMessage:
 			err = c.rpcClient.Call("Aggregator.ProcessSignedStateRootUpdateMessage", message, &reply)
+			if err != nil {
+				c.listener.IncErroredStateRootUpdateSubmissions(message.Message.RollupId, true)
+			} else {
+				c.listener.IncStateRootUpdateSubmissions(message.Message.RollupId, true)
+			}
 
 		case *messages.SignedOperatorSetUpdateMessage:
 			err = c.rpcClient.Call("Aggregator.ProcessSignedOperatorSetUpdateMessage", message, &reply)
+			if err != nil {
+				c.listener.IncErroredOperatorSetUpdateSubmissions(true)
+			} else {
+				c.listener.IncOperatorSetUpdateUpdateSubmissions(true)
+				c.listener.ObserveLastOperatorSetUpdateIdResponded(message.Message.Id)
+			}
 
 		default:
 			panic("unreachable")
@@ -248,6 +264,7 @@ func (c *AggregatorRpcClient) tryResendFromDeque() {
 	}
 
 	c.unsentMessages = c.unsentMessages[:errorPos]
+	c.listener.ObserveResendQueueSize(len(c.unsentMessages))
 }
 
 func (c *AggregatorRpcClient) sendOperatorMessage(sendCb func() error, message interface{}) {
@@ -257,6 +274,7 @@ func (c *AggregatorRpcClient) sendOperatorMessage(sendCb func() error, message i
 	appendProtected := func() {
 		c.unsentMessagesLock.Lock()
 		c.unsentMessages = append(c.unsentMessages, unsentRpcMessage{Message: message})
+		c.listener.ObserveResendQueueSize(len(c.unsentMessages))
 		c.unsentMessagesLock.Unlock()
 	}
 
@@ -302,9 +320,14 @@ func (c *AggregatorRpcClient) SendSignedCheckpointTaskResponseToAggregator(signe
 		var reply bool
 		err := c.rpcClient.Call("Aggregator.ProcessSignedCheckpointTaskResponse", signedCheckpointTaskResponse, &reply)
 		if err != nil {
+			c.listener.IncErroredCheckpointSubmissions(false)
+
 			c.logger.Info("Received error from aggregator", "err", err)
 			return err
 		}
+
+		c.listener.IncCheckpointTaskResponseSubmissions(false)
+		c.listener.ObserveLastCheckpointIdResponded(signedCheckpointTaskResponse.TaskResponse.ReferenceTaskIndex)
 
 		c.logger.Info("Signed task response header accepted by aggregator.", "reply", reply)
 		c.listener.OnMessagesReceived()
@@ -319,9 +342,13 @@ func (c *AggregatorRpcClient) SendSignedStateRootUpdateToAggregator(signedStateR
 		var reply bool
 		err := c.rpcClient.Call("Aggregator.ProcessSignedStateRootUpdateMessage", signedStateRootUpdateMessage, &reply)
 		if err != nil {
+			c.listener.IncErroredStateRootUpdateSubmissions(signedStateRootUpdateMessage.Message.RollupId, false)
+
 			c.logger.Info("Received error from aggregator", "err", err)
 			return err
 		}
+
+		c.listener.IncStateRootUpdateSubmissions(signedStateRootUpdateMessage.Message.RollupId, false)
 
 		c.logger.Info("Signed state root update message accepted by aggregator.", "reply", reply)
 		c.listener.OnMessagesReceived()
@@ -336,9 +363,14 @@ func (c *AggregatorRpcClient) SendSignedOperatorSetUpdateToAggregator(signedOper
 		var reply bool
 		err := c.rpcClient.Call("Aggregator.ProcessSignedOperatorSetUpdateMessage", signedOperatorSetUpdateMessage, &reply)
 		if err != nil {
+			c.listener.IncErroredOperatorSetUpdateSubmissions(false)
+
 			c.logger.Info("Received error from aggregator", "err", err)
 			return err
 		}
+
+		c.listener.IncOperatorSetUpdateUpdateSubmissions(false)
+		c.listener.ObserveLastOperatorSetUpdateIdResponded(signedOperatorSetUpdateMessage.Message.Id)
 
 		c.logger.Info("Signed operator set update message accepted by aggregator.", "reply", reply)
 		c.listener.OnMessagesReceived()
