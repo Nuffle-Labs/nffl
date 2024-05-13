@@ -85,6 +85,7 @@ impl BlockListener {
         mut done: oneshot::Receiver<()>,
         queue_protected: types::ProtectedQueue<ExpirableCandidateData>,
         candidates_sender: mpsc::Sender<CandidateData>,
+        listener: Option<BlockEventListener>
     ) {
         #[cfg(not(test))]
         const FLUSH_INTERVAL: Duration = Duration::from_secs(1);
@@ -97,6 +98,8 @@ impl BlockListener {
                 _ = interval.tick() => {
                     let mut queue = queue_protected.lock().await;
                     let _ = Self::flush(&mut queue, &candidates_sender);
+                    listener.as_ref().map(|l| l.current_queued_candidates.set(queue.len() as f64));
+
                     interval.reset();
                 },
                 _ = &mut done => {
@@ -132,6 +135,25 @@ impl BlockListener {
         true
     }
 
+    fn extract_candidates(addresses_to_rollup_ids: &HashMap<AccountId, u32>, streamer_message: StreamerMessage) -> Vec<CandidateData> {
+        streamer_message
+            .shards
+            .into_iter()
+            .flat_map(|shard| shard.chunk)
+            .flat_map(|chunk| {
+                chunk.transactions.into_iter().filter_map(|transaction| {
+                    addresses_to_rollup_ids
+                        .get(&transaction.transaction.receiver_id)
+                        .map(|rollup_id| TransactionWithRollupId {
+                            rollup_id: *rollup_id,
+                            transaction,
+                        })
+                })
+            })
+            .filter_map(Self::transaction_filter_map)
+            .collect()
+    }
+
     // TODO: introduce Task struct
     async fn process_stream(
         self,
@@ -149,28 +171,13 @@ impl BlockListener {
             done_receiver,
             queue_protected.clone(),
             candidates_sender.clone(),
+            listener.clone(),
         ));
 
         while let Some(streamer_message) = indexer_stream.recv().await {
             info!(target: INDEXER, "Received streamer message");
 
-            let candidates_data: Vec<CandidateData> = streamer_message
-                .shards
-                .into_iter()
-                .flat_map(|shard| shard.chunk)
-                .flat_map(|chunk| {
-                    chunk.transactions.into_iter().filter_map(|transaction| {
-                        addresses_to_rollup_ids
-                            .get(&transaction.transaction.receiver_id)
-                            .map(|rollup_id| TransactionWithRollupId {
-                                rollup_id: *rollup_id,
-                                transaction,
-                            })
-                    })
-                })
-                .filter_map(Self::transaction_filter_map)
-                .collect();
-
+            let candidates_data = Self::extract_candidates(&addresses_to_rollup_ids, streamer_message);
             if candidates_data.is_empty() {
                 info!(target: INDEXER, "No candidate data found in the streamer message");
                 continue;
@@ -181,6 +188,7 @@ impl BlockListener {
             {
                 let mut queue = queue_protected.lock().await;
                 let flushed = Self::flush(&mut queue, &candidates_sender);
+                listener.as_ref().map(|l| l.current_queued_candidates.set(queue.len() as f64));
                 if !flushed {
                     info!(target: INDEXER, "Not flushed, so enqueuing candidate data");
 
@@ -216,6 +224,7 @@ impl BlockListener {
                                 inner: candidate,
                             });
                             queue.extend(iter.map(|el| ExpirableCandidateData { timestamp, inner: el }));
+                            listener.as_ref().map(|l| l.current_queued_candidates.set(queue.len() as f64));
 
                             break;
                         }
