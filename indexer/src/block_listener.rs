@@ -23,7 +23,7 @@ use crate::{
 };
 
 #[cfg(not(test))]
-const EXPIRATION_TIMEOUT: Duration = Duration::from_secs(6);
+const EXPIRATION_TIMEOUT: Duration = Duration::from_secs(30);
 #[cfg(test)]
 const EXPIRATION_TIMEOUT: Duration = Duration::from_millis(200);
 
