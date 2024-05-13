@@ -11,6 +11,7 @@ import (
 	"github.com/Layr-Labs/eigensdk-go/logging"
 	rpccalls "github.com/Layr-Labs/eigensdk-go/metrics/collectors/rpc_calls"
 	"github.com/ethereum/go-ethereum"
+	"github.com/ethereum/go-ethereum/common"
 	"github.com/ethereum/go-ethereum/core/types"
 	"github.com/ethereum/go-ethereum/ethclient"
 )
@@ -482,4 +483,361 @@ func (c *SafeEthClient) GetClientAndVersion() (string, error) {
 	}
 	c.logger.Info("Got client version", "version", clientVersion)
 	return clientVersion, nil
+}
+
+// Wrapped eth.Client.ChainID
+func (c *SafeEthClient) ChainID(ctx context.Context) (*big.Int, error) {
+	c.clientLock.RLock()
+	defer c.clientLock.RUnlock()
+
+	result, err := c.Client.ChainID(ctx)
+	c.handleClientError(err)
+
+	return result, err
+}
+
+// Wrapped eth.Client.BalanceAt
+func (c *SafeEthClient) BalanceAt(ctx context.Context, account common.Address, blockNumber *big.Int) (*big.Int, error) {
+	c.clientLock.RLock()
+	defer c.clientLock.RUnlock()
+
+	result, err := c.Client.BalanceAt(ctx, account, blockNumber)
+	c.handleClientError(err)
+
+	return result, err
+}
+
+// Wrapped eth.Client.BlockByHash
+func (c *SafeEthClient) BlockByHash(ctx context.Context, hash common.Hash) (*types.Block, error) {
+	c.clientLock.RLock()
+	defer c.clientLock.RUnlock()
+
+	result, err := c.Client.BlockByHash(ctx, hash)
+	c.handleClientError(err)
+
+	return result, err
+}
+
+// Wrapped eth.Client.BlockByNumber
+func (c *SafeEthClient) BlockByNumber(ctx context.Context, number *big.Int) (*types.Block, error) {
+	c.clientLock.RLock()
+	defer c.clientLock.RUnlock()
+
+	result, err := c.Client.BlockByNumber(ctx, number)
+	c.handleClientError(err)
+
+	return result, err
+}
+
+// Wrapped eth.Client.BlockNumber
+func (c *SafeEthClient) BlockNumber(ctx context.Context) (uint64, error) {
+	c.clientLock.RLock()
+	defer c.clientLock.RUnlock()
+
+	result, err := c.Client.BlockNumber(ctx)
+	c.handleClientError(err)
+
+	return result, err
+}
+
+// Wrapped eth.Client.CallContract
+func (c *SafeEthClient) CallContract(ctx context.Context, msg ethereum.CallMsg, blockNumber *big.Int) ([]byte, error) {
+	c.clientLock.RLock()
+	defer c.clientLock.RUnlock()
+
+	result, err := c.Client.CallContract(ctx, msg, blockNumber)
+	c.handleClientError(err)
+
+	return result, err
+}
+
+// Wrapped eth.Client.CallContractAtHash
+func (c *SafeEthClient) CallContractAtHash(ctx context.Context, msg ethereum.CallMsg, blockHash common.Hash) ([]byte, error) {
+	c.clientLock.RLock()
+	defer c.clientLock.RUnlock()
+
+	result, err := c.Client.CallContractAtHash(ctx, msg, blockHash)
+	c.handleClientError(err)
+
+	return result, err
+}
+
+// Wrapped eth.Client.CodeAt
+func (c *SafeEthClient) CodeAt(ctx context.Context, account common.Address, blockNumber *big.Int) ([]byte, error) {
+	c.clientLock.RLock()
+	defer c.clientLock.RUnlock()
+
+	result, err := c.Client.CodeAt(ctx, account, blockNumber)
+	c.handleClientError(err)
+
+	return result, err
+}
+
+// Wrapped eth.Client.EstimateGas
+func (c *SafeEthClient) EstimateGas(ctx context.Context, msg ethereum.CallMsg) (uint64, error) {
+	c.clientLock.RLock()
+	defer c.clientLock.RUnlock()
+
+	result, err := c.Client.EstimateGas(ctx, msg)
+	c.handleClientError(err)
+
+	return result, err
+}
+
+// Wrapped eth.Client.FilterLogs
+func (c *SafeEthClient) FilterLogs(ctx context.Context, q ethereum.FilterQuery) ([]types.Log, error) {
+	c.clientLock.RLock()
+	defer c.clientLock.RUnlock()
+
+	result, err := c.Client.FilterLogs(ctx, q)
+	c.handleClientError(err)
+
+	return result, err
+}
+
+// Wrapped eth.Client.HeaderByHash
+func (c *SafeEthClient) HeaderByHash(ctx context.Context, hash common.Hash) (*types.Header, error) {
+	c.clientLock.RLock()
+	defer c.clientLock.RUnlock()
+
+	result, err := c.Client.HeaderByHash(ctx, hash)
+	c.handleClientError(err)
+
+	return result, err
+}
+
+// Wrapped eth.Client.HeaderByNumber
+func (c *SafeEthClient) HeaderByNumber(ctx context.Context, number *big.Int) (*types.Header, error) {
+	c.clientLock.RLock()
+	defer c.clientLock.RUnlock()
+
+	result, err := c.Client.HeaderByNumber(ctx, number)
+	c.handleClientError(err)
+
+	return result, err
+}
+
+// Wrapped eth.Client.NetworkID
+func (c *SafeEthClient) NetworkID(ctx context.Context) (*big.Int, error) {
+	c.clientLock.RLock()
+	defer c.clientLock.RUnlock()
+
+	result, err := c.Client.NetworkID(ctx)
+	c.handleClientError(err)
+
+	return result, err
+}
+
+// Wrapped eth.Client.NonceAt
+func (c *SafeEthClient) NonceAt(ctx context.Context, account common.Address, blockNumber *big.Int) (uint64, error) {
+	c.clientLock.RLock()
+	defer c.clientLock.RUnlock()
+
+	result, err := c.Client.NonceAt(ctx, account, blockNumber)
+	c.handleClientError(err)
+
+	return result, err
+}
+
+// Wrapped eth.Client.PeerCount
+func (c *SafeEthClient) PeerCount(ctx context.Context) (uint64, error) {
+	c.clientLock.RLock()
+	defer c.clientLock.RUnlock()
+
+	result, err := c.Client.PeerCount(ctx)
+	c.handleClientError(err)
+
+	return result, err
+}
+
+// Wrapped eth.Client.PendingBalanceAt
+func (c *SafeEthClient) PendingBalanceAt(ctx context.Context, account common.Address) (*big.Int, error) {
+	c.clientLock.RLock()
+	defer c.clientLock.RUnlock()
+
+	result, err := c.Client.PendingBalanceAt(ctx, account)
+	c.handleClientError(err)
+
+	return result, err
+}
+
+// Wrapped eth.Client.PendingCallContract
+func (c *SafeEthClient) PendingCallContract(ctx context.Context, msg ethereum.CallMsg) ([]byte, error) {
+	c.clientLock.RLock()
+	defer c.clientLock.RUnlock()
+
+	result, err := c.Client.PendingCallContract(ctx, msg)
+	c.handleClientError(err)
+
+	return result, err
+}
+
+// Wrapped eth.Client.PendingCodeAt
+func (c *SafeEthClient) PendingCodeAt(ctx context.Context, account common.Address) ([]byte, error) {
+	c.clientLock.RLock()
+	defer c.clientLock.RUnlock()
+
+	result, err := c.Client.PendingCodeAt(ctx, account)
+	c.handleClientError(err)
+
+	return result, err
+}
+
+// Wrapped eth.Client.PendingNonceAt
+func (c *SafeEthClient) PendingNonceAt(ctx context.Context, account common.Address) (uint64, error) {
+	c.clientLock.RLock()
+	defer c.clientLock.RUnlock()
+
+	result, err := c.Client.PendingNonceAt(ctx, account)
+	c.handleClientError(err)
+
+	return result, err
+}
+
+// Wrapped eth.Client.PendingStorageAt
+func (c *SafeEthClient) PendingStorageAt(ctx context.Context, account common.Address, key common.Hash) ([]byte, error) {
+	c.clientLock.RLock()
+	defer c.clientLock.RUnlock()
+
+	result, err := c.Client.PendingStorageAt(ctx, account, key)
+	c.handleClientError(err)
+
+	return result, err
+}
+
+// Wrapped eth.Client.PendingTransactionCount
+func (c *SafeEthClient) PendingTransactionCount(ctx context.Context) (uint, error) {
+	c.clientLock.RLock()
+	defer c.clientLock.RUnlock()
+
+	result, err := c.Client.PendingTransactionCount(ctx)
+	c.handleClientError(err)
+
+	return result, err
+}
+
+// Wrapped eth.Client.SendTransaction
+func (c *SafeEthClient) SendTransaction(ctx context.Context, tx *types.Transaction) error {
+	c.clientLock.RLock()
+	defer c.clientLock.RUnlock()
+
+	err := c.Client.SendTransaction(ctx, tx)
+	c.handleClientError(err)
+
+	return err
+}
+
+// Wrapped eth.Client.StorageAt
+func (c *SafeEthClient) StorageAt(ctx context.Context, account common.Address, key common.Hash, blockNumber *big.Int) ([]byte, error) {
+	c.clientLock.RLock()
+	defer c.clientLock.RUnlock()
+
+	result, err := c.Client.StorageAt(ctx, account, key, blockNumber)
+	c.handleClientError(err)
+
+	return result, err
+}
+
+// Wrapped eth.Client.SuggestGasPrice
+func (c *SafeEthClient) SuggestGasPrice(ctx context.Context) (*big.Int, error) {
+	c.clientLock.RLock()
+	defer c.clientLock.RUnlock()
+
+	result, err := c.Client.SuggestGasPrice(ctx)
+	c.handleClientError(err)
+
+	return result, err
+}
+
+// Wrapped eth.Client.SuggestGasTipCap
+func (c *SafeEthClient) SuggestGasTipCap(ctx context.Context) (*big.Int, error) {
+	c.clientLock.RLock()
+	defer c.clientLock.RUnlock()
+
+	result, err := c.Client.SuggestGasTipCap(ctx)
+	c.handleClientError(err)
+
+	return result, err
+}
+
+// Wrapped eth.Client.SyncProgress
+func (c *SafeEthClient) SyncProgress(ctx context.Context) (*ethereum.SyncProgress, error) {
+	c.clientLock.RLock()
+	defer c.clientLock.RUnlock()
+
+	result, err := c.Client.SyncProgress(ctx)
+	c.handleClientError(err)
+
+	return result, err
+}
+
+// Wrapped eth.Client.TransactionByHash
+func (c *SafeEthClient) TransactionByHash(ctx context.Context, hash common.Hash) (tx *types.Transaction, isPending bool, err error) {
+	c.clientLock.RLock()
+	defer c.clientLock.RUnlock()
+
+	tx, isPending, err = c.Client.TransactionByHash(ctx, hash)
+	c.handleClientError(err)
+
+	return tx, isPending, err
+}
+
+// Wrapped eth.Client.TransactionCount
+func (c *SafeEthClient) TransactionCount(ctx context.Context, blockHash common.Hash) (uint, error) {
+	c.clientLock.RLock()
+	defer c.clientLock.RUnlock()
+
+	result, err := c.Client.TransactionCount(ctx, blockHash)
+	c.handleClientError(err)
+
+	return result, err
+}
+
+// Wrapped eth.Client.TransactionInBlock
+func (c *SafeEthClient) TransactionInBlock(ctx context.Context, blockHash common.Hash, index uint) (*types.Transaction, error) {
+	c.clientLock.RLock()
+	defer c.clientLock.RUnlock()
+
+	result, err := c.Client.TransactionInBlock(ctx, blockHash, index)
+	c.handleClientError(err)
+
+	return result, err
+}
+
+// Wrapped eth.Client.TransactionReceipt
+func (c *SafeEthClient) TransactionReceipt(ctx context.Context, txHash common.Hash) (*types.Receipt, error) {
+	c.clientLock.RLock()
+	defer c.clientLock.RUnlock()
+
+	result, err := c.Client.TransactionReceipt(ctx, txHash)
+	c.handleClientError(err)
+
+	return result, err
+}
+
+// Wrapped eth.Client.TransactionSender
+func (c *SafeEthClient) TransactionSender(ctx context.Context, tx *types.Transaction, block common.Hash, index uint) (common.Address, error) {
+	c.clientLock.RLock()
+	defer c.clientLock.RUnlock()
+
+	result, err := c.Client.TransactionSender(ctx, tx, block, index)
+	c.handleClientError(err)
+
+	return result, err
+}
+
+// Wrapped eth.Client.FeeHistory
+func (c *SafeEthClient) FeeHistory(
+	ctx context.Context,
+	blockCount uint64,
+	lastBlock *big.Int,
+	rewardPercentiles []float64,
+) (*ethereum.FeeHistory, error) {
+	c.clientLock.RLock()
+	defer c.clientLock.RUnlock()
+
+	result, err := c.Client.FeeHistory(ctx, blockCount, lastBlock, rewardPercentiles)
+	c.handleClientError(err)
+
+	return result, err
 }
