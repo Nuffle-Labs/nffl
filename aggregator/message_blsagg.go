@@ -135,7 +135,7 @@ func (mbas *MessageBlsAggregatorService) InitializeMessageIfNotExists(
 ) error {
 	signedMessageDigestsC := mbas.initializeMessageChan(messageDigest)
 	if signedMessageDigestsC == nil {
-		return MessageAlreadyInitializedErrorFn(messageDigest)
+		return nil
 	}
 
 	validationInfo, err := mbas.fetchValidationInfo(quorumNumbers, quorumThresholdPercentages, ethBlockNumber)
