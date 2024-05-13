@@ -28,13 +28,13 @@ const EXPIRATION_TIMEOUT: Duration = Duration::from_secs(6);
 const EXPIRATION_TIMEOUT: Duration = Duration::from_millis(200);
 
 #[derive(Clone)]
-struct ExpirableCandidatesData {
+struct ExpirableCandidateData {
     timestamp: time::Instant,
     inner: CandidateData,
 }
 
-impl From<ExpirableCandidatesData> for CandidateData {
-    fn from(value: ExpirableCandidatesData) -> Self {
+impl From<ExpirableCandidateData> for CandidateData {
+    fn from(value: ExpirableCandidateData) -> Self {
         value.inner
     }
 }
@@ -83,7 +83,7 @@ impl BlockListener {
 
     async fn ticker(
         mut done: oneshot::Receiver<()>,
-        queue_protected: types::ProtectedQueue<ExpirableCandidatesData>,
+        queue_protected: types::ProtectedQueue<ExpirableCandidateData>,
         candidates_sender: mpsc::Sender<CandidateData>,
     ) {
         #[cfg(not(test))]
@@ -106,7 +106,7 @@ impl BlockListener {
         }
     }
 
-    fn flush(queue: &mut VecDeque<ExpirableCandidatesData>, candidates_sender: &mpsc::Sender<CandidateData>) -> bool {
+    fn flush(queue: &mut VecDeque<ExpirableCandidateData>, candidates_sender: &mpsc::Sender<CandidateData>) -> bool {
         if queue.is_empty() {
             return true;
         }
@@ -188,7 +188,7 @@ impl BlockListener {
                     queue.extend(
                         candidates_data
                             .into_iter()
-                            .map(|el| ExpirableCandidatesData { timestamp, inner: el }),
+                            .map(|el| ExpirableCandidateData { timestamp, inner: el }),
                     );
                     continue;
                 }
@@ -211,11 +211,11 @@ impl BlockListener {
                             let mut queue = queue_protected.lock().await;
 
                             let timestamp = time::Instant::now();
-                            queue.push_back(ExpirableCandidatesData {
+                            queue.push_back(ExpirableCandidateData {
                                 timestamp,
                                 inner: candidate,
                             });
-                            queue.extend(iter.map(|el| ExpirableCandidatesData { timestamp, inner: el }));
+                            queue.extend(iter.map(|el| ExpirableCandidateData { timestamp, inner: el }));
 
                             break;
                         }
@@ -524,7 +524,7 @@ mod tests {
         let (stream_sender, stream_receiver) = mpsc::channel(10);
 
         let listener = BlockListener::new(HashMap::from([(da_contract_id, rollup_id)]));
-        let (handle, mut candidates_receiver) = listener.run(stream_receiver);
+        let (handle, candidates_receiver) = listener.run(stream_receiver);
 
         for (i, el) in streamer_messages.empty.into_iter().enumerate() {
             stream_sender.send(el).await.unwrap();
@@ -549,9 +549,8 @@ mod tests {
         let (stream_sender, stream_receiver) = mpsc::channel(10);
 
         let listener = BlockListener::new(HashMap::from([(da_contract_id, rollup_id)]));
-        let (handle, mut candidates_receiver) = listener.test_run(stream_receiver);
+        let (_, mut candidates_receiver) = listener.test_run(stream_receiver);
 
-        let expected = streamer_messages.candidates.len();
         for el in streamer_messages.candidates {
             stream_sender.send(el).await.unwrap();
         }
