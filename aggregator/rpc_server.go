@@ -82,7 +82,7 @@ func (agg *Aggregator) ProcessSignedStateRootUpdateMessage(signedStateRootUpdate
 	agg.logger.Infof("Received signed state root update message: %#v %#v", signedStateRootUpdateMessage, messageDigest)
 	agg.rpcListener.IncSignedStateRootUpdateMessage()
 
-	agg.stateRootUpdateBlsAggregationService.InitializeMessageIfNotExists(
+	err = agg.stateRootUpdateBlsAggregationService.InitializeMessageIfNotExists(
 		messageDigest,
 		coretypes.QUORUM_NUMBERS,
 		[]eigentypes.QuorumThresholdPercentage{types.MESSAGE_AGGREGATION_QUORUM_THRESHOLD},
@@ -90,6 +90,9 @@ func (agg *Aggregator) ProcessSignedStateRootUpdateMessage(signedStateRootUpdate
 		types.MESSAGE_BLS_AGGREGATION_TIMEOUT,
 		0,
 	)
+	if err != nil {
+		return err
+	}
 
 	agg.stateRootUpdatesLock.Lock()
 	agg.stateRootUpdates[messageDigest] = signedStateRootUpdateMessage.Message
@@ -122,7 +125,7 @@ func (agg *Aggregator) ProcessSignedOperatorSetUpdateMessage(signedOperatorSetUp
 		return OperatorSetUpdateBlockNotFoundError500
 	}
 
-	agg.operatorSetUpdateBlsAggregationService.InitializeMessageIfNotExists(
+	err = agg.operatorSetUpdateBlsAggregationService.InitializeMessageIfNotExists(
 		messageDigest,
 		coretypes.QUORUM_NUMBERS,
 		[]eigentypes.QuorumThresholdPercentage{types.MESSAGE_AGGREGATION_QUORUM_THRESHOLD},
@@ -130,6 +133,9 @@ func (agg *Aggregator) ProcessSignedOperatorSetUpdateMessage(signedOperatorSetUp
 		types.MESSAGE_BLS_AGGREGATION_TIMEOUT,
 		uint64(blockNumber)-1,
 	)
+	if err != nil {
+		return err
+	}
 
 	agg.operatorSetUpdatesLock.Lock()
 	agg.operatorSetUpdates[messageDigest] = signedOperatorSetUpdateMessage.Message
