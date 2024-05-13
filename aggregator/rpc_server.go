@@ -5,6 +5,7 @@ import (
 	"errors"
 	"net/http"
 	"net/rpc"
+	"strings"
 
 	eigentypes "github.com/Layr-Labs/eigensdk-go/types"
 
@@ -43,7 +44,6 @@ func (agg *Aggregator) startServer() error {
 // rpc framework forces a reply type to exist, so we put bool as a placeholder
 func (agg *Aggregator) ProcessSignedCheckpointTaskResponse(signedCheckpointTaskResponse *messages.SignedCheckpointTaskResponse, reply *bool) error {
 	agg.logger.Infof("Received signed task response: %#v", signedCheckpointTaskResponse)
-	agg.rpcListener.IncSignedCheckpointTaskResponse()
 
 	taskIndex := signedCheckpointTaskResponse.TaskResponse.ReferenceTaskIndex
 	taskResponseDigest, err := signedCheckpointTaskResponse.TaskResponse.Digest()
@@ -52,11 +52,19 @@ func (agg *Aggregator) ProcessSignedCheckpointTaskResponse(signedCheckpointTaskR
 		return TaskResponseDigestNotFoundError500
 	}
 
+	agg.rpcListener.IncTotalSignedCheckpointTaskResponse()
+	agg.rpcListener.ObserveLastMessageReceivedTime(signedCheckpointTaskResponse.OperatorId, CheckpointTaskResponseLabel)
+
 	err = agg.taskBlsAggregationService.ProcessNewSignature(
 		context.Background(), taskIndex, taskResponseDigest,
 		&signedCheckpointTaskResponse.BlsSignature, signedCheckpointTaskResponse.OperatorId,
 	)
 	if err != nil {
+		agg.rpcListener.IncSignedCheckpointTaskResponse(
+			signedCheckpointTaskResponse.OperatorId,
+			true,
+			strings.Contains(err.Error(), "not initialized"),
+		)
 		return err
 	}
 
@@ -69,6 +77,8 @@ func (agg *Aggregator) ProcessSignedCheckpointTaskResponse(signedCheckpointTaskR
 	}
 	agg.taskResponsesLock.Unlock()
 
+	agg.rpcListener.IncSignedCheckpointTaskResponse(signedCheckpointTaskResponse.OperatorId, false, false)
+
 	return nil
 }
 
@@ -79,8 +89,13 @@ func (agg *Aggregator) ProcessSignedStateRootUpdateMessage(signedStateRootUpdate
 		return TaskResponseDigestNotFoundError500
 	}
 
+	hasNearDaCommitment := signedStateRootUpdateMessage.Message.HasNearDaCommitment()
+	operatorId := signedStateRootUpdateMessage.OperatorId
+
 	agg.logger.Infof("Received signed state root update message: %#v %#v", signedStateRootUpdateMessage, messageDigest)
-	agg.rpcListener.IncSignedStateRootUpdateMessage()
+
+	agg.rpcListener.IncTotalSignedCheckpointTaskResponse()
+	agg.rpcListener.ObserveLastMessageReceivedTime(operatorId, StateRootUpdateMessageLabel)
 
 	err = agg.stateRootUpdateBlsAggregationService.InitializeMessageIfNotExists(
 		messageDigest,
@@ -91,6 +106,7 @@ func (agg *Aggregator) ProcessSignedStateRootUpdateMessage(signedStateRootUpdate
 		0,
 	)
 	if err != nil {
+		agg.rpcListener.IncSignedStateRootUpdateMessage(operatorId, true, hasNearDaCommitment)
 		return err
 	}
 
@@ -103,24 +119,33 @@ func (agg *Aggregator) ProcessSignedStateRootUpdateMessage(signedStateRootUpdate
 		&signedStateRootUpdateMessage.BlsSignature, signedStateRootUpdateMessage.OperatorId,
 	)
 	if err != nil {
+		agg.rpcListener.IncSignedStateRootUpdateMessage(operatorId, true, hasNearDaCommitment)
 		return err
 	}
+
+	agg.rpcListener.IncSignedStateRootUpdateMessage(operatorId, false, hasNearDaCommitment)
 
 	return nil
 }
 
 func (agg *Aggregator) ProcessSignedOperatorSetUpdateMessage(signedOperatorSetUpdateMessage *messages.SignedOperatorSetUpdateMessage, reply *bool) error {
-	agg.logger.Infof("Received signed operator set update message: %#v", signedOperatorSetUpdateMessage)
-	agg.rpcListener.IncSignedOperatorSetUpdateMessage()
-
 	messageDigest, err := signedOperatorSetUpdateMessage.Message.Digest()
 	if err != nil {
 		agg.logger.Error("Failed to get message digest", "err", err)
 		return TaskResponseDigestNotFoundError500
 	}
 
+	operatorId := signedOperatorSetUpdateMessage.OperatorId
+
+	agg.logger.Infof("Received signed operator set update message: %#v", signedOperatorSetUpdateMessage)
+
+	agg.rpcListener.IncTotalSignedOperatorSetUpdateMessage()
+	agg.rpcListener.ObserveLastMessageReceivedTime(operatorId, OperatorSetUpdateMessageLabel)
+
 	blockNumber, err := agg.avsReader.GetOperatorSetUpdateBlock(context.Background(), signedOperatorSetUpdateMessage.Message.Id)
 	if err != nil {
+		agg.rpcListener.IncSignedOperatorSetUpdateMessage(operatorId, true)
+
 		agg.logger.Error("Failed to get operator set update block", "err", err)
 		return OperatorSetUpdateBlockNotFoundError500
 	}
@@ -134,6 +159,7 @@ func (agg *Aggregator) ProcessSignedOperatorSetUpdateMessage(signedOperatorSetUp
 		uint64(blockNumber)-1,
 	)
 	if err != nil {
+		agg.rpcListener.IncSignedOperatorSetUpdateMessage(operatorId, true)
 		return err
 	}
 
@@ -146,8 +172,11 @@ func (agg *Aggregator) ProcessSignedOperatorSetUpdateMessage(signedOperatorSetUp
 		&signedOperatorSetUpdateMessage.BlsSignature, signedOperatorSetUpdateMessage.OperatorId,
 	)
 	if err != nil {
+		agg.rpcListener.IncSignedOperatorSetUpdateMessage(operatorId, true)
 		return err
 	}
+
+	agg.rpcListener.IncSignedOperatorSetUpdateMessage(operatorId, false)
 
 	return nil
 }

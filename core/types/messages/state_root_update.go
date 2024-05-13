@@ -1,6 +1,7 @@
 package messages
 
 import (
+	"bytes"
 	"encoding/binary"
 
 	"github.com/Layr-Labs/eigensdk-go/crypto/bls"
@@ -79,4 +80,8 @@ func (msg StateRootUpdateMessage) Key() [32]byte {
 	binary.BigEndian.PutUint64(key[24:32], msg.BlockHeight)
 
 	return key
+}
+
+func (msg StateRootUpdateMessage) HasNearDaCommitment() bool {
+	return !bytes.Equal(msg.NearDaCommitment[:], make([]byte, 32)) && !bytes.Equal(msg.NearDaTransactionId[:], make([]byte, 32))
 }
