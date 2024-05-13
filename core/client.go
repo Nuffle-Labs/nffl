@@ -381,7 +381,7 @@ func (c *SafeEthClient) handleClientError(err error) {
 	if c.isConnectionError(err) {
 		c.logger.Error("Connection error detected, triggering reinit", "err", err)
 		c.triggerReinit()
-	} else {
+	} else if err != nil {
 		c.logger.Error("Client error detected", "err", err)
 	}
 }
