@@ -54,7 +54,7 @@ type SignedMessageDigest struct {
 	SignatureVerificationErrorC chan error
 }
 
-type SignedMessageDigestValidationInfo struct {
+type signedMessageDigestValidationInfo struct {
 	operatorsAvsStateDict         map[eigentypes.OperatorId]eigentypes.OperatorAvsState
 	quorumsAvsStakeDict           map[eigentypes.QuorumNum]eigentypes.QuorumAvsState
 	totalStakePerQuorum           map[eigentypes.QuorumNum]*big.Int
@@ -184,7 +184,7 @@ func (mbas *MessageBlsAggregatorService) ProcessNewSignature(
 
 func (mbas *MessageBlsAggregatorService) singleMessageAggregatorGoroutineFunc(
 	messageDigest coretypes.MessageDigest,
-	validationInfo *SignedMessageDigestValidationInfo,
+	validationInfo *signedMessageDigestValidationInfo,
 	timeToExpiry time.Duration,
 	aggregationTimeout time.Duration,
 	signedMessageDigestsC <-chan SignedMessageDigest,
@@ -200,7 +200,7 @@ func (mbas *MessageBlsAggregatorService) singleMessageAggregatorGoroutineFunc(
 
 func (mbas *MessageBlsAggregatorService) handleSignedMessagePreThreshold(
 	messageDigest coretypes.MessageDigest,
-	validationInfo *SignedMessageDigestValidationInfo,
+	validationInfo *signedMessageDigestValidationInfo,
 	timeToExpiry time.Duration,
 	signedMessageDigestsC <-chan SignedMessageDigest,
 ) bool {
@@ -248,7 +248,7 @@ func (mbas *MessageBlsAggregatorService) handleSignedMessagePreThreshold(
 
 func (mbas *MessageBlsAggregatorService) handleSignedMessageThresholdReached(
 	messageDigest coretypes.MessageDigest,
-	validationInfo *SignedMessageDigestValidationInfo,
+	validationInfo *signedMessageDigestValidationInfo,
 	signedMessageDigestsC <-chan SignedMessageDigest,
 	aggregationTimeout time.Duration,
 ) {
@@ -279,7 +279,7 @@ func (mbas *MessageBlsAggregatorService) handleSignedMessageThresholdReached(
 	}
 }
 
-func (mbas *MessageBlsAggregatorService) fetchValidationInfo(quorumNumbers []eigentypes.QuorumNum, quorumThresholdPercentages []eigentypes.QuorumThresholdPercentage, ethBlockNumber uint64) (*SignedMessageDigestValidationInfo, error) {
+func (mbas *MessageBlsAggregatorService) fetchValidationInfo(quorumNumbers []eigentypes.QuorumNum, quorumThresholdPercentages []eigentypes.QuorumThresholdPercentage, ethBlockNumber uint64) (*signedMessageDigestValidationInfo, error) {
 	if ethBlockNumber == 0 {
 		curEthBlockNumber, err := mbas.ethClient.BlockNumber(context.Background())
 		if err != nil {
@@ -316,7 +316,7 @@ func (mbas *MessageBlsAggregatorService) fetchValidationInfo(quorumNumbers []eig
 		quorumThresholdPercentagesMap[quorumNumber] = quorumThresholdPercentages[i]
 	}
 
-	return &SignedMessageDigestValidationInfo{
+	return &signedMessageDigestValidationInfo{
 		operatorsAvsStateDict:         operatorsAvsStateDict,
 		quorumsAvsStakeDict:           quorumsAvsStakeDict,
 		totalStakePerQuorum:           totalStakePerQuorum,
@@ -337,7 +337,7 @@ const (
 	SignedMessageHandlingResultError
 )
 
-func (mbas *MessageBlsAggregatorService) handleSignedMessageDigest(signedMessageDigest SignedMessageDigest, validationInfo *SignedMessageDigestValidationInfo) error {
+func (mbas *MessageBlsAggregatorService) handleSignedMessageDigest(signedMessageDigest SignedMessageDigest, validationInfo *signedMessageDigestValidationInfo) error {
 	err := mbas.verifySignature(signedMessageDigest, validationInfo.operatorsAvsStateDict)
 	if err != nil {
 		return err
@@ -370,7 +370,7 @@ func (mbas *MessageBlsAggregatorService) handleSignedMessageDigest(signedMessage
 	return nil
 }
 
-func (mbas *MessageBlsAggregatorService) getMessageBlsAggregationStatus(messageDigest coretypes.MessageDigest, validationInfo *SignedMessageDigestValidationInfo) (types.MessageBlsAggregationStatus, error) {
+func (mbas *MessageBlsAggregatorService) getMessageBlsAggregationStatus(messageDigest coretypes.MessageDigest, validationInfo *signedMessageDigestValidationInfo) (types.MessageBlsAggregationStatus, error) {
 	digestAggregatedOperators, ok := validationInfo.aggregatedOperatorsDict[messageDigest]
 	if !ok {
 		return types.MessageBlsAggregationStatusNone, MessageNotFoundErrorFn(messageDigest)
@@ -388,7 +388,7 @@ func (mbas *MessageBlsAggregatorService) getMessageBlsAggregationStatus(messageD
 	return types.MessageBlsAggregationStatusThresholdNotReached, nil
 }
 
-func (mbas *MessageBlsAggregatorService) getMessageBlsAggregationResponse(messageDigest coretypes.MessageDigest, validationInfo *SignedMessageDigestValidationInfo, forceFinished bool) types.MessageBlsAggregationServiceResponse {
+func (mbas *MessageBlsAggregatorService) getMessageBlsAggregationResponse(messageDigest coretypes.MessageDigest, validationInfo *signedMessageDigestValidationInfo, forceFinished bool) types.MessageBlsAggregationServiceResponse {
 	defaultAggregation := messages.MessageBlsAggregation{
 		MessageDigest:  messageDigest,
 		EthBlockNumber: validationInfo.ethBlockNumber,
