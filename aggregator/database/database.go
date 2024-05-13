@@ -99,7 +99,7 @@ func (d *Database) StoreStateRootUpdate(stateRootUpdateMessage messages.StateRoo
 	defer func() { d.listener.OnStore(time.Since(start)) }()
 
 	tx := d.db.
-		Clauses(clause.OnConflict{UpdateAll: true}).
+		Clauses(clause.OnConflict{Columns: []clause.Column{{Name: "rollup_id"}, {Name: "block_height"}}, UpdateAll: true}).
 		Create(&models.StateRootUpdateMessage{
 			RollupId:            stateRootUpdateMessage.RollupId,
 			BlockHeight:         stateRootUpdateMessage.BlockHeight,
@@ -180,7 +180,7 @@ func (d *Database) StoreOperatorSetUpdate(operatorSetUpdateMessage messages.Oper
 	defer func() { d.listener.OnStore(time.Since(start)) }()
 
 	tx := d.db.
-		Clauses(clause.OnConflict{UpdateAll: true}).
+		Clauses(clause.OnConflict{Columns: []clause.Column{{Name: "update_id"}}, UpdateAll: true}).
 		Create(&models.OperatorSetUpdateMessage{
 			UpdateId:  operatorSetUpdateMessage.Id,
 			Timestamp: operatorSetUpdateMessage.Timestamp,

@@ -375,7 +375,7 @@ func (agg *Aggregator) sendNewCheckpointTask() {
 
 	agg.logger.Info("Aggregator sending new task", "fromTimestamp", fromTimestamp, "toTimestamp", toTimestamp)
 	// Send checkpoint to the task manager contract
-	newTask, taskIndex, err := agg.avsWriter.SendNewCheckpointTask(context.Background(), fromTimestamp, toTimestamp, types.QUORUM_THRESHOLD_NUMERATOR, coretypes.QUORUM_NUMBERS)
+	newTask, taskIndex, err := agg.avsWriter.SendNewCheckpointTask(context.Background(), fromTimestamp, toTimestamp, types.TASK_QUORUM_THRESHOLD, coretypes.QUORUM_NUMBERS)
 	if err != nil {
 		agg.logger.Error("Aggregator failed to send checkpoint", "err", err)
 		return
@@ -387,7 +387,7 @@ func (agg *Aggregator) sendNewCheckpointTask() {
 
 	quorumThresholds := make([]eigentypes.QuorumThresholdPercentage, len(newTask.QuorumNumbers))
 	for i, _ := range newTask.QuorumNumbers {
-		quorumThresholds[i] = eigentypes.QuorumThresholdPercentage(newTask.QuorumThreshold)
+		quorumThresholds[i] = types.TASK_AGGREGATION_QUORUM_THRESHOLD
 	}
 	// TODO(samlaf): we use seconds for now, but we should ideally pass a blocknumber to the blsAggregationService
 	// and it should monitor the chain and only expire the task aggregation once the chain has reached that block number.
@@ -400,25 +400,29 @@ func (agg *Aggregator) sendNewCheckpointTask() {
 }
 
 func (agg *Aggregator) handleStateRootUpdateReachedQuorum(blsAggServiceResp types.MessageBlsAggregationServiceResponse) {
+	agg.stateRootUpdatesLock.RLock()
+	msg, ok := agg.stateRootUpdates[blsAggServiceResp.MessageDigest]
+	agg.stateRootUpdatesLock.RUnlock()
+
+	if blsAggServiceResp.Finished {
+		defer func() {
+			agg.stateRootUpdatesLock.Lock()
+			delete(agg.stateRootUpdates, blsAggServiceResp.MessageDigest)
+			agg.stateRootUpdatesLock.Unlock()
+		}()
+	}
+
 	if blsAggServiceResp.Err != nil {
 		agg.logger.Error("Aggregator BLS service returned error", "err", blsAggServiceResp.Err)
 		return
 	}
 
-	agg.stateRootUpdatesLock.RLock()
-	msg, ok := agg.stateRootUpdates[blsAggServiceResp.MessageDigest]
-	agg.stateRootUpdatesLock.RUnlock()
-
-	defer func() {
-		agg.stateRootUpdatesLock.Lock()
-		delete(agg.stateRootUpdates, blsAggServiceResp.MessageDigest)
-		agg.stateRootUpdatesLock.Unlock()
-	}()
-
 	if !ok {
 		agg.logger.Error("Aggregator could not find matching message")
 		return
 	}
+
+	agg.logger.Info("Storing state root update", "digest", blsAggServiceResp.MessageDigest, "status", blsAggServiceResp.Status)
 
 	err := agg.msgDb.StoreStateRootUpdate(msg)
 	if err != nil {
@@ -433,28 +437,34 @@ func (agg *Aggregator) handleStateRootUpdateReachedQuorum(blsAggServiceResp type
 }
 
 func (agg *Aggregator) handleOperatorSetUpdateReachedQuorum(ctx context.Context, blsAggServiceResp types.MessageBlsAggregationServiceResponse) {
-	if blsAggServiceResp.Err != nil {
-		agg.logger.Error("Aggregator BLS service returned error", "err", blsAggServiceResp.Err)
-		return
-	}
-
 	agg.operatorSetUpdatesLock.RLock()
 	msg, ok := agg.operatorSetUpdates[blsAggServiceResp.MessageDigest]
 	agg.operatorSetUpdatesLock.RUnlock()
 
-	defer func() {
-		agg.operatorSetUpdatesLock.Lock()
-		delete(agg.operatorSetUpdates, blsAggServiceResp.MessageDigest)
-		agg.operatorSetUpdatesLock.Unlock()
-	}()
+	if blsAggServiceResp.Finished {
+		defer func() {
+			agg.operatorSetUpdatesLock.Lock()
+			delete(agg.operatorSetUpdates, blsAggServiceResp.MessageDigest)
+			agg.operatorSetUpdatesLock.Unlock()
+
+			if blsAggServiceResp.Err == nil {
+				signatureInfo := blsAggServiceResp.ExtractBindingRollup()
+				agg.rollupBroadcaster.BroadcastOperatorSetUpdate(ctx, msg, signatureInfo)
+			}
+		}()
+	}
+
+	if blsAggServiceResp.Err != nil {
+		agg.logger.Error("Aggregator BLS service returned error", "err", blsAggServiceResp.Err)
+		return
+	}
 
 	if !ok {
 		agg.logger.Error("Aggregator could not find matching message")
 		return
 	}
 
-	signatureInfo := blsAggServiceResp.ExtractBindingRollup()
-	agg.rollupBroadcaster.BroadcastOperatorSetUpdate(ctx, msg, signatureInfo)
+	agg.logger.Info("Storing operator set update", "digest", blsAggServiceResp.MessageDigest, "status", blsAggServiceResp.Status)
 
 	err := agg.msgDb.StoreOperatorSetUpdate(msg)
 	if err != nil {

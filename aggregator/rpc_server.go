@@ -73,16 +73,27 @@ func (agg *Aggregator) ProcessSignedCheckpointTaskResponse(signedCheckpointTaskR
 }
 
 func (agg *Aggregator) ProcessSignedStateRootUpdateMessage(signedStateRootUpdateMessage *messages.SignedStateRootUpdateMessage, reply *bool) error {
-	agg.logger.Infof("Received signed state root update message: %#v", signedStateRootUpdateMessage)
-	agg.rpcListener.IncSignedStateRootUpdateMessage()
-
 	messageDigest, err := signedStateRootUpdateMessage.Message.Digest()
 	if err != nil {
 		agg.logger.Error("Failed to get message digest", "err", err)
 		return TaskResponseDigestNotFoundError500
 	}
 
-	agg.stateRootUpdateBlsAggregationService.InitializeMessageIfNotExists(messageDigest, coretypes.QUORUM_NUMBERS, []eigentypes.QuorumThresholdPercentage{types.QUORUM_THRESHOLD_NUMERATOR}, types.MESSAGE_TTL, 0)
+	agg.logger.Infof("Received signed state root update message: %#v %#v", signedStateRootUpdateMessage, messageDigest)
+	agg.rpcListener.IncSignedStateRootUpdateMessage()
+
+	agg.stateRootUpdateBlsAggregationService.InitializeMessageIfNotExists(
+		messageDigest,
+		coretypes.QUORUM_NUMBERS,
+		[]eigentypes.QuorumThresholdPercentage{types.MESSAGE_AGGREGATION_QUORUM_THRESHOLD},
+		types.MESSAGE_TTL,
+		types.MESSAGE_BLS_AGGREGATION_TIMEOUT,
+		0,
+	)
+
+	agg.stateRootUpdatesLock.Lock()
+	agg.stateRootUpdates[messageDigest] = signedStateRootUpdateMessage.Message
+	agg.stateRootUpdatesLock.Unlock()
 
 	err = agg.stateRootUpdateBlsAggregationService.ProcessNewSignature(
 		context.Background(), messageDigest,
@@ -91,10 +102,6 @@ func (agg *Aggregator) ProcessSignedStateRootUpdateMessage(signedStateRootUpdate
 	if err != nil {
 		return err
 	}
-
-	agg.stateRootUpdatesLock.Lock()
-	agg.stateRootUpdates[messageDigest] = signedStateRootUpdateMessage.Message
-	agg.stateRootUpdatesLock.Unlock()
 
 	return nil
 }
@@ -115,7 +122,18 @@ func (agg *Aggregator) ProcessSignedOperatorSetUpdateMessage(signedOperatorSetUp
 		return OperatorSetUpdateBlockNotFoundError500
 	}
 
-	agg.operatorSetUpdateBlsAggregationService.InitializeMessageIfNotExists(messageDigest, coretypes.QUORUM_NUMBERS, []eigentypes.QuorumThresholdPercentage{types.QUORUM_THRESHOLD_NUMERATOR}, types.MESSAGE_TTL, uint64(blockNumber)-1)
+	agg.operatorSetUpdateBlsAggregationService.InitializeMessageIfNotExists(
+		messageDigest,
+		coretypes.QUORUM_NUMBERS,
+		[]eigentypes.QuorumThresholdPercentage{types.MESSAGE_AGGREGATION_QUORUM_THRESHOLD},
+		types.MESSAGE_TTL,
+		types.MESSAGE_BLS_AGGREGATION_TIMEOUT,
+		uint64(blockNumber)-1,
+	)
+
+	agg.operatorSetUpdatesLock.Lock()
+	agg.operatorSetUpdates[messageDigest] = signedOperatorSetUpdateMessage.Message
+	agg.operatorSetUpdatesLock.Unlock()
 
 	err = agg.operatorSetUpdateBlsAggregationService.ProcessNewSignature(
 		context.Background(), messageDigest,
@@ -124,10 +142,6 @@ func (agg *Aggregator) ProcessSignedOperatorSetUpdateMessage(signedOperatorSetUp
 	if err != nil {
 		return err
 	}
-
-	agg.operatorSetUpdatesLock.Lock()
-	agg.operatorSetUpdates[messageDigest] = signedOperatorSetUpdateMessage.Message
-	agg.operatorSetUpdatesLock.Unlock()
 
 	return nil
 }
