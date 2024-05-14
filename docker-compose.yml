@@ -64,32 +64,14 @@ services:
     ports:
       - "8546:8546"
     entrypoint: anvil
-    command: --host 0.0.0.0 --port 8546 --chain-id 2 --block-time 1 
+    volumes:
+      - ./tests/anvil/data/rollup-avs-deployed-anvil-state.json:/root/.anvil/state.json
+    command: --host 0.0.0.0 --port 8546 --chain-id 2 --block-time 1 --load-state /root/.anvil/state.json
     healthcheck:
       test: ["CMD", "nc", "-zv", "localhost", "8546"]
       interval: 2s
       timeout: 30s
       retries: 15
-    networks:
-      - near-sffl
-
-  rollup0-anvil-setup:
-    image: ghcr.io/foundry-rs/foundry
-    container_name: rollup0-anvil-setup
-    depends_on:
-      rollup0-anvil:
-        condition: service_healthy
-    volumes:
-      - ./:/near-sffl/
-    working_dir: /near-sffl/contracts/evm
-    entrypoint: sh
-    command:
-      - -c
-      - |
-        deployerpk='0x2a871d0798f97d79848a013d4936a73bf4cc922c825d33c1cf7073dff6d409c6'
-        forge script script/deploy/holesky/SFFLDeployerRollup.s.sol --private-key $$deployerpk --broadcast
-    environment:
-      - ETH_RPC_URL=http://rollup0-anvil:8546
     networks:
       - near-sffl
 
@@ -126,32 +108,14 @@ services:
     ports:
       - "8547:8547"
     entrypoint: anvil
-    command: --host 0.0.0.0 --port 8547 --chain-id 3 --block-time 1 
+    volumes:
+      - ./tests/anvil/data/rollup-avs-deployed-anvil-state.json:/root/.anvil/state.json
+    command: --host 0.0.0.0 --port 8547 --chain-id 3 --block-time 1 --load-state /root/.anvil/state.json
     healthcheck:
       test: ["CMD", "nc", "-zv", "localhost", "8547"]
       interval: 2s
       timeout: 30s
       retries: 15
-    networks:
-      - near-sffl
-
-  rollup1-anvil-setup:
-    image: ghcr.io/foundry-rs/foundry
-    container_name: rollup1-anvil-setup
-    depends_on:
-      rollup1-anvil:
-        condition: service_healthy
-    volumes:
-      - ./:/near-sffl/
-    working_dir: /near-sffl/contracts/evm
-    entrypoint: sh
-    command:
-      - -c
-      - |
-        deployerpk='0x2a871d0798f97d79848a013d4936a73bf4cc922c825d33c1cf7073dff6d409c6'
-        forge script script/deploy/holesky/SFFLDeployerRollup.s.sol --private-key $$deployerpk --broadcast
-    environment:
-      - ETH_RPC_URL=http://rollup1-anvil:8547
     networks:
       - near-sffl
 
@@ -182,10 +146,6 @@ services:
       rmq:
         condition: service_healthy
       mainnet-anvil-setup:
-        condition: service_completed_successfully
-      rollup0-anvil-setup:
-        condition: service_completed_successfully
-      rollup1-anvil-setup:
         condition: service_completed_successfully
     ports:
       - "3030:3030"
@@ -244,10 +204,6 @@ services:
     depends_on:
       mainnet-anvil-setup:
         condition: service_completed_successfully
-      rollup0-anvil-setup:
-        condition: service_completed_successfully
-      rollup1-anvil-setup:
-        condition: service_completed_successfully
     expose:
       - 9091
     volumes:
@@ -270,10 +226,6 @@ services:
       rmq:
         condition: service_healthy
       mainnet-anvil-setup:
-        condition: service_completed_successfully
-      rollup0-anvil-setup:
-        condition: service_completed_successfully
-      rollup1-anvil-setup:
         condition: service_completed_successfully
       aggregator:
         condition: service_started
