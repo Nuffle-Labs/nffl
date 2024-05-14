@@ -279,7 +279,7 @@ func MakeRpcServerMetrics(registry *prometheus.Registry) (RpcEventListener, erro
 			Name:      "signed_state_root_update_messages_total",
 			Help:      "Total number of signed state root update messages received per operator",
 		},
-		[]string{"operator_id", "errored", "not_found", "has_near_da"},
+		[]string{"operator_id", "errored", "has_near_da"},
 	)
 	if err := registry.Register(signedStateRootUpdateMessagesTotal); err != nil {
 		return nil, fmt.Errorf("error registering signedStateRootUpdateMessagesTotal counter: %w", err)
@@ -291,7 +291,7 @@ func MakeRpcServerMetrics(registry *prometheus.Registry) (RpcEventListener, erro
 			Name:      "signed_operator_set_update_messages_total",
 			Help:      "Total number of signed operator set update messages received per operator",
 		},
-		[]string{"operator_id", "errored", "not_found"},
+		[]string{"operator_id", "errored"},
 	)
 	if err := registry.Register(signedOperatorSetUpdateMessagesTotal); err != nil {
 		return nil, fmt.Errorf("error registering signedOperatorSetUpdateMessagesTotal counter: %w", err)
