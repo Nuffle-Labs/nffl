@@ -32,7 +32,7 @@ services:
     entrypoint: anvil
     volumes:
       - ./tests/anvil/data/avs-and-eigenlayer-deployed-anvil-state.json:/root/.anvil/state.json
-    command: --host 0.0.0.0 --port 8545 --chain-id 1 --block-time 1 --load-state /root/.anvil/state.json
+    command: --host 0.0.0.0 --port 8545 --chain-id 1 --block-time 5 --load-state /root/.anvil/state.json
     healthcheck:
       test: ["CMD", "nc", "-zv", "localhost", "8545"]
       interval: 2s
@@ -66,7 +66,7 @@ services:
     entrypoint: anvil
     volumes:
       - ./tests/anvil/data/rollup-avs-deployed-anvil-state.json:/root/.anvil/state.json
-    command: --host 0.0.0.0 --port 8546 --chain-id 2 --block-time 1 --load-state /root/.anvil/state.json
+    command: --host 0.0.0.0 --port 8546 --chain-id 2 --block-time 5 --load-state /root/.anvil/state.json
     healthcheck:
       test: ["CMD", "nc", "-zv", "localhost", "8546"]
       interval: 2s
@@ -110,7 +110,7 @@ services:
     entrypoint: anvil
     volumes:
       - ./tests/anvil/data/rollup-avs-deployed-anvil-state.json:/root/.anvil/state.json
-    command: --host 0.0.0.0 --port 8547 --chain-id 3 --block-time 1 --load-state /root/.anvil/state.json
+    command: --host 0.0.0.0 --port 8547 --chain-id 3 --block-time 5 --load-state /root/.anvil/state.json
     healthcheck:
       test: ["CMD", "nc", "-zv", "localhost", "8547"]
       interval: 2s
