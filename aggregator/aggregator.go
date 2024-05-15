@@ -317,11 +317,10 @@ func (agg *Aggregator) Close() error {
 
 func (agg *Aggregator) sendAggregatedResponseToContract(blsAggServiceResp blsagg.BlsAggregationServiceResponse) {
 	if blsAggServiceResp.Err != nil {
+		agg.aggregatorListener.IncErroredSubmissions()
 		if errors.Is(blsAggServiceResp.Err, blsagg.TaskExpiredError) {
 			agg.aggregatorListener.IncExpiredTasks()
 		}
-
-		agg.aggregatorListener.IncErroredSubmissions()
 
 		agg.logger.Error("BlsAggregationServiceResponse contains an error", "err", blsAggServiceResp.Err)
 		return
@@ -437,11 +436,10 @@ func (agg *Aggregator) handleStateRootUpdateReachedQuorum(blsAggServiceResp type
 	agg.aggregatorListener.ObserveLastStateRootUpdateReceived(msg.RollupId, msg.BlockHeight)
 
 	if blsAggServiceResp.Err != nil {
+		agg.aggregatorListener.IncErroredSubmissions()
 		if errors.Is(blsAggServiceResp.Err, MessageExpiredError) {
 			agg.aggregatorListener.IncExpiredMessages()
 		}
-
-		agg.aggregatorListener.IncErroredSubmissions()
 
 		agg.logger.Error("Aggregator BLS service returned error", "err", blsAggServiceResp.Err)
 		return
@@ -489,11 +487,10 @@ func (agg *Aggregator) handleOperatorSetUpdateReachedQuorum(ctx context.Context,
 	agg.aggregatorListener.ObserveLastOperatorSetUpdateReceived(msg.Id)
 
 	if blsAggServiceResp.Err != nil {
+		agg.aggregatorListener.IncErroredSubmissions()
 		if errors.Is(blsAggServiceResp.Err, MessageExpiredError) {
 			agg.aggregatorListener.IncExpiredMessages()
 		}
-
-		agg.aggregatorListener.IncErroredSubmissions()
 
 		agg.logger.Error("Aggregator BLS service returned error", "err", blsAggServiceResp.Err)
 		return
