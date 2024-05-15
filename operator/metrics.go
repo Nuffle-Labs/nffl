@@ -23,21 +23,21 @@ type SelectiveOperatorListener struct {
 	ObserveLastInitializedTimeCb func()
 }
 
-func (ol *SelectiveOperatorListener) OnTasksReceived() {
-	if ol.OnTasksReceivedCb != nil {
-		ol.OnTasksReceivedCb()
+func (l *SelectiveOperatorListener) OnTasksReceived() {
+	if l.OnTasksReceivedCb != nil {
+		l.OnTasksReceivedCb()
 	}
 }
 
-func (ol *SelectiveOperatorListener) IncInitializationCount() {
-	if ol.IncInitializationCountCb != nil {
-		ol.IncInitializationCountCb()
+func (l *SelectiveOperatorListener) IncInitializationCount() {
+	if l.IncInitializationCountCb != nil {
+		l.IncInitializationCountCb()
 	}
 }
 
-func (ol *SelectiveOperatorListener) ObserveLastInitializedTime() {
-	if ol.ObserveLastInitializedTimeCb != nil {
-		ol.ObserveLastInitializedTimeCb()
+func (l *SelectiveOperatorListener) ObserveLastInitializedTime() {
+	if l.ObserveLastInitializedTimeCb != nil {
+		l.ObserveLastInitializedTimeCb()
 	}
 }
 
@@ -79,51 +79,51 @@ func (l *SelectiveRpcClientListener) ObserveResendQueueSize(size int) {
 	}
 }
 
-func (ol *SelectiveRpcClientListener) ObserveLastCheckpointIdResponded(checkpointId uint32) {
-	if ol.ObserveLastCheckpointIdRespondedCb != nil {
-		ol.ObserveLastCheckpointIdRespondedCb(checkpointId)
+func (l *SelectiveRpcClientListener) ObserveLastCheckpointIdResponded(checkpointId uint32) {
+	if l.ObserveLastCheckpointIdRespondedCb != nil {
+		l.ObserveLastCheckpointIdRespondedCb(checkpointId)
 	}
 }
 
-func (ol *SelectiveRpcClientListener) ObserveLastOperatorSetUpdateIdResponded(operatorSetUpdateId uint64) {
-	if ol.ObserveLastOperatorSetUpdateIdRespondedCb != nil {
-		ol.ObserveLastOperatorSetUpdateIdRespondedCb(operatorSetUpdateId)
+func (l *SelectiveRpcClientListener) ObserveLastOperatorSetUpdateIdResponded(operatorSetUpdateId uint64) {
+	if l.ObserveLastOperatorSetUpdateIdRespondedCb != nil {
+		l.ObserveLastOperatorSetUpdateIdRespondedCb(operatorSetUpdateId)
 	}
 }
 
-func (ol *SelectiveRpcClientListener) IncStateRootUpdateSubmissions(rollupId uint32, resend bool) {
-	if ol.IncStateRootUpdateSubmissionsCb != nil {
-		ol.IncStateRootUpdateSubmissionsCb(rollupId, resend)
+func (l *SelectiveRpcClientListener) IncStateRootUpdateSubmissions(rollupId uint32, resend bool) {
+	if l.IncStateRootUpdateSubmissionsCb != nil {
+		l.IncStateRootUpdateSubmissionsCb(rollupId, resend)
 	}
 }
 
-func (ol *SelectiveRpcClientListener) IncOperatorSetUpdateUpdateSubmissions(resend bool) {
-	if ol.IncOperatorSetUpdateUpdateSubmissionsCb != nil {
-		ol.IncOperatorSetUpdateUpdateSubmissionsCb(resend)
+func (l *SelectiveRpcClientListener) IncOperatorSetUpdateUpdateSubmissions(resend bool) {
+	if l.IncOperatorSetUpdateUpdateSubmissionsCb != nil {
+		l.IncOperatorSetUpdateUpdateSubmissionsCb(resend)
 	}
 }
 
-func (ol *SelectiveRpcClientListener) IncCheckpointTaskResponseSubmissions(resend bool) {
-	if ol.IncCheckpointTaskResponseSubmissionsCb != nil {
-		ol.IncCheckpointTaskResponseSubmissionsCb(resend)
+func (l *SelectiveRpcClientListener) IncCheckpointTaskResponseSubmissions(resend bool) {
+	if l.IncCheckpointTaskResponseSubmissionsCb != nil {
+		l.IncCheckpointTaskResponseSubmissionsCb(resend)
 	}
 }
 
-func (ol *SelectiveRpcClientListener) IncErroredStateRootUpdateSubmissions(rollupId uint32, resend bool) {
-	if ol.IncErroredStateRootUpdateSubmissionsCb != nil {
-		ol.IncErroredStateRootUpdateSubmissionsCb(rollupId, resend)
+func (l *SelectiveRpcClientListener) IncErroredStateRootUpdateSubmissions(rollupId uint32, resend bool) {
+	if l.IncErroredStateRootUpdateSubmissionsCb != nil {
+		l.IncErroredStateRootUpdateSubmissionsCb(rollupId, resend)
 	}
 }
 
-func (ol *SelectiveRpcClientListener) IncErroredCheckpointSubmissions(resend bool) {
-	if ol.IncErroredCheckpointSubmissionsCb != nil {
-		ol.IncErroredCheckpointSubmissionsCb(resend)
+func (l *SelectiveRpcClientListener) IncErroredCheckpointSubmissions(resend bool) {
+	if l.IncErroredCheckpointSubmissionsCb != nil {
+		l.IncErroredCheckpointSubmissionsCb(resend)
 	}
 }
 
-func (ol *SelectiveRpcClientListener) IncErroredOperatorSetUpdateSubmissions(resend bool) {
-	if ol.IncErroredOperatorSetUpdateSubmissionsCb != nil {
-		ol.IncErroredOperatorSetUpdateSubmissionsCb(resend)
+func (l *SelectiveRpcClientListener) IncErroredOperatorSetUpdateSubmissions(resend bool) {
+	if l.IncErroredOperatorSetUpdateSubmissionsCb != nil {
+		l.IncErroredOperatorSetUpdateSubmissionsCb(resend)
 	}
 }
 
