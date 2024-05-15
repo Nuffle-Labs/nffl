@@ -326,9 +326,7 @@ func (c *SafeEthClient) SubscribeFilterLogs(ctx context.Context, q ethereum.Filt
 				reinitC = c.WatchReinit()
 				if success {
 					err := resub()
-					if err != nil {
-						c.handleClientError(err)
-					}
+					c.handleClientError(err)
 				}
 			case log := <-ch2:
 				lastBlock = max(lastBlock, log.BlockNumber)
@@ -336,15 +334,11 @@ func (c *SafeEthClient) SubscribeFilterLogs(ctx context.Context, q ethereum.Filt
 			case <-ticker.C:
 				c.logger.Debug("Resub ticker fired")
 				err := resub()
-				if err != nil {
-					c.handleClientError(err)
-				}
+				c.handleClientError(err)
 			case <-sub.Err():
 				c.logger.Info("Underlying subscription ended, resubscribing")
 				err := resub()
-				if err != nil {
-					c.handleClientError(err)
-				}
+				c.handleClientError(err)
 			case <-ctx.Done():
 				c.logger.Info("Context done, ending subscription")
 				safeSub.Unsubscribe()
@@ -437,25 +431,19 @@ func (c *SafeEthClient) SubscribeNewHead(ctx context.Context, ch chan<- *types.H
 				reinitC = c.WatchReinit()
 				if success {
 					err := resub()
-					if err != nil {
-						c.handleClientError(err)
-					}
+					c.handleClientError(err)
 				}
 			case <-sub.Err():
 				c.logger.Info("Underlying subscription to new heads ended, resubscribing")
 				err := resub()
-				if err != nil {
-					c.handleClientError(err)
-				}
+				c.handleClientError(err)
 			case <-headerTicker.C:
 				c.logger.Info("Header ticker fired, ending subscription")
 				if receivedBlock {
 					receivedBlock = false
 				} else {
 					err := resub()
-					if err != nil {
-						c.handleClientError(err)
-					}
+					c.handleClientError(err)
 				}
 			case <-ctx.Done():
 				c.logger.Info("Context done, ending new heads subscription")
