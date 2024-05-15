@@ -33,45 +33,45 @@ type SelectiveRpcListener struct {
 	ObserveLastMessageReceivedTimeCb         func(operatorId [32]byte, messageType string)
 }
 
-func (rpcl *SelectiveRpcListener) IncSignedCheckpointTaskResponse(operatorId [32]byte, errored, notFound bool) {
-	if rpcl.IncSignedCheckpointTaskResponseCb != nil {
-		rpcl.IncSignedCheckpointTaskResponseCb(operatorId, errored, notFound)
+func (l *SelectiveRpcListener) IncSignedCheckpointTaskResponse(operatorId [32]byte, errored, notFound bool) {
+	if l.IncSignedCheckpointTaskResponseCb != nil {
+		l.IncSignedCheckpointTaskResponseCb(operatorId, errored, notFound)
 	}
 }
 
-func (rpcl *SelectiveRpcListener) IncSignedStateRootUpdateMessage(operatorId [32]byte, errored, hasNearDa bool) {
-	if rpcl.IncSignedStateRootUpdateMessageCb != nil {
-		rpcl.IncSignedStateRootUpdateMessageCb(operatorId, errored, hasNearDa)
+func (l *SelectiveRpcListener) IncSignedStateRootUpdateMessage(operatorId [32]byte, errored, hasNearDa bool) {
+	if l.IncSignedStateRootUpdateMessageCb != nil {
+		l.IncSignedStateRootUpdateMessageCb(operatorId, errored, hasNearDa)
 	}
 }
 
-func (rpcl *SelectiveRpcListener) IncSignedOperatorSetUpdateMessage(operatorId [32]byte, errored bool) {
-	if rpcl.IncSignedOperatorSetUpdateMessageCb != nil {
-		rpcl.IncSignedOperatorSetUpdateMessageCb(operatorId, errored)
+func (l *SelectiveRpcListener) IncSignedOperatorSetUpdateMessage(operatorId [32]byte, errored bool) {
+	if l.IncSignedOperatorSetUpdateMessageCb != nil {
+		l.IncSignedOperatorSetUpdateMessageCb(operatorId, errored)
 	}
 }
 
-func (rpcl *SelectiveRpcListener) IncTotalSignedCheckpointTaskResponse() {
-	if rpcl.IncTotalSignedCheckpointTaskResponseCb != nil {
-		rpcl.IncTotalSignedCheckpointTaskResponseCb()
+func (l *SelectiveRpcListener) IncTotalSignedCheckpointTaskResponse() {
+	if l.IncTotalSignedCheckpointTaskResponseCb != nil {
+		l.IncTotalSignedCheckpointTaskResponseCb()
 	}
 }
 
-func (rpcl *SelectiveRpcListener) IncTotalSignedStateRootUpdateMessage() {
-	if rpcl.IncTotalSignedStateRootUpdateMessageCb != nil {
-		rpcl.IncTotalSignedStateRootUpdateMessageCb()
+func (l *SelectiveRpcListener) IncTotalSignedStateRootUpdateMessage() {
+	if l.IncTotalSignedStateRootUpdateMessageCb != nil {
+		l.IncTotalSignedStateRootUpdateMessageCb()
 	}
 }
 
-func (rpcl *SelectiveRpcListener) IncTotalSignedOperatorSetUpdateMessage() {
-	if rpcl.IncTotalSignedOperatorSetUpdateMessageCb != nil {
-		rpcl.IncTotalSignedOperatorSetUpdateMessageCb()
+func (l *SelectiveRpcListener) IncTotalSignedOperatorSetUpdateMessage() {
+	if l.IncTotalSignedOperatorSetUpdateMessageCb != nil {
+		l.IncTotalSignedOperatorSetUpdateMessageCb()
 	}
 }
 
-func (rpcl *SelectiveRpcListener) ObserveLastMessageReceivedTime(operatorId [32]byte, messageType string) {
-	if rpcl.ObserveLastMessageReceivedTimeCb != nil {
-		rpcl.ObserveLastMessageReceivedTimeCb(operatorId, messageType)
+func (l *SelectiveRpcListener) ObserveLastMessageReceivedTime(operatorId [32]byte, messageType string) {
+	if l.ObserveLastMessageReceivedTimeCb != nil {
+		l.ObserveLastMessageReceivedTimeCb(operatorId, messageType)
 	}
 }
 
@@ -89,27 +89,27 @@ type SelectiveRestListener struct {
 	APIErrorsCb                     func()
 }
 
-func (restl *SelectiveRestListener) IncStateRootUpdateRequests() {
-	if restl.IncStateRootUpdateRequestsCb != nil {
-		restl.IncStateRootUpdateRequestsCb()
+func (l *SelectiveRestListener) IncStateRootUpdateRequests() {
+	if l.IncStateRootUpdateRequestsCb != nil {
+		l.IncStateRootUpdateRequestsCb()
 	}
 }
 
-func (restl *SelectiveRestListener) IncOperatorSetUpdateRequests() {
-	if restl.IncOperatorSetUpdateRequestsCb != nil {
-		restl.IncOperatorSetUpdateRequestsCb()
+func (l *SelectiveRestListener) IncOperatorSetUpdateRequests() {
+	if l.IncOperatorSetUpdateRequestsCb != nil {
+		l.IncOperatorSetUpdateRequestsCb()
 	}
 }
 
-func (restl *SelectiveRestListener) IncCheckpointMessagesRequests() {
-	if restl.IncCheckpointMessagesRequestsCb != nil {
-		restl.IncCheckpointMessagesRequestsCb()
+func (l *SelectiveRestListener) IncCheckpointMessagesRequests() {
+	if l.IncCheckpointMessagesRequestsCb != nil {
+		l.IncCheckpointMessagesRequestsCb()
 	}
 }
 
-func (restl *SelectiveRestListener) APIErrors() {
-	if restl.APIErrorsCb != nil {
-		restl.APIErrorsCb()
+func (l *SelectiveRestListener) APIErrors() {
+	if l.APIErrorsCb != nil {
+		l.APIErrorsCb()
 	}
 }
 
@@ -141,69 +141,69 @@ type SelectiveAggregatorListener struct {
 	ObserveLastCheckpointTaskReferenceAggregatedCb func(referenceId uint32)
 }
 
-func (am *SelectiveAggregatorListener) ObserveLastOperatorSetUpdateAggregated(operatorSetUpdateId uint64) {
-	if am.ObserveLastOperatorSetUpdateAggregatedCb != nil {
-		am.ObserveLastOperatorSetUpdateAggregatedCb(operatorSetUpdateId)
+func (l *SelectiveAggregatorListener) ObserveLastOperatorSetUpdateAggregated(operatorSetUpdateId uint64) {
+	if l.ObserveLastOperatorSetUpdateAggregatedCb != nil {
+		l.ObserveLastOperatorSetUpdateAggregatedCb(operatorSetUpdateId)
 	}
 }
 
-func (am *SelectiveAggregatorListener) ObserveLastOperatorSetUpdateReceived(operatorSetUpdateId uint64) {
-	if am.ObserveLastOperatorSetUpdateReceivedCb != nil {
-		am.ObserveLastOperatorSetUpdateReceivedCb(operatorSetUpdateId)
+func (l *SelectiveAggregatorListener) ObserveLastOperatorSetUpdateReceived(operatorSetUpdateId uint64) {
+	if l.ObserveLastOperatorSetUpdateReceivedCb != nil {
+		l.ObserveLastOperatorSetUpdateReceivedCb(operatorSetUpdateId)
 	}
 }
 
-func (am *SelectiveAggregatorListener) ObserveLastStateRootUpdateAggregated(rollupId uint32, blockNumber uint64) {
-	if am.ObserveLastStateRootUpdateAggregatedCb != nil {
-		am.ObserveLastStateRootUpdateAggregatedCb(rollupId, blockNumber)
+func (l *SelectiveAggregatorListener) ObserveLastStateRootUpdateAggregated(rollupId uint32, blockNumber uint64) {
+	if l.ObserveLastStateRootUpdateAggregatedCb != nil {
+		l.ObserveLastStateRootUpdateAggregatedCb(rollupId, blockNumber)
 	}
 }
 
-func (am *SelectiveAggregatorListener) ObserveLastStateRootUpdateReceived(rollupId uint32, blockNumber uint64) {
-	if am.ObserveLastStateRootUpdateReceivedCb != nil {
-		am.ObserveLastStateRootUpdateReceivedCb(rollupId, blockNumber)
+func (l *SelectiveAggregatorListener) ObserveLastStateRootUpdateReceived(rollupId uint32, blockNumber uint64) {
+	if l.ObserveLastStateRootUpdateReceivedCb != nil {
+		l.ObserveLastStateRootUpdateReceivedCb(rollupId, blockNumber)
 	}
 }
 
-func (am *SelectiveAggregatorListener) IncExpiredMessages() {
-	if am.IncExpiredMessagesCb != nil {
-		am.IncExpiredMessagesCb()
+func (l *SelectiveAggregatorListener) IncExpiredMessages() {
+	if l.IncExpiredMessagesCb != nil {
+		l.IncExpiredMessagesCb()
 	}
 }
 
-func (am *SelectiveAggregatorListener) IncExpiredTasks() {
-	if am.IncExpiredTasksCb != nil {
-		am.IncExpiredTasksCb()
+func (l *SelectiveAggregatorListener) IncExpiredTasks() {
+	if l.IncExpiredTasksCb != nil {
+		l.IncExpiredTasksCb()
 	}
 }
 
-func (am *SelectiveAggregatorListener) IncErroredSubmissions() {
-	if am.IncErroredSubmissionsCb != nil {
-		am.IncErroredSubmissionsCb()
+func (l *SelectiveAggregatorListener) IncErroredSubmissions() {
+	if l.IncErroredSubmissionsCb != nil {
+		l.IncErroredSubmissionsCb()
 	}
 }
 
-func (am *SelectiveAggregatorListener) IncAggregatorReinitializations() {
-	if am.IncAggregatorReinitializationsCb != nil {
-		am.IncAggregatorReinitializationsCb()
+func (l *SelectiveAggregatorListener) IncAggregatorReinitializations() {
+	if l.IncAggregatorReinitializationsCb != nil {
+		l.IncAggregatorReinitializationsCb()
 	}
 }
 
-func (am *SelectiveAggregatorListener) ObserveLastCheckpointReferenceSent(referenceId uint32) {
-	if am.ObserveLastCheckpointReferenceSentCb != nil {
-		am.ObserveLastCheckpointReferenceSentCb(referenceId)
+func (l *SelectiveAggregatorListener) ObserveLastCheckpointReferenceSent(referenceId uint32) {
+	if l.ObserveLastCheckpointReferenceSentCb != nil {
+		l.ObserveLastCheckpointReferenceSentCb(referenceId)
 	}
 }
 
-func (am *SelectiveAggregatorListener) ObserveLastCheckpointTaskReferenceReceived(referenceId uint32) {
-	if am.ObserveLastCheckpointTaskReferenceReceivedCb != nil {
-		am.ObserveLastCheckpointTaskReferenceReceivedCb(referenceId)
+func (l *SelectiveAggregatorListener) ObserveLastCheckpointTaskReferenceReceived(referenceId uint32) {
+	if l.ObserveLastCheckpointTaskReferenceReceivedCb != nil {
+		l.ObserveLastCheckpointTaskReferenceReceivedCb(referenceId)
 	}
 }
 
-func (am *SelectiveAggregatorListener) ObserveLastCheckpointTaskReferenceAggregated(referenceId uint32) {
-	if am.ObserveLastCheckpointTaskReferenceAggregatedCb != nil {
-		am.ObserveLastCheckpointTaskReferenceAggregatedCb(referenceId)
+func (l *SelectiveAggregatorListener) ObserveLastCheckpointTaskReferenceAggregated(referenceId uint32) {
+	if l.ObserveLastCheckpointTaskReferenceAggregatedCb != nil {
+		l.ObserveLastCheckpointTaskReferenceAggregatedCb(referenceId)
 	}
 }
 
