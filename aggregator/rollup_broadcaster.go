@@ -128,6 +128,9 @@ func (b *RollupBroadcaster) initializeRollupOperatorSetsOnUpdate(ctx context.Con
 					}
 				}(writer)
 			}
+
+			operatorSetUpdateSub.Unsubscribe()
+			return
 		}
 	}
 }
