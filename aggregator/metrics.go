@@ -408,7 +408,7 @@ func MakeAggregatorMetrics(registry *prometheus.Registry) (AggregatorEventListen
 	aggregatorReinitializations := prometheus.NewCounter(
 		prometheus.CounterOpts{
 			Namespace: AggregatorNamespace,
-			Name:      "aggregator_reinitializations_total",
+			Name:      "reinitializations_total",
 			Help:      "Total number of aggregator reinitializations",
 		},
 	)
