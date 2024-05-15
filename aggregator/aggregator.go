@@ -316,7 +316,6 @@ func (agg *Aggregator) Close() error {
 }
 
 func (agg *Aggregator) sendAggregatedResponseToContract(blsAggServiceResp blsagg.BlsAggregationServiceResponse) {
-	// TODO: check if blsAggServiceResp contains an err
 	if blsAggServiceResp.Err != nil {
 		if errors.Is(blsAggServiceResp.Err, blsagg.TaskExpiredError) {
 			agg.aggregatorListener.IncExpiredTasks()
