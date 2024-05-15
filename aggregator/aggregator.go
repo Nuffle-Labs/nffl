@@ -236,7 +236,7 @@ func NewAggregator(ctx context.Context, config *config.Config, logger logging.Lo
 		agg.registry = registry
 	}
 
-	agg.aggregatorListener.IncAggregatorReinitializations()
+	agg.aggregatorListener.IncAggregatorInitializations()
 
 	return agg, nil
 }

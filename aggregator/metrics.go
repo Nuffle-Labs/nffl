@@ -121,7 +121,7 @@ type AggregatorEventListener interface {
 	IncExpiredMessages()
 	IncExpiredTasks()
 	IncErroredSubmissions()
-	IncAggregatorReinitializations()
+	IncAggregatorInitializations()
 	ObserveLastCheckpointReferenceSent(referenceId uint32)
 	ObserveLastCheckpointTaskReferenceReceived(referenceId uint32)
 	ObserveLastCheckpointTaskReferenceAggregated(referenceId uint32)
@@ -135,7 +135,7 @@ type SelectiveAggregatorListener struct {
 	IncExpiredMessagesCb                           func()
 	IncExpiredTasksCb                              func()
 	IncErroredSubmissionsCb                        func()
-	IncAggregatorReinitializationsCb               func()
+	IncAggregatorInitializationsCb                 func()
 	ObserveLastCheckpointReferenceSentCb           func(referenceId uint32)
 	ObserveLastCheckpointTaskReferenceReceivedCb   func(referenceId uint32)
 	ObserveLastCheckpointTaskReferenceAggregatedCb func(referenceId uint32)
@@ -183,9 +183,9 @@ func (l *SelectiveAggregatorListener) IncErroredSubmissions() {
 	}
 }
 
-func (l *SelectiveAggregatorListener) IncAggregatorReinitializations() {
-	if l.IncAggregatorReinitializationsCb != nil {
-		l.IncAggregatorReinitializationsCb()
+func (l *SelectiveAggregatorListener) IncAggregatorInitializations() {
+	if l.IncAggregatorInitializationsCb != nil {
+		l.IncAggregatorInitializationsCb()
 	}
 }
 
@@ -405,15 +405,15 @@ func MakeAggregatorMetrics(registry *prometheus.Registry) (AggregatorEventListen
 		return nil, fmt.Errorf("error registering erroredSubmissions counter: %w", err)
 	}
 
-	aggregatorReinitializations := prometheus.NewCounter(
+	aggregatorInitializations := prometheus.NewCounter(
 		prometheus.CounterOpts{
 			Namespace: AggregatorNamespace,
 			Name:      "reinitializations_total",
 			Help:      "Total number of aggregator reinitializations",
 		},
 	)
-	if err := registry.Register(aggregatorReinitializations); err != nil {
-		return nil, fmt.Errorf("error registering aggregatorReinitializations counter: %w", err)
+	if err := registry.Register(aggregatorInitializations); err != nil {
+		return nil, fmt.Errorf("error registering aggregatorInitializations counter: %w", err)
 	}
 
 	lastCheckpointReferenceSent := prometheus.NewGauge(
@@ -471,8 +471,8 @@ func MakeAggregatorMetrics(registry *prometheus.Registry) (AggregatorEventListen
 		IncErroredSubmissionsCb: func() {
 			erroredSubmissions.Inc()
 		},
-		IncAggregatorReinitializationsCb: func() {
-			aggregatorReinitializations.Inc()
+		IncAggregatorInitializationsCb: func() {
+			aggregatorInitializations.Inc()
 		},
 		ObserveLastCheckpointReferenceSentCb: func(referenceId uint32) {
 			lastCheckpointReferenceSent.Set(float64(referenceId))
