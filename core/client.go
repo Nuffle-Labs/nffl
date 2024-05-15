@@ -17,7 +17,7 @@ import (
 )
 
 const (
-	BLOCK_CHUNK_SIZE = 1000
+	BLOCK_CHUNK_SIZE = 2000
 	BLOCK_MAX_RANGE  = 10000
 	RESUB_INTERVAL   = 5 * time.Minute
 	REINIT_INTERVAL  = 1 * time.Minute
