@@ -69,11 +69,11 @@ pub struct PublishData {
 }
 
 #[derive(Clone)]
-pub struct RabbitPublisherHandle {
+pub struct RmqPublisherHandle {
     pub sender: mpsc::Sender<PublishData>,
 }
 
-impl RabbitPublisherHandle {
+impl RmqPublisherHandle {
     pub async fn publish(&mut self, publish_data: PublishData) -> Result<()> {
         Ok(self.sender.send(publish_data).await?)
     }
@@ -84,12 +84,12 @@ impl RabbitPublisherHandle {
 }
 
 #[derive(Clone)]
-pub struct RabbitPublisher {
+pub struct RmqPublisher {
     connection_pool: Pool,
     listener: Option<PublisherListener>,
 }
 
-impl RabbitPublisher {
+impl RmqPublisher {
     pub fn new(addr: &str) -> Result<Self> {
         let connection_pool = create_connection_pool(addr.into())?;
 
@@ -106,7 +106,7 @@ impl RabbitPublisher {
     }
 }
 
-impl Metricable for RabbitPublisher {
+impl Metricable for RmqPublisher {
     fn enable_metrics(&mut self, registry: Registry) -> Result<()> {
         let listener = make_publisher_metrics(registry)?;
         self.listener = Some(listener);
