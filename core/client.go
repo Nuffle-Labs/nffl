@@ -255,16 +255,18 @@ func (c *SafeEthClient) SubscribeFilterLogs(ctx context.Context, q ethereum.Filt
 	safeSub := NewSafeSubscription(sub)
 	lastBlock := currentBlock
 
-	resubFilterLogs := func() error {
+	resubFilterLogs := func() ([]types.Log, error) {
+		missedLogs := make([]types.Log, 0)
+
 		currentBlock, err := c.Client.BlockNumber(ctx)
 		if err != nil {
 			c.logger.Error("Failed to get current block number", "err", err)
-			return err
+			return nil, err
 		}
 		c.logger.Debug("Got current block number for resub", "block", currentBlock)
 
 		if lastBlock >= currentBlock {
-			return nil
+			return nil, nil
 		}
 
 		fromBlock := max(lastBlock, currentBlock-BLOCK_MAX_RANGE) + 1
@@ -285,23 +287,21 @@ func (c *SafeEthClient) SubscribeFilterLogs(ctx context.Context, q ethereum.Filt
 			})
 			if err != nil {
 				c.logger.Error("Failed to get missed logs", "err", err)
-				return err
+				return nil, err
 			} else {
 				c.logger.Info("Got missed logs on resubscribe", "count", len(logs))
-				for _, log := range logs {
-					proxyC <- log
-				}
+				missedLogs = append(missedLogs, logs...)
 			}
 		}
 
-		return nil
+		return missedLogs, nil
 	}
 
 	resub := func() error {
 		c.clientLock.RLock()
 		defer c.clientLock.RUnlock()
 
-		err := resubFilterLogs()
+		missedLogs, err := resubFilterLogs()
 		if err != nil {
 			return err
 		}
@@ -314,6 +314,11 @@ func (c *SafeEthClient) SubscribeFilterLogs(ctx context.Context, q ethereum.Filt
 		c.logger.Info("Resubscribed to logs")
 
 		safeSub.SetUnderlyingSub(sub)
+
+		for _, log := range missedLogs {
+			lastBlock = max(lastBlock, log.BlockNumber)
+			ch <- log
+		}
 
 		return nil
 	}
