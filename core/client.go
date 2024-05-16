@@ -255,57 +255,53 @@ func (c *SafeEthClient) SubscribeFilterLogs(ctx context.Context, q ethereum.Filt
 	safeSub := NewSafeSubscription(sub)
 	lastBlock := currentBlock
 
-	resubFilterLogs := func() ([]types.Log, error) {
+	resubFilterLogs := func() (uint64, []types.Log, error) {
 		missedLogs := make([]types.Log, 0)
 
 		currentBlock, err := c.Client.BlockNumber(ctx)
 		if err != nil {
 			c.logger.Error("Failed to get current block number", "err", err)
-			return nil, err
+			return 0, nil, err
 		}
 		c.logger.Debug("Got current block number for resub", "block", currentBlock)
 
 		if lastBlock >= currentBlock {
-			return nil, nil
+			return 0, nil, nil
 		}
 
 		fromBlock := max(lastBlock, currentBlock-BLOCK_MAX_RANGE) + 1
 
 		for ; fromBlock < currentBlock; fromBlock += (BLOCK_CHUNK_SIZE + 1) {
-			toBlock := fromBlock + BLOCK_CHUNK_SIZE
-
-			targetBlock := big.NewInt(int64(toBlock))
-			if fromBlock+BLOCK_CHUNK_SIZE > currentBlock {
-				targetBlock = nil
-			}
+			toBlock := min(fromBlock+BLOCK_CHUNK_SIZE, currentBlock)
 
 			logs, err := c.Client.FilterLogs(ctx, ethereum.FilterQuery{
 				FromBlock: big.NewInt(int64(fromBlock)),
-				ToBlock:   targetBlock,
+				ToBlock:   big.NewInt(int64(toBlock)),
 				Addresses: q.Addresses,
 				Topics:    q.Topics,
 			})
 			if err != nil {
 				c.logger.Error("Failed to get missed logs", "err", err)
-				return nil, err
+				return 0, nil, err
 			} else {
 				c.logger.Info("Got missed logs on resubscribe", "count", len(logs))
 				missedLogs = append(missedLogs, logs...)
 			}
 		}
 
-		return missedLogs, nil
+		return currentBlock, missedLogs, nil
 	}
 
 	resub := func() error {
 		c.clientLock.RLock()
 		defer c.clientLock.RUnlock()
 
-		missedLogs, err := resubFilterLogs()
+		currentBlock, missedLogs, err := resubFilterLogs()
 		if err != nil {
 			return err
 		}
 
+		q.FromBlock = big.NewInt(int64(currentBlock))
 		sub, err = c.Client.SubscribeFilterLogs(ctx, q, proxyC)
 		if err != nil {
 			c.logger.Error("Failed to resubscribe to logs", "err", err)
