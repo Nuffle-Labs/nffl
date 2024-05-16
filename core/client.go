@@ -437,8 +437,10 @@ func (c *SafeEthClient) SubscribeNewHead(ctx context.Context, ch chan<- *types.H
 	go func() {
 		defer c.wg.Done()
 
-		reinitC := c.WatchReinit()
 		headerTicker := time.NewTicker(HEADER_TIMEOUT)
+		defer headerTicker.Stop()
+
+		reinitC := c.WatchReinit()
 		receivedBlock := false
 
 		for {
