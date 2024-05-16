@@ -243,7 +243,7 @@ func (c *SafeEthClient) SubscribeFilterLogs(ctx context.Context, q ethereum.Filt
 	}
 	c.logger.Debug("Got current block number", "block", currentBlock)
 
-	ch2 := make(chan types.Log)
+	ch2 := make(chan types.Log, 100)
 
 	sub, err := c.Client.SubscribeFilterLogs(ctx, q, ch2)
 	if err != nil {
