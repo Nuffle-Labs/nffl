@@ -127,6 +127,12 @@ func (c *SafeEthClient) notifySubscribers(success bool) {
 }
 
 func (c *SafeEthClient) handleReinitEvent() {
+	success := c.reinit()
+	c.notifySubscribers(success)
+	if success {
+		return
+	}
+
 	defer c.wg.Done()
 
 	c.isReinitializing = true
