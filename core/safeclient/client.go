@@ -346,7 +346,9 @@ func (c *SafeEthClient) SubscribeFilterLogs(ctx context.Context, q ethereum.Filt
 				reinitC = c.WatchReinit()
 				if success {
 					err := resub()
-					c.handleClientError(err)
+					if err = c.handleClientError(err); err != nil {
+						c.logger.Error("Failed to resubscribe to logs", "err", err)
+					}
 				}
 			case log := <-proxyC:
 				// since resub pushes the missed blocks directly to the channel and updates lastBlock, this is ordered
@@ -359,11 +361,15 @@ func (c *SafeEthClient) SubscribeFilterLogs(ctx context.Context, q ethereum.Filt
 			case <-ticker.C:
 				c.logger.Debug("Resub ticker fired")
 				err := resub()
-				c.handleClientError(err)
+				if err = c.handleClientError(err); err != nil {
+					c.logger.Error("Failed to resubscribe to logs", "err", err)
+				}
 			case <-sub.Err():
 				c.logger.Info("Underlying subscription ended, resubscribing")
 				err := resub()
-				c.handleClientError(err)
+				if err = c.handleClientError(err); err != nil {
+					c.logger.Error("Failed to resubscribe to logs", "err", err)
+				}
 			case <-c.closeC:
 				c.logger.Info("Received close signal, ending subscription")
 				safeSub.Unsubscribe()
@@ -400,17 +406,20 @@ func (c *SafeEthClient) isConnectionError(err error) bool {
 	return isConnectionReset || isConnectionRefused || isAbnormalClosure
 }
 
-func (c *SafeEthClient) handleClientError(err error) {
+func (c *SafeEthClient) handleClientError(err error) error {
 	if err == nil {
-		return
+		return nil
 	}
 
 	if c.isConnectionError(err) {
 		c.logger.Error("Connection error detected, triggering reinit", "err", err)
 		c.triggerReinit()
-	} else {
-		c.logger.Error("Client error detected", "err", err)
+
+		// if it's something we're silently treating, return nil to indicate that
+		return nil
 	}
+
+	return err
 }
 
 func (c *SafeEthClient) triggerReinit() {
@@ -466,19 +475,25 @@ func (c *SafeEthClient) SubscribeNewHead(ctx context.Context, ch chan<- *types.H
 				reinitC = c.WatchReinit()
 				if success {
 					err := resub()
-					c.handleClientError(err)
+					if err = c.handleClientError(err); err != nil {
+						c.logger.Error("Failed to resubscribe to new heads", "err", err)
+					}
 				}
 			case <-sub.Err():
 				c.logger.Info("Underlying subscription to new heads ended, resubscribing")
 				err := resub()
-				c.handleClientError(err)
+				if err = c.handleClientError(err); err != nil {
+					c.logger.Error("Failed to resubscribe to new heads", "err", err)
+				}
 			case <-headerTicker.C:
 				c.logger.Info("Header ticker fired, ending subscription")
 				if receivedBlock {
 					receivedBlock = false
 				} else {
 					err := resub()
-					c.handleClientError(err)
+					if err = c.handleClientError(err); err != nil {
+						c.logger.Error("Failed to resubscribe to new heads", "err", err)
+					}
 				}
 			case <-c.closeC:
 				c.logger.Info("Received close signal, ending new heads subscription")
