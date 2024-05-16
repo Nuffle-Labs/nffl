@@ -353,6 +353,10 @@ func (c *SafeEthClient) SubscribeFilterLogs(ctx context.Context, q ethereum.Filt
 				c.logger.Info("Underlying subscription ended, resubscribing")
 				err := resub()
 				c.handleClientError(err)
+			case <-c.closeC:
+				c.logger.Info("Received close signal, ending subscription")
+				safeSub.Unsubscribe()
+				return
 			case <-ctx.Done():
 				c.logger.Info("Context done, ending subscription")
 				safeSub.Unsubscribe()
@@ -463,6 +467,10 @@ func (c *SafeEthClient) SubscribeNewHead(ctx context.Context, ch chan<- *types.H
 					err := resub()
 					c.handleClientError(err)
 				}
+			case <-c.closeC:
+				c.logger.Info("Received close signal, ending new heads subscription")
+				safeSub.Unsubscribe()
+				return
 			case <-ctx.Done():
 				c.logger.Info("Context done, ending new heads subscription")
 				safeSub.Unsubscribe()
