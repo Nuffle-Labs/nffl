@@ -301,7 +301,7 @@ func (c *SafeEthClient) SubscribeFilterLogs(ctx context.Context, q ethereum.Filt
 		c.clientLock.RLock()
 		defer c.clientLock.RUnlock()
 
-		sub, err = c.Client.SubscribeFilterLogs(ctx, q, proxyC)
+		newSub, err := c.Client.SubscribeFilterLogs(ctx, q, proxyC)
 		if err != nil {
 			c.logger.Error("Failed to resubscribe to logs", "err", err)
 			return err
@@ -311,10 +311,11 @@ func (c *SafeEthClient) SubscribeFilterLogs(ctx context.Context, q ethereum.Filt
 		missedLogs, err := resubFilterLogs()
 		if err != nil {
 			c.logger.Error("Failed to get missed logs", "err", err)
-			sub.Unsubscribe()
+			newSub.Unsubscribe()
 			return err
 		}
 
+		sub = newSub
 		safeSub.SetUnderlyingSub(sub)
 
 		for _, log := range missedLogs {
