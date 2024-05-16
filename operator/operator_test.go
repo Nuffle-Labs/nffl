@@ -37,7 +37,7 @@ func TestOperator(t *testing.T) {
 	mockCtrl := gomock.NewController(t)
 	defer mockCtrl.Finish()
 
-	operator, avsManager, mockConsumer, err := createMockOperator(mockCtrl)
+	operator, avsManager, mockConsumer, mockClient, err := createMockOperator(mockCtrl)
 	assert.Nil(t, err)
 	const taskIndex = 1
 
@@ -155,7 +155,6 @@ func TestOperator(t *testing.T) {
 		avsManager.avsReader = mockReader
 
 		ctx, cancel := context.WithCancel(context.Background())
-		defer cancel()
 
 		go func() {
 			err := operator.Start(ctx)
@@ -170,17 +169,23 @@ func TestOperator(t *testing.T) {
 		})
 
 		time.Sleep(1 * time.Second)
+
+		mockClient.EXPECT().Close()
+
+		cancel()
+
+		time.Sleep(1 * time.Second)
 	})
 }
 
-func createMockOperator(mockCtrl *gomock.Controller) (*Operator, *AvsManager, *mocks.MockConsumer, error) {
+func createMockOperator(mockCtrl *gomock.Controller) (*Operator, *AvsManager, *mocks.MockConsumer, *safeclientmocks.MockSafeClient, error) {
 	logger := sdklogging.NewNoopLogger()
 	reg := prometheus.NewRegistry()
 	noopMetrics := metrics.NewNoopMetrics()
 
 	blsPrivateKey, err := bls.NewPrivateKey(MOCK_OPERATOR_BLS_PRIVATE_KEY)
 	if err != nil {
-		return nil, nil, nil, err
+		return nil, nil, nil, nil, err
 	}
 	operatorKeypair := bls.NewKeyPair(blsPrivateKey)
 
@@ -205,5 +210,5 @@ func createMockOperator(mockCtrl *gomock.Controller) (*Operator, *AvsManager, *m
 		ethClient:  mockClient,
 	}
 
-	return operator, avsManager, mockAttestor.MockGetConsumer(), nil
+	return operator, avsManager, mockAttestor.MockGetConsumer(), mockClient, nil
 }
