@@ -243,9 +243,9 @@ func (c *SafeEthClient) SubscribeFilterLogs(ctx context.Context, q ethereum.Filt
 	}
 	c.logger.Debug("Got current block number", "block", currentBlock)
 
-	ch2 := make(chan types.Log, 100)
+	proxyC := make(chan types.Log, 100)
 
-	sub, err := c.Client.SubscribeFilterLogs(ctx, q, ch2)
+	sub, err := c.Client.SubscribeFilterLogs(ctx, q, proxyC)
 	if err != nil {
 		c.logger.Error("Failed to subscribe to logs", "err", err)
 		return nil, err
@@ -289,7 +289,7 @@ func (c *SafeEthClient) SubscribeFilterLogs(ctx context.Context, q ethereum.Filt
 			} else {
 				c.logger.Info("Got missed logs on resubscribe", "count", len(logs))
 				for _, log := range logs {
-					ch2 <- log
+					proxyC <- log
 				}
 			}
 
@@ -308,7 +308,7 @@ func (c *SafeEthClient) SubscribeFilterLogs(ctx context.Context, q ethereum.Filt
 			return err
 		}
 
-		sub, err = c.Client.SubscribeFilterLogs(ctx, q, ch2)
+		sub, err = c.Client.SubscribeFilterLogs(ctx, q, proxyC)
 		if err != nil {
 			c.logger.Error("Failed to resubscribe to logs", "err", err)
 			return err
@@ -342,7 +342,7 @@ func (c *SafeEthClient) SubscribeFilterLogs(ctx context.Context, q ethereum.Filt
 					err := resub()
 					c.handleClientError(err)
 				}
-			case log := <-ch2:
+			case log := <-proxyC:
 				lastBlock = max(lastBlock, log.BlockNumber)
 				ch <- log
 			case <-ticker.C:
@@ -415,13 +415,13 @@ func (c *SafeEthClient) SubscribeNewHead(ctx context.Context, ch chan<- *types.H
 	c.logger.Info("Subscribed to new heads")
 
 	safeSub := NewSafeSubscription(sub)
-	intermediateC := make(chan *types.Header, 100)
+	proxyC := make(chan *types.Header, 100)
 
 	resub := func() error {
 		c.clientLock.RLock()
 		defer c.clientLock.RUnlock()
 
-		sub, err = c.Client.SubscribeNewHead(ctx, intermediateC)
+		sub, err = c.Client.SubscribeNewHead(ctx, proxyC)
 		if err != nil {
 			c.logger.Error("Failed to resubscribe to new heads", "err", err)
 			return err
@@ -445,7 +445,7 @@ func (c *SafeEthClient) SubscribeNewHead(ctx context.Context, ch chan<- *types.H
 
 		for {
 			select {
-			case header := <-intermediateC:
+			case header := <-proxyC:
 				receivedBlock = true
 				ch <- header
 			case <-safeSub.Err():
