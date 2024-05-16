@@ -263,9 +263,13 @@ func (c *SafeEthClient) SubscribeFilterLogs(ctx context.Context, q ethereum.Filt
 		}
 		c.logger.Debug("Got current block number for resub", "block", currentBlock)
 
-		fromBlock := max(lastBlock+1, currentBlock-BLOCK_MAX_RANGE)
+		if lastBlock >= currentBlock {
+			return nil
+		}
 
-		for ; fromBlock < currentBlock; fromBlock += BLOCK_CHUNK_SIZE {
+		fromBlock := max(lastBlock, currentBlock-BLOCK_MAX_RANGE) + 1
+
+		for ; fromBlock < currentBlock; fromBlock += (BLOCK_CHUNK_SIZE + 1) {
 			toBlock := fromBlock + BLOCK_CHUNK_SIZE
 
 			targetBlock := big.NewInt(int64(toBlock))
