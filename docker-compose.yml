@@ -34,7 +34,7 @@ services:
       - ./tests/anvil/data/avs-and-eigenlayer-deployed-anvil-state.json:/root/.anvil/state.json
     command: --host 0.0.0.0 --port 8545 --chain-id 1 --block-time 5 --load-state /root/.anvil/state.json
     healthcheck:
-      test: ["CMD", "nc", "-zv", "localhost", "8545"]
+      test: ["CMD", "nc", "-zv", "0.0.0.0", "8545"]
       interval: 2s
       timeout: 30s
       retries: 15
@@ -57,7 +57,7 @@ services:
       - ETH_RPC_URL=http://mainnet-anvil:8545
     networks:
       - near-sffl
-  
+
   rollup0-anvil:
     image: ghcr.io/foundry-rs/foundry:latest@sha256:8b843eb65cc7b155303b316f65d27173c862b37719dc095ef3a2ef27ce8d3c00
     container_name: rollup0-anvil
@@ -68,7 +68,7 @@ services:
       - ./tests/anvil/data/rollup-avs-deployed-anvil-state.json:/root/.anvil/state.json
     command: --host 0.0.0.0 --port 8546 --chain-id 2 --block-time 5 --load-state /root/.anvil/state.json
     healthcheck:
-      test: ["CMD", "nc", "-zv", "localhost", "8546"]
+      test: ["CMD", "nc", "-zv", "0.0.0.0", "8546"]
       interval: 2s
       timeout: 30s
       retries: 15
@@ -112,7 +112,7 @@ services:
       - ./tests/anvil/data/rollup-avs-deployed-anvil-state.json:/root/.anvil/state.json
     command: --host 0.0.0.0 --port 8547 --chain-id 3 --block-time 5 --load-state /root/.anvil/state.json
     healthcheck:
-      test: ["CMD", "nc", "-zv", "localhost", "8547"]
+      test: ["CMD", "nc", "-zv", "0.0.0.0", "8547"]
       interval: 2s
       timeout: 30s
       retries: 15
@@ -154,7 +154,7 @@ services:
     volumes:
       - near_cli_data:/root/.near
       - near_cli_keys:/root/.near-credentials
-    command: 
+    command:
       - --rmq-address
       - amqp://rmq:5672
       - --da-contract-ids
@@ -181,7 +181,7 @@ services:
       - near_cli_data:/near-cli
       - near_cli_keys:/root/.near-credentials
     entrypoint: sh
-    command: 
+    command:
       - -c
       - |
         npm i -g near-cli@3.0.0
@@ -209,12 +209,12 @@ services:
     volumes:
       - ./:/near-sffl/
     working_dir: /near-sffl
-    command: 
-      - --config 
+    command:
+      - --config
       - config-files/aggregator-docker-compose.yaml
-      - --sffl-deployment 
+      - --sffl-deployment
       - contracts/evm/script/output/31337/sffl_avs_deployment_output.json
-      - --ecdsa-private-key 
+      - --ecdsa-private-key
       - "0x2a871d0798f97d79848a013d4936a73bf4cc922c825d33c1cf7073dff6d409c6"
     networks:
       - near-sffl
