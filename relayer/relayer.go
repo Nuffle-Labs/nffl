@@ -14,6 +14,7 @@ import (
 	"github.com/prometheus/client_golang/prometheus"
 
 	"github.com/NethermindEth/near-sffl/core"
+	"github.com/NethermindEth/near-sffl/core/safeclient"
 	"github.com/NethermindEth/near-sffl/relayer/config"
 )
 
@@ -37,7 +38,7 @@ type Relayer struct {
 var _ core.Metricable = (*Relayer)(nil)
 
 func NewRelayerFromConfig(config *config.RelayerConfig, logger sdklogging.Logger) (*Relayer, error) {
-	rpcClient, err := core.NewSafeEthClient(config.RpcUrl, logger)
+	rpcClient, err := safeclient.NewSafeEthClient(config.RpcUrl, logger)
 	if err != nil {
 		return nil, err
 	}

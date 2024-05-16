@@ -17,6 +17,7 @@ import (
 	"github.com/prometheus/client_golang/prometheus"
 
 	"github.com/NethermindEth/near-sffl/core"
+	"github.com/NethermindEth/near-sffl/core/safeclient"
 	"github.com/NethermindEth/near-sffl/core/types/messages"
 	"github.com/NethermindEth/near-sffl/operator/consumer"
 	optypes "github.com/NethermindEth/near-sffl/operator/types"
@@ -93,7 +94,7 @@ func NewAttestor(config *optypes.NodeConfig, blsKeypair *bls.KeyPair, operatorId
 			rpcCallsCollector = rpccalls.NewCollector(id+url, registry)
 		}
 
-		client, err := core.NewSafeEthClient(url, logger, core.WithCollector(rpcCallsCollector))
+		client, err := safeclient.NewSafeEthClient(url, logger, safeclient.WithCollector(rpcCallsCollector))
 		if err != nil {
 			return nil, err
 		}
