@@ -261,20 +261,19 @@ func (c *SafeEthClient) SubscribeFilterLogs(ctx context.Context, q ethereum.Filt
 	safeSub := NewSafeSubscription(sub)
 	lastBlock := currentBlock
 
-	resubFilterLogs := func() (uint64, []types.Log, error) {
-		missedLogs := make([]types.Log, 0)
-
+	resubFilterLogs := func() ([]types.Log, error) {
 		currentBlock, err := c.Client.BlockNumber(ctx)
 		if err != nil {
 			c.logger.Error("Failed to get current block number", "err", err)
-			return 0, nil, err
+			return nil, err
 		}
 		c.logger.Debug("Got current block number for resub", "block", currentBlock)
 
 		if lastBlock >= currentBlock {
-			return 0, nil, nil
+			return nil, nil
 		}
 
+		missedLogs := make([]types.Log, 0)
 		fromBlock := max(lastBlock, currentBlock-BLOCK_MAX_RANGE) + 1
 
 		for ; fromBlock < currentBlock; fromBlock += (BLOCK_CHUNK_SIZE + 1) {
@@ -288,32 +287,33 @@ func (c *SafeEthClient) SubscribeFilterLogs(ctx context.Context, q ethereum.Filt
 			})
 			if err != nil {
 				c.logger.Error("Failed to get missed logs", "err", err)
-				return 0, nil, err
+				return nil, err
 			} else {
 				c.logger.Info("Got missed logs on resubscribe", "count", len(logs))
 				missedLogs = append(missedLogs, logs...)
 			}
 		}
 
-		return currentBlock, missedLogs, nil
+		return missedLogs, nil
 	}
 
 	resub := func() error {
 		c.clientLock.RLock()
 		defer c.clientLock.RUnlock()
 
-		currentBlock, missedLogs, err := resubFilterLogs()
-		if err != nil {
-			return err
-		}
-
-		q.FromBlock = big.NewInt(int64(currentBlock))
 		sub, err = c.Client.SubscribeFilterLogs(ctx, q, proxyC)
 		if err != nil {
 			c.logger.Error("Failed to resubscribe to logs", "err", err)
 			return err
 		}
 		c.logger.Info("Resubscribed to logs")
+
+		missedLogs, err := resubFilterLogs()
+		if err != nil {
+			c.logger.Error("Failed to get missed logs", "err", err)
+			sub.Unsubscribe()
+			return err
+		}
 
 		safeSub.SetUnderlyingSub(sub)
 
@@ -348,7 +348,12 @@ func (c *SafeEthClient) SubscribeFilterLogs(ctx context.Context, q ethereum.Filt
 					c.handleClientError(err)
 				}
 			case log := <-proxyC:
-				lastBlock = max(lastBlock, log.BlockNumber)
+				// since resub pushes the missed blocks directly to the channel and updates lastBlock, this is ordered
+				if lastBlock < log.BlockNumber {
+					continue
+				}
+
+				lastBlock = log.BlockNumber
 				ch <- log
 			case <-ticker.C:
 				c.logger.Debug("Resub ticker fired")
