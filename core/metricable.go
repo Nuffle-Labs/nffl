@@ -16,7 +16,7 @@ func CreateEthClientWithCollector(id, url string, enableMetrics bool, registry *
 	if enableMetrics {
 		// Using url as avsName
 		rpcCallsCollector := rpccalls.NewCollector(id+url, registry)
-		return safeclient.NewSafeEthClient(url, logger, safeclient.WithCollector(rpcCallsCollector))
+		return safeclient.NewSafeEthClient(url, logger, safeclient.WithInstrumentedCreateClient(rpcCallsCollector))
 	}
 
 	return safeclient.NewSafeEthClient(url, logger)

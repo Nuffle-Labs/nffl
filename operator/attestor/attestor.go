@@ -94,7 +94,7 @@ func NewAttestor(config *optypes.NodeConfig, blsKeypair *bls.KeyPair, operatorId
 			rpcCallsCollector = rpccalls.NewCollector(id+url, registry)
 		}
 
-		client, err := safeclient.NewSafeEthClient(url, logger, safeclient.WithCollector(rpcCallsCollector))
+		client, err := safeclient.NewSafeEthClient(url, logger, safeclient.WithInstrumentedCreateClient(rpcCallsCollector))
 		if err != nil {
 			return nil, err
 		}

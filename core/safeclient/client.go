@@ -44,7 +44,7 @@ type SafeEthClient struct {
 	reinitC               chan struct{}
 	closeC                chan struct{}
 	closed                bool
-	collector             *rpccalls.Collector
+	createClient          func(string, logging.Logger) (eth.Client, error)
 }
 
 func NewSafeEthClient(rpcUrl string, logger logging.Logger, opts ...SafeEthClientOption) (*SafeEthClient, error) {
@@ -54,13 +54,21 @@ func NewSafeEthClient(rpcUrl string, logger logging.Logger, opts ...SafeEthClien
 		reinitInterval: REINIT_INTERVAL,
 		reinitC:        make(chan struct{}),
 		closeC:         make(chan struct{}),
+		createClient: func(rpcUrl string, logger logging.Logger) (eth.Client, error) {
+			client, err := eth.NewClient(rpcUrl)
+			if err != nil {
+				return nil, err
+			}
+			logger.Debug("Created new eth client without collector")
+			return client, nil
+		},
 	}
 
 	for _, opt := range opts {
 		opt(safeClient)
 	}
 
-	client, err := safeClient.createClient()
+	client, err := safeClient.createClient(rpcUrl, logger)
 	if err != nil {
 		logger.Error("Failed to create client", "err", err)
 		return nil, err
@@ -82,27 +90,22 @@ func WithReinitInterval(interval time.Duration) SafeEthClientOption {
 	}
 }
 
-func WithCollector(collector *rpccalls.Collector) SafeEthClientOption {
+func WithInstrumentedCreateClient(collector *rpccalls.Collector) SafeEthClientOption {
 	return func(c *SafeEthClient) {
-		c.collector = collector
+		c.createClient = func(rpcUrl string, logger logging.Logger) (eth.Client, error) {
+			client, err := eth.NewInstrumentedClient(rpcUrl, collector)
+			if err != nil {
+				return nil, err
+			}
+			logger.Debug("Created new instrumented eth client with collector")
+			return client, nil
+		}
 	}
 }
 
-func (c *SafeEthClient) createClient() (eth.Client, error) {
-	if c.collector == nil {
-		client, err := eth.NewClient(c.rpcUrl)
-		if err != nil {
-			return nil, err
-		}
-		c.logger.Debug("Created new eth client without collector")
-		return client, nil
-	} else {
-		client, err := eth.NewInstrumentedClient(c.rpcUrl, c.collector)
-		if err != nil {
-			return nil, err
-		}
-		c.logger.Debug("Created new instrumented eth client with collector")
-		return client, nil
+func WithCustomCreateClient(createClient func(string, logging.Logger) (eth.Client, error)) SafeEthClientOption {
+	return func(c *SafeEthClient) {
+		c.createClient = createClient
 	}
 }
 
@@ -110,7 +113,7 @@ func (c *SafeEthClient) reinit() bool {
 	c.clientLock.Lock()
 	defer c.clientLock.Unlock()
 
-	client, err := c.createClient()
+	client, err := c.createClient(c.rpcUrl, c.logger)
 	if err != nil {
 		c.logger.Error("Failed to reinitialize client", "err", err)
 		return false
