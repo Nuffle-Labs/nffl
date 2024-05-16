@@ -6,7 +6,6 @@ import (
 	"strings"
 	"time"
 
-	"github.com/Layr-Labs/eigensdk-go/chainio/clients/eth"
 	sdklogging "github.com/Layr-Labs/eigensdk-go/logging"
 	ethtypes "github.com/ethereum/go-ethereum/core/types"
 	"github.com/ethereum/go-ethereum/rlp"
@@ -26,7 +25,7 @@ const (
 )
 
 type Relayer struct {
-	rpcClient   eth.Client
+	rpcClient   safeclient.SafeClient
 	rpcUrl      string
 	daAccountId string
 	logger      sdklogging.Logger

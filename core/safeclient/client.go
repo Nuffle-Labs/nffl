@@ -24,6 +24,12 @@ const (
 	HEADER_TIMEOUT   = 1 * time.Minute
 )
 
+type SafeClient interface {
+	eth.Client
+
+	Close()
+}
+
 type SafeEthClient struct {
 	eth.Client
 

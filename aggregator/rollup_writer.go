@@ -6,7 +6,6 @@ import (
 	"sync"
 	"time"
 
-	"github.com/Layr-Labs/eigensdk-go/chainio/clients/eth"
 	"github.com/Layr-Labs/eigensdk-go/chainio/clients/wallet"
 	"github.com/Layr-Labs/eigensdk-go/chainio/txmgr"
 	"github.com/Layr-Labs/eigensdk-go/logging"
@@ -29,7 +28,7 @@ const (
 
 type RollupWriter struct {
 	txMgr                 txmgr.TxManager
-	client                eth.Client
+	client                safeclient.SafeClient
 	sfflRegistryRollup    *registryrollup.ContractSFFLRegistryRollup
 	rollupId              uint32
 	operatorSetUpdateLock sync.Mutex
