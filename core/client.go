@@ -32,6 +32,7 @@ type SafeEthClient struct {
 	wg                    sync.WaitGroup
 	logger                logging.Logger
 	rpcUrl                string
+	isReinitializing      bool
 	reinitInterval        time.Duration
 	reinitSubscribers     []chan bool
 	reinitC               chan struct{}
@@ -125,29 +126,44 @@ func (c *SafeEthClient) notifySubscribers(success bool) {
 	c.logger.Debug("Notified subscribers of reinit", "success", success)
 }
 
+func (c *SafeEthClient) handleReinitEvent() {
+	defer c.wg.Done()
+
+	c.isReinitializing = true
+
+	c.wg.Add(1)
+	go func() {
+		defer func() {
+			c.isReinitializing = false
+			c.wg.Done()
+		}()
+
+		reinitTicker := time.NewTicker(c.reinitInterval)
+		defer reinitTicker.Stop()
+
+		for {
+			select {
+			case <-reinitTicker.C:
+				c.logger.Debug("Reinit ticker fired")
+
+				success := c.reinit()
+				c.notifySubscribers(success)
+
+				if success {
+					return
+				}
+			case <-c.closeC:
+				c.logger.Info("Received close signal, stopping reinit handler")
+				return
+			}
+		}
+	}()
+}
+
 func (c *SafeEthClient) handleReinit() {
 	defer c.wg.Done()
 
-	reinitTicker := time.NewTicker(c.reinitInterval)
-	defer reinitTicker.Stop()
-
-	isReinitializing := false
-	handleEvent := func() {
-		isReinitializing = true
-		c.logger.Info("Reinitializing client")
-
-		go func() {
-			success := c.reinit()
-			if success {
-				isReinitializing = false
-				reinitTicker.Stop()
-			} else {
-				reinitTicker.Reset(c.reinitInterval)
-			}
-
-			c.notifySubscribers(success)
-		}()
-	}
+	c.isReinitializing = false
 
 	for {
 		select {
@@ -155,15 +171,13 @@ func (c *SafeEthClient) handleReinit() {
 			c.logger.Info("Received close signal, stopping reinit handler")
 			return
 		case <-c.reinitC:
-			if isReinitializing {
+			if c.isReinitializing {
 				c.logger.Debug("Already reinitializing, ignoring reinit signal")
 				continue
 			}
+
 			c.logger.Debug("Received reinit signal")
-			handleEvent()
-		case <-reinitTicker.C:
-			c.logger.Debug("Reinit ticker fired")
-			handleEvent()
+			c.handleReinitEvent()
 		}
 	}
 }
