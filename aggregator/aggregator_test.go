@@ -21,6 +21,7 @@ import (
 	"github.com/NethermindEth/near-sffl/aggregator/types"
 	taskmanager "github.com/NethermindEth/near-sffl/contracts/bindings/SFFLTaskManager"
 	chainiomocks "github.com/NethermindEth/near-sffl/core/chainio/mocks"
+	safeclientmocks "github.com/NethermindEth/near-sffl/core/safeclient/mocks"
 	coretypes "github.com/NethermindEth/near-sffl/core/types"
 	"github.com/NethermindEth/near-sffl/core/types/messages"
 )
@@ -150,7 +151,7 @@ func TestHandleOperatorSetUpdateAggregationReachedQuorum(t *testing.T) {
 
 func createMockAggregator(
 	mockCtrl *gomock.Controller, operatorPubkeyDict map[eigentypes.OperatorId]types.OperatorInfo,
-) (*Aggregator, *chainiomocks.MockAvsReaderer, *chainiomocks.MockAvsWriterer, *blsaggservmock.MockBlsAggregationService, *aggmocks.MockMessageBlsAggregationService, *aggmocks.MockMessageBlsAggregationService, *dbmocks.MockDatabaser, *aggmocks.MockRollupBroadcasterer, *aggmocks.MockSafeClient, error) {
+) (*Aggregator, *chainiomocks.MockAvsReaderer, *chainiomocks.MockAvsWriterer, *blsaggservmock.MockBlsAggregationService, *aggmocks.MockMessageBlsAggregationService, *aggmocks.MockMessageBlsAggregationService, *dbmocks.MockDatabaser, *aggmocks.MockRollupBroadcasterer, *safeclientmocks.MockSafeClient, error) {
 	logger := sdklogging.NewNoopLogger()
 	mockAvsWriter := chainiomocks.NewMockAvsWriterer(mockCtrl)
 	mockAvsReader := chainiomocks.NewMockAvsReaderer(mockCtrl)
@@ -159,7 +160,7 @@ func createMockAggregator(
 	mockOperatorSetUpdateBlsAggregationService := aggmocks.NewMockMessageBlsAggregationService(mockCtrl)
 	mockMsgDb := dbmocks.NewMockDatabaser(mockCtrl)
 	mockRollupBroadcaster := aggmocks.NewMockRollupBroadcasterer(mockCtrl)
-	mockClient := aggmocks.NewMockSafeClient(mockCtrl)
+	mockClient := safeclientmocks.NewMockSafeClient(mockCtrl)
 
 	aggregator := &Aggregator{
 		logger:                                 logger,
