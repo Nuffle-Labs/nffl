@@ -359,7 +359,7 @@ func (c *SafeEthClient) SubscribeFilterLogs(ctx context.Context, q ethereum.Filt
 				}
 			case log := <-proxyC:
 				// since resub pushes the missed blocks directly to the channel and updates lastBlock, this is ordered
-				if lastBlock < log.BlockNumber {
+				if lastBlock > log.BlockNumber {
 					continue
 				}
 
