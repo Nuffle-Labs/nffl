@@ -83,6 +83,7 @@ func (r *Relayer) Start(ctx context.Context) error {
 				r.logger.Error("Error handling blocks", "err", err)
 			}
 		case <-ctx.Done():
+			r.rpcClient.Close()
 			return ctx.Err()
 		}
 	}

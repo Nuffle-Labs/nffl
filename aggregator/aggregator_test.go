@@ -174,7 +174,7 @@ func createMockAggregator(
 		stateRootUpdates:                       make(map[coretypes.MessageDigest]messages.StateRootUpdateMessage),
 		operatorSetUpdates:                     make(map[coretypes.MessageDigest]messages.OperatorSetUpdateMessage),
 		rollupBroadcaster:                      mockRollupBroadcaster,
-		client:                                 mockClient,
+		httpClient:                             mockClient,
 		rpcListener:                            &SelectiveRpcListener{},
 		restListener:                           &SelectiveRestListener{},
 		aggregatorListener:                     &SelectiveAggregatorListener{},

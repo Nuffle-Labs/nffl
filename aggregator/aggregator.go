@@ -81,7 +81,8 @@ type Aggregator struct {
 	avsWriter            chainio.AvsWriterer
 	avsReader            chainio.AvsReaderer
 	rollupBroadcaster    RollupBroadcasterer
-	client               safeclient.SafeClient
+	httpClient           safeclient.SafeClient
+	wsClient             safeclient.SafeClient
 
 	// TODO(edwin): once rpc & rest decouple from aggregator fome it with them
 	registry           *prometheus.Registry
@@ -214,7 +215,8 @@ func NewAggregator(ctx context.Context, config *config.Config, logger logging.Lo
 		avsWriter:                              avsWriter,
 		avsReader:                              avsReader,
 		rollupBroadcaster:                      rollupBroadcaster,
-		client:                                 ethHttpClient,
+		httpClient:                             ethHttpClient,
+		wsClient:                               ethWsClient,
 		taskBlsAggregationService:              taskBlsAggregationService,
 		stateRootUpdateBlsAggregationService:   stateRootUpdateBlsAggregationService,
 		operatorSetUpdateBlsAggregationService: operatorSetUpdateBlsAggregationService,
@@ -312,6 +314,11 @@ func (agg *Aggregator) Close() error {
 		return err
 	}
 
+	agg.httpClient.Close()
+	agg.wsClient.Close()
+
+	agg.rollupBroadcaster.Close()
+
 	return nil
 }
 
@@ -346,7 +353,7 @@ func (agg *Aggregator) sendAggregatedResponseToContract(blsAggServiceResp blsagg
 
 	agg.aggregatorListener.ObserveLastCheckpointTaskReferenceAggregated(blsAggServiceResp.TaskIndex)
 
-	currentBlock, err := agg.client.BlockNumber(context.Background())
+	currentBlock, err := agg.httpClient.BlockNumber(context.Background())
 	if err != nil {
 		agg.logger.Errorf("Error getting current block number", "err", err)
 		return
@@ -367,13 +374,13 @@ func (agg *Aggregator) sendAggregatedResponseToContract(blsAggServiceResp blsagg
 // sendNewCheckpointTask sends a new task to the task manager contract, and updates the Task dict struct
 // with the information of operators opted into quorum 0 at the block of task creation.
 func (agg *Aggregator) sendNewCheckpointTask() {
-	blockNumber, err := agg.client.BlockNumber(context.Background())
+	blockNumber, err := agg.httpClient.BlockNumber(context.Background())
 	if err != nil {
 		agg.logger.Error("Failed to get block number", "err", err)
 		return
 	}
 
-	block, err := agg.client.BlockByNumber(context.Background(), big.NewInt(0).SetUint64(blockNumber))
+	block, err := agg.httpClient.BlockByNumber(context.Background(), big.NewInt(0).SetUint64(blockNumber))
 	if err != nil {
 		agg.logger.Error("Failed to get block", "err", err)
 		return

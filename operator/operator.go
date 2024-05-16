@@ -340,6 +340,8 @@ func (o *Operator) Close() error {
 		return err
 	}
 
+	o.ethClient.Close()
+
 	return nil
 }
 

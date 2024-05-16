@@ -26,6 +26,7 @@ const (
 type RollupBroadcasterer interface {
 	BroadcastOperatorSetUpdate(ctx context.Context, message messages.OperatorSetUpdateMessage, signatureInfo registryrollup.RollupOperatorsSignatureInfo)
 	GetErrorChan() <-chan error
+	Close()
 }
 
 type RollupBroadcaster struct {
@@ -193,6 +194,12 @@ func (b *RollupBroadcaster) BroadcastOperatorSetUpdate(ctx context.Context, mess
 
 func (b *RollupBroadcaster) GetErrorChan() <-chan error {
 	return b.errorChan
+}
+
+func (b *RollupBroadcaster) Close() {
+	for _, writer := range b.writers {
+		writer.Close()
+	}
 }
 
 func (b *RollupBroadcaster) tryGetOperatorSetById(ctx context.Context, avsReader chainio.AvsReaderer, operatorSetUpdateId uint64) ([]opsetupdatereg.RollupOperatorsOperator, error) {

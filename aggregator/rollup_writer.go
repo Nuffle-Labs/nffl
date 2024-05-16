@@ -195,3 +195,7 @@ func (w *RollupWriter) UpdateOperatorSet(ctx context.Context, message messages.O
 
 	return errors.New("failed to update operator set after retries")
 }
+
+func (w *RollupWriter) Close() {
+	w.client.Close()
+}
