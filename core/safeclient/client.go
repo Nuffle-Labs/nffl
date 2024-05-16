@@ -43,6 +43,7 @@ type SafeEthClient struct {
 	reinitSubscribers     []chan bool
 	reinitC               chan struct{}
 	closeC                chan struct{}
+	closed                bool
 	collector             *rpccalls.Collector
 }
 
@@ -395,9 +396,15 @@ func (c *SafeEthClient) Close() {
 	c.clientLock.Lock()
 	defer c.clientLock.Unlock()
 
+	if c.closed {
+		return
+	}
+
 	close(c.closeC)
 	c.wg.Wait()
 	c.logger.Info("SafeEthClient closed")
+
+	c.closed = true
 }
 
 func (c *SafeEthClient) isConnectionError(err error) bool {
