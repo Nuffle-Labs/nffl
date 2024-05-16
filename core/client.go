@@ -265,11 +265,7 @@ func (c *SafeEthClient) SubscribeFilterLogs(ctx context.Context, q ethereum.Filt
 
 		fromBlock := max(lastBlock+1, currentBlock-BLOCK_MAX_RANGE)
 
-		for fromBlock < currentBlock {
-			if fromBlock > currentBlock {
-				break
-			}
-
+		for ; fromBlock < currentBlock; fromBlock += BLOCK_CHUNK_SIZE {
 			toBlock := fromBlock + BLOCK_CHUNK_SIZE
 
 			targetBlock := big.NewInt(int64(toBlock))
@@ -292,8 +288,6 @@ func (c *SafeEthClient) SubscribeFilterLogs(ctx context.Context, q ethereum.Filt
 					proxyC <- log
 				}
 			}
-
-			fromBlock += BLOCK_CHUNK_SIZE
 		}
 
 		return nil
