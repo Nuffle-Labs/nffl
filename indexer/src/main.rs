@@ -17,6 +17,7 @@ mod indexer_wrapper;
 mod metrics;
 mod metrics_server;
 mod rabbit_publisher;
+mod types;
 
 const INDEXER: &str = "indexer";
 
@@ -59,6 +60,7 @@ fn run(home_dir: std::path::PathBuf, config: RunConfigArgs) -> Result<()> {
         }
         rmq_publisher.run(validated_stream);
 
+        // TODO: block_handle wether cancelled or Panics. Can handle
         Ok::<_, Error>(block_handle.await?)
     });
 
@@ -69,7 +71,7 @@ fn run(home_dir: std::path::PathBuf, config: RunConfigArgs) -> Result<()> {
     // Run until publishing finished
     system.run()?;
 
-    block_res?.map_err(|err| {
+    block_res.map_err(|err| {
         error!(target: INDEXER, "Indexer Error: {}", err);
         err
     })

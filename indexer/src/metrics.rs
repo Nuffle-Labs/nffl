@@ -1,7 +1,5 @@
-use prometheus::{
-    core::{AtomicF64, GenericCounter},
-    Counter, Histogram, HistogramOpts, Opts, Registry,
-};
+use prometheus::{core::{AtomicF64, GenericCounter}, Counter, Gauge, Histogram, HistogramOpts, Opts, Registry};
+use prometheus::core::GenericGauge;
 
 use crate::errors::Result;
 
@@ -19,6 +17,7 @@ pub struct CandidatesListener {
 #[derive(Clone)]
 pub struct BlockEventListener {
     pub num_candidates: GenericCounter<AtomicF64>,
+    pub current_queued_candidates: GenericGauge<AtomicF64>
 }
 
 #[derive(Clone)]
@@ -60,7 +59,13 @@ pub(crate) fn make_block_listener_metrics(registry: Registry) -> Result<BlockEve
     let num_candidates = Counter::with_opts(opts)?;
     registry.register(Box::new(num_candidates.clone()))?;
 
-    Ok(BlockEventListener { num_candidates })
+    let opts = Opts::new("current_queued_candidates", "Current number of queued messages")
+        .namespace(INDEXER_NAMESPACE)
+        .subsystem(LISTENER_SUBSYSTEM);
+    let current_queued_candidates = Gauge::with_opts(opts)?;
+    registry.register(Box::new(current_queued_candidates.clone()))?;
+
+    Ok(BlockEventListener { num_candidates, current_queued_candidates })
 }
 
 pub(crate) fn make_publisher_metrics(registry: Registry) -> Result<PublisherListener> {
