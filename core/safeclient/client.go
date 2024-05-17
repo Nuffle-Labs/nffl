@@ -457,13 +457,14 @@ func (c *SafeEthClient) SubscribeNewHead(ctx context.Context, ch chan<- *types.H
 		c.clientLock.RLock()
 		defer c.clientLock.RUnlock()
 
-		sub, err = c.Client.SubscribeNewHead(ctx, proxyC)
+		newSub, err := c.Client.SubscribeNewHead(ctx, proxyC)
 		if err != nil {
 			c.logger.Error("Failed to resubscribe to new heads", "err", err)
 			return err
 		}
 		c.logger.Info("Resubscribed to new heads")
 
+		sub = newSub
 		safeSub.SetUnderlyingSub(sub)
 
 		return nil
