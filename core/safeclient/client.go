@@ -3,7 +3,6 @@ package safeclient
 import (
 	"context"
 	"math/big"
-	"strings"
 	"sync"
 	"time"
 
@@ -63,14 +62,7 @@ func NewSafeEthClient(rpcUrl string, logger logging.Logger, opts ...SafeEthClien
 		blockMaxRange:  BLOCK_MAX_RANGE,
 		reinitC:        make(chan struct{}),
 		closeC:         make(chan struct{}),
-		createClient: func(rpcUrl string, logger logging.Logger) (eth.Client, error) {
-			client, err := eth.NewClient(rpcUrl)
-			if err != nil {
-				return nil, err
-			}
-			logger.Debug("Created new eth client without collector")
-			return client, nil
-		},
+		createClient:   createDefaultClient,
 	}
 
 	for _, opt := range opts {
@@ -121,12 +113,7 @@ func WithLogFilteringParams(chunkSize, maxRange uint64) SafeEthClientOption {
 func WithInstrumentedCreateClient(collector *rpccalls.Collector) SafeEthClientOption {
 	return func(c *SafeEthClient) {
 		c.createClient = func(rpcUrl string, logger logging.Logger) (eth.Client, error) {
-			client, err := eth.NewInstrumentedClient(rpcUrl, collector)
-			if err != nil {
-				return nil, err
-			}
-			logger.Debug("Created new instrumented eth client with collector")
-			return client, nil
+			return createInstrumentedClient(rpcUrl, collector, logger)
 		}
 	}
 }
@@ -438,24 +425,12 @@ func (c *SafeEthClient) Close() {
 	c.closed = true
 }
 
-func (c *SafeEthClient) isConnectionError(err error) bool {
-	if err == nil {
-		return false
-	}
-
-	isConnectionReset := strings.Contains(err.Error(), "connection reset")
-	isConnectionRefused := strings.Contains(err.Error(), "connection refused")
-	isAbnormalClosure := strings.Contains(err.Error(), "abnormal closure")
-
-	return isConnectionReset || isConnectionRefused || isAbnormalClosure
-}
-
 func (c *SafeEthClient) handleClientError(err error) error {
 	if err == nil {
 		return nil
 	}
 
-	if c.isConnectionError(err) {
+	if isConnectionError(err) {
 		c.logger.Error("Connection error detected, triggering reinit", "err", err)
 		c.triggerReinit()
 
