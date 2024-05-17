@@ -376,11 +376,12 @@ func (c *SafeEthClient) SubscribeFilterLogs(ctx context.Context, q ethereum.Filt
 					}
 				}
 			case log := <-proxyC:
-				// since resub pushes the missed blocks directly to the channel and updates lastBlock, this is ordered
+				// if that's the case, then most likely we got an event on filterLog and are getting the same one in the sub
 				if lastBlock > log.BlockNumber {
 					continue
 				}
 
+				// since resub pushes the missed blocks directly to the channel and updates lastBlock, this is ordered
 				lastBlock = log.BlockNumber
 				ch <- log
 			case <-ticker.C:
