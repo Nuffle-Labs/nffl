@@ -446,6 +446,9 @@ func (c *SafeEthClient) triggerReinit() {
 }
 
 func (c *SafeEthClient) SubscribeNewHead(ctx context.Context, ch chan<- *types.Header) (ethereum.Subscription, error) {
+	c.clientLock.RLock()
+	defer c.clientLock.RUnlock()
+
 	sub, err := c.Client.SubscribeNewHead(ctx, ch)
 	if err != nil {
 		c.logger.Error("Failed to subscribe to new heads", "err", err)
