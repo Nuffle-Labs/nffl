@@ -7,7 +7,6 @@ import (
 	"sync"
 	"time"
 
-	"github.com/Layr-Labs/eigensdk-go/chainio/clients/eth"
 	"github.com/Layr-Labs/eigensdk-go/crypto/bls"
 	sdklogging "github.com/Layr-Labs/eigensdk-go/logging"
 	rpccalls "github.com/Layr-Labs/eigensdk-go/metrics/collectors/rpc_calls"
@@ -48,7 +47,7 @@ type Attestorer interface {
 type Attestor struct {
 	signedRootC        chan messages.SignedStateRootUpdateMessage
 	rollupIdsToUrls    map[uint32]string
-	clients            map[uint32]eth.Client
+	clients            map[uint32]safeclient.SafeClient
 	clientsLock        sync.Mutex
 	rpcCallsCollectors map[uint32]*rpccalls.Collector
 	notifier           Notifier
@@ -75,7 +74,7 @@ func NewAttestor(config *optypes.NodeConfig, blsKeypair *bls.KeyPair, operatorId
 	attestor := Attestor{
 		signedRootC:        make(chan messages.SignedStateRootUpdateMessage),
 		rollupIdsToUrls:    make(map[uint32]string),
-		clients:            make(map[uint32]eth.Client),
+		clients:            make(map[uint32]safeclient.SafeClient),
 		rpcCallsCollectors: make(map[uint32]*rpccalls.Collector),
 		logger:             logger,
 		notifier:           NewNotifier(),
@@ -317,6 +316,10 @@ func (attestor *Attestor) GetSignedRootC() <-chan messages.SignedStateRootUpdate
 func (attestor *Attestor) Close() error {
 	if err := attestor.consumer.Close(); err != nil {
 		return err
+	}
+
+	for _, client := range attestor.clients {
+		client.Close()
 	}
 
 	return nil
