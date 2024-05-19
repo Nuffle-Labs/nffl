@@ -277,6 +277,9 @@ func (o *Operator) Start(ctx context.Context) error {
 		metricsErrChan = make(chan error, 1)
 	}
 
+	o.listener.IncInitializationCount()
+	o.listener.ObserveLastInitializedTime()
+
 	if err := o.avsManager.Start(ctx, o.operatorAddr); err != nil {
 		return err
 	}

@@ -138,6 +138,14 @@ func (attestor *Attestor) Start(ctx context.Context) error {
 			return err
 		}
 
+		blockNumber, err := client.BlockNumber(ctx)
+		if err != nil {
+			attestor.logger.Fatalf("Failed to get block number: %v, for rollupId: %v", err, rollupId)
+			return err
+		}
+
+		attestor.listener.ObserveInitializationInitialBlockNumber(rollupId, blockNumber)
+
 		subscriptions[rollupId] = subscription
 		headersCs[rollupId] = headersC
 	}
@@ -269,6 +277,10 @@ func (attestor *Attestor) processRollupHeaders(rollupId uint32, headersC chan *e
 func (attestor *Attestor) processHeader(rollupId uint32, rollupHeader *ethtypes.Header, ctx context.Context) {
 	attestor.logger.Info("Processing header", "rollupId", rollupId, "height", rollupHeader.Number.Uint64())
 
+	attestor.listener.ObserveLastBlockReceived(rollupId, rollupHeader.Number.Uint64())
+	attestor.listener.ObserveLastBlockReceivedTimestamp(rollupId, uint64(rollupHeader.Time))
+	attestor.listener.OnBlockReceived(rollupId)
+
 	predicate := func(mqBlock consumer.BlockData) bool {
 		if mqBlock.RollupId != rollupId {
 			attestor.logger.Warnf("Subscriber expected rollupId: %v, but got %v", rollupId, mqBlock.RollupId)
@@ -281,7 +293,7 @@ func (attestor *Attestor) processHeader(rollupId uint32, rollupHeader *ethtypes.
 
 		if mqBlock.Block.Header().Root != rollupHeader.Root {
 			attestor.logger.Warnf("StateRoot from MQ doesn't match one from Node")
-			attestor.listener.OnBlockMismatch()
+			attestor.listener.OnBlockMismatch(rollupId)
 
 			return false
 		}
@@ -301,7 +313,7 @@ loop:
 		select {
 		case <-timer:
 			attestor.logger.Info("MQ timeout", "rollupId", rollupId, "height", rollupHeader.Number.Uint64())
-			attestor.listener.OnMissedMQBlock()
+			attestor.listener.OnMissedMQBlock(rollupId)
 
 			break loop
 
