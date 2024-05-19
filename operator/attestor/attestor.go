@@ -4,7 +4,6 @@ import (
 	"context"
 	"encoding/hex"
 	"errors"
-	"sync"
 	"time"
 
 	"github.com/Layr-Labs/eigensdk-go/crypto/bls"
@@ -48,7 +47,6 @@ type Attestor struct {
 	signedRootC        chan messages.SignedStateRootUpdateMessage
 	rollupIdsToUrls    map[uint32]string
 	clients            map[uint32]safeclient.SafeClient
-	clientsLock        sync.Mutex
 	rpcCallsCollectors map[uint32]*rpccalls.Collector
 	notifier           Notifier
 	consumer           *consumer.Consumer
