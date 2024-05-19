@@ -4,10 +4,8 @@ import (
 	"context"
 	"encoding/hex"
 	"errors"
-	"sync"
 	"time"
 
-	"github.com/Layr-Labs/eigensdk-go/chainio/clients/eth"
 	"github.com/Layr-Labs/eigensdk-go/crypto/bls"
 	sdklogging "github.com/Layr-Labs/eigensdk-go/logging"
 	rpccalls "github.com/Layr-Labs/eigensdk-go/metrics/collectors/rpc_calls"
@@ -17,6 +15,7 @@ import (
 	"github.com/prometheus/client_golang/prometheus"
 
 	"github.com/NethermindEth/near-sffl/core"
+	"github.com/NethermindEth/near-sffl/core/safeclient"
 	"github.com/NethermindEth/near-sffl/core/types/messages"
 	"github.com/NethermindEth/near-sffl/operator/consumer"
 	optypes "github.com/NethermindEth/near-sffl/operator/types"
@@ -25,9 +24,6 @@ import (
 const (
 	MQ_WAIT_TIMEOUT        = 30 * time.Second
 	MQ_REBROADCAST_TIMEOUT = 15 * time.Second
-	RECONNECTION_ATTEMPTS  = 5
-	RECONNECTION_DELAY     = time.Second
-	REINITIALIZE_DELAY     = time.Minute
 )
 
 var (
@@ -50,8 +46,7 @@ type Attestorer interface {
 type Attestor struct {
 	signedRootC        chan messages.SignedStateRootUpdateMessage
 	rollupIdsToUrls    map[uint32]string
-	clients            map[uint32]eth.Client
-	clientsLock        sync.Mutex
+	clients            map[uint32]safeclient.SafeClient
 	rpcCallsCollectors map[uint32]*rpccalls.Collector
 	notifier           Notifier
 	consumer           *consumer.Consumer
@@ -77,7 +72,7 @@ func NewAttestor(config *optypes.NodeConfig, blsKeypair *bls.KeyPair, operatorId
 	attestor := Attestor{
 		signedRootC:        make(chan messages.SignedStateRootUpdateMessage),
 		rollupIdsToUrls:    make(map[uint32]string),
-		clients:            make(map[uint32]eth.Client),
+		clients:            make(map[uint32]safeclient.SafeClient),
 		rpcCallsCollectors: make(map[uint32]*rpccalls.Collector),
 		logger:             logger,
 		notifier:           NewNotifier(),
@@ -96,7 +91,12 @@ func NewAttestor(config *optypes.NodeConfig, blsKeypair *bls.KeyPair, operatorId
 			rpcCallsCollector = rpccalls.NewCollector(id+url, registry)
 		}
 
-		client, err := core.CreateEthClient(url, rpcCallsCollector, logger)
+		clientOpts := make([]safeclient.SafeEthClientOption, 0)
+		if rpcCallsCollector != nil {
+			clientOpts = append(clientOpts, safeclient.WithInstrumentedCreateClient(rpcCallsCollector))
+		}
+
+		client, err := safeclient.NewSafeEthClient(url, logger, clientOpts...)
 		if err != nil {
 			return nil, err
 		}
@@ -194,75 +194,19 @@ func (attestor *Attestor) processMQBlocks(ctx context.Context) {
 	}
 }
 
-func (attestor *Attestor) reconnectClient(rollupId uint32) (eth.Client, error) {
-	var err error
-	var client eth.Client
-	for i := 0; i < RECONNECTION_ATTEMPTS; i++ {
-		<-time.After(RECONNECTION_DELAY)
-
-		client, err = core.CreateEthClient(attestor.rollupIdsToUrls[rollupId], attestor.rpcCallsCollectors[rollupId], attestor.logger)
-		if err == nil {
-			return client, nil
-		}
-	}
-
-	return nil, err
-}
-
 // Spawns routines for new headers that die in one minute
 func (attestor *Attestor) processRollupHeaders(rollupId uint32, headersC chan *ethtypes.Header, subscription ethereum.Subscription, ctx context.Context) {
-	reinitializeTicker := time.NewTicker(REINITIALIZE_DELAY)
-	reinitializeTicker.Stop()
-
-	defer reinitializeTicker.Stop()
-
-	reinitializeSubscription := func() error {
-		client, err := attestor.reconnectClient(rollupId)
-		if err != nil {
-			attestor.logger.Error("Error while reconnecting client", "rollupId", rollupId, "err", err)
-			return err
-		}
-
-		attestor.clientsLock.Lock()
-		attestor.clients[rollupId] = client
-		attestor.clientsLock.Unlock()
-
-		newSubscription, err := client.SubscribeNewHead(ctx, headersC)
-		if err != nil {
-			attestor.logger.Error("Error while subscribing", "rollupId", rollupId, "err", err)
-			return err
-		}
-
-		subscription.Unsubscribe()
-		subscription = newSubscription
-
-		return nil
-	}
-
 	for {
 		select {
 		case <-subscription.Err():
 			attestor.logger.Error("Header subscription error", "rollupId", rollupId)
-			err := reinitializeSubscription()
-			if err != nil {
-				reinitializeTicker.Reset(REINITIALIZE_DELAY)
-			}
-
+			return
 		case header, ok := <-headersC:
 			if !ok {
 				return
 			}
 
 			go attestor.processHeader(rollupId, header, ctx)
-
-		case <-reinitializeTicker.C:
-			attestor.logger.Info("Reinitializing header subscription", "rollupId", rollupId)
-
-			err := reinitializeSubscription()
-			if err == nil {
-				reinitializeTicker.Stop()
-			}
-
 		case <-ctx.Done():
 			subscription.Unsubscribe()
 			close(headersC)
@@ -370,6 +314,10 @@ func (attestor *Attestor) GetSignedRootC() <-chan messages.SignedStateRootUpdate
 func (attestor *Attestor) Close() error {
 	if err := attestor.consumer.Close(); err != nil {
 		return err
+	}
+
+	for _, client := range attestor.clients {
+		client.Close()
 	}
 
 	return nil

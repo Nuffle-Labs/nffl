@@ -15,6 +15,7 @@ import (
 	opsetupdatereg "github.com/NethermindEth/near-sffl/contracts/bindings/SFFLOperatorSetUpdateRegistry"
 	taskmanager "github.com/NethermindEth/near-sffl/contracts/bindings/SFFLTaskManager"
 	chainiomocks "github.com/NethermindEth/near-sffl/core/chainio/mocks"
+	safeclientmocks "github.com/NethermindEth/near-sffl/core/safeclient/mocks"
 	coretypes "github.com/NethermindEth/near-sffl/core/types"
 	"github.com/NethermindEth/near-sffl/core/types/messages"
 	"github.com/NethermindEth/near-sffl/operator/consumer"
@@ -33,7 +34,10 @@ const MOCK_OPERATOR_BLS_PRIVATE_KEY = "69"
 var MOCK_OPERATOR_ID = [32]byte{207, 73, 226, 221, 104, 100, 123, 41, 192, 3, 9, 119, 90, 83, 233, 159, 231, 151, 245, 96, 150, 48, 144, 27, 102, 253, 39, 101, 1, 26, 135, 173}
 
 func TestOperator(t *testing.T) {
-	operator, avsManager, mockConsumer, err := createMockOperator()
+	mockCtrl := gomock.NewController(t)
+	defer mockCtrl.Finish()
+
+	operator, avsManager, mockConsumer, mockClient, err := createMockOperator(mockCtrl)
 	assert.Nil(t, err)
 	const taskIndex = 1
 
@@ -151,7 +155,6 @@ func TestOperator(t *testing.T) {
 		avsManager.avsReader = mockReader
 
 		ctx, cancel := context.WithCancel(context.Background())
-		defer cancel()
 
 		go func() {
 			err := operator.Start(ctx)
@@ -166,17 +169,23 @@ func TestOperator(t *testing.T) {
 		})
 
 		time.Sleep(1 * time.Second)
+
+		mockClient.EXPECT().Close()
+
+		cancel()
+
+		time.Sleep(1 * time.Second)
 	})
 }
 
-func createMockOperator() (*Operator, *AvsManager, *mocks.MockConsumer, error) {
+func createMockOperator(mockCtrl *gomock.Controller) (*Operator, *AvsManager, *mocks.MockConsumer, *safeclientmocks.MockSafeClient, error) {
 	logger := sdklogging.NewNoopLogger()
 	reg := prometheus.NewRegistry()
 	noopMetrics := metrics.NewNoopMetrics()
 
 	blsPrivateKey, err := bls.NewPrivateKey(MOCK_OPERATOR_BLS_PRIVATE_KEY)
 	if err != nil {
-		return nil, nil, nil, err
+		return nil, nil, nil, nil, err
 	}
 	operatorKeypair := bls.NewKeyPair(blsPrivateKey)
 
@@ -187,6 +196,7 @@ func createMockOperator() (*Operator, *AvsManager, *mocks.MockConsumer, error) {
 		operatorSetUpdateChan:        make(chan *opsetupdatereg.ContractSFFLOperatorSetUpdateRegistryOperatorSetUpdatedAtBlock),
 		operatorSetUpdateMessageChan: make(chan messages.OperatorSetUpdateMessage),
 	}
+	mockClient := safeclientmocks.NewMockSafeClient(mockCtrl)
 
 	operator := &Operator{
 		logger:     logger,
@@ -197,7 +207,8 @@ func createMockOperator() (*Operator, *AvsManager, *mocks.MockConsumer, error) {
 		attestor:   mockAttestor,
 		avsManager: avsManager,
 		listener:   &SelectiveOperatorListener{},
+		ethClient:  mockClient,
 	}
 
-	return operator, avsManager, mockAttestor.MockGetConsumer(), nil
+	return operator, avsManager, mockAttestor.MockGetConsumer(), mockClient, nil
 }

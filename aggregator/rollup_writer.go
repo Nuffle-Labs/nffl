@@ -6,7 +6,6 @@ import (
 	"sync"
 	"time"
 
-	"github.com/Layr-Labs/eigensdk-go/chainio/clients/eth"
 	"github.com/Layr-Labs/eigensdk-go/chainio/clients/wallet"
 	"github.com/Layr-Labs/eigensdk-go/chainio/txmgr"
 	"github.com/Layr-Labs/eigensdk-go/logging"
@@ -16,6 +15,7 @@ import (
 
 	registryrollup "github.com/NethermindEth/near-sffl/contracts/bindings/SFFLRegistryRollup"
 	"github.com/NethermindEth/near-sffl/core/config"
+	"github.com/NethermindEth/near-sffl/core/safeclient"
 	"github.com/NethermindEth/near-sffl/core/types/messages"
 )
 
@@ -28,7 +28,7 @@ const (
 
 type RollupWriter struct {
 	txMgr                 txmgr.TxManager
-	client                eth.Client
+	client                safeclient.SafeClient
 	sfflRegistryRollup    *registryrollup.ContractSFFLRegistryRollup
 	rollupId              uint32
 	operatorSetUpdateLock sync.Mutex
@@ -44,7 +44,7 @@ func NewRollupWriter(
 	address common.Address,
 	logger logging.Logger,
 ) (*RollupWriter, error) {
-	client, err := eth.NewClient(rollupInfo.RpcUrl)
+	client, err := safeclient.NewSafeEthClient(rollupInfo.RpcUrl, logger)
 	if err != nil {
 		return nil, err
 	}
@@ -194,4 +194,8 @@ func (w *RollupWriter) UpdateOperatorSet(ctx context.Context, message messages.O
 	}
 
 	return errors.New("failed to update operator set after retries")
+}
+
+func (w *RollupWriter) Close() {
+	w.client.Close()
 }
