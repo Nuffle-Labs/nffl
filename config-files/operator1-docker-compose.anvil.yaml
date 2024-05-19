@@ -48,10 +48,9 @@ register_operator_on_startup: true
 token_strategy_addr: 0x95401dc811bb5740090279Ba06cfA8fcF6113778
 
 near_da_indexer_rmq_ip_port_address: amqp://rmq:5672
-near_da_indexer_rollup_ids: [0]
+near_da_indexer_rollup_ids: [2, 3]
 
 rollup_ids_to_rpc_urls:
-  1: ws://mainnet-anvil:8545
   2: ws://rollup0-anvil:8546
   3: ws://rollup1-anvil:8547
 
