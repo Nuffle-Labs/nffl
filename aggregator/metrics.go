@@ -451,10 +451,10 @@ func MakeAggregatorMetrics(registry *prometheus.Registry) (AggregatorEventListen
 
 	return &SelectiveAggregatorListener{
 		ObserveLastStateRootUpdateAggregatedCb: func(rollupId uint32, blockNumber uint64) {
-			lastStateRootUpdateAggregated.WithLabelValues(fmt.Sprintf("%x", rollupId)).Set(float64(blockNumber))
+			lastStateRootUpdateAggregated.WithLabelValues(fmt.Sprintf("%d", rollupId)).Set(float64(blockNumber))
 		},
 		ObserveLastStateRootUpdateReceivedCb: func(rollupId uint32, blockNumber uint64) {
-			lastStateRootUpdateReceived.WithLabelValues(fmt.Sprintf("%x", rollupId)).Set(float64(blockNumber))
+			lastStateRootUpdateReceived.WithLabelValues(fmt.Sprintf("%d", rollupId)).Set(float64(blockNumber))
 		},
 		ObserveLastOperatorSetUpdateAggregatedCb: func(operatorSetUpdateId uint64) {
 			lastOperatorSetUpdateAggregated.Set(float64(operatorSetUpdateId))
