@@ -2,7 +2,6 @@ package main
 
 import (
 	"context"
-	"fmt"
 	"log"
 	"math/big"
 	"os"
@@ -11,7 +10,6 @@ import (
 	"github.com/Layr-Labs/eigensdk-go/chainio/clients/eth"
 	"github.com/Layr-Labs/eigensdk-go/chainio/clients/wallet"
 	"github.com/Layr-Labs/eigensdk-go/chainio/txmgr"
-	regcoord "github.com/Layr-Labs/eigensdk-go/contracts/bindings/RegistryCoordinator"
 	"github.com/Layr-Labs/eigensdk-go/crypto/bls"
 	sdkecdsa "github.com/Layr-Labs/eigensdk-go/crypto/ecdsa"
 	"github.com/Layr-Labs/eigensdk-go/logging"
@@ -185,7 +183,15 @@ func plugin(ctx *cli.Context) {
 
 		avsManager.RegisterOperatorWithAvs(ethHttpClient, operatorEcdsaPrivateKey, blsKeypair)
 	} else if operationType == "opt-out" {
-		fmt.Println("Opting out of slashing - unimplemented")
+		blsKeyPassword := ctx.GlobalString(BlsKeyPasswordFlag.Name)
+
+		blsKeypair, err := bls.ReadPrivateKeyFromFile(avsConfig.BlsPrivateKeyStorePath, blsKeyPassword)
+		if err != nil {
+			logger.Error("Failed to read bls private key", "err", err)
+			return
+		}
+
+		avsManager.DeregisterOperator(blsKeypair)
 	} else if operationType == "deposit" {
 		starategyAddrString := ctx.GlobalString(StrategyAddrFlag.Name)
 		if len(starategyAddrString) == 0 {
@@ -231,9 +237,3 @@ func plugin(ctx *cli.Context) {
 	}
 }
 
-func pubKeyG1ToBN254G1Point(p *bls.G1Point) regcoord.BN254G1Point {
-	return regcoord.BN254G1Point{
-		X: p.X.BigInt(new(big.Int)),
-		Y: p.Y.BigInt(new(big.Int)),
-	}
-}
