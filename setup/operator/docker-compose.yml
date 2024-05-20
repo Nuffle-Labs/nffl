@@ -24,7 +24,7 @@ services:
     networks:
       - near-sffl
 
-  indexer:
+  near-sffl-indexer:
     profiles: [indexer]
     image: ghcr.io/nethermindeth/near-sffl/indexer:${SFFL_RELEASE}
     container_name: near-sffl-indexer
@@ -53,7 +53,7 @@ services:
         max-file: "10"
         compress: "true"
 
-  operator:
+  near-sffl-operator:
     profiles: [operator]
     image: ghcr.io/nethermindeth/near-sffl/operator:${SFFL_RELEASE}
     container_name: near-sffl-operator

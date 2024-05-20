@@ -5,7 +5,7 @@ networks:
     driver: bridge
 
 services:
-  aggregator:
+  near-sffl-aggregator:
     image: ghcr.io/nethermindeth/near-sffl/aggregator:${SFFL_RELEASE}
     container_name: near-sffl-aggregator
     volumes:
