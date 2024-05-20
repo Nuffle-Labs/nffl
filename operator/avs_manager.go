@@ -14,6 +14,7 @@ import (
 	"github.com/Layr-Labs/eigensdk-go/crypto/bls"
 	sdklogging "github.com/Layr-Labs/eigensdk-go/logging"
 	eigentypes "github.com/Layr-Labs/eigensdk-go/types"
+	eigenutils "github.com/Layr-Labs/eigensdk-go/chainio/utils"
 	"github.com/ethereum/go-ethereum/accounts/abi/bind"
 	"github.com/ethereum/go-ethereum/common"
 	"github.com/ethereum/go-ethereum/crypto"
@@ -281,6 +282,21 @@ func (avsManager *AvsManager) RegisterOperatorWithAvs(
 		return err
 	}
 	avsManager.logger.Infof("Registered operator with avs registry coordinator.")
+
+	return nil
+}
+
+func (avsManager *AvsManager) DeregisterOperator(blsKeyPair *bls.KeyPair,) (error) {
+	// TODO: 'QuorumNums' is hardcoded for now
+	quorumNumbers := eigentypes.QuorumNums{0}
+	pubKey := eigenutils.ConvertToBN254G1Point(blsKeyPair.GetPubKeyG1())
+
+	_, err := avsManager.avsWriter.DeregisterOperator(context.Background(), quorumNumbers, pubKey)
+	if err != nil {
+		avsManager.logger.Errorf("Unable to deregister operator with avs registry coordinator")
+		return err
+	}
+	avsManager.logger.Infof("Deregistered operator with avs registry coordinator.")
 
 	return nil
 }
