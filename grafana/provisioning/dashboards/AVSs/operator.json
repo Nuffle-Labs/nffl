@@ -688,7 +688,7 @@
             "uid": "prometheus"
           },
           "editorMode": "builder",
-          "expr": "eigen_performance_score",
+          "expr": "eigen_performance_score{avs_name=\"super-fast-finality-layer\"}",
           "legendFormat": "Performance Score",
           "range": true,
           "refId": "A"
