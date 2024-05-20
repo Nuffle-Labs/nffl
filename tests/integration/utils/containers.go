@@ -26,6 +26,7 @@ const (
 	RelayerImageName     = "near-sffl-test-relayer"
 	RelayerContainerName = "relayer"
 	IndexerPort          = "3030"
+	MetricsPort          = "9091"
 )
 
 type AnvilInstance struct {
@@ -91,11 +92,12 @@ func compileContainerConfig(ctx context.Context, daAccountId, keyPath, indexerIp
 	}
 
 	return &config.RelayerConfig{
-		DaAccountId: daAccountId,
-		KeyPath:     containerKeyPath,
-		RpcUrl:      fmt.Sprintf("ws://%s:%s", containerIp, port.Port()),
-		Network:     fmt.Sprintf("http://%s:%s", indexerIp, IndexerPort),
-		Production:  false,
+		Production:        false,
+		DaAccountId:       daAccountId,
+		KeyPath:           containerKeyPath,
+		RpcUrl:            fmt.Sprintf("ws://%s:%s", containerIp, port.Port()),
+		Network:           fmt.Sprintf("http://%s:%s", indexerIp, IndexerPort),
+		MetricsIpPortAddr: fmt.Sprintf("%s:%s", GetRelayerContainerName(anvil), MetricsPort),
 	}, nil
 }
 
@@ -129,6 +131,7 @@ func StartRelayer(t *testing.T, ctx context.Context, daAccountId, indexerContain
 				ReadOnly: true,
 			},
 		},
+		ExposedPorts: []string{MetricsPort + "/tcp"},
 	}
 
 	genericReq := testcontainers.GenericContainerRequest{
@@ -136,10 +139,16 @@ func StartRelayer(t *testing.T, ctx context.Context, daAccountId, indexerContain
 		Started:          true,
 	}
 
-	indexerContainer, err := testcontainers.GenericContainer(ctx, genericReq)
+	relayerContainer, err := testcontainers.GenericContainer(ctx, genericReq)
 	if err != nil {
 		return nil, err
 	}
 
-	return indexerContainer, nil
+	addr, err := relayerContainer.Endpoint(ctx, "")
+	if err != nil {
+		return nil, err
+	}
+
+	t.Log("Relayer metrics endpoint:", addr)
+	return relayerContainer, nil
 }

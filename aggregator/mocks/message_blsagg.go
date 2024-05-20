@@ -57,17 +57,17 @@ func (mr *MockMessageBlsAggregationServiceMockRecorder) GetResponseChannel() *go
 }
 
 // InitializeMessageIfNotExists mocks base method.
-func (m *MockMessageBlsAggregationService) InitializeMessageIfNotExists(arg0 [32]byte, arg1 []types.QuorumNum, arg2 []types.QuorumThresholdPercentage, arg3 time.Duration, arg4 uint64) error {
+func (m *MockMessageBlsAggregationService) InitializeMessageIfNotExists(arg0 [32]byte, arg1 []types.QuorumNum, arg2 []types.QuorumThresholdPercentage, arg3, arg4 time.Duration, arg5 uint64) error {
 	m.ctrl.T.Helper()
-	ret := m.ctrl.Call(m, "InitializeMessageIfNotExists", arg0, arg1, arg2, arg3, arg4)
+	ret := m.ctrl.Call(m, "InitializeMessageIfNotExists", arg0, arg1, arg2, arg3, arg4, arg5)
 	ret0, _ := ret[0].(error)
 	return ret0
 }
 
 // InitializeMessageIfNotExists indicates an expected call of InitializeMessageIfNotExists.
-func (mr *MockMessageBlsAggregationServiceMockRecorder) InitializeMessageIfNotExists(arg0, arg1, arg2, arg3, arg4 any) *gomock.Call {
+func (mr *MockMessageBlsAggregationServiceMockRecorder) InitializeMessageIfNotExists(arg0, arg1, arg2, arg3, arg4, arg5 any) *gomock.Call {
 	mr.mock.ctrl.T.Helper()
-	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "InitializeMessageIfNotExists", reflect.TypeOf((*MockMessageBlsAggregationService)(nil).InitializeMessageIfNotExists), arg0, arg1, arg2, arg3, arg4)
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "InitializeMessageIfNotExists", reflect.TypeOf((*MockMessageBlsAggregationService)(nil).InitializeMessageIfNotExists), arg0, arg1, arg2, arg3, arg4, arg5)
 }
 
 // ProcessNewSignature mocks base method.

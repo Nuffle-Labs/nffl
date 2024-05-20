@@ -88,7 +88,7 @@ func NewConsumer(config ConsumerConfig, logger logging.Logger) *Consumer {
 	return &consumer
 }
 
-func (consumer *Consumer) WithMetrics(registry *prometheus.Registry) error {
+func (consumer *Consumer) EnableMetrics(registry *prometheus.Registry) error {
 	eventListener, err := MakeConsumerMetrics(registry)
 	if err != nil {
 		return err

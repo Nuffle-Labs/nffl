@@ -10,3 +10,5 @@ da_contract_ids:
 rollup_ids:
   - 421614
   - 11155420
+
+metrics_ip_port_address: "0.0.0.0:9092"

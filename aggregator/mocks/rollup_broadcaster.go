@@ -52,6 +52,18 @@ func (mr *MockRollupBroadcastererMockRecorder) BroadcastOperatorSetUpdate(arg0, 
 	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "BroadcastOperatorSetUpdate", reflect.TypeOf((*MockRollupBroadcasterer)(nil).BroadcastOperatorSetUpdate), arg0, arg1, arg2)
 }
 
+// Close mocks base method.
+func (m *MockRollupBroadcasterer) Close() {
+	m.ctrl.T.Helper()
+	m.ctrl.Call(m, "Close")
+}
+
+// Close indicates an expected call of Close.
+func (mr *MockRollupBroadcastererMockRecorder) Close() *gomock.Call {
+	mr.mock.ctrl.T.Helper()
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "Close", reflect.TypeOf((*MockRollupBroadcasterer)(nil).Close))
+}
+
 // GetErrorChan mocks base method.
 func (m *MockRollupBroadcasterer) GetErrorChan() <-chan error {
 	m.ctrl.T.Helper()

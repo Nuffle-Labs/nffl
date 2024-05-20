@@ -1,28 +1,28 @@
 use clap::Parser;
 use configs::{Opts, SubCommand};
-use tokio::sync::mpsc;
+use prometheus::Registry;
 use tracing::{error, info};
 
 use crate::{
-    block_listener::{BlockListener, CandidateData},
-    candidates_validator::CandidatesValidator,
-    configs::RunConfigArgs,
-    errors::Result,
-    rabbit_publisher::RabbitBuilder,
+    candidates_validator::CandidatesValidator, configs::RunConfigArgs, errors::Error, errors::Result,
+    indexer_wrapper::IndexerWrapper, metrics::Metricable, metrics_server::MetricsServer,
+    rabbit_publisher::RabbitPublisher,
 };
 
 mod block_listener;
 mod candidates_validator;
 mod configs;
 mod errors;
+mod indexer_wrapper;
+mod metrics;
+mod metrics_server;
 mod rabbit_publisher;
+mod types;
 
 const INDEXER: &str = "indexer";
 
 fn run(home_dir: std::path::PathBuf, config: RunConfigArgs) -> Result<()> {
     let addresses_to_rollup_ids = config.compile_addresses_to_ids_map()?;
-    let rabbit_builder = RabbitBuilder::new(config.rmq_address);
-
     let indexer_config = near_indexer::IndexerConfig {
         home_dir,
         sync_mode: near_indexer::SyncModeEnum::LatestSynced,
@@ -31,26 +31,42 @@ fn run(home_dir: std::path::PathBuf, config: RunConfigArgs) -> Result<()> {
     };
 
     let system = actix::System::new();
+    let registry = Registry::new();
+    let server_handle = if let Some(metrics_addr) = config.metrics_ip_port_address {
+        let metrics_server = MetricsServer::new(metrics_addr, registry.clone());
+        Some(system.runtime().spawn(metrics_server.run()))
+    } else {
+        None
+    };
+
+    // TODO: refactor
     let block_res = system.block_on(async move {
-        let indexer = near_indexer::Indexer::new(indexer_config).expect("Indexer::new()");
-        let stream = indexer.streamer();
+        let mut indexer = IndexerWrapper::new(indexer_config, addresses_to_rollup_ids);
+        if let Some(_) = config.metrics_ip_port_address {
+            indexer.enable_metrics(registry.clone())?;
+        }
+
         let (view_client, _) = indexer.client_actors();
+        let (block_handle, candidates_stream) = indexer.run();
+        let mut candidates_validator = CandidatesValidator::new(view_client);
+        if let Some(_) = config.metrics_ip_port_address {
+            candidates_validator.enable_metrics(registry.clone())?;
+        }
 
-        // TODO: define buffer: usize const
-        let (sender, receiver) = mpsc::channel::<CandidateData>(100);
+        let validated_stream = candidates_validator.run(candidates_stream);
+        let mut rmq_publisher = RabbitPublisher::new(&config.rmq_address)?;
+        if let Some(_) = config.metrics_ip_port_address {
+            rmq_publisher.enable_metrics(registry.clone())?;
+        }
+        rmq_publisher.run(validated_stream);
 
-        let rabbit_publisher = rabbit_builder.build()?;
-
-        let block_listener = BlockListener::new(stream, sender, addresses_to_rollup_ids);
-        let receipt_validator = CandidatesValidator::new(view_client, receiver, rabbit_publisher);
-
-        let result = tokio::select! {
-            result = receipt_validator.start() => result,
-            result = block_listener.start() => result,
-        };
-
-        result
+        // TODO: block_handle wether cancelled or Panics. Can handle
+        Ok::<_, Error>(block_handle.await?)
     });
+
+    if let Some(handle) = server_handle {
+        handle.abort();
+    }
 
     // Run until publishing finished
     system.run()?;
@@ -85,7 +101,7 @@ fn main() -> Result<()> {
     openssl_probe::init_ssl_cert_env_vars();
     let env_filter = near_o11y::tracing_subscriber::EnvFilter::new(
         "nearcore=info,publisher=info,indexer=info,candidates_validator=info,\
-         tokio_reactor=info,near=info,stats=info,telemetry=info,\
+         metrics=info,tokio_reactor=info,near=info,stats=info,telemetry=info,\
          near-performance-metrics=info",
     );
     let _subscriber = near_o11y::default_subscriber(env_filter, &Default::default()).global();

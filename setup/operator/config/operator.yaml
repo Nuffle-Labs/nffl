@@ -44,6 +44,8 @@ rollup_ids_to_rpc_urls:
   421614: wss://arbitrum-sepolia-rpc.publicnode.com
   11155420: wss://optimism-sepolia-rpc.publicnode.com
 
+task_response_wait_ms: 60000
+
 # Token strategy address
 # Mock strategy to deposit when registering (only used for testing)
 token_strategy_addr: 0x0000000000000000000000000000000000000000

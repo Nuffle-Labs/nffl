@@ -8,9 +8,9 @@ import (
 	"fmt"
 	"math/big"
 	"os"
+	"time"
 
 	"github.com/Layr-Labs/eigensdk-go/chainio/clients"
-	"github.com/Layr-Labs/eigensdk-go/chainio/clients/eth"
 	"github.com/Layr-Labs/eigensdk-go/chainio/clients/wallet"
 	"github.com/Layr-Labs/eigensdk-go/chainio/txmgr"
 	"github.com/Layr-Labs/eigensdk-go/crypto/bls"
@@ -28,6 +28,7 @@ import (
 
 	taskmanager "github.com/NethermindEth/near-sffl/contracts/bindings/SFFLTaskManager"
 	"github.com/NethermindEth/near-sffl/core"
+	"github.com/NethermindEth/near-sffl/core/safeclient"
 	"github.com/NethermindEth/near-sffl/core/types/messages"
 	"github.com/NethermindEth/near-sffl/operator/attestor"
 	optypes "github.com/NethermindEth/near-sffl/operator/types"
@@ -41,7 +42,7 @@ const (
 type Operator struct {
 	config    optypes.NodeConfig
 	logger    sdklogging.Logger
-	ethClient eth.Client
+	ethClient safeclient.SafeClient
 	// they are only used for registration, so we should make a special registration package
 	// this way, auditing this operator code makes it obvious that operators don't need to
 	// write to the chain during the course of their normal operations
@@ -50,17 +51,18 @@ type Operator struct {
 	metrics    metrics.Metrics
 	listener   OperatorEventListener
 
-	nodeApi      *nodeapi.NodeApi
-	blsKeypair   *bls.KeyPair
-	operatorId   eigentypes.OperatorId
-	operatorAddr common.Address
+	nodeApi          *nodeapi.NodeApi
+	blsKeypair       *bls.KeyPair
+	operatorId       eigentypes.OperatorId
+	operatorAddr     common.Address
+	taskResponseWait time.Duration
 
 	// ip address of aggregator
 	aggregatorServerIpPortAddr string
 	// rpc client to send signed task responses to aggregator
 	aggregatorRpcClient AggregatorRpcClienter
 	// needed when opting in to avs (allow this service manager contract to slash operator)
-	sfflServiceManagerAddr common.Address
+	registryCoordinatorAddr common.Address
 	// NEAR DA indexer consumer
 	attestor attestor.Attestorer
 	// Avs Manager
@@ -167,7 +169,8 @@ func NewOperatorFromConfig(c optypes.NodeConfig) (*Operator, error) {
 	// Use eigen registry
 	reg = sdkClients.PrometheusRegistry
 
-	aggregatorRpcClient, err := NewAggregatorRpcClient(c.AggregatorServerIpPortAddress, logger)
+	registryCoordinatorAddress := common.HexToAddress(c.AVSRegistryCoordinatorAddress)
+	aggregatorRpcClient, err := NewAggregatorRpcClient(c.AggregatorServerIpPortAddress, registryCoordinatorAddress, logger)
 	if err != nil {
 		logger.Error("Cannot create AggregatorRpcClient. Is aggregator running?", "err", err)
 		return nil, err
@@ -203,8 +206,9 @@ func NewOperatorFromConfig(c optypes.NodeConfig) (*Operator, error) {
 		operatorAddr:               common.HexToAddress(c.OperatorAddress),
 		aggregatorServerIpPortAddr: c.AggregatorServerIpPortAddress,
 		aggregatorRpcClient:        aggregatorRpcClient,
-		sfflServiceManagerAddr:     common.HexToAddress(c.AVSRegistryCoordinatorAddress),
+		registryCoordinatorAddr:    registryCoordinatorAddress,
 		operatorId:                 eigentypes.OperatorIdFromPubkey(blsKeyPair.GetPubKeyG1()),
+		taskResponseWait:           time.Duration(c.TaskResponseWaitMs) * time.Millisecond,
 	}
 
 	if c.RegisterOperatorOnStartup {
@@ -233,7 +237,7 @@ func NewOperatorFromConfig(c optypes.NodeConfig) (*Operator, error) {
 	operator.attestor = attestor
 
 	if c.EnableMetrics {
-		if err = operator.WithMetrics(reg); err != nil {
+		if err = operator.EnableMetrics(reg); err != nil {
 			return nil, err
 		}
 	}
@@ -241,18 +245,18 @@ func NewOperatorFromConfig(c optypes.NodeConfig) (*Operator, error) {
 	return operator, nil
 }
 
-func (o *Operator) WithMetrics(registry *prometheus.Registry) error {
+func (o *Operator) EnableMetrics(registry *prometheus.Registry) error {
 	listener, err := MakeOperatorMetrics(registry)
 	if err != nil {
 		return err
 	}
 	o.listener = listener
 
-	if err = o.attestor.WithMetrics(registry); err != nil {
+	if err = o.attestor.EnableMetrics(registry); err != nil {
 		return err
 	}
 
-	if err = o.aggregatorRpcClient.WithMetrics(registry); err != nil {
+	if err = o.aggregatorRpcClient.EnableMetrics(registry); err != nil {
 		return err
 	}
 
@@ -272,6 +276,9 @@ func (o *Operator) Start(ctx context.Context) error {
 	} else {
 		metricsErrChan = make(chan error, 1)
 	}
+
+	o.listener.IncInitializationCount()
+	o.listener.ObserveLastInitializedTime()
 
 	if err := o.avsManager.Start(ctx, o.operatorAddr); err != nil {
 		return err
@@ -333,6 +340,8 @@ func (o *Operator) Close() error {
 		return err
 	}
 
+	o.ethClient.Close()
+
 	return nil
 }
 
@@ -371,6 +380,10 @@ func SignOperatorSetUpdate(message messages.OperatorSetUpdateMessage, blsKeyPair
 
 func (o *Operator) ProcessCheckpointTask(event *taskmanager.ContractSFFLTaskManagerCheckpointTaskCreated) {
 	o.listener.OnTasksReceived()
+
+	if o.taskResponseWait > 0 {
+		<-time.After(o.taskResponseWait)
+	}
 
 	checkpointMessages, err := o.aggregatorRpcClient.GetAggregatedCheckpointMessages(
 		event.Task.FromTimestamp,

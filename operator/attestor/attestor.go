@@ -6,7 +6,6 @@ import (
 	"errors"
 	"time"
 
-	"github.com/Layr-Labs/eigensdk-go/chainio/clients/eth"
 	"github.com/Layr-Labs/eigensdk-go/crypto/bls"
 	sdklogging "github.com/Layr-Labs/eigensdk-go/logging"
 	rpccalls "github.com/Layr-Labs/eigensdk-go/metrics/collectors/rpc_calls"
@@ -16,6 +15,7 @@ import (
 	"github.com/prometheus/client_golang/prometheus"
 
 	"github.com/NethermindEth/near-sffl/core"
+	"github.com/NethermindEth/near-sffl/core/safeclient"
 	"github.com/NethermindEth/near-sffl/core/types/messages"
 	"github.com/NethermindEth/near-sffl/operator/consumer"
 	optypes "github.com/NethermindEth/near-sffl/operator/types"
@@ -24,8 +24,6 @@ import (
 const (
 	MQ_WAIT_TIMEOUT        = 30 * time.Second
 	MQ_REBROADCAST_TIMEOUT = 15 * time.Second
-	RECONNECTION_ATTEMPTS  = 5
-	RECONNECTION_DELAY     = time.Second
 )
 
 var (
@@ -48,7 +46,7 @@ type Attestorer interface {
 type Attestor struct {
 	signedRootC        chan messages.SignedStateRootUpdateMessage
 	rollupIdsToUrls    map[uint32]string
-	clients            map[uint32]eth.Client
+	clients            map[uint32]safeclient.SafeClient
 	rpcCallsCollectors map[uint32]*rpccalls.Collector
 	notifier           Notifier
 	consumer           *consumer.Consumer
@@ -74,7 +72,7 @@ func NewAttestor(config *optypes.NodeConfig, blsKeypair *bls.KeyPair, operatorId
 	attestor := Attestor{
 		signedRootC:        make(chan messages.SignedStateRootUpdateMessage),
 		rollupIdsToUrls:    make(map[uint32]string),
-		clients:            make(map[uint32]eth.Client),
+		clients:            make(map[uint32]safeclient.SafeClient),
 		rpcCallsCollectors: make(map[uint32]*rpccalls.Collector),
 		logger:             logger,
 		notifier:           NewNotifier(),
@@ -93,7 +91,12 @@ func NewAttestor(config *optypes.NodeConfig, blsKeypair *bls.KeyPair, operatorId
 			rpcCallsCollector = rpccalls.NewCollector(id+url, registry)
 		}
 
-		client, err := core.CreateEthClient(url, rpcCallsCollector, logger)
+		clientOpts := make([]safeclient.SafeEthClientOption, 0)
+		if rpcCallsCollector != nil {
+			clientOpts = append(clientOpts, safeclient.WithInstrumentedCreateClient(rpcCallsCollector))
+		}
+
+		client, err := safeclient.NewSafeEthClient(url, logger, clientOpts...)
 		if err != nil {
 			return nil, err
 		}
@@ -107,14 +110,14 @@ func NewAttestor(config *optypes.NodeConfig, blsKeypair *bls.KeyPair, operatorId
 	return &attestor, nil
 }
 
-func (attestor *Attestor) WithMetrics(registry *prometheus.Registry) error {
+func (attestor *Attestor) EnableMetrics(registry *prometheus.Registry) error {
 	listener, err := MakeAttestorMetrics(registry)
 	if err != nil {
 		return err
 	}
 	attestor.listener = listener
 
-	if err = attestor.consumer.WithMetrics(registry); err != nil {
+	if err = attestor.consumer.EnableMetrics(registry); err != nil {
 		return err
 	}
 
@@ -128,12 +131,20 @@ func (attestor *Attestor) Start(ctx context.Context) error {
 	headersCs := make(map[uint32]chan *ethtypes.Header)
 
 	for rollupId, client := range attestor.clients {
-		headersC := make(chan *ethtypes.Header)
+		headersC := make(chan *ethtypes.Header, 100)
 		subscription, err := client.SubscribeNewHead(ctx, headersC)
 		if err != nil {
 			attestor.logger.Fatalf("Failed to subscribe to new header: %v, for rollupId: %v", err, rollupId)
 			return err
 		}
+
+		blockNumber, err := client.BlockNumber(ctx)
+		if err != nil {
+			attestor.logger.Fatalf("Failed to get block number: %v, for rollupId: %v", err, rollupId)
+			return err
+		}
+
+		attestor.listener.ObserveInitializationInitialBlockNumber(rollupId, blockNumber)
 
 		subscriptions[rollupId] = subscription
 		headersCs[rollupId] = headersC
@@ -183,49 +194,19 @@ func (attestor *Attestor) processMQBlocks(ctx context.Context) {
 	}
 }
 
-func (attestor *Attestor) reconnectClient(rollupId uint32) (eth.Client, error) {
-	var err error
-	var client eth.Client
-	for i := 0; i < RECONNECTION_ATTEMPTS; i++ {
-		<-time.After(RECONNECTION_DELAY)
-
-		client, err = core.CreateEthClient(attestor.rollupIdsToUrls[rollupId], attestor.rpcCallsCollectors[rollupId], attestor.logger)
-		if err == nil {
-			return client, nil
-		}
-	}
-
-	return nil, err
-}
-
 // Spawns routines for new headers that die in one minute
 func (attestor *Attestor) processRollupHeaders(rollupId uint32, headersC chan *ethtypes.Header, subscription ethereum.Subscription, ctx context.Context) {
 	for {
 		select {
 		case <-subscription.Err():
-			subscription.Unsubscribe()
-
-			client, err := attestor.reconnectClient(rollupId)
-			if err != nil {
-				return
-			}
-			attestor.clients[rollupId] = client
-
-			subscription, err = client.SubscribeNewHead(ctx, headersC)
-			if err != nil {
-				return
-			}
-
-			continue
-
+			attestor.logger.Error("Header subscription error", "rollupId", rollupId)
+			return
 		case header, ok := <-headersC:
 			if !ok {
 				return
 			}
 
 			go attestor.processHeader(rollupId, header, ctx)
-			continue
-
 		case <-ctx.Done():
 			subscription.Unsubscribe()
 			close(headersC)
@@ -240,6 +221,10 @@ func (attestor *Attestor) processRollupHeaders(rollupId uint32, headersC chan *e
 func (attestor *Attestor) processHeader(rollupId uint32, rollupHeader *ethtypes.Header, ctx context.Context) {
 	attestor.logger.Info("Processing header", "rollupId", rollupId, "height", rollupHeader.Number.Uint64())
 
+	attestor.listener.ObserveLastBlockReceived(rollupId, rollupHeader.Number.Uint64())
+	attestor.listener.ObserveLastBlockReceivedTimestamp(rollupId, uint64(rollupHeader.Time))
+	attestor.listener.OnBlockReceived(rollupId)
+
 	predicate := func(mqBlock consumer.BlockData) bool {
 		if mqBlock.RollupId != rollupId {
 			attestor.logger.Warnf("Subscriber expected rollupId: %v, but got %v", rollupId, mqBlock.RollupId)
@@ -252,7 +237,7 @@ func (attestor *Attestor) processHeader(rollupId uint32, rollupHeader *ethtypes.
 
 		if mqBlock.Block.Header().Root != rollupHeader.Root {
 			attestor.logger.Warnf("StateRoot from MQ doesn't match one from Node")
-			attestor.listener.OnBlockMismatch()
+			attestor.listener.OnBlockMismatch(rollupId)
 
 			return false
 		}
@@ -272,7 +257,7 @@ loop:
 		select {
 		case <-timer:
 			attestor.logger.Info("MQ timeout", "rollupId", rollupId, "height", rollupHeader.Number.Uint64())
-			attestor.listener.OnMissedMQBlock()
+			attestor.listener.OnMissedMQBlock(rollupId)
 
 			break loop
 
@@ -329,6 +314,10 @@ func (attestor *Attestor) GetSignedRootC() <-chan messages.SignedStateRootUpdate
 func (attestor *Attestor) Close() error {
 	if err := attestor.consumer.Close(); err != nil {
 		return err
+	}
+
+	for _, client := range attestor.clients {
+		client.Close()
 	}
 
 	return nil

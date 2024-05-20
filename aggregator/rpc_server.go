@@ -5,6 +5,7 @@ import (
 	"errors"
 	"net/http"
 	"net/rpc"
+	"strings"
 	"time"
 
 	eigentypes "github.com/Layr-Labs/eigensdk-go/types"
@@ -49,8 +50,6 @@ func (agg *Aggregator) ProcessSignedCheckpointTaskResponse(signedCheckpointTaskR
 		agg.logger.Infof("Received signed task response: %#v", signedCheckpointTaskResponse)
 	}
 
-	agg.rpcListener.IncSignedCheckpointTaskResponse()
-
 	taskIndex := signedCheckpointTaskResponse.TaskResponse.ReferenceTaskIndex
 	taskResponseDigest, err := signedCheckpointTaskResponse.TaskResponse.Digest()
 	if err != nil {
@@ -58,11 +57,19 @@ func (agg *Aggregator) ProcessSignedCheckpointTaskResponse(signedCheckpointTaskR
 		return TaskResponseDigestNotFoundError500
 	}
 
+	agg.rpcListener.IncTotalSignedCheckpointTaskResponse()
+	agg.rpcListener.ObserveLastMessageReceivedTime(signedCheckpointTaskResponse.OperatorId, CheckpointTaskResponseLabel)
+
 	err = agg.taskBlsAggregationService.ProcessNewSignature(
 		context.Background(), taskIndex, taskResponseDigest,
 		&signedCheckpointTaskResponse.BlsSignature, signedCheckpointTaskResponse.OperatorId,
 	)
 	if err != nil {
+		agg.rpcListener.IncSignedCheckpointTaskResponse(
+			signedCheckpointTaskResponse.OperatorId,
+			true,
+			strings.Contains(err.Error(), "not initialized"),
+		)
 		return err
 	}
 
@@ -74,6 +81,8 @@ func (agg *Aggregator) ProcessSignedCheckpointTaskResponse(signedCheckpointTaskR
 		agg.taskResponses[taskIndex][taskResponseDigest] = signedCheckpointTaskResponse.TaskResponse
 	}
 	agg.taskResponsesLock.Unlock()
+
+	agg.rpcListener.IncSignedCheckpointTaskResponse(signedCheckpointTaskResponse.OperatorId, false, false)
 
 	return nil
 }
@@ -96,21 +105,39 @@ func (agg *Aggregator) ProcessSignedStateRootUpdateMessage(signedStateRootUpdate
 		return nil
 	}
 
-	agg.rpcListener.IncSignedStateRootUpdateMessage()
+	hasNearDaCommitment := signedStateRootUpdateMessage.Message.HasNearDaCommitment()
+	operatorId := signedStateRootUpdateMessage.OperatorId
 
-	agg.stateRootUpdateBlsAggregationService.InitializeMessageIfNotExists(messageDigest, coretypes.QUORUM_NUMBERS, []eigentypes.QuorumThresholdPercentage{types.QUORUM_THRESHOLD_NUMERATOR}, types.MESSAGE_TTL, 0)
+	agg.rpcListener.IncTotalSignedStateRootUpdateMessage()
+	agg.rpcListener.ObserveLastMessageReceivedTime(operatorId, StateRootUpdateMessageLabel)
 
-	err = agg.stateRootUpdateBlsAggregationService.ProcessNewSignature(
-		context.Background(), messageDigest,
-		&signedStateRootUpdateMessage.BlsSignature, signedStateRootUpdateMessage.OperatorId,
+	err = agg.stateRootUpdateBlsAggregationService.InitializeMessageIfNotExists(
+		messageDigest,
+		coretypes.QUORUM_NUMBERS,
+		[]eigentypes.QuorumThresholdPercentage{types.MESSAGE_AGGREGATION_QUORUM_THRESHOLD},
+		types.MESSAGE_TTL,
+		types.MESSAGE_BLS_AGGREGATION_TIMEOUT,
+		0,
 	)
 	if err != nil {
+		agg.rpcListener.IncSignedStateRootUpdateMessage(operatorId, true, hasNearDaCommitment)
 		return err
 	}
 
 	agg.stateRootUpdatesLock.Lock()
 	agg.stateRootUpdates[messageDigest] = signedStateRootUpdateMessage.Message
 	agg.stateRootUpdatesLock.Unlock()
+
+	err = agg.stateRootUpdateBlsAggregationService.ProcessNewSignature(
+		context.Background(), messageDigest,
+		&signedStateRootUpdateMessage.BlsSignature, signedStateRootUpdateMessage.OperatorId,
+	)
+	if err != nil {
+		agg.rpcListener.IncSignedStateRootUpdateMessage(operatorId, true, hasNearDaCommitment)
+		return err
+	}
+
+	agg.rpcListener.IncSignedStateRootUpdateMessage(operatorId, false, hasNearDaCommitment)
 
 	return nil
 }
@@ -122,33 +149,52 @@ func (agg *Aggregator) ProcessSignedOperatorSetUpdateMessage(signedOperatorSetUp
 		agg.logger.Infof("Received signed operator set update message: %#v", signedOperatorSetUpdateMessage)
 	}
 
-	agg.rpcListener.IncSignedOperatorSetUpdateMessage()
-
 	messageDigest, err := signedOperatorSetUpdateMessage.Message.Digest()
 	if err != nil {
 		agg.logger.Error("Failed to get message digest", "err", err)
 		return TaskResponseDigestNotFoundError500
 	}
 
+	operatorId := signedOperatorSetUpdateMessage.OperatorId
+
+	agg.rpcListener.IncTotalSignedOperatorSetUpdateMessage()
+	agg.rpcListener.ObserveLastMessageReceivedTime(operatorId, OperatorSetUpdateMessageLabel)
+
 	blockNumber, err := agg.avsReader.GetOperatorSetUpdateBlock(context.Background(), signedOperatorSetUpdateMessage.Message.Id)
 	if err != nil {
+		agg.rpcListener.IncSignedOperatorSetUpdateMessage(operatorId, true)
+
 		agg.logger.Error("Failed to get operator set update block", "err", err)
 		return OperatorSetUpdateBlockNotFoundError500
 	}
 
-	agg.operatorSetUpdateBlsAggregationService.InitializeMessageIfNotExists(messageDigest, coretypes.QUORUM_NUMBERS, []eigentypes.QuorumThresholdPercentage{types.QUORUM_THRESHOLD_NUMERATOR}, types.MESSAGE_TTL, uint64(blockNumber)-1)
-
-	err = agg.operatorSetUpdateBlsAggregationService.ProcessNewSignature(
-		context.Background(), messageDigest,
-		&signedOperatorSetUpdateMessage.BlsSignature, signedOperatorSetUpdateMessage.OperatorId,
+	err = agg.operatorSetUpdateBlsAggregationService.InitializeMessageIfNotExists(
+		messageDigest,
+		coretypes.QUORUM_NUMBERS,
+		[]eigentypes.QuorumThresholdPercentage{types.MESSAGE_AGGREGATION_QUORUM_THRESHOLD},
+		types.MESSAGE_TTL,
+		types.MESSAGE_BLS_AGGREGATION_TIMEOUT,
+		uint64(blockNumber)-1,
 	)
 	if err != nil {
+		agg.rpcListener.IncSignedOperatorSetUpdateMessage(operatorId, true)
 		return err
 	}
 
 	agg.operatorSetUpdatesLock.Lock()
 	agg.operatorSetUpdates[messageDigest] = signedOperatorSetUpdateMessage.Message
 	agg.operatorSetUpdatesLock.Unlock()
+
+	err = agg.operatorSetUpdateBlsAggregationService.ProcessNewSignature(
+		context.Background(), messageDigest,
+		&signedOperatorSetUpdateMessage.BlsSignature, signedOperatorSetUpdateMessage.OperatorId,
+	)
+	if err != nil {
+		agg.rpcListener.IncSignedOperatorSetUpdateMessage(operatorId, true)
+		return err
+	}
+
+	agg.rpcListener.IncSignedOperatorSetUpdateMessage(operatorId, false)
 
 	return nil
 }
@@ -165,5 +211,10 @@ func (agg *Aggregator) GetAggregatedCheckpointMessages(args *GetAggregatedCheckp
 
 	*reply = *checkpointMessages
 
+	return nil
+}
+
+func (agg *Aggregator) GetRegistryCoordinatorAddress(_ *struct{}, reply *string) error {
+	*reply = agg.config.SFFLRegistryCoordinatorAddr.String()
 	return nil
 }

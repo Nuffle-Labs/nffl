@@ -2,12 +2,12 @@ package aggregator
 
 import (
 	"context"
+	"errors"
 	"math/big"
 	"sync"
 	"time"
 
 	eigenclients "github.com/Layr-Labs/eigensdk-go/chainio/clients"
-	"github.com/Layr-Labs/eigensdk-go/chainio/clients/eth"
 	"github.com/Layr-Labs/eigensdk-go/chainio/clients/wallet"
 	"github.com/Layr-Labs/eigensdk-go/chainio/txmgr"
 	"github.com/Layr-Labs/eigensdk-go/logging"
@@ -25,6 +25,7 @@ import (
 	"github.com/NethermindEth/near-sffl/core"
 	"github.com/NethermindEth/near-sffl/core/chainio"
 	"github.com/NethermindEth/near-sffl/core/config"
+	"github.com/NethermindEth/near-sffl/core/safeclient"
 	coretypes "github.com/NethermindEth/near-sffl/core/types"
 	"github.com/NethermindEth/near-sffl/core/types/messages"
 )
@@ -72,6 +73,7 @@ const (
 // Upon sending a task onchain (or receiving a CheckpointTaskCreated Event if the tasks were sent by an external task generator), the aggregator can get the list of all operators opted into each quorum at that
 // block number by calling the getOperatorState() function of the BLSOperatorStateRetriever.sol contract.
 type Aggregator struct {
+	config               *config.Config
 	logger               logging.Logger
 	serverIpPortAddr     string
 	restServerIpPortAddr string
@@ -79,13 +81,15 @@ type Aggregator struct {
 	avsWriter            chainio.AvsWriterer
 	avsReader            chainio.AvsReaderer
 	rollupBroadcaster    RollupBroadcasterer
-	client               eth.Client
+	httpClient           safeclient.SafeClient
+	wsClient             safeclient.SafeClient
 
 	// TODO(edwin): once rpc & rest decouple from aggregator fome it with them
-	registry     *prometheus.Registry
-	metrics      metrics.Metrics
-	rpcListener  RpcEventListener
-	restListener RestEventListener
+	registry           *prometheus.Registry
+	metrics            metrics.Metrics
+	rpcListener        RpcEventListener
+	restListener       RestEventListener
+	aggregatorListener AggregatorEventListener
 
 	taskBlsAggregationService              blsagg.BlsAggregationService
 	stateRootUpdateBlsAggregationService   MessageBlsAggregationService
@@ -203,6 +207,7 @@ func NewAggregator(ctx context.Context, config *config.Config, logger logging.Lo
 	operatorSetUpdateBlsAggregationService := NewMessageBlsAggregatorService(avsRegistryService, clients.EthHttpClient, logger)
 
 	agg := &Aggregator{
+		config:                                 config,
 		logger:                                 logger,
 		serverIpPortAddr:                       config.AggregatorServerIpPortAddr,
 		restServerIpPortAddr:                   config.AggregatorRestServerIpPortAddr,
@@ -210,7 +215,8 @@ func NewAggregator(ctx context.Context, config *config.Config, logger logging.Lo
 		avsWriter:                              avsWriter,
 		avsReader:                              avsReader,
 		rollupBroadcaster:                      rollupBroadcaster,
-		client:                                 ethHttpClient,
+		httpClient:                             ethHttpClient,
+		wsClient:                               ethWsClient,
 		taskBlsAggregationService:              taskBlsAggregationService,
 		stateRootUpdateBlsAggregationService:   stateRootUpdateBlsAggregationService,
 		operatorSetUpdateBlsAggregationService: operatorSetUpdateBlsAggregationService,
@@ -221,20 +227,23 @@ func NewAggregator(ctx context.Context, config *config.Config, logger logging.Lo
 		operatorSetUpdates:                     make(map[coretypes.MessageDigest]messages.OperatorSetUpdateMessage),
 		restListener:                           &SelectiveRestListener{},
 		rpcListener:                            &SelectiveRpcListener{},
+		aggregatorListener:                     &SelectiveAggregatorListener{},
 	}
 
 	if config.EnableMetrics {
-		if err = agg.WithMetrics(registry); err != nil {
+		if err = agg.EnableMetrics(registry); err != nil {
 			return nil, err
 		}
 		agg.metrics = clients.Metrics
 		agg.registry = registry
 	}
 
+	agg.aggregatorListener.IncAggregatorInitializations()
+
 	return agg, nil
 }
 
-func (agg *Aggregator) WithMetrics(registry *prometheus.Registry) error {
+func (agg *Aggregator) EnableMetrics(registry *prometheus.Registry) error {
 	restListener, err := MakeRestServerMetrics(registry)
 	if err != nil {
 		return err
@@ -247,7 +256,13 @@ func (agg *Aggregator) WithMetrics(registry *prometheus.Registry) error {
 	}
 	agg.rpcListener = rpcListener
 
-	if err = agg.msgDb.WithMetrics(registry); err != nil {
+	aggregatorListener, err := MakeAggregatorMetrics(registry)
+	if err != nil {
+		return err
+	}
+	agg.aggregatorListener = aggregatorListener
+
+	if err = agg.msgDb.EnableMetrics(registry); err != nil {
 		return err
 	}
 
@@ -299,15 +314,26 @@ func (agg *Aggregator) Close() error {
 		return err
 	}
 
+	agg.httpClient.Close()
+	agg.wsClient.Close()
+
+	agg.rollupBroadcaster.Close()
+
 	return nil
 }
 
 func (agg *Aggregator) sendAggregatedResponseToContract(blsAggServiceResp blsagg.BlsAggregationServiceResponse) {
-	// TODO: check if blsAggServiceResp contains an err
 	if blsAggServiceResp.Err != nil {
+		agg.aggregatorListener.IncErroredSubmissions()
+		if errors.Is(blsAggServiceResp.Err, blsagg.TaskExpiredError) {
+			agg.aggregatorListener.IncExpiredTasks()
+		}
+
 		agg.logger.Error("BlsAggregationServiceResponse contains an error", "err", blsAggServiceResp.Err)
 		return
 	}
+
+	agg.aggregatorListener.ObserveLastCheckpointTaskReferenceReceived(blsAggServiceResp.TaskIndex)
 
 	agg.logger.Info("Threshold reached. Sending aggregated response onchain.",
 		"taskIndex", blsAggServiceResp.TaskIndex,
@@ -325,7 +351,9 @@ func (agg *Aggregator) sendAggregatedResponseToContract(blsAggServiceResp blsagg
 		return
 	}
 
-	currentBlock, err := agg.client.BlockNumber(context.Background())
+	agg.aggregatorListener.ObserveLastCheckpointTaskReferenceAggregated(blsAggServiceResp.TaskIndex)
+
+	currentBlock, err := agg.httpClient.BlockNumber(context.Background())
 	if err != nil {
 		agg.logger.Errorf("Error getting current block number", "err", err)
 		return
@@ -346,13 +374,13 @@ func (agg *Aggregator) sendAggregatedResponseToContract(blsAggServiceResp blsagg
 // sendNewCheckpointTask sends a new task to the task manager contract, and updates the Task dict struct
 // with the information of operators opted into quorum 0 at the block of task creation.
 func (agg *Aggregator) sendNewCheckpointTask() {
-	blockNumber, err := agg.client.BlockNumber(context.Background())
+	blockNumber, err := agg.httpClient.BlockNumber(context.Background())
 	if err != nil {
 		agg.logger.Error("Failed to get block number", "err", err)
 		return
 	}
 
-	block, err := agg.client.BlockByNumber(context.Background(), big.NewInt(0).SetUint64(blockNumber))
+	block, err := agg.httpClient.BlockByNumber(context.Background(), big.NewInt(0).SetUint64(blockNumber))
 	if err != nil {
 		agg.logger.Error("Failed to get block", "err", err)
 		return
@@ -373,11 +401,13 @@ func (agg *Aggregator) sendNewCheckpointTask() {
 
 	agg.logger.Info("Aggregator sending new task", "fromTimestamp", fromTimestamp, "toTimestamp", toTimestamp)
 	// Send checkpoint to the task manager contract
-	newTask, taskIndex, err := agg.avsWriter.SendNewCheckpointTask(context.Background(), fromTimestamp, toTimestamp, types.QUORUM_THRESHOLD_NUMERATOR, coretypes.QUORUM_NUMBERS)
+	newTask, taskIndex, err := agg.avsWriter.SendNewCheckpointTask(context.Background(), fromTimestamp, toTimestamp, types.TASK_QUORUM_THRESHOLD, coretypes.QUORUM_NUMBERS)
 	if err != nil {
 		agg.logger.Error("Aggregator failed to send checkpoint", "err", err)
 		return
 	}
+
+	agg.aggregatorListener.ObserveLastCheckpointReferenceSent(taskIndex)
 
 	agg.tasksLock.Lock()
 	agg.tasks[taskIndex] = newTask
@@ -385,7 +415,7 @@ func (agg *Aggregator) sendNewCheckpointTask() {
 
 	quorumThresholds := make([]eigentypes.QuorumThresholdPercentage, len(newTask.QuorumNumbers))
 	for i, _ := range newTask.QuorumNumbers {
-		quorumThresholds[i] = eigentypes.QuorumThresholdPercentage(newTask.QuorumThreshold)
+		quorumThresholds[i] = types.TASK_AGGREGATION_QUORUM_THRESHOLD
 	}
 	// TODO(samlaf): we use seconds for now, but we should ideally pass a blocknumber to the blsAggregationService
 	// and it should monitor the chain and only expire the task aggregation once the chain has reached that block number.
@@ -398,25 +428,38 @@ func (agg *Aggregator) sendNewCheckpointTask() {
 }
 
 func (agg *Aggregator) handleStateRootUpdateReachedQuorum(blsAggServiceResp types.MessageBlsAggregationServiceResponse) {
-	if blsAggServiceResp.Err != nil {
-		agg.logger.Error("Aggregator BLS service returned error", "err", blsAggServiceResp.Err)
-		return
-	}
-
 	agg.stateRootUpdatesLock.RLock()
 	msg, ok := agg.stateRootUpdates[blsAggServiceResp.MessageDigest]
 	agg.stateRootUpdatesLock.RUnlock()
 
-	defer func() {
-		agg.stateRootUpdatesLock.Lock()
-		delete(agg.stateRootUpdates, blsAggServiceResp.MessageDigest)
-		agg.stateRootUpdatesLock.Unlock()
-	}()
+	if blsAggServiceResp.Finished {
+		defer func() {
+			agg.stateRootUpdatesLock.Lock()
+			delete(agg.stateRootUpdates, blsAggServiceResp.MessageDigest)
+			agg.stateRootUpdatesLock.Unlock()
+		}()
+	}
+
+	agg.aggregatorListener.ObserveLastStateRootUpdateReceived(msg.RollupId, msg.BlockHeight)
+
+	if blsAggServiceResp.Err != nil {
+		agg.aggregatorListener.IncErroredSubmissions()
+		if errors.Is(blsAggServiceResp.Err, MessageExpiredError) {
+			agg.aggregatorListener.IncExpiredMessages()
+		}
+
+		agg.logger.Error("Aggregator BLS service returned error", "err", blsAggServiceResp.Err)
+		return
+	}
 
 	if !ok {
 		agg.logger.Error("Aggregator could not find matching message")
 		return
 	}
+
+	agg.aggregatorListener.ObserveLastStateRootUpdateAggregated(msg.RollupId, msg.BlockHeight)
+
+	agg.logger.Info("Storing state root update", "digest", blsAggServiceResp.MessageDigest, "status", blsAggServiceResp.Status)
 
 	err := agg.msgDb.StoreStateRootUpdate(msg)
 	if err != nil {
@@ -431,28 +474,43 @@ func (agg *Aggregator) handleStateRootUpdateReachedQuorum(blsAggServiceResp type
 }
 
 func (agg *Aggregator) handleOperatorSetUpdateReachedQuorum(ctx context.Context, blsAggServiceResp types.MessageBlsAggregationServiceResponse) {
-	if blsAggServiceResp.Err != nil {
-		agg.logger.Error("Aggregator BLS service returned error", "err", blsAggServiceResp.Err)
-		return
-	}
-
 	agg.operatorSetUpdatesLock.RLock()
 	msg, ok := agg.operatorSetUpdates[blsAggServiceResp.MessageDigest]
 	agg.operatorSetUpdatesLock.RUnlock()
 
-	defer func() {
-		agg.operatorSetUpdatesLock.Lock()
-		delete(agg.operatorSetUpdates, blsAggServiceResp.MessageDigest)
-		agg.operatorSetUpdatesLock.Unlock()
-	}()
+	if blsAggServiceResp.Finished {
+		defer func() {
+			agg.operatorSetUpdatesLock.Lock()
+			delete(agg.operatorSetUpdates, blsAggServiceResp.MessageDigest)
+			agg.operatorSetUpdatesLock.Unlock()
+
+			if blsAggServiceResp.Err == nil {
+				signatureInfo := blsAggServiceResp.ExtractBindingRollup()
+				agg.rollupBroadcaster.BroadcastOperatorSetUpdate(ctx, msg, signatureInfo)
+			}
+		}()
+	}
+
+	agg.aggregatorListener.ObserveLastOperatorSetUpdateReceived(msg.Id)
+
+	if blsAggServiceResp.Err != nil {
+		agg.aggregatorListener.IncErroredSubmissions()
+		if errors.Is(blsAggServiceResp.Err, MessageExpiredError) {
+			agg.aggregatorListener.IncExpiredMessages()
+		}
+
+		agg.logger.Error("Aggregator BLS service returned error", "err", blsAggServiceResp.Err)
+		return
+	}
 
 	if !ok {
 		agg.logger.Error("Aggregator could not find matching message")
 		return
 	}
 
-	signatureInfo := blsAggServiceResp.ExtractBindingRollup()
-	agg.rollupBroadcaster.BroadcastOperatorSetUpdate(ctx, msg, signatureInfo)
+	agg.aggregatorListener.ObserveLastOperatorSetUpdateAggregated(msg.Id)
+
+	agg.logger.Info("Storing operator set update", "digest", blsAggServiceResp.MessageDigest, "status", blsAggServiceResp.Status)
 
 	err := agg.msgDb.StoreOperatorSetUpdate(msg)
 	if err != nil {

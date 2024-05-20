@@ -9,6 +9,7 @@ import (
 	"time"
 
 	"github.com/Layr-Labs/eigensdk-go/logging"
+	"github.com/ethereum/go-ethereum/common"
 	"github.com/prometheus/client_golang/prometheus"
 
 	"github.com/NethermindEth/near-sffl/core"
@@ -35,9 +36,10 @@ type unsentRpcMessage struct {
 }
 
 type AggregatorRpcClient struct {
-	rpcClientLock        sync.RWMutex
-	rpcClient            *rpc.Client
-	aggregatorIpPortAddr string
+	rpcClientLock              sync.RWMutex
+	rpcClient                  *rpc.Client
+	aggregatorIpPortAddr       string
+	registryCoordinatorAddress common.Address
 
 	unsentMessagesLock sync.Mutex
 	unsentMessages     []unsentRpcMessage
@@ -49,24 +51,25 @@ type AggregatorRpcClient struct {
 
 var _ core.Metricable = (*AggregatorRpcClient)(nil)
 
-func NewAggregatorRpcClient(aggregatorIpPortAddr string, logger logging.Logger) (*AggregatorRpcClient, error) {
+func NewAggregatorRpcClient(aggregatorIpPortAddr string, registryCoordinatorAddress common.Address, logger logging.Logger) (*AggregatorRpcClient, error) {
 	resendTicker := time.NewTicker(ResendInterval)
 
 	client := &AggregatorRpcClient{
 		// set to nil so that we can create an rpc client even if the aggregator is not running
-		rpcClient:            nil,
-		logger:               logger,
-		aggregatorIpPortAddr: aggregatorIpPortAddr,
-		unsentMessages:       make([]unsentRpcMessage, 0),
-		resendTicker:         resendTicker,
-		listener:             &SelectiveRpcClientListener{},
+		rpcClient:                  nil,
+		logger:                     logger,
+		aggregatorIpPortAddr:       aggregatorIpPortAddr,
+		registryCoordinatorAddress: registryCoordinatorAddress,
+		unsentMessages:             make([]unsentRpcMessage, 0),
+		resendTicker:               resendTicker,
+		listener:                   &SelectiveRpcClientListener{},
 	}
 
 	go client.onTick()
 	return client, nil
 }
 
-func (c *AggregatorRpcClient) WithMetrics(registry *prometheus.Registry) error {
+func (c *AggregatorRpcClient) EnableMetrics(registry *prometheus.Registry) error {
 	listener, err := MakeRpcClientMetrics(registry)
 	if err != nil {
 		return err
@@ -90,6 +93,18 @@ func (c *AggregatorRpcClient) dialAggregatorRpcClient() error {
 	if err != nil {
 		c.logger.Error("Error dialing aggregator rpc client", "err", err)
 		return err
+	}
+
+	var aggregatorRegistryCoordinatorAddress string
+	err = client.Call("Aggregator.GetRegistryCoordinatorAddress", struct{}{}, &aggregatorRegistryCoordinatorAddress)
+	if err != nil {
+		c.logger.Info("Received error when getting registry coordinator address", "err", err)
+		return err
+	}
+
+	if common.HexToAddress(aggregatorRegistryCoordinatorAddress).Cmp(c.registryCoordinatorAddress) != 0 {
+		c.logger.Fatal("Registry coordinator address from aggregator does not match the one in the config", "aggregator", aggregatorRegistryCoordinatorAddress, "config", c.registryCoordinatorAddress.String())
+		return errors.New("mismatching registry coordinator address from aggregator")
 	}
 
 	c.rpcClient = client
@@ -188,8 +203,13 @@ func (c *AggregatorRpcClient) tryResendFromDeque() {
 
 		switch message := message.(type) {
 		case *messages.SignedCheckpointTaskResponse:
-			// TODO(edwin): handle error
 			err = c.rpcClient.Call("Aggregator.ProcessSignedCheckpointTaskResponse", message, &reply)
+			if err != nil {
+				c.listener.IncErroredCheckpointSubmissions(true)
+			} else {
+				c.listener.IncCheckpointTaskResponseSubmissions(true)
+				c.listener.ObserveLastCheckpointIdResponded(message.TaskResponse.ReferenceTaskIndex)
+			}
 
 		case *messages.SignedStateRootUpdateMessage:
 			if message.Message.Timestamp < uint64(time.Now().Unix())-60 {
@@ -197,9 +217,20 @@ func (c *AggregatorRpcClient) tryResendFromDeque() {
 				continue
 			}
 			err = c.rpcClient.Call("Aggregator.ProcessSignedStateRootUpdateMessage", message, &reply)
+			if err != nil {
+				c.listener.IncErroredStateRootUpdateSubmissions(message.Message.RollupId, true)
+			} else {
+				c.listener.IncStateRootUpdateSubmissions(message.Message.RollupId, true)
+			}
 
 		case *messages.SignedOperatorSetUpdateMessage:
 			err = c.rpcClient.Call("Aggregator.ProcessSignedOperatorSetUpdateMessage", message, &reply)
+			if err != nil {
+				c.listener.IncErroredOperatorSetUpdateSubmissions(true)
+			} else {
+				c.listener.IncOperatorSetUpdateUpdateSubmissions(true)
+				c.listener.ObserveLastOperatorSetUpdateIdResponded(message.Message.Id)
+			}
 
 		default:
 			panic("unreachable")
@@ -237,6 +268,7 @@ func (c *AggregatorRpcClient) tryResendFromDeque() {
 	}
 
 	c.unsentMessages = c.unsentMessages[:errorPos]
+	c.listener.ObserveResendQueueSize(len(c.unsentMessages))
 }
 
 func (c *AggregatorRpcClient) sendOperatorMessage(sendCb func() error, message interface{}) {
@@ -246,6 +278,7 @@ func (c *AggregatorRpcClient) sendOperatorMessage(sendCb func() error, message i
 	appendProtected := func() {
 		c.unsentMessagesLock.Lock()
 		c.unsentMessages = append(c.unsentMessages, unsentRpcMessage{Message: message})
+		c.listener.ObserveResendQueueSize(len(c.unsentMessages))
 		c.unsentMessagesLock.Unlock()
 	}
 
@@ -291,9 +324,14 @@ func (c *AggregatorRpcClient) SendSignedCheckpointTaskResponseToAggregator(signe
 		var reply bool
 		err := c.rpcClient.Call("Aggregator.ProcessSignedCheckpointTaskResponse", signedCheckpointTaskResponse, &reply)
 		if err != nil {
+			c.listener.IncErroredCheckpointSubmissions(false)
+
 			c.logger.Info("Received error from aggregator", "err", err)
 			return err
 		}
+
+		c.listener.IncCheckpointTaskResponseSubmissions(false)
+		c.listener.ObserveLastCheckpointIdResponded(signedCheckpointTaskResponse.TaskResponse.ReferenceTaskIndex)
 
 		c.logger.Info("Signed task response header accepted by aggregator.", "reply", reply)
 		c.listener.OnMessagesReceived()
@@ -308,9 +346,13 @@ func (c *AggregatorRpcClient) SendSignedStateRootUpdateToAggregator(signedStateR
 		var reply bool
 		err := c.rpcClient.Call("Aggregator.ProcessSignedStateRootUpdateMessage", signedStateRootUpdateMessage, &reply)
 		if err != nil {
+			c.listener.IncErroredStateRootUpdateSubmissions(signedStateRootUpdateMessage.Message.RollupId, false)
+
 			c.logger.Info("Received error from aggregator", "err", err)
 			return err
 		}
+
+		c.listener.IncStateRootUpdateSubmissions(signedStateRootUpdateMessage.Message.RollupId, false)
 
 		c.logger.Info("Signed state root update message accepted by aggregator.", "reply", reply)
 		c.listener.OnMessagesReceived()
@@ -325,9 +367,14 @@ func (c *AggregatorRpcClient) SendSignedOperatorSetUpdateToAggregator(signedOper
 		var reply bool
 		err := c.rpcClient.Call("Aggregator.ProcessSignedOperatorSetUpdateMessage", signedOperatorSetUpdateMessage, &reply)
 		if err != nil {
+			c.listener.IncErroredOperatorSetUpdateSubmissions(false)
+
 			c.logger.Info("Received error from aggregator", "err", err)
 			return err
 		}
+
+		c.listener.IncOperatorSetUpdateUpdateSubmissions(false)
+		c.listener.ObserveLastOperatorSetUpdateIdResponded(signedOperatorSetUpdateMessage.Message.Id)
 
 		c.logger.Info("Signed operator set update message accepted by aggregator.", "reply", reply)
 		c.listener.OnMessagesReceived()

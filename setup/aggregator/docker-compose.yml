@@ -1,11 +1,17 @@
 version: "3"
 
+networks:
+  near-sffl-aggregator:
+    driver: bridge
+
 services:
   aggregator:
     image: ghcr.io/nethermindeth/near-sffl/aggregator:${SFFL_RELEASE}
     container_name: near-sffl-aggregator
     volumes:
       - ./:/near-sffl/
+    networks:
+      - near-sffl-aggregator
     working_dir: /near-sffl
     command: 
       - --config 
@@ -30,8 +36,10 @@ services:
     image: grafana/grafana:9.4.1
     container_name: grafana
     volumes:
-      - grafana_data:/var/lib/grafana
+      - grafana_data_aggregator:/var/lib/grafana
       - ../../grafana/provisioning:/etc/grafana/provisioning
+    networks:
+      - near-sffl-aggregator
     environment:
       - GF_SECURITY_ADMIN_USER=${ADMIN_USER:-admin}
       - GF_SECURITY_ADMIN_PASSWORD=${ADMIN_PASSWORD:-admin}
@@ -45,7 +53,9 @@ services:
     container_name: prometheus
     volumes:
       - ./prometheus:/etc/prometheus
-      - prometheus_data:/prometheus
+      - prometheus_data_aggregator:/prometheus
+    networks:
+      - near-sffl-aggregator
     command:
       - "--config.file=/etc/prometheus/prometheus.yml"
       - "--storage.tsdb.path=/prometheus"
@@ -61,5 +71,5 @@ services:
       - "host.docker.internal:host-gateway"
 
 volumes:
-  prometheus_data:
-  grafana_data:
+  prometheus_data_aggregator:
+  grafana_data_aggregator:

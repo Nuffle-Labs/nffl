@@ -1,0 +1,7 @@
+{
+    "name": "NEAR Fast Finality Layer",
+    "website": "https://nffl.nethermind.io",
+    "description": "The NEAR Fast Finality Layer (NFFL) is a protocol designed to greatly enhance cross-chain communication by providing faster finality for rollups, leveraging the flexibility of NEAR DA and the strong economic security of an AVS.",
+    "logo": "https://raw.githubusercontent.com/NethermindEth/near-sffl/main/static/logo.png",
+    "twitter": "https://twitter.com/NEARProtocol"
+}

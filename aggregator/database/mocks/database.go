@@ -53,6 +53,20 @@ func (mr *MockDatabaserMockRecorder) Close() *gomock.Call {
 	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "Close", reflect.TypeOf((*MockDatabaser)(nil).Close))
 }
 
+// EnableMetrics mocks base method.
+func (m *MockDatabaser) EnableMetrics(arg0 *prometheus.Registry) error {
+	m.ctrl.T.Helper()
+	ret := m.ctrl.Call(m, "EnableMetrics", arg0)
+	ret0, _ := ret[0].(error)
+	return ret0
+}
+
+// EnableMetrics indicates an expected call of EnableMetrics.
+func (mr *MockDatabaserMockRecorder) EnableMetrics(arg0 any) *gomock.Call {
+	mr.mock.ctrl.T.Helper()
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "EnableMetrics", reflect.TypeOf((*MockDatabaser)(nil).EnableMetrics), arg0)
+}
+
 // FetchCheckpointMessages mocks base method.
 func (m *MockDatabaser) FetchCheckpointMessages(arg0, arg1 uint64) (*messages.CheckpointMessages, error) {
 	m.ctrl.T.Helper()
@@ -182,18 +196,4 @@ func (m *MockDatabaser) StoreStateRootUpdateAggregation(arg0 messages.StateRootU
 func (mr *MockDatabaserMockRecorder) StoreStateRootUpdateAggregation(arg0, arg1 any) *gomock.Call {
 	mr.mock.ctrl.T.Helper()
 	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "StoreStateRootUpdateAggregation", reflect.TypeOf((*MockDatabaser)(nil).StoreStateRootUpdateAggregation), arg0, arg1)
-}
-
-// WithMetrics mocks base method.
-func (m *MockDatabaser) WithMetrics(arg0 *prometheus.Registry) error {
-	m.ctrl.T.Helper()
-	ret := m.ctrl.Call(m, "WithMetrics", arg0)
-	ret0, _ := ret[0].(error)
-	return ret0
-}
-
-// WithMetrics indicates an expected call of WithMetrics.
-func (mr *MockDatabaserMockRecorder) WithMetrics(arg0 any) *gomock.Call {
-	mr.mock.ctrl.T.Helper()
-	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "WithMetrics", reflect.TypeOf((*MockDatabaser)(nil).WithMetrics), arg0)
 }

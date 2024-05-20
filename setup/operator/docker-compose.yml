@@ -33,6 +33,7 @@ services:
         condition: service_healthy
     ports:
       - "127.0.0.1:3030:3030"
+      - "127.0.0.1:9092:9092"
     environment:
       - CHAIN_ID=${NEAR_CHAIN_ID}
     volumes:

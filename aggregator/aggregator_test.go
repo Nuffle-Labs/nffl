@@ -21,6 +21,7 @@ import (
 	"github.com/NethermindEth/near-sffl/aggregator/types"
 	taskmanager "github.com/NethermindEth/near-sffl/contracts/bindings/SFFLTaskManager"
 	chainiomocks "github.com/NethermindEth/near-sffl/core/chainio/mocks"
+	safeclientmocks "github.com/NethermindEth/near-sffl/core/safeclient/mocks"
 	coretypes "github.com/NethermindEth/near-sffl/core/types"
 	"github.com/NethermindEth/near-sffl/core/types/messages"
 )
@@ -68,7 +69,7 @@ func TestSendNewTask(t *testing.T) {
 	)
 
 	mockAvsWriterer.EXPECT().SendNewCheckpointTask(
-		context.Background(), FROM_TIMESTAMP, TO_TIMESTAMP, types.QUORUM_THRESHOLD_NUMERATOR, coretypes.QUORUM_NUMBERS,
+		context.Background(), FROM_TIMESTAMP, TO_TIMESTAMP, types.TASK_QUORUM_THRESHOLD, coretypes.QUORUM_NUMBERS,
 	).Return(aggmocks.MockSendNewCheckpointTask(BLOCK_NUMBER, TASK_INDEX, FROM_TIMESTAMP, TO_TIMESTAMP))
 	mockAvsReaderer.EXPECT().GetLastCheckpointToTimestamp(context.Background()).Return(FROM_TIMESTAMP-1, nil)
 
@@ -77,7 +78,7 @@ func TestSendNewTask(t *testing.T) {
 	// make sure that initializeNewTask was called on the blsAggService
 	// maybe there's a better way to do this? There's a saying "don't mock 3rd party code"
 	// see https://hynek.me/articles/what-to-mock-in-5-mins/
-	mockTaskBlsAggService.EXPECT().InitializeNewTask(TASK_INDEX, BLOCK_NUMBER, coretypes.QUORUM_NUMBERS, []eigentypes.QuorumThresholdPercentage{types.QUORUM_THRESHOLD_NUMERATOR}, taskTimeToExpiry)
+	mockTaskBlsAggService.EXPECT().InitializeNewTask(TASK_INDEX, BLOCK_NUMBER, coretypes.QUORUM_NUMBERS, []eigentypes.QuorumThresholdPercentage{types.TASK_AGGREGATION_QUORUM_THRESHOLD}, taskTimeToExpiry)
 
 	aggregator.sendNewCheckpointTask()
 }
@@ -97,6 +98,7 @@ func TestHandleStateRootUpdateAggregationReachedQuorum(t *testing.T) {
 		MessageBlsAggregation: messages.MessageBlsAggregation{
 			MessageDigest: msgDigest,
 		},
+		Finished: true,
 	}
 
 	aggregator.stateRootUpdates[msgDigest] = msg
@@ -129,6 +131,7 @@ func TestHandleOperatorSetUpdateAggregationReachedQuorum(t *testing.T) {
 			SignersApkG2:        bls.NewZeroG2Point(),
 			SignersAggSigG1:     bls.NewZeroSignature(),
 		},
+		Finished: true,
 	}
 
 	aggregator.operatorSetUpdates[msgDigest] = msg
@@ -148,7 +151,7 @@ func TestHandleOperatorSetUpdateAggregationReachedQuorum(t *testing.T) {
 
 func createMockAggregator(
 	mockCtrl *gomock.Controller, operatorPubkeyDict map[eigentypes.OperatorId]types.OperatorInfo,
-) (*Aggregator, *chainiomocks.MockAvsReaderer, *chainiomocks.MockAvsWriterer, *blsaggservmock.MockBlsAggregationService, *aggmocks.MockMessageBlsAggregationService, *aggmocks.MockMessageBlsAggregationService, *dbmocks.MockDatabaser, *aggmocks.MockRollupBroadcasterer, *aggmocks.MockClient, error) {
+) (*Aggregator, *chainiomocks.MockAvsReaderer, *chainiomocks.MockAvsWriterer, *blsaggservmock.MockBlsAggregationService, *aggmocks.MockMessageBlsAggregationService, *aggmocks.MockMessageBlsAggregationService, *dbmocks.MockDatabaser, *aggmocks.MockRollupBroadcasterer, *safeclientmocks.MockSafeClient, error) {
 	logger := sdklogging.NewNoopLogger()
 	mockAvsWriter := chainiomocks.NewMockAvsWriterer(mockCtrl)
 	mockAvsReader := chainiomocks.NewMockAvsReaderer(mockCtrl)
@@ -157,7 +160,7 @@ func createMockAggregator(
 	mockOperatorSetUpdateBlsAggregationService := aggmocks.NewMockMessageBlsAggregationService(mockCtrl)
 	mockMsgDb := dbmocks.NewMockDatabaser(mockCtrl)
 	mockRollupBroadcaster := aggmocks.NewMockRollupBroadcasterer(mockCtrl)
-	mockClient := aggmocks.NewMockClient(mockCtrl)
+	mockClient := safeclientmocks.NewMockSafeClient(mockCtrl)
 
 	aggregator := &Aggregator{
 		logger:                                 logger,
@@ -172,9 +175,11 @@ func createMockAggregator(
 		stateRootUpdates:                       make(map[coretypes.MessageDigest]messages.StateRootUpdateMessage),
 		operatorSetUpdates:                     make(map[coretypes.MessageDigest]messages.OperatorSetUpdateMessage),
 		rollupBroadcaster:                      mockRollupBroadcaster,
-		client:                                 mockClient,
+		httpClient:                             mockClient,
+		wsClient:                               mockClient,
 		rpcListener:                            &SelectiveRpcListener{},
 		restListener:                           &SelectiveRestListener{},
+		aggregatorListener:                     &SelectiveAggregatorListener{},
 	}
 	return aggregator, mockAvsReader, mockAvsWriter, mockTaskBlsAggregationService, mockStateRootUpdateBlsAggregationService, mockOperatorSetUpdateBlsAggregationService, mockMsgDb, mockRollupBroadcaster, mockClient, nil
 }

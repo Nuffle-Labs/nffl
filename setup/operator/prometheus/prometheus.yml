@@ -21,4 +21,7 @@ scrape_configs:
           role: "operator"
           instance: "0"
 
-# TODO: add metrics to indexer
+  - job_name: "sffl-indexer"
+    scrape_interval: 5s
+    static_configs:
+      - targets: ["near-sffl-indexer:9092"]
