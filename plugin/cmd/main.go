@@ -2,6 +2,7 @@ package main
 
 import (
 	"context"
+	"fmt"
 	"log"
 	"math/big"
 	"os"
@@ -76,7 +77,7 @@ func main() {
 	}
 }
 
-func plugin(ctx *cli.Context) {
+func plugin(ctx *cli.Context) error {
 	goCtx := context.Background()
 	logger, _ := logging.NewZapLogger(logging.Development)
 
@@ -87,7 +88,7 @@ func plugin(ctx *cli.Context) {
 	err := utils.ReadYamlConfig(configPath, &avsConfig)
 	if err != nil {
 		logger.Error("Failed to read config", "err", err)
-		return
+		return err
 	}
 
 	logger.Info("Starting with config", "avsConfig", avsConfig)
@@ -105,12 +106,12 @@ func plugin(ctx *cli.Context) {
 	ethHttpClient, err := eth.NewClient(avsConfig.EthRpcUrl)
 	if err != nil {
 		logger.Error("Failed to connect to eth client", "err", err)
-		return
+		return err
 	}
 	chainID, err := ethHttpClient.ChainID(goCtx)
 	if err != nil {
 		logger.Error("Failed to get chain ID", "err", err)
-		return
+		return err
 	}
 	signerV2, _, err := signerv2.SignerFromConfig(signerv2.Config{
 		KeystorePath: avsConfig.EcdsaPrivateKeyStorePath,
@@ -118,17 +119,17 @@ func plugin(ctx *cli.Context) {
 	}, chainID)
 	if err != nil {
 		logger.Error("Failed to create signer", "err", err)
-		return
+		return err
 	}
 	ecdsaPrivateKey, err := sdkecdsa.ReadKey(avsConfig.EcdsaPrivateKeyStorePath, ecdsaKeyPassword)
 	if err != nil {
 		logger.Error("Failed to read ecdsa private key", "err", err)
-		return
+		return err
 	}
 	clients, err := sdkclients.BuildAll(buildClientConfig, ecdsaPrivateKey, logger)
 	if err != nil {
 		logger.Error("Failed to create sdk clients", "err", err)
-		return
+		return err
 	}
 	avsReader, err := chainio.BuildAvsReader(
 		common.HexToAddress(avsConfig.AVSRegistryCoordinatorAddress),
@@ -138,12 +139,12 @@ func plugin(ctx *cli.Context) {
 	)
 	if err != nil {
 		logger.Error("Failed to create avs reader", "err", err)
-		return
+		return err
 	}
 	txSender, err := wallet.NewPrivateKeyWallet(ethHttpClient, signerV2, common.HexToAddress(avsConfig.OperatorAddress), logger)
 	if err != nil {
 		logger.Error("Failed to create tx sender", "err", err)
-		return
+		return err
 	}
 	txMgr := txmgr.NewSimpleTxManager(txSender, ethHttpClient, logger, common.HexToAddress(avsConfig.OperatorAddress)).WithGasLimitMultiplier(1.5)
 	avsWriter, err := chainio.BuildAvsWriter(
@@ -155,12 +156,12 @@ func plugin(ctx *cli.Context) {
 	)
 	if err != nil {
 		logger.Error("Failed to create avs writer", "err", err)
-		return
+		return err
 	}
 	avsManager, err := operator.NewAvsManager(&avsConfig, clients.EthHttpClient, clients.EthWsClient, clients, txMgr, logger)
 	if err != nil {
 		logger.Error("Failed to create avs manager", "err", err)
-		return
+		return err
 	}
 
 	if operationType == "opt-in" {
@@ -169,7 +170,7 @@ func plugin(ctx *cli.Context) {
 		blsKeypair, err := bls.ReadPrivateKeyFromFile(avsConfig.BlsPrivateKeyStorePath, blsKeyPassword)
 		if err != nil {
 			logger.Error("Failed to read bls private key", "err", err)
-			return
+			return err
 		}
 
 		operatorEcdsaPrivateKey, err := sdkecdsa.ReadKey(
@@ -178,62 +179,69 @@ func plugin(ctx *cli.Context) {
 		)
 		if err != nil {
 			logger.Error("Failed to read operator ecdsa private key", "err", err)
-			return
+			return err
 		}
 
-		avsManager.RegisterOperatorWithAvs(ethHttpClient, operatorEcdsaPrivateKey, blsKeypair)
+		err = avsManager.RegisterOperatorWithAvs(ethHttpClient, operatorEcdsaPrivateKey, blsKeypair)
+		if (err != nil) {
+			logger.Error("Failed to register operator with avs", "err", err)
+			return err
+		}
 	} else if operationType == "opt-out" {
 		blsKeyPassword := ctx.GlobalString(BlsKeyPasswordFlag.Name)
 
 		blsKeypair, err := bls.ReadPrivateKeyFromFile(avsConfig.BlsPrivateKeyStorePath, blsKeyPassword)
 		if err != nil {
 			logger.Error("Failed to read bls private key", "err", err)
-			return
+			return err
 		}
 
-		avsManager.DeregisterOperator(blsKeypair)
+		err = avsManager.DeregisterOperator(blsKeypair)
+		if (err != nil) {
+			logger.Error("Failed to deregister operator", "err", err)
+			return err
+		}
 	} else if operationType == "deposit" {
 		starategyAddrString := ctx.GlobalString(StrategyAddrFlag.Name)
 		if len(starategyAddrString) == 0 {
 			logger.Error("Strategy address is required for deposit operation")
-			return
+			return err
 		}
 		strategyAddr := common.HexToAddress(ctx.GlobalString(StrategyAddrFlag.Name))
 		_, tokenAddr, err := clients.ElChainReader.GetStrategyAndUnderlyingToken(&bind.CallOpts{}, strategyAddr)
 		if err != nil {
 			logger.Error("Failed to fetch strategy contract", "err", err)
-			return
+			return err
 		}
 		contractErc20Mock, err := avsReader.GetErc20Mock(context.Background(), tokenAddr)
 		if err != nil {
 			logger.Error("Failed to fetch ERC20Mock contract", "err", err)
-			return
+			return err
 		}
 		txOpts, err := avsWriter.TxMgr.GetNoSendTxOpts()
 		if err != nil {
 			logger.Error("Failed to get tx opts", "err", err)
-			return
+			return err
 		}
 		amount := big.NewInt(1000)
 		tx, err := contractErc20Mock.Mint(txOpts, common.HexToAddress(avsConfig.OperatorAddress), amount)
 		if err != nil {
 			logger.Error("Failed to assemble Mint tx", "err", err)
-			return
+			return err
 		}
 		_, err = avsWriter.TxMgr.Send(context.Background(), tx)
 		if err != nil {
 			logger.Error("Failed to submit Mint tx", "err", err)
-			return
+			return err
 		}
 
 		_, err = clients.ElChainWriter.DepositERC20IntoStrategy(context.Background(), strategyAddr, amount)
 		if err != nil {
 			logger.Error("Failed to deposit into strategy", "err", err)
-			return
+			return err
 		}
-		return
 	} else {
-		logger.Error("Invalid operation type")
+		return cli.NewExitError(fmt.Sprintf("Invalid operation type: %v", operationType), 1)
 	}
+	return nil
 }
-
