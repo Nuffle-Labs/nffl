@@ -36,7 +36,7 @@ type AvsManagerer interface {
 		operatorEcdsaKeyPair *ecdsa.PrivateKey,
 		blsKeyPair *bls.KeyPair,
 	) error
-
+	DeregisterOperator(blsKeyPair *bls.KeyPair) error
 	GetOperatorId(options *bind.CallOpts, address common.Address) ([32]byte, error)
 	GetCheckpointTaskCreatedChan() <-chan *taskmanager.ContractSFFLTaskManagerCheckpointTaskCreated
 	GetOperatorSetUpdateChan() <-chan messages.OperatorSetUpdateMessage
@@ -59,7 +59,9 @@ type AvsManager struct {
 	logger sdklogging.Logger
 }
 
-func NewAvsManager(config *optypes.NodeConfig, ethRpcClient eth.Client, ethWsClient eth.Client, sdkClients *clients.Clients, txManager *txmgr.SimpleTxManager, logger sdklogging.Logger) (*AvsManager, error) {
+var _ AvsManagerer = (*AvsManager)(nil)
+
+func NewAvsManager(config *optypes.NodeConfig, ethRpcClient eth.Client, ethWsClient eth.Client, sdkClients *clients.Clients, txManager txmgr.TxManager, logger sdklogging.Logger) (*AvsManager, error) {
 	avsWriter, err := chainio.BuildAvsWriter(
 		txManager, common.HexToAddress(config.AVSRegistryCoordinatorAddress),
 		common.HexToAddress(config.OperatorStateRetrieverAddress), ethRpcClient, logger,
