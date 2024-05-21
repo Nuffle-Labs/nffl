@@ -293,7 +293,7 @@ func (avsManager *AvsManager) DeregisterOperator(blsKeyPair *bls.KeyPair) (error
 
 	_, err := avsManager.avsWriter.DeregisterOperator(context.Background(), quorumNumbers, pubKey)
 	if err != nil {
-		avsManager.logger.Errorf("Unable to deregister operator with avs registry coordinator")
+		avsManager.logger.Errorf("Unable to deregister operator with avs registry coordinator: %v", err)
 		return err
 	}
 	avsManager.logger.Infof("Deregistered operator with avs registry coordinator.")
