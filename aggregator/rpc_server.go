@@ -3,6 +3,7 @@ package aggregator
 import (
 	"context"
 	"errors"
+	"math"
 	"net/http"
 	"net/rpc"
 	"strings"
@@ -204,6 +205,16 @@ type GetAggregatedCheckpointMessagesArgs struct {
 }
 
 func (agg *Aggregator) GetAggregatedCheckpointMessages(args *GetAggregatedCheckpointMessagesArgs, reply *messages.CheckpointMessages) error {
+	if args.FromTimestamp > math.MaxInt64 || args.ToTimestamp > math.MaxInt64 {
+		return errors.New("timestamp does not fit in int64")
+	}
+
+	minWaitSec := uint64(types.MESSAGE_BLS_AGGREGATION_TIMEOUT.Seconds() + 1)
+
+	if uint64(time.Now().Unix()) < args.ToTimestamp+minWaitSec {
+		time.Sleep(time.Until(time.Unix(int64(args.ToTimestamp+minWaitSec), 0)))
+	}
+
 	checkpointMessages, err := agg.msgDb.FetchCheckpointMessages(args.FromTimestamp, args.ToTimestamp)
 	if err != nil {
 		return err
