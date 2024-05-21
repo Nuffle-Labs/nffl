@@ -286,7 +286,7 @@ func (avsManager *AvsManager) RegisterOperatorWithAvs(
 	return nil
 }
 
-func (avsManager *AvsManager) DeregisterOperator(blsKeyPair *bls.KeyPair,) (error) {
+func (avsManager *AvsManager) DeregisterOperator(blsKeyPair *bls.KeyPair) (error) {
 	// TODO: 'QuorumNums' is hardcoded for now
 	quorumNumbers := eigentypes.QuorumNums{0}
 	pubKey := eigenutils.ConvertToBN254G1Point(blsKeyPair.GetPubKeyG1())
