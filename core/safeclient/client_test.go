@@ -28,10 +28,14 @@ type MockNetwork struct {
 }
 
 func NewMockNetwork(ctx context.Context, mockCtrl *gomock.Controller) *MockNetwork {
-	mockNetwork := &MockNetwork{}
+	mockNetwork := &MockNetwork{
+		blockTicker: time.NewTicker(1 * time.Second),
+	}
+
+	mockNetwork.blockTicker.Stop()
 
 	go func() {
-		mockNetwork.blockTicker = time.NewTicker(1 * time.Second)
+		mockNetwork.blockTicker.Reset(1 * time.Second)
 		defer mockNetwork.blockTicker.Stop()
 
 		for {
@@ -40,7 +44,6 @@ func NewMockNetwork(ctx context.Context, mockCtrl *gomock.Controller) *MockNetwo
 				return
 			case <-mockNetwork.blockTicker.C:
 				mockNetwork.blockNum++
-
 				for _, ch := range mockNetwork.blockSubscribers {
 					ch <- mockNetwork.blockNum
 				}
@@ -56,6 +59,10 @@ func NewMockNetwork(ctx context.Context, mockCtrl *gomock.Controller) *MockNetwo
 }
 
 func (m *MockNetwork) PauseBlockProduction() {
+	sub := m.SubscribeToBlocks()
+	block := <-sub
+	fmt.Println("paused at block", block)
+
 	m.blockTicker.Stop()
 }
 
@@ -94,15 +101,7 @@ func (m *MockEthClient) CloseConnection() {
 	m.closeSubscribers = nil
 }
 
-func (m *MockEthClient) PauseHeaderSubscriptions() {
-	m.isPaused = true
-}
-
-func (m *MockEthClient) ResumeHeaderSubscriptions() {
-	m.isPaused = false
-}
-
-func (m *MockNetwork) subscribeToBlocks() <-chan uint64 {
+func (m *MockNetwork) SubscribeToBlocks() <-chan uint64 {
 	m.blockSubscribersLock.Lock()
 	defer m.blockSubscribersLock.Unlock()
 
@@ -110,6 +109,18 @@ func (m *MockNetwork) subscribeToBlocks() <-chan uint64 {
 	m.blockSubscribers = append(m.blockSubscribers, ch)
 
 	return ch
+}
+
+func (m *MockEthClient) ReopenConnection() {
+	m.isClosed = false
+}
+
+func (m *MockEthClient) PauseHeaderSubscriptions() {
+	m.isPaused = true
+}
+
+func (m *MockEthClient) ResumeHeaderSubscriptions() {
+	m.isPaused = false
 }
 
 func (m *MockEthClient) subscribeToClose() <-chan bool {
@@ -137,7 +148,7 @@ func NewMockEthClient(ctx context.Context, mockCtrl *gomock.Controller, mockNetw
 
 			sub := mocks.NewMockSubscription(mockCtrl)
 
-			blockCh := mockNetwork.subscribeToBlocks()
+			blockCh := mockNetwork.SubscribeToBlocks()
 			closeCh := mockClient.subscribeToClose()
 
 			subErrCh := make(chan error)
@@ -165,7 +176,7 @@ func NewMockEthClient(ctx context.Context, mockCtrl *gomock.Controller, mockNetw
 					case blockNum := <-blockCh:
 						fmt.Println("header block", blockNum, "closed", mockClient.isClosed, "paused", mockClient.isPaused)
 
-						blockCh = mockNetwork.subscribeToBlocks()
+						blockCh = mockNetwork.SubscribeToBlocks()
 
 						if mockClient.isClosed {
 							continue
@@ -189,7 +200,7 @@ func NewMockEthClient(ctx context.Context, mockCtrl *gomock.Controller, mockNetw
 
 			sub := mocks.NewMockSubscription(mockCtrl)
 
-			blockCh := mockNetwork.subscribeToBlocks()
+			blockCh := mockNetwork.SubscribeToBlocks()
 			closeCh := mockClient.subscribeToClose()
 
 			subErrCh := make(chan error)
@@ -220,7 +231,7 @@ func NewMockEthClient(ctx context.Context, mockCtrl *gomock.Controller, mockNetw
 					case blockNum := <-blockCh:
 						fmt.Println("log block", blockNum)
 
-						blockCh = mockNetwork.subscribeToBlocks()
+						blockCh = mockNetwork.SubscribeToBlocks()
 
 						if mockClient.isClosed {
 							continue
@@ -265,8 +276,16 @@ func TestSubscribeNewHead(t *testing.T) {
 
 	client, err := NewMockSafeClient(ctx, mockCtrl, logger, mockNetwork)
 	assert.NoError(t, err)
+	mockClient := client.Client.(*MockEthClient)
 
 	headCh := make(chan *types.Header)
+	flushHeadCh := func() {
+		select {
+		case <-headCh:
+		case <-time.After(100 * time.Millisecond):
+		}
+	}
+
 	_, err = client.SubscribeNewHead(ctx, headCh)
 	assert.NoError(t, err)
 
@@ -274,10 +293,9 @@ func TestSubscribeNewHead(t *testing.T) {
 		head := <-headCh
 		assert.Equal(t, uint64(i), head.Number.Uint64())
 
-		fmt.Println("head", head)
+		fmt.Println("head", head.Number.Uint64())
 	}
 
-	mockClient := client.Client.(*MockEthClient)
 	mockClient.PauseHeaderSubscriptions()
 	select {
 	case <-headCh:
@@ -288,40 +306,46 @@ func TestSubscribeNewHead(t *testing.T) {
 
 	mockNetwork.PauseBlockProduction()
 	block := mockNetwork.BlockNumber()
+	flushHeadCh()
 	mockNetwork.ResumeBlockProduction()
 
 	for i := block + 1; i <= block+3; i++ {
 		head := <-headCh
 		assert.Equal(t, uint64(i), head.Number.Uint64())
 
-		fmt.Println("head", head)
+		fmt.Println("head", head.Number.Uint64())
 	}
 
 	mockClient.CloseConnection()
+	time.Sleep(2 * time.Second)
+	mockClient.ReopenConnection()
 
 	mockNetwork.PauseBlockProduction()
 	block = mockNetwork.BlockNumber()
+	flushHeadCh()
 	mockNetwork.ResumeBlockProduction()
 
 	for i := block + 1; i <= block+3; i++ {
 		head := <-headCh
 		assert.Equal(t, uint64(i), head.Number.Uint64())
 
-		fmt.Println("head", head)
+		fmt.Println("head", head.Number.Uint64())
 	}
 
-	mockClient = client.Client.(*MockEthClient)
 	mockClient.CloseConnection()
+	time.Sleep(2 * time.Second)
+	mockClient.ReopenConnection()
 
 	mockNetwork.PauseBlockProduction()
 	block = mockNetwork.BlockNumber()
+	flushHeadCh()
 	mockNetwork.ResumeBlockProduction()
 
 	for i := block + 1; i <= block+3; i++ {
 		head := <-headCh
 		assert.Equal(t, uint64(i), head.Number.Uint64())
 
-		fmt.Println("head", head)
+		fmt.Println("head", head.Number.Uint64())
 	}
 }
 
@@ -340,7 +364,16 @@ func TestSubscribeFilterLogs(t *testing.T) {
 	client, err := NewMockSafeClient(ctx, mockCtrl, logger, mockNetwork)
 	assert.NoError(t, err)
 
-	logCh := make(chan types.Log, 10)
+	mockClient := client.Client.(*MockEthClient)
+
+	logCh := make(chan types.Log)
+	flushLogCh := func() {
+		select {
+		case <-logCh:
+		case <-time.After(100 * time.Millisecond):
+		}
+	}
+
 	_, err = client.SubscribeFilterLogs(ctx, ethereum.FilterQuery{}, logCh)
 	assert.NoError(t, err)
 
@@ -348,26 +381,38 @@ func TestSubscribeFilterLogs(t *testing.T) {
 		log := <-logCh
 		assert.Equal(t, uint64(i), log.BlockNumber)
 
-		fmt.Println("log", log)
+		fmt.Println("log", log.BlockNumber)
 	}
 
-	mockClient := client.Client.(*MockEthClient)
 	mockClient.CloseConnection()
+	time.Sleep(2 * time.Second)
+	mockClient.ReopenConnection()
 
-	for i := 4; i <= 6; i++ {
+	mockNetwork.PauseBlockProduction()
+	block := mockNetwork.BlockNumber()
+	flushLogCh()
+	mockNetwork.ResumeBlockProduction()
+
+	for i := block + 1; i <= block+3; i++ {
 		log := <-logCh
 		assert.Equal(t, uint64(i), log.BlockNumber)
 
-		fmt.Println("log", log)
+		fmt.Println("log", log.BlockNumber)
 	}
 
-	mockClient = client.Client.(*MockEthClient)
 	mockClient.CloseConnection()
+	time.Sleep(2 * time.Second)
+	mockClient.ReopenConnection()
 
-	for i := 7; i <= 9; i++ {
+	mockNetwork.PauseBlockProduction()
+	block = mockNetwork.BlockNumber()
+	flushLogCh()
+	mockNetwork.ResumeBlockProduction()
+
+	for i := block + 1; i <= block+3; i++ {
 		log := <-logCh
 		assert.Equal(t, uint64(i), log.BlockNumber)
 
-		fmt.Println("log", log)
+		fmt.Println("log", log.BlockNumber)
 	}
 }
