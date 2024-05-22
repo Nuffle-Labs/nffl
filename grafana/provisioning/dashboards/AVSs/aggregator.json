@@ -818,7 +818,7 @@
           "editorMode": "builder",
           "expr": "sffl_aggregator_signed_state_root_update_messages_total{operator_id=\"$operatorId\"}",
           "hide": false,
-          "legendFormat": "State Root Update (errored: {{errored}}, near_da: {{has_near_da}})",
+          "legendFormat": "State Root Update (rollup_id: {{rollup_id}}, errored: {{errored}}, near_da: {{has_near_da}})",
           "range": true,
           "refId": "C"
         }
