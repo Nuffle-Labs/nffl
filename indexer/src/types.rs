@@ -1,7 +1,11 @@
-use std::collections::VecDeque;
-use std::fmt::Formatter;
-use std::{fmt, sync};
+use near_da_primitives::{Blob, SubmitRequest};
+use std::{
+    collections::VecDeque,
+    {fmt::{self, Formatter}, sync}
+};
 use tokio::sync::Mutex;
+
+use crate::errors::Result;
 
 pub(crate) type ProtectedQueue<T> = sync::Arc<Mutex<VecDeque<T>>>;
 
@@ -22,4 +26,30 @@ impl fmt::Display for CandidateData {
             self.transaction.transaction.receiver_id
         ))
     }
+}
+
+#[derive(borsh::BorshSerialize, PartialEq, Clone, Debug)]
+pub(crate) struct CommitedBlob {
+    pub commitment: near_da_primitives::Commitment,
+    pub data: Vec<u8>
+}
+
+impl From<Blob> for CommitedBlob {
+    fn from(value: Blob) -> Self {
+        let commitment = {
+            let chunks: Vec<Vec<u8>> = value.data.chunks(256).map(|x| x.to_vec()).collect();
+            near_primitives::merkle::merklize(&chunks).0 .0
+        };
+
+        Self {
+            commitment,
+            data: value.data
+        }
+    }
+}
+
+pub(crate) fn try_transform_payload(payload: &[u8]) -> Result<Vec<u8>> {
+    let submit_request: SubmitRequest = borsh::de::from_slice(payload)?;
+    let commited_blob: CommitedBlob = Blob::new(submit_request.data).into();
+    Ok(borsh::to_vec(&commited_blob)?)
 }

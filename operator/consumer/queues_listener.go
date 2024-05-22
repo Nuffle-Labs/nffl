@@ -18,24 +18,12 @@ var (
 )
 
 // Type reflections of NEAR DA client submission format
-type ShareVersion = uint32
 type Commitment = [32]byte
 type TransactionId = [32]byte
 
-type Namespace struct {
-	Version uint8
-	Id      uint32
-}
-
-type Blob struct {
-	Namespace    Namespace
-	ShareVersion ShareVersion
-	Commitment   Commitment
-	Data         []byte
-}
-
-type SubmitRequest struct {
-	Blobs []Blob
+type CommittedBlob struct {
+	Commitment Commitment
+	Data       []byte
 }
 
 // Type reflection of MQ format
@@ -106,8 +94,8 @@ func (l *QueuesListener) listen(ctx context.Context, rollupId uint32, rollupData
 				continue
 			}
 
-			submitRequest := new(SubmitRequest)
-			err = borsh.Deserialize(submitRequest, publishPayload.Data)
+			committedBlob := new(CommittedBlob)
+			err = borsh.Deserialize(committedBlob, publishPayload.Data)
 			if err != nil {
 				l.logger.Error("Invalid blob", "d.Body", d.Body, "err", err)
 				l.eventListener.OnFormatError()
@@ -116,33 +104,31 @@ func (l *QueuesListener) listen(ctx context.Context, rollupId uint32, rollupData
 				continue
 			}
 
-			for _, blob := range submitRequest.Blobs {
-				var blocks []*types.Block
-				if err := rlp.DecodeBytes(blob.Data, &blocks); err != nil {
-					l.logger.Warn("Invalid block", "rollupId", rollupId, "err", err)
-					l.eventListener.OnFormatError()
+			var blocks []*types.Block
+			if err := rlp.DecodeBytes(committedBlob.Data, &blocks); err != nil {
+				l.logger.Warn("Invalid block", "rollupId", rollupId, "err", err)
+				l.eventListener.OnFormatError()
 
-					continue
+				continue
+			}
+
+			for _, block := range blocks {
+				blockData := BlockData{
+					RollupId:      rollupId,
+					TransactionId: publishPayload.TransactionId,
+					Commitment:    committedBlob.Commitment,
+					Block:         *block,
 				}
 
-				for _, block := range blocks {
-					blockData := BlockData{
-						RollupId:      rollupId,
-						TransactionId: publishPayload.TransactionId,
-						Commitment:    blob.Commitment,
-						Block:         *block,
-					}
-
-					l.logger.Info(
-						"MQ Block",
-						"rollupId", rollupId,
-						"blockHeight", blockData.Block.Header().Number.Uint64(),
-						"transactionId", blockData.TransactionId,
-						"commitment", blockData.Commitment,
-						"listener", fmt.Sprintf("%p", l),
-					)
-					l.receivedBlocksC <- blockData
-				}
+				l.logger.Info(
+					"MQ Block",
+					"rollupId", rollupId,
+					"blockHeight", blockData.Block.Header().Number.Uint64(),
+					"transactionId", blockData.TransactionId,
+					"commitment", blockData.Commitment,
+					"listener", fmt.Sprintf("%p", l),
+				)
+				l.receivedBlocksC <- blockData
 			}
 
 			l.logger.Info("Acking delivery", "rollupId", rollupId)
