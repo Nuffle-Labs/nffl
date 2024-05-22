@@ -351,6 +351,17 @@ func (c *SafeEthClient) SubscribeFilterLogs(ctx context.Context, q ethereum.Filt
 		return nil
 	}
 
+	resubLock := sync.Mutex{}
+	resubTask := func() {
+		resubLock.Lock()
+		defer resubLock.Unlock()
+
+		err := resub()
+		if err = c.handleClientError(err); err != nil {
+			c.logger.Error("Failed to resubscribe to logs", "err", err)
+		}
+	}
+
 	lastBlock = currentBlock
 
 	c.wg.Add(1)
@@ -370,10 +381,7 @@ func (c *SafeEthClient) SubscribeFilterLogs(ctx context.Context, q ethereum.Filt
 			case success := <-reinitC:
 				reinitC = c.WatchReinit()
 				if success {
-					err := resub()
-					if err = c.handleClientError(err); err != nil {
-						c.logger.Error("Failed to resubscribe to logs", "err", err)
-					}
+					go resubTask()
 				}
 			case log := <-proxyC:
 				// if that's the case, then most likely we got an event on filterLog and are getting the same one in the sub
@@ -386,16 +394,10 @@ func (c *SafeEthClient) SubscribeFilterLogs(ctx context.Context, q ethereum.Filt
 				ch <- log
 			case <-ticker.C:
 				c.logger.Debug("Resub ticker fired")
-				err := resub()
-				if err = c.handleClientError(err); err != nil {
-					c.logger.Error("Failed to resubscribe to logs", "err", err)
-				}
+				c.triggerReinit()
 			case <-sub.Err():
 				c.logger.Info("Underlying subscription ended, resubscribing")
-				err := resub()
-				if err = c.handleClientError(err); err != nil {
-					c.logger.Error("Failed to resubscribe to logs", "err", err)
-				}
+				c.triggerReinit()
 			case <-c.closeC:
 				c.logger.Info("Received close signal, ending subscription")
 				safeSub.Unsubscribe()
@@ -477,6 +479,17 @@ func (c *SafeEthClient) SubscribeNewHead(ctx context.Context, ch chan<- *types.H
 		return nil
 	}
 
+	resubLock := sync.Mutex{}
+	resubTask := func() {
+		resubLock.Lock()
+		defer resubLock.Unlock()
+
+		err := resub()
+		if err = c.handleClientError(err); err != nil {
+			c.logger.Error("Failed to resubscribe to logs", "err", err)
+		}
+	}
+
 	c.wg.Add(1)
 	go func() {
 		defer c.wg.Done()
@@ -498,10 +511,7 @@ func (c *SafeEthClient) SubscribeNewHead(ctx context.Context, ch chan<- *types.H
 			case success := <-reinitC:
 				reinitC = c.WatchReinit()
 				if success {
-					err := resub()
-					if err = c.handleClientError(err); err != nil {
-						c.logger.Error("Failed to resubscribe to new heads", "err", err)
-					}
+					go resubTask()
 				}
 			case <-sub.Err():
 				c.logger.Info("Underlying subscription to new heads ended, resubscribing")
