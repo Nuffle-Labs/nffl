@@ -505,19 +505,13 @@ func (c *SafeEthClient) SubscribeNewHead(ctx context.Context, ch chan<- *types.H
 				}
 			case <-sub.Err():
 				c.logger.Info("Underlying subscription to new heads ended, resubscribing")
-				err := resub()
-				if err = c.handleClientError(err); err != nil {
-					c.logger.Error("Failed to resubscribe to new heads", "err", err)
-				}
+				c.triggerReinit()
 			case <-headerTicker.C:
 				c.logger.Info("Header ticker fired, ending subscription")
 				if receivedBlock {
 					receivedBlock = false
 				} else {
-					err := resub()
-					if err = c.handleClientError(err); err != nil {
-						c.logger.Error("Failed to resubscribe to new heads", "err", err)
-					}
+					c.triggerReinit()
 				}
 			case <-c.closeC:
 				c.logger.Info("Received close signal, ending new heads subscription")
