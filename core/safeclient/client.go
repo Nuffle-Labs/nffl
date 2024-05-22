@@ -326,16 +326,13 @@ func (c *SafeEthClient) SubscribeNewHead(ctx context.Context, ch chan<- *types.H
 		headerTicker := time.NewTicker(c.headerTimeout)
 		defer headerTicker.Stop()
 
-		resubTicker := time.NewTicker(c.resubInterval)
-		defer resubTicker.Stop()
-
 		handleResub := func() {
 			err := resub()
 			if err != nil {
 				c.logger.Error("Failed to resubscribe to heads", "err", err)
-				resubTicker.Reset(c.resubInterval)
+				headerTicker.Reset(c.headerTimeout)
 			} else {
-				resubTicker.Stop()
+				headerTicker.Stop()
 			}
 		}
 
@@ -353,10 +350,11 @@ func (c *SafeEthClient) SubscribeNewHead(ctx context.Context, ch chan<- *types.H
 				c.logger.Info("Underlying subscription to new heads ended, resubscribing")
 				handleResub()
 			case <-headerTicker.C:
-				c.logger.Info("Header ticker fired, ending subscription")
+				c.logger.Debug("Header ticker fired")
 				if receivedBlock {
 					receivedBlock = false
 				} else {
+					c.logger.Info("No block received, resubscribing")
 					handleResub()
 				}
 			case <-c.closeC:
