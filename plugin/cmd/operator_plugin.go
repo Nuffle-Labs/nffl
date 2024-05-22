@@ -22,7 +22,7 @@ import (
 	"github.com/urfave/cli"
 )
 
-type OperatorPlugin struct {
+type CliOperatorPlugin struct {
 	ecdsaKeyPassword string
 	ethHttpClient    eth.Client
 	clients          *sdkclients.Clients
@@ -35,15 +35,15 @@ type OperatorPlugin struct {
 	logger logging.Logger
 }
 
-type IOperatorPlugin interface {
+type OperatorPlugin interface {
 	OptIn() error
 	OptOut() error
 	Deposit() error
 }
 
-var _ IOperatorPlugin = &OperatorPlugin{}
+var _ OperatorPlugin = &CliOperatorPlugin{}
 
-func (o *OperatorPlugin) OptIn() error {
+func (o *CliOperatorPlugin) OptIn() error {
 	blsKeyPassword := o.ctx.GlobalString(BlsKeyPasswordFlag.Name)
 
 	blsKeypair, err := bls.ReadPrivateKeyFromFile(o.avsConfig.BlsPrivateKeyStorePath, blsKeyPassword)
@@ -70,7 +70,7 @@ func (o *OperatorPlugin) OptIn() error {
 	return nil
 }
 
-func (o *OperatorPlugin) OptOut() error {
+func (o *CliOperatorPlugin) OptOut() error {
 	blsKeyPassword := o.ctx.GlobalString(BlsKeyPasswordFlag.Name)
 
 	blsKeypair, err := bls.ReadPrivateKeyFromFile(o.avsConfig.BlsPrivateKeyStorePath, blsKeyPassword)
@@ -88,34 +88,39 @@ func (o *OperatorPlugin) OptOut() error {
 	return nil
 }
 
-func (o *OperatorPlugin) Deposit() error {
-	starategyAddrString := o.ctx.GlobalString(StrategyAddrFlag.Name)
-	if len(starategyAddrString) == 0 {
+func (o *CliOperatorPlugin) Deposit() error {
+	strategy := o.ctx.GlobalString(StrategyAddrFlag.Name)
+	if len(strategy) == 0 {
 		o.logger.Error("Strategy address is required for deposit operation")
 		return errors.New("strategy address is required for deposit operation")
 	}
+
 	strategyAddr := common.HexToAddress(o.ctx.GlobalString(StrategyAddrFlag.Name))
 	_, tokenAddr, err := o.clients.ElChainReader.GetStrategyAndUnderlyingToken(&bind.CallOpts{}, strategyAddr)
 	if err != nil {
 		o.logger.Error("Failed to fetch strategy contract", "err", err)
 		return err
 	}
+
 	contractErc20Mock, err := o.avsReader.GetErc20Mock(context.Background(), tokenAddr)
 	if err != nil {
 		o.logger.Error("Failed to fetch ERC20Mock contract", "err", err)
 		return err
 	}
+
 	txOpts, err := o.avsWriter.TxMgr.GetNoSendTxOpts()
 	if err != nil {
 		o.logger.Error("Failed to get tx opts", "err", err)
 		return err
 	}
+
 	amount := big.NewInt(1000)
 	tx, err := contractErc20Mock.Mint(txOpts, common.HexToAddress(o.avsConfig.OperatorAddress), amount)
 	if err != nil {
 		o.logger.Error("Failed to assemble Mint tx", "err", err)
 		return err
 	}
+
 	_, err = o.avsWriter.TxMgr.Send(context.Background(), tx)
 	if err != nil {
 		o.logger.Error("Failed to submit Mint tx", "err", err)
@@ -131,7 +136,7 @@ func (o *OperatorPlugin) Deposit() error {
 	return nil
 }
 
-func NewOperatorPluginFromCLIContext(ctx *cli.Context) (*OperatorPlugin, error) {
+func NewOperatorPluginFromCLIContext(ctx *cli.Context) (*CliOperatorPlugin, error) {
 	goCtx := context.Background()
 	logger, _ := logging.NewZapLogger(logging.Development)
 
@@ -156,16 +161,19 @@ func NewOperatorPluginFromCLIContext(ctx *cli.Context) (*OperatorPlugin, error) 
 		AvsName:                    "super-fast-finality-layer",
 		PromMetricsIpPortAddress:   avsConfig.EigenMetricsIpPortAddress,
 	}
+
 	ethHttpClient, err := eth.NewClient(avsConfig.EthRpcUrl)
 	if err != nil {
 		logger.Error("Failed to connect to eth client", "err", err)
 		return nil, err
 	}
+
 	chainID, err := ethHttpClient.ChainID(goCtx)
 	if err != nil {
 		logger.Error("Failed to get chain ID", "err", err)
 		return nil, err
 	}
+
 	signerV2, _, err := signerv2.SignerFromConfig(signerv2.Config{
 		KeystorePath: avsConfig.EcdsaPrivateKeyStorePath,
 		Password:     ecdsaKeyPassword,
@@ -174,16 +182,19 @@ func NewOperatorPluginFromCLIContext(ctx *cli.Context) (*OperatorPlugin, error) 
 		logger.Error("Failed to create signer", "err", err)
 		return nil, err
 	}
+
 	ecdsaPrivateKey, err := sdkecdsa.ReadKey(avsConfig.EcdsaPrivateKeyStorePath, ecdsaKeyPassword)
 	if err != nil {
 		logger.Error("Failed to read ecdsa private key", "err", err)
 		return nil, err
 	}
+
 	clients, err := sdkclients.BuildAll(buildClientConfig, ecdsaPrivateKey, logger)
 	if err != nil {
 		logger.Error("Failed to create sdk clients", "err", err)
 		return nil, err
 	}
+
 	avsReader, err := chainio.BuildAvsReader(
 		common.HexToAddress(avsConfig.AVSRegistryCoordinatorAddress),
 		common.HexToAddress(avsConfig.OperatorStateRetrieverAddress),
@@ -194,11 +205,13 @@ func NewOperatorPluginFromCLIContext(ctx *cli.Context) (*OperatorPlugin, error) 
 		logger.Error("Failed to create avs reader", "err", err)
 		return nil, err
 	}
+
 	txSender, err := wallet.NewPrivateKeyWallet(ethHttpClient, signerV2, common.HexToAddress(avsConfig.OperatorAddress), logger)
 	if err != nil {
 		logger.Error("Failed to create tx sender", "err", err)
 		return nil, err
 	}
+
 	txMgr := txmgr.NewSimpleTxManager(txSender, ethHttpClient, logger, common.HexToAddress(avsConfig.OperatorAddress)).WithGasLimitMultiplier(1.5)
 	avsWriter, err := chainio.BuildAvsWriter(
 		txMgr,
@@ -211,13 +224,14 @@ func NewOperatorPluginFromCLIContext(ctx *cli.Context) (*OperatorPlugin, error) 
 		logger.Error("Failed to create avs writer", "err", err)
 		return nil, err
 	}
+
 	avsManager, err := operator.NewAvsManager(&avsConfig, clients.EthHttpClient, clients.EthWsClient, clients, txMgr, logger)
 	if err != nil {
 		logger.Error("Failed to create avs manager", "err", err)
 		return nil, err
 	}
 
-	return &OperatorPlugin{
+	return &CliOperatorPlugin{
 		ecdsaKeyPassword: ecdsaKeyPassword,
 		ethHttpClient:    ethHttpClient,
 		clients:          clients,
