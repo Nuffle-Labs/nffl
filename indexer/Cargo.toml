@@ -30,7 +30,10 @@ near-indexer = { git = "https://github.com/near/nearcore", rev = "2b2c06edb90400
 near-client = { git = "https://github.com/near/nearcore", rev = "2b2c06edb90400fb934ae08a7083250266bff780" }
 near-o11y = { git = "https://github.com/near/nearcore", rev = "2b2c06edb90400fb934ae08a7083250266bff780" }
 near-client-primitives = { git = "https://github.com/near/nearcore", rev = "2b2c06edb90400fb934ae08a7083250266bff780" }
-borsh = { version = "1.0.0", features = ["derive", "rc"] }
+near-primitives = { git = "https://github.com/near/nearcore", rev = "2b2c06edb90400fb934ae08a7083250266bff780" }
+near-da-primitives = { git = "https://github.com/near/rollup-data-availability", rev = "0c54b4fc2acce11f96f4f48545e24f95f8715c85"}
+
+borsh = { version = "1.5.0", features = ["derive", "rc"] }
 serde_yaml = "0.9.34"
 
 [dev-dependencies]

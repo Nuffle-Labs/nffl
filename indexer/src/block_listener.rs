@@ -18,7 +18,7 @@ use crate::{
     errors::Result,
     metrics::{make_block_listener_metrics, BlockEventListener, Metricable},
     types,
-    types::CandidateData,
+    types::{CandidateData, try_transform_payload},
     INDEXER,
 };
 
@@ -61,7 +61,18 @@ impl BlockListener {
 
     fn transaction_filter_map(transaction: TransactionWithRollupId) -> Option<CandidateData> {
         let actions = &transaction.transaction.transaction.actions;
-        let payloads: Vec<Vec<u8>> = actions.clone().into_iter().filter_map(Self::extract_args).collect();
+        let payloads: Vec<Vec<u8>> = actions
+            .clone()
+            .into_iter()
+            .filter_map(Self::extract_args)
+            .filter_map(|payload| match try_transform_payload(&payload) {
+                Ok(v) => Some(v),
+                Err(err) => {
+                    info!(target: INDEXER, "DA data of incorrect format: {}", err);
+                    None
+                }
+            })
+            .collect();
 
         if payloads.is_empty() {
             return None;
@@ -85,7 +96,7 @@ impl BlockListener {
         mut done: oneshot::Receiver<()>,
         queue_protected: types::ProtectedQueue<ExpirableCandidateData>,
         candidates_sender: mpsc::Sender<CandidateData>,
-        listener: Option<BlockEventListener>
+        listener: Option<BlockEventListener>,
     ) {
         #[cfg(not(test))]
         const FLUSH_INTERVAL: Duration = Duration::from_secs(1);
@@ -135,7 +146,10 @@ impl BlockListener {
         true
     }
 
-    fn extract_candidates(addresses_to_rollup_ids: &HashMap<AccountId, u32>, streamer_message: StreamerMessage) -> Vec<CandidateData> {
+    fn extract_candidates(
+        addresses_to_rollup_ids: &HashMap<AccountId, u32>,
+        streamer_message: StreamerMessage,
+    ) -> Vec<CandidateData> {
         streamer_message
             .shards
             .into_iter()
@@ -188,7 +202,9 @@ impl BlockListener {
             {
                 let mut queue = queue_protected.lock().await;
                 let flushed = Self::flush(&mut queue, &candidates_sender);
-                listener.as_ref().map(|l| l.current_queued_candidates.set(queue.len() as f64));
+                listener
+                    .as_ref()
+                    .map(|l| l.current_queued_candidates.set(queue.len() as f64));
                 if !flushed {
                     info!(target: INDEXER, "Not flushed, so enqueuing candidate data");
 
@@ -224,7 +240,9 @@ impl BlockListener {
                                 inner: candidate,
                             });
                             queue.extend(iter.map(|el| ExpirableCandidateData { timestamp, inner: el }));
-                            listener.as_ref().map(|l| l.current_queued_candidates.set(queue.len() as f64));
+                            listener
+                                .as_ref()
+                                .map(|l| l.current_queued_candidates.set(queue.len() as f64));
 
                             break;
                         }
