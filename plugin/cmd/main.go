@@ -1,26 +1,10 @@
 package main
 
 import (
-	"context"
 	"fmt"
 	"log"
-	"math/big"
 	"os"
 
-	sdkclients "github.com/Layr-Labs/eigensdk-go/chainio/clients"
-	"github.com/Layr-Labs/eigensdk-go/chainio/clients/eth"
-	"github.com/Layr-Labs/eigensdk-go/chainio/clients/wallet"
-	"github.com/Layr-Labs/eigensdk-go/chainio/txmgr"
-	"github.com/Layr-Labs/eigensdk-go/crypto/bls"
-	sdkecdsa "github.com/Layr-Labs/eigensdk-go/crypto/ecdsa"
-	"github.com/Layr-Labs/eigensdk-go/logging"
-	"github.com/Layr-Labs/eigensdk-go/signerv2"
-	"github.com/Layr-Labs/eigensdk-go/utils"
-	"github.com/NethermindEth/near-sffl/core/chainio"
-	"github.com/NethermindEth/near-sffl/operator"
-	optypes "github.com/NethermindEth/near-sffl/operator/types"
-	"github.com/ethereum/go-ethereum/accounts/abi/bind"
-	"github.com/ethereum/go-ethereum/common"
 	"github.com/urfave/cli"
 )
 
@@ -70,178 +54,25 @@ func main() {
 	app.Name = "sffl-plugin"
 	app.Usage = "SFFL Plugin"
 	app.Description = "This is used to run one time operations like avs opt-in/opt-out"
-	app.Action = plugin
+	app.Action = func(ctx *cli.Context) error {
+		operatorPlugin, err := NewOperatorPluginFromCLIContext(ctx)
+		if err != nil {
+			return err
+		}
+		operationType := ctx.GlobalString(OperationFlag.Name)
+		switch operationType {
+		case "opt-in":
+			return operatorPlugin.OptIn()
+		case "opt-out":
+			return operatorPlugin.OptOut()
+		case "deposit":
+			return operatorPlugin.Deposit()
+		default:
+			return cli.NewExitError(fmt.Sprintf("Invalid operation type: %v", operationType), 1)
+		}
+	}
 	err := app.Run(os.Args)
 	if err != nil {
 		log.Fatalln("Application failed.", "Message:", err)
 	}
-}
-
-func plugin(ctx *cli.Context) error {
-	goCtx := context.Background()
-	logger, _ := logging.NewZapLogger(logging.Development)
-
-	operationType := ctx.GlobalString(OperationFlag.Name)
-	configPath := ctx.GlobalString(ConfigFileFlag.Name)
-
-	avsConfig := optypes.NodeConfig{}
-	err := utils.ReadYamlConfig(configPath, &avsConfig)
-	if err != nil {
-		logger.Error("Failed to read config", "err", err)
-		return err
-	}
-
-	logger.Info("Starting with config", "avsConfig", avsConfig)
-
-	ecdsaKeyPassword := ctx.GlobalString(EcdsaKeyPasswordFlag.Name)
-
-	buildClientConfig := sdkclients.BuildAllConfig{
-		EthHttpUrl:                 avsConfig.EthRpcUrl,
-		EthWsUrl:                   avsConfig.EthWsUrl,
-		RegistryCoordinatorAddr:    avsConfig.AVSRegistryCoordinatorAddress,
-		OperatorStateRetrieverAddr: avsConfig.OperatorStateRetrieverAddress,
-		AvsName:                    "super-fast-finality-layer",
-		PromMetricsIpPortAddress:   avsConfig.EigenMetricsIpPortAddress,
-	}
-	ethHttpClient, err := eth.NewClient(avsConfig.EthRpcUrl)
-	if err != nil {
-		logger.Error("Failed to connect to eth client", "err", err)
-		return err
-	}
-	chainID, err := ethHttpClient.ChainID(goCtx)
-	if err != nil {
-		logger.Error("Failed to get chain ID", "err", err)
-		return err
-	}
-	signerV2, _, err := signerv2.SignerFromConfig(signerv2.Config{
-		KeystorePath: avsConfig.EcdsaPrivateKeyStorePath,
-		Password:     ecdsaKeyPassword,
-	}, chainID)
-	if err != nil {
-		logger.Error("Failed to create signer", "err", err)
-		return err
-	}
-	ecdsaPrivateKey, err := sdkecdsa.ReadKey(avsConfig.EcdsaPrivateKeyStorePath, ecdsaKeyPassword)
-	if err != nil {
-		logger.Error("Failed to read ecdsa private key", "err", err)
-		return err
-	}
-	clients, err := sdkclients.BuildAll(buildClientConfig, ecdsaPrivateKey, logger)
-	if err != nil {
-		logger.Error("Failed to create sdk clients", "err", err)
-		return err
-	}
-	avsReader, err := chainio.BuildAvsReader(
-		common.HexToAddress(avsConfig.AVSRegistryCoordinatorAddress),
-		common.HexToAddress(avsConfig.OperatorStateRetrieverAddress),
-		ethHttpClient,
-		logger,
-	)
-	if err != nil {
-		logger.Error("Failed to create avs reader", "err", err)
-		return err
-	}
-	txSender, err := wallet.NewPrivateKeyWallet(ethHttpClient, signerV2, common.HexToAddress(avsConfig.OperatorAddress), logger)
-	if err != nil {
-		logger.Error("Failed to create tx sender", "err", err)
-		return err
-	}
-	txMgr := txmgr.NewSimpleTxManager(txSender, ethHttpClient, logger, common.HexToAddress(avsConfig.OperatorAddress)).WithGasLimitMultiplier(1.5)
-	avsWriter, err := chainio.BuildAvsWriter(
-		txMgr,
-		common.HexToAddress(avsConfig.AVSRegistryCoordinatorAddress),
-		common.HexToAddress(avsConfig.OperatorStateRetrieverAddress),
-		ethHttpClient,
-		logger,
-	)
-	if err != nil {
-		logger.Error("Failed to create avs writer", "err", err)
-		return err
-	}
-	avsManager, err := operator.NewAvsManager(&avsConfig, clients.EthHttpClient, clients.EthWsClient, clients, txMgr, logger)
-	if err != nil {
-		logger.Error("Failed to create avs manager", "err", err)
-		return err
-	}
-
-	if operationType == "opt-in" {
-		blsKeyPassword := ctx.GlobalString(BlsKeyPasswordFlag.Name)
-
-		blsKeypair, err := bls.ReadPrivateKeyFromFile(avsConfig.BlsPrivateKeyStorePath, blsKeyPassword)
-		if err != nil {
-			logger.Error("Failed to read bls private key", "err", err)
-			return err
-		}
-
-		operatorEcdsaPrivateKey, err := sdkecdsa.ReadKey(
-			avsConfig.EcdsaPrivateKeyStorePath,
-			ecdsaKeyPassword,
-		)
-		if err != nil {
-			logger.Error("Failed to read operator ecdsa private key", "err", err)
-			return err
-		}
-
-		err = avsManager.RegisterOperatorWithAvs(ethHttpClient, operatorEcdsaPrivateKey, blsKeypair)
-		if (err != nil) {
-			logger.Error("Failed to register operator with avs", "err", err)
-			return err
-		}
-	} else if operationType == "opt-out" {
-		blsKeyPassword := ctx.GlobalString(BlsKeyPasswordFlag.Name)
-
-		blsKeypair, err := bls.ReadPrivateKeyFromFile(avsConfig.BlsPrivateKeyStorePath, blsKeyPassword)
-		if err != nil {
-			logger.Error("Failed to read bls private key", "err", err)
-			return err
-		}
-
-		err = avsManager.DeregisterOperator(blsKeypair)
-		if (err != nil) {
-			logger.Error("Failed to deregister operator", "err", err)
-			return err
-		}
-	} else if operationType == "deposit" {
-		starategyAddrString := ctx.GlobalString(StrategyAddrFlag.Name)
-		if len(starategyAddrString) == 0 {
-			logger.Error("Strategy address is required for deposit operation")
-			return err
-		}
-		strategyAddr := common.HexToAddress(ctx.GlobalString(StrategyAddrFlag.Name))
-		_, tokenAddr, err := clients.ElChainReader.GetStrategyAndUnderlyingToken(&bind.CallOpts{}, strategyAddr)
-		if err != nil {
-			logger.Error("Failed to fetch strategy contract", "err", err)
-			return err
-		}
-		contractErc20Mock, err := avsReader.GetErc20Mock(context.Background(), tokenAddr)
-		if err != nil {
-			logger.Error("Failed to fetch ERC20Mock contract", "err", err)
-			return err
-		}
-		txOpts, err := avsWriter.TxMgr.GetNoSendTxOpts()
-		if err != nil {
-			logger.Error("Failed to get tx opts", "err", err)
-			return err
-		}
-		amount := big.NewInt(1000)
-		tx, err := contractErc20Mock.Mint(txOpts, common.HexToAddress(avsConfig.OperatorAddress), amount)
-		if err != nil {
-			logger.Error("Failed to assemble Mint tx", "err", err)
-			return err
-		}
-		_, err = avsWriter.TxMgr.Send(context.Background(), tx)
-		if err != nil {
-			logger.Error("Failed to submit Mint tx", "err", err)
-			return err
-		}
-
-		_, err = clients.ElChainWriter.DepositERC20IntoStrategy(context.Background(), strategyAddr, amount)
-		if err != nil {
-			logger.Error("Failed to deposit into strategy", "err", err)
-			return err
-		}
-	} else {
-		return cli.NewExitError(fmt.Sprintf("Invalid operation type: %v", operationType), 1)
-	}
-	return nil
 }
