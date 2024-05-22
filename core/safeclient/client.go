@@ -237,6 +237,16 @@ func (c *SafeEthClient) SubscribeFilterLogs(ctx context.Context, q ethereum.Filt
 		ticker := time.NewTicker(c.resubInterval)
 		defer ticker.Stop()
 
+		handleResub := func() {
+			err := resub()
+			if err != nil {
+				c.logger.Error("Failed to resubscribe to logs", "err", err)
+				ticker.Reset(c.resubInterval)
+			} else {
+				ticker.Stop()
+			}
+		}
+
 		for {
 			select {
 			case <-safeSub.Err():
@@ -253,22 +263,10 @@ func (c *SafeEthClient) SubscribeFilterLogs(ctx context.Context, q ethereum.Filt
 				ch <- log
 			case <-ticker.C:
 				c.logger.Debug("Resub ticker fired")
-				err := resub()
-				if err != nil {
-					c.logger.Error("Failed to resubscribe to logs", "err", err)
-					ticker.Reset(c.resubInterval)
-				} else {
-					ticker.Stop()
-				}
+				handleResub()
 			case <-sub.Err():
 				c.logger.Info("Underlying subscription ended, resubscribing")
-				err := resub()
-				if err != nil {
-					c.logger.Error("Failed to resubscribe to logs", "err", err)
-					ticker.Reset(c.resubInterval)
-				} else {
-					ticker.Stop()
-				}
+				handleResub()
 			case <-c.closeC:
 				c.logger.Info("Received close signal, ending subscription")
 				safeSub.Unsubscribe()
@@ -331,6 +329,16 @@ func (c *SafeEthClient) SubscribeNewHead(ctx context.Context, ch chan<- *types.H
 		resubTicker := time.NewTicker(c.resubInterval)
 		defer resubTicker.Stop()
 
+		handleResub := func() {
+			err := resub()
+			if err != nil {
+				c.logger.Error("Failed to resubscribe to heads", "err", err)
+				resubTicker.Reset(c.resubInterval)
+			} else {
+				resubTicker.Stop()
+			}
+		}
+
 		receivedBlock := false
 
 		for {
@@ -343,25 +351,13 @@ func (c *SafeEthClient) SubscribeNewHead(ctx context.Context, ch chan<- *types.H
 				return
 			case <-sub.Err():
 				c.logger.Info("Underlying subscription to new heads ended, resubscribing")
-				err := resub()
-				if err != nil {
-					c.logger.Error("Failed to resubscribe to heads", "err", err)
-					headerTicker.Reset(c.resubInterval)
-				} else {
-					headerTicker.Stop()
-				}
+				handleResub()
 			case <-headerTicker.C:
 				c.logger.Info("Header ticker fired, ending subscription")
 				if receivedBlock {
 					receivedBlock = false
 				} else {
-					err := resub()
-					if err != nil {
-						c.logger.Error("Failed to resubscribe to heads", "err", err)
-						resubTicker.Reset(c.resubInterval)
-					} else {
-						resubTicker.Stop()
-					}
+					handleResub()
 				}
 			case <-c.closeC:
 				c.logger.Info("Received close signal, ending new heads subscription")
