@@ -15,7 +15,7 @@ const (
 
 type RpcEventListener interface {
 	IncSignedCheckpointTaskResponse(operatorId [32]byte, errored, notFound bool)
-	IncSignedStateRootUpdateMessage(operatorId [32]byte, errored, hasNearDa bool)
+	IncSignedStateRootUpdateMessage(operatorId [32]byte, rollupId uint32, errored, hasNearDa bool)
 	IncSignedOperatorSetUpdateMessage(operatorId [32]byte, errored bool)
 	IncTotalSignedCheckpointTaskResponse()
 	IncTotalSignedStateRootUpdateMessage()
@@ -25,7 +25,7 @@ type RpcEventListener interface {
 
 type SelectiveRpcListener struct {
 	IncSignedCheckpointTaskResponseCb        func(operatorId [32]byte, errored, notFound bool)
-	IncSignedStateRootUpdateMessageCb        func(operatorId [32]byte, errored, hasNearDa bool)
+	IncSignedStateRootUpdateMessageCb        func(operatorId [32]byte, rollupId uint32, errored, hasNearDa bool)
 	IncSignedOperatorSetUpdateMessageCb      func(operatorId [32]byte, errored bool)
 	IncTotalSignedCheckpointTaskResponseCb   func()
 	IncTotalSignedStateRootUpdateMessageCb   func()
@@ -39,9 +39,9 @@ func (l *SelectiveRpcListener) IncSignedCheckpointTaskResponse(operatorId [32]by
 	}
 }
 
-func (l *SelectiveRpcListener) IncSignedStateRootUpdateMessage(operatorId [32]byte, errored, hasNearDa bool) {
+func (l *SelectiveRpcListener) IncSignedStateRootUpdateMessage(operatorId [32]byte, rollupId uint32, errored, hasNearDa bool) {
 	if l.IncSignedStateRootUpdateMessageCb != nil {
-		l.IncSignedStateRootUpdateMessageCb(operatorId, errored, hasNearDa)
+		l.IncSignedStateRootUpdateMessageCb(operatorId, rollupId, errored, hasNearDa)
 	}
 }
 
@@ -279,7 +279,7 @@ func MakeRpcServerMetrics(registry *prometheus.Registry) (RpcEventListener, erro
 			Name:      "signed_state_root_update_messages_total",
 			Help:      "Total number of signed state root update messages received per operator",
 		},
-		[]string{"operator_id", "errored", "has_near_da"},
+		[]string{"operator_id", "rollup_id", "errored", "has_near_da"},
 	)
 	if err := registry.Register(signedStateRootUpdateMessagesTotal); err != nil {
 		return nil, fmt.Errorf("error registering signedStateRootUpdateMessagesTotal counter: %w", err)
@@ -313,8 +313,8 @@ func MakeRpcServerMetrics(registry *prometheus.Registry) (RpcEventListener, erro
 		IncSignedCheckpointTaskResponseCb: func(operatorId [32]byte, errored, expired bool) {
 			signedCheckpointTaskResponsesTotal.WithLabelValues(fmt.Sprintf("%x", operatorId), fmt.Sprintf("%t", errored), fmt.Sprintf("%t", expired)).Inc()
 		},
-		IncSignedStateRootUpdateMessageCb: func(operatorId [32]byte, errored, hasNearDa bool) {
-			signedStateRootUpdateMessagesTotal.WithLabelValues(fmt.Sprintf("%x", operatorId), fmt.Sprintf("%t", errored), fmt.Sprintf("%t", hasNearDa)).Inc()
+		IncSignedStateRootUpdateMessageCb: func(operatorId [32]byte, rollupId uint32, errored, hasNearDa bool) {
+			signedStateRootUpdateMessagesTotal.WithLabelValues(fmt.Sprintf("%x", operatorId), fmt.Sprintf("%d", rollupId), fmt.Sprintf("%t", errored), fmt.Sprintf("%t", hasNearDa)).Inc()
 		},
 		IncSignedOperatorSetUpdateMessageCb: func(operatorId [32]byte, errored bool) {
 			signedOperatorSetUpdateMessagesTotal.WithLabelValues(fmt.Sprintf("%x", operatorId), fmt.Sprintf("%t", errored)).Inc()

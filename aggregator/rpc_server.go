@@ -91,6 +91,7 @@ func (agg *Aggregator) ProcessSignedStateRootUpdateMessage(signedStateRootUpdate
 
 	hasNearDaCommitment := signedStateRootUpdateMessage.Message.HasNearDaCommitment()
 	operatorId := signedStateRootUpdateMessage.OperatorId
+	rollupId := signedStateRootUpdateMessage.Message.RollupId
 
 	agg.logger.Infof("Received signed state root update message: %#v %#v", signedStateRootUpdateMessage, messageDigest)
 
@@ -106,7 +107,7 @@ func (agg *Aggregator) ProcessSignedStateRootUpdateMessage(signedStateRootUpdate
 		0,
 	)
 	if err != nil {
-		agg.rpcListener.IncSignedStateRootUpdateMessage(operatorId, true, hasNearDaCommitment)
+		agg.rpcListener.IncSignedStateRootUpdateMessage(operatorId, rollupId, true, hasNearDaCommitment)
 		return err
 	}
 
@@ -119,11 +120,11 @@ func (agg *Aggregator) ProcessSignedStateRootUpdateMessage(signedStateRootUpdate
 		&signedStateRootUpdateMessage.BlsSignature, signedStateRootUpdateMessage.OperatorId,
 	)
 	if err != nil {
-		agg.rpcListener.IncSignedStateRootUpdateMessage(operatorId, true, hasNearDaCommitment)
+		agg.rpcListener.IncSignedStateRootUpdateMessage(operatorId, rollupId, true, hasNearDaCommitment)
 		return err
 	}
 
-	agg.rpcListener.IncSignedStateRootUpdateMessage(operatorId, false, hasNearDaCommitment)
+	agg.rpcListener.IncSignedStateRootUpdateMessage(operatorId, rollupId, false, hasNearDaCommitment)
 
 	return nil
 }
