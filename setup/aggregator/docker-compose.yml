@@ -5,7 +5,7 @@ networks:
     driver: bridge
 
 services:
-  aggregator:
+  near-sffl-aggregator:
     image: ghcr.io/nethermindeth/near-sffl/aggregator:${SFFL_RELEASE}
     container_name: near-sffl-aggregator
     volumes:
@@ -24,7 +24,7 @@ services:
     ports:
       - "4001:4001"
       - "4002:4002"
-      - "9091:9091"
+      - "127.0.0.1:9091:9091"
     logging:
       driver: "json-file"
       options:
@@ -66,7 +66,7 @@ services:
       - --web.enable-remote-write-receiver
     restart: unless-stopped
     ports:
-      - "9090:9090"
+      - "127.0.0.1:9090:9090"
     extra_hosts:
       - "host.docker.internal:host-gateway"
 
