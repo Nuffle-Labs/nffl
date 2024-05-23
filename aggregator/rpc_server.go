@@ -200,3 +200,8 @@ func (agg *Aggregator) GetRegistryCoordinatorAddress(_ *struct{}, reply *string)
 	*reply = agg.config.SFFLRegistryCoordinatorAddr.String()
 	return nil
 }
+
+func (agg *Aggregator) NotifyOperatorReinitialization(operatorId [32]byte, reply *bool) error {
+	agg.rpcListener.IncOperatorReinitializations(operatorId)
+	return nil
+}
