@@ -15,10 +15,10 @@ import (
 )
 
 const (
-	BLOCK_CHUNK_SIZE = 2000
-	BLOCK_MAX_RANGE  = 10000
-	RESUB_INTERVAL   = 5 * time.Minute
-	HEADER_TIMEOUT   = 1 * time.Minute
+	BLOCK_CHUNK_SIZE   = 2000
+	BLOCK_MAX_RANGE    = 10000
+	LOG_RESUB_INTERVAL = 5 * time.Minute
+	HEADER_TIMEOUT     = 1 * time.Minute
 )
 
 type SafeClient interface {
@@ -30,29 +30,29 @@ type SafeClient interface {
 type SafeEthClient struct {
 	eth.Client
 
-	wg             sync.WaitGroup
-	logger         logging.Logger
-	rpcUrl         string
-	closeC         chan struct{}
-	closed         bool
-	headerTimeout  time.Duration
-	resubInterval  time.Duration
-	blockChunkSize uint64
-	blockMaxRange  uint64
+	wg               sync.WaitGroup
+	logger           logging.Logger
+	rpcUrl           string
+	closeC           chan struct{}
+	closed           bool
+	headerTimeout    time.Duration
+	logResubInterval time.Duration
+	blockChunkSize   uint64
+	blockMaxRange    uint64
 
 	createClient func(string, logging.Logger) (eth.Client, error)
 }
 
 func NewSafeEthClient(rpcUrl string, logger logging.Logger, opts ...SafeEthClientOption) (*SafeEthClient, error) {
 	safeClient := &SafeEthClient{
-		logger:         logger,
-		rpcUrl:         rpcUrl,
-		resubInterval:  RESUB_INTERVAL,
-		headerTimeout:  HEADER_TIMEOUT,
-		blockChunkSize: BLOCK_CHUNK_SIZE,
-		blockMaxRange:  BLOCK_MAX_RANGE,
-		closeC:         make(chan struct{}),
-		createClient:   createDefaultClient,
+		logger:           logger,
+		rpcUrl:           rpcUrl,
+		logResubInterval: LOG_RESUB_INTERVAL,
+		headerTimeout:    HEADER_TIMEOUT,
+		blockChunkSize:   BLOCK_CHUNK_SIZE,
+		blockMaxRange:    BLOCK_MAX_RANGE,
+		closeC:           make(chan struct{}),
+		createClient:     createDefaultClient,
 	}
 
 	for _, opt := range opts {
@@ -72,9 +72,9 @@ func NewSafeEthClient(rpcUrl string, logger logging.Logger, opts ...SafeEthClien
 
 type SafeEthClientOption func(*SafeEthClient)
 
-func WithResubInterval(interval time.Duration) SafeEthClientOption {
+func WithLogResubInterval(interval time.Duration) SafeEthClientOption {
 	return func(c *SafeEthClient) {
-		c.resubInterval = interval
+		c.logResubInterval = interval
 	}
 }
 
@@ -234,14 +234,14 @@ func (c *SafeEthClient) SubscribeFilterLogs(ctx context.Context, q ethereum.Filt
 	go func() {
 		defer c.wg.Done()
 
-		ticker := time.NewTicker(c.resubInterval)
+		ticker := time.NewTicker(c.logResubInterval)
 		defer ticker.Stop()
 
 		handleResub := func() {
 			err := resub()
 			if err != nil {
 				c.logger.Error("Failed to resubscribe to logs", "err", err)
-				ticker.Reset(c.resubInterval)
+				ticker.Reset(c.logResubInterval)
 			} else {
 				ticker.Stop()
 			}
