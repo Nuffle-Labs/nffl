@@ -178,11 +178,21 @@ func (c *SafeEthClient) SubscribeFilterLogs(ctx context.Context, q ethereum.Filt
 			return nil, nil
 		}
 
+		c.logger.Debug("Comparing last log block with current block", "lastBlock", lastBlock, "currentBlock", currentBlock)
+
 		missedLogs := make([]types.Log, 0)
-		fromBlock := max(lastBlock, currentBlock-c.blockMaxRange) + 1
+
+		rangeStartBlock := currentBlock - c.blockMaxRange
+		if c.blockMaxRange > currentBlock {
+			rangeStartBlock = 0
+		}
+
+		fromBlock := max(lastBlock, rangeStartBlock) + 1
 
 		for ; fromBlock < currentBlock; fromBlock += (c.blockChunkSize + 1) {
 			toBlock := min(fromBlock+c.blockChunkSize, currentBlock)
+
+			c.logger.Debug("Getting past logs", "fromBlock", fromBlock, "toBlock", toBlock)
 
 			logs, err := c.Client.FilterLogs(ctx, ethereum.FilterQuery{
 				FromBlock: big.NewInt(int64(fromBlock)),
