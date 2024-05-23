@@ -21,7 +21,6 @@ import (
 	"github.com/Layr-Labs/eigensdk-go/nodeapi"
 	"github.com/Layr-Labs/eigensdk-go/signerv2"
 	eigentypes "github.com/Layr-Labs/eigensdk-go/types"
-	sdktypes "github.com/Layr-Labs/eigensdk-go/types"
 	"github.com/ethereum/go-ethereum/accounts/abi/bind"
 	"github.com/ethereum/go-ethereum/common"
 	"github.com/prometheus/client_golang/prometheus"
@@ -184,7 +183,7 @@ func NewOperatorFromConfig(c optypes.NodeConfig) (*Operator, error) {
 
 	// We must register the economic metrics separately because they are exported metrics (from jsonrpc or subgraph calls)
 	// and not instrumented metrics: see https://prometheus.io/docs/instrumenting/writing_clientlibs/#overall-structure
-	quorumNames := map[sdktypes.QuorumNum]string{
+	quorumNames := map[eigentypes.QuorumNum]string{
 		0: "quorum0",
 	}
 	economicMetricsCollector := economic.NewCollector(

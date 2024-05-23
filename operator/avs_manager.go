@@ -14,6 +14,7 @@ import (
 	"github.com/Layr-Labs/eigensdk-go/crypto/bls"
 	sdklogging "github.com/Layr-Labs/eigensdk-go/logging"
 	eigentypes "github.com/Layr-Labs/eigensdk-go/types"
+	eigenutils "github.com/Layr-Labs/eigensdk-go/chainio/utils"
 	"github.com/ethereum/go-ethereum/accounts/abi/bind"
 	"github.com/ethereum/go-ethereum/common"
 	"github.com/ethereum/go-ethereum/crypto"
@@ -35,7 +36,7 @@ type AvsManagerer interface {
 		operatorEcdsaKeyPair *ecdsa.PrivateKey,
 		blsKeyPair *bls.KeyPair,
 	) error
-
+	DeregisterOperator(blsKeyPair *bls.KeyPair) error
 	GetOperatorId(options *bind.CallOpts, address common.Address) ([32]byte, error)
 	GetCheckpointTaskCreatedChan() <-chan *taskmanager.ContractSFFLTaskManagerCheckpointTaskCreated
 	GetOperatorSetUpdateChan() <-chan messages.OperatorSetUpdateMessage
@@ -58,7 +59,9 @@ type AvsManager struct {
 	logger sdklogging.Logger
 }
 
-func NewAvsManager(config *optypes.NodeConfig, ethRpcClient eth.Client, ethWsClient eth.Client, sdkClients *clients.Clients, txManager *txmgr.SimpleTxManager, logger sdklogging.Logger) (*AvsManager, error) {
+var _ AvsManagerer = (*AvsManager)(nil)
+
+func NewAvsManager(config *optypes.NodeConfig, ethRpcClient eth.Client, ethWsClient eth.Client, sdkClients *clients.Clients, txManager txmgr.TxManager, logger sdklogging.Logger) (*AvsManager, error) {
 	avsWriter, err := chainio.BuildAvsWriter(
 		txManager, common.HexToAddress(config.AVSRegistryCoordinatorAddress),
 		common.HexToAddress(config.OperatorStateRetrieverAddress), ethRpcClient, logger,
@@ -281,6 +284,21 @@ func (avsManager *AvsManager) RegisterOperatorWithAvs(
 		return err
 	}
 	avsManager.logger.Infof("Registered operator with avs registry coordinator.")
+
+	return nil
+}
+
+func (avsManager *AvsManager) DeregisterOperator(blsKeyPair *bls.KeyPair) error {
+	// TODO: 'QuorumNums' is hardcoded for now
+	quorumNumbers := eigentypes.QuorumNums{0}
+	pubKey := eigenutils.ConvertToBN254G1Point(blsKeyPair.GetPubKeyG1())
+
+	_, err := avsManager.avsWriter.DeregisterOperator(context.Background(), quorumNumbers, pubKey)
+	if err != nil {
+		avsManager.logger.Error("Unable to deregister operator with avs registry coordinator", "err", err)
+		return err
+	}
+	avsManager.logger.Info("Deregistered operator with avs registry coordinator")
 
 	return nil
 }
