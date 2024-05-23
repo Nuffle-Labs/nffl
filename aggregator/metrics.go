@@ -14,7 +14,7 @@ const (
 )
 
 type RpcEventListener interface {
-	IncOperatorReinitializations(operatorId [32]byte)
+	IncOperatorInitializations(operatorId [32]byte)
 	IncSignedCheckpointTaskResponse(operatorId [32]byte, errored, notFound bool)
 	IncSignedStateRootUpdateMessage(operatorId [32]byte, errored, hasNearDa bool)
 	IncSignedOperatorSetUpdateMessage(operatorId [32]byte, errored bool)
@@ -25,7 +25,7 @@ type RpcEventListener interface {
 }
 
 type SelectiveRpcListener struct {
-	IncOperatorReinitializationsCb           func(operatorId [32]byte)
+	IncOperatorInitializationsCb             func(operatorId [32]byte)
 	IncSignedCheckpointTaskResponseCb        func(operatorId [32]byte, errored, notFound bool)
 	IncSignedStateRootUpdateMessageCb        func(operatorId [32]byte, errored, hasNearDa bool)
 	IncSignedOperatorSetUpdateMessageCb      func(operatorId [32]byte, errored bool)
@@ -35,9 +35,9 @@ type SelectiveRpcListener struct {
 	ObserveLastMessageReceivedTimeCb         func(operatorId [32]byte, messageType string)
 }
 
-func (l *SelectiveRpcListener) IncOperatorReinitializations(operatorId [32]byte) {
-	if l.IncOperatorReinitializationsCb != nil {
-		l.IncOperatorReinitializationsCb(operatorId)
+func (l *SelectiveRpcListener) IncOperatorInitializations(operatorId [32]byte) {
+	if l.IncOperatorInitializationsCb != nil {
+		l.IncOperatorInitializationsCb(operatorId)
 	}
 }
 
@@ -269,16 +269,16 @@ func MakeRestServerMetrics(registry *prometheus.Registry) (RestEventListener, er
 }
 
 func MakeRpcServerMetrics(registry *prometheus.Registry) (RpcEventListener, error) {
-	operatorReinitializationsTotal := prometheus.NewCounterVec(
+	operatorInitializationsTotal := prometheus.NewCounterVec(
 		prometheus.CounterOpts{
 			Namespace: AggregatorNamespace,
-			Name:      "operator_reinitializations_total",
-			Help:      "Total number of operator reinitializations",
+			Name:      "operator_initializations_total",
+			Help:      "Total number of operator initializations",
 		},
 		[]string{"operator_id"},
 	)
-	if err := registry.Register(operatorReinitializationsTotal); err != nil {
-		return nil, fmt.Errorf("error registering operatorReinitializationsTotal counter: %w", err)
+	if err := registry.Register(operatorInitializationsTotal); err != nil {
+		return nil, fmt.Errorf("error registering operatorInitializationsTotal counter: %w", err)
 	}
 
 	signedCheckpointTaskResponsesTotal := prometheus.NewCounterVec(
@@ -330,8 +330,8 @@ func MakeRpcServerMetrics(registry *prometheus.Registry) (RpcEventListener, erro
 	}
 
 	return &SelectiveRpcListener{
-		IncOperatorReinitializationsCb: func(operatorId [32]byte) {
-			operatorReinitializationsTotal.WithLabelValues(fmt.Sprintf("%x", operatorId)).Inc()
+		IncOperatorInitializationsCb: func(operatorId [32]byte) {
+			operatorInitializationsTotal.WithLabelValues(fmt.Sprintf("%x", operatorId)).Inc()
 		},
 		IncSignedCheckpointTaskResponseCb: func(operatorId [32]byte, errored, expired bool) {
 			signedCheckpointTaskResponsesTotal.WithLabelValues(fmt.Sprintf("%x", operatorId), fmt.Sprintf("%t", errored), fmt.Sprintf("%t", expired)).Inc()

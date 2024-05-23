@@ -201,7 +201,7 @@ func (agg *Aggregator) GetRegistryCoordinatorAddress(_ *struct{}, reply *string)
 	return nil
 }
 
-func (agg *Aggregator) NotifyOperatorReinitialization(operatorId [32]byte, reply *bool) error {
-	agg.rpcListener.IncOperatorReinitializations(operatorId)
+func (agg *Aggregator) NotifyOperatorInitialization(operatorId [32]byte, reply *bool) error {
+	agg.rpcListener.IncOperatorInitializations(operatorId)
 	return nil
 }
