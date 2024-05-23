@@ -104,6 +104,8 @@ func NewOperatorFromConfig(c optypes.NodeConfig) (*Operator, error) {
 		return nil, err
 	}
 
+	operatorId := eigentypes.OperatorIdFromPubkey(blsKeyPair.GetPubKeyG1())
+
 	ecdsaKeyPassword, ok := os.LookupEnv("OPERATOR_ECDSA_KEY_PASSWORD")
 	if !ok {
 		logger.Warnf("OPERATOR_ECDSA_KEY_PASSWORD env var not set. using empty string")
@@ -170,7 +172,7 @@ func NewOperatorFromConfig(c optypes.NodeConfig) (*Operator, error) {
 	reg = sdkClients.PrometheusRegistry
 
 	registryCoordinatorAddress := common.HexToAddress(c.AVSRegistryCoordinatorAddress)
-	aggregatorRpcClient, err := NewAggregatorRpcClient(c.AggregatorServerIpPortAddress, registryCoordinatorAddress, logger)
+	aggregatorRpcClient, err := NewAggregatorRpcClient(c.AggregatorServerIpPortAddress, operatorId, registryCoordinatorAddress, logger)
 	if err != nil {
 		logger.Error("Cannot create AggregatorRpcClient. Is aggregator running?", "err", err)
 		return nil, err
@@ -207,7 +209,7 @@ func NewOperatorFromConfig(c optypes.NodeConfig) (*Operator, error) {
 		aggregatorServerIpPortAddr: c.AggregatorServerIpPortAddress,
 		aggregatorRpcClient:        aggregatorRpcClient,
 		registryCoordinatorAddr:    registryCoordinatorAddress,
-		operatorId:                 eigentypes.OperatorIdFromPubkey(blsKeyPair.GetPubKeyG1()),
+		operatorId:                 operatorId,
 		taskResponseWait:           time.Duration(c.TaskResponseWaitMs) * time.Millisecond,
 	}
 
