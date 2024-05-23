@@ -18,7 +18,7 @@ const (
 	BLOCK_CHUNK_SIZE   = 2000
 	BLOCK_MAX_RANGE    = 10000
 	LOG_RESUB_INTERVAL = 5 * time.Minute
-	HEADER_TIMEOUT     = 1 * time.Minute
+	HEADER_TIMEOUT     = 30 * time.Second
 )
 
 type SafeClient interface {
