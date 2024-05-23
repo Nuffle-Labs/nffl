@@ -43,99 +43,6 @@ type OperatorPlugin interface {
 
 var _ OperatorPlugin = &CliOperatorPlugin{}
 
-func (o *CliOperatorPlugin) OptIn() error {
-	blsKeyPassword := o.ctx.GlobalString(BlsKeyPasswordFlag.Name)
-
-	blsKeypair, err := bls.ReadPrivateKeyFromFile(o.avsConfig.BlsPrivateKeyStorePath, blsKeyPassword)
-	if err != nil {
-		o.logger.Error("Failed to read bls private key", "err", err)
-		return err
-	}
-
-	operatorEcdsaPrivateKey, err := sdkecdsa.ReadKey(
-		o.avsConfig.EcdsaPrivateKeyStorePath,
-		o.ecdsaKeyPassword,
-	)
-	if err != nil {
-		o.logger.Error("Failed to read operator ecdsa private key", "err", err)
-		return err
-	}
-
-	err = o.avsManager.RegisterOperatorWithAvs(o.ethHttpClient, operatorEcdsaPrivateKey, blsKeypair)
-	if err != nil {
-		o.logger.Error("Failed to register operator with avs", "err", err)
-		return err
-	}
-
-	return nil
-}
-
-func (o *CliOperatorPlugin) OptOut() error {
-	blsKeyPassword := o.ctx.GlobalString(BlsKeyPasswordFlag.Name)
-
-	blsKeypair, err := bls.ReadPrivateKeyFromFile(o.avsConfig.BlsPrivateKeyStorePath, blsKeyPassword)
-	if err != nil {
-		o.logger.Error("Failed to read bls private key", "err", err)
-		return err
-	}
-
-	err = o.avsManager.DeregisterOperator(blsKeypair)
-	if err != nil {
-		o.logger.Error("Failed to deregister operator", "err", err)
-		return err
-	}
-
-	return nil
-}
-
-func (o *CliOperatorPlugin) Deposit() error {
-	strategy := o.ctx.GlobalString(StrategyAddrFlag.Name)
-	if len(strategy) == 0 {
-		o.logger.Error("Strategy address is required for deposit operation")
-		return errors.New("strategy address is required for deposit operation")
-	}
-
-	strategyAddr := common.HexToAddress(o.ctx.GlobalString(StrategyAddrFlag.Name))
-	_, tokenAddr, err := o.clients.ElChainReader.GetStrategyAndUnderlyingToken(&bind.CallOpts{}, strategyAddr)
-	if err != nil {
-		o.logger.Error("Failed to fetch strategy contract", "err", err)
-		return err
-	}
-
-	contractErc20Mock, err := o.avsReader.GetErc20Mock(context.Background(), tokenAddr)
-	if err != nil {
-		o.logger.Error("Failed to fetch ERC20Mock contract", "err", err)
-		return err
-	}
-
-	txOpts, err := o.avsWriter.TxMgr.GetNoSendTxOpts()
-	if err != nil {
-		o.logger.Error("Failed to get tx opts", "err", err)
-		return err
-	}
-
-	amount := big.NewInt(1000)
-	tx, err := contractErc20Mock.Mint(txOpts, common.HexToAddress(o.avsConfig.OperatorAddress), amount)
-	if err != nil {
-		o.logger.Error("Failed to assemble Mint tx", "err", err)
-		return err
-	}
-
-	_, err = o.avsWriter.TxMgr.Send(context.Background(), tx)
-	if err != nil {
-		o.logger.Error("Failed to submit Mint tx", "err", err)
-		return err
-	}
-
-	_, err = o.clients.ElChainWriter.DepositERC20IntoStrategy(context.Background(), strategyAddr, amount)
-	if err != nil {
-		o.logger.Error("Failed to deposit into strategy", "err", err)
-		return err
-	}
-
-	return nil
-}
-
 func NewOperatorPluginFromCLIContext(ctx *cli.Context) (*CliOperatorPlugin, error) {
 	goCtx := context.Background()
 	logger, _ := logging.NewZapLogger(logging.Development)
@@ -240,4 +147,97 @@ func NewOperatorPluginFromCLIContext(ctx *cli.Context) (*CliOperatorPlugin, erro
 		avsReader:        avsReader,
 		avsWriter:        avsWriter,
 	}, nil
+}
+
+func (o *CliOperatorPlugin) OptIn() error {
+	blsKeyPassword := o.ctx.GlobalString(BlsKeyPasswordFlag.Name)
+
+	blsKeypair, err := bls.ReadPrivateKeyFromFile(o.avsConfig.BlsPrivateKeyStorePath, blsKeyPassword)
+	if err != nil {
+		o.logger.Error("Failed to read bls private key", "err", err)
+		return err
+	}
+
+	operatorEcdsaPrivateKey, err := sdkecdsa.ReadKey(
+		o.avsConfig.EcdsaPrivateKeyStorePath,
+		o.ecdsaKeyPassword,
+	)
+	if err != nil {
+		o.logger.Error("Failed to read operator ecdsa private key", "err", err)
+		return err
+	}
+
+	err = o.avsManager.RegisterOperatorWithAvs(o.ethHttpClient, operatorEcdsaPrivateKey, blsKeypair)
+	if err != nil {
+		o.logger.Error("Failed to register operator with avs", "err", err)
+		return err
+	}
+
+	return nil
+}
+
+func (o *CliOperatorPlugin) OptOut() error {
+	blsKeyPassword := o.ctx.GlobalString(BlsKeyPasswordFlag.Name)
+
+	blsKeypair, err := bls.ReadPrivateKeyFromFile(o.avsConfig.BlsPrivateKeyStorePath, blsKeyPassword)
+	if err != nil {
+		o.logger.Error("Failed to read bls private key", "err", err)
+		return err
+	}
+
+	err = o.avsManager.DeregisterOperator(blsKeypair)
+	if err != nil {
+		o.logger.Error("Failed to deregister operator", "err", err)
+		return err
+	}
+
+	return nil
+}
+
+func (o *CliOperatorPlugin) Deposit() error {
+	strategy := o.ctx.GlobalString(StrategyAddrFlag.Name)
+	if len(strategy) == 0 {
+		o.logger.Error("Strategy address is required for deposit operation")
+		return errors.New("strategy address is required for deposit operation")
+	}
+
+	strategyAddr := common.HexToAddress(o.ctx.GlobalString(StrategyAddrFlag.Name))
+	_, tokenAddr, err := o.clients.ElChainReader.GetStrategyAndUnderlyingToken(&bind.CallOpts{}, strategyAddr)
+	if err != nil {
+		o.logger.Error("Failed to fetch strategy contract", "err", err)
+		return err
+	}
+
+	contractErc20Mock, err := o.avsReader.GetErc20Mock(context.Background(), tokenAddr)
+	if err != nil {
+		o.logger.Error("Failed to fetch ERC20Mock contract", "err", err)
+		return err
+	}
+
+	txOpts, err := o.avsWriter.TxMgr.GetNoSendTxOpts()
+	if err != nil {
+		o.logger.Error("Failed to get tx opts", "err", err)
+		return err
+	}
+
+	amount := big.NewInt(1000)
+	tx, err := contractErc20Mock.Mint(txOpts, common.HexToAddress(o.avsConfig.OperatorAddress), amount)
+	if err != nil {
+		o.logger.Error("Failed to assemble Mint tx", "err", err)
+		return err
+	}
+
+	_, err = o.avsWriter.TxMgr.Send(context.Background(), tx)
+	if err != nil {
+		o.logger.Error("Failed to submit Mint tx", "err", err)
+		return err
+	}
+
+	_, err = o.clients.ElChainWriter.DepositERC20IntoStrategy(context.Background(), strategyAddr, amount)
+	if err != nil {
+		o.logger.Error("Failed to deposit into strategy", "err", err)
+		return err
+	}
+
+	return nil
 }
