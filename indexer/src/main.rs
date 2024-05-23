@@ -5,8 +5,7 @@ use tracing::{error, info};
 
 use crate::{
     candidates_validator::CandidatesValidator, configs::RunConfigArgs, errors::Error, errors::Result,
-    indexer_wrapper::IndexerWrapper, metrics::Metricable, metrics_server::MetricsServer,
-    rabbit_publisher::RabbitPublisher,
+    indexer_wrapper::IndexerWrapper, metrics::Metricable, metrics_server::MetricsServer, rmq_publisher::RmqPublisher,
 };
 
 mod block_listener;
@@ -16,7 +15,7 @@ mod errors;
 mod indexer_wrapper;
 mod metrics;
 mod metrics_server;
-mod rabbit_publisher;
+mod rmq_publisher;
 mod types;
 
 const INDEXER: &str = "indexer";
@@ -54,7 +53,7 @@ fn run(home_dir: std::path::PathBuf, config: RunConfigArgs) -> Result<()> {
         }
 
         let validated_stream = candidates_validator.run(candidates_stream);
-        let mut rmq_publisher = RabbitPublisher::new(&config.rmq_address)?;
+        let mut rmq_publisher = RmqPublisher::new(&config.rmq_address)?;
         if let Some(_) = config.metrics_ip_port_address {
             rmq_publisher.enable_metrics(registry.clone())?;
         }

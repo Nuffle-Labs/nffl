@@ -11,8 +11,8 @@ use tracing::info;
 use crate::{
     errors::Result,
     metrics::{make_candidates_validator_metrics, CandidatesListener, Metricable},
-    rabbit_publisher::RabbitPublisherHandle,
-    rabbit_publisher::{get_routing_key, PublishData, PublishOptions, PublishPayload, PublisherContext},
+    rmq_publisher::RmqPublisherHandle,
+    rmq_publisher::{get_routing_key, PublishData, PublishOptions, PublishPayload, PublisherContext},
     types,
 };
 
@@ -35,7 +35,7 @@ impl CandidatesValidator {
     async fn ticker(
         mut done: oneshot::Receiver<()>,
         queue_protected: types::ProtectedQueue<types::CandidateData>,
-        mut rmq_handle: RabbitPublisherHandle,
+        mut rmq_handle: RmqPublisherHandle,
         view_client: actix::Addr<near_client::ViewClientActor>,
         listener: Option<CandidatesListener>,
     ) {
@@ -59,7 +59,7 @@ impl CandidatesValidator {
     // Assumes queue is under mutex
     async fn flush(
         queue: &mut VecDeque<types::CandidateData>,
-        rmq_handle: &mut RabbitPublisherHandle,
+        rmq_handle: &mut RmqPublisherHandle,
         view_client: &actix::Addr<near_client::ViewClientActor>,
         listener: Option<CandidatesListener>,
     ) -> Result<bool> {
@@ -113,7 +113,7 @@ impl CandidatesValidator {
             .unwrap_or(FinalExecutionStatus::NotStarted))
     }
 
-    async fn send(candidate_data: &types::CandidateData, rmq_handle: &mut RabbitPublisherHandle) -> Result<()> {
+    async fn send(candidate_data: &types::CandidateData, rmq_handle: &mut RmqPublisherHandle) -> Result<()> {
         // TODO: is sequential order important here?
         for data in candidate_data.clone().payloads {
             rmq_handle
@@ -139,7 +139,7 @@ impl CandidatesValidator {
     async fn process_candidates(
         self,
         mut receiver: mpsc::Receiver<types::CandidateData>,
-        mut rmq_handle: RabbitPublisherHandle,
+        mut rmq_handle: RmqPublisherHandle,
     ) -> Result<()> {
         let Self { view_client, listener } = self;
 
@@ -207,7 +207,7 @@ impl CandidatesValidator {
         let (sender, receiver) = mpsc::channel(1000);
         actix::spawn(
             self.clone()
-                .process_candidates(candidates_receiver, RabbitPublisherHandle { sender }),
+                .process_candidates(candidates_receiver, RmqPublisherHandle { sender }),
         );
 
         receiver

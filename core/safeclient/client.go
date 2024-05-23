@@ -158,8 +158,6 @@ func (c *SafeEthClient) handleReinitEvent() {
 		return
 	}
 
-	defer c.wg.Done()
-
 	c.isReinitializing = true
 
 	c.wg.Add(1)
