@@ -41,9 +41,10 @@ type AggregatorRpcClient struct {
 	aggregatorIpPortAddr       string
 	registryCoordinatorAddress common.Address
 
-	unsentMessagesLock sync.Mutex
-	unsentMessages     []unsentRpcMessage
-	resendTicker       *time.Ticker
+	notifiedInitialized bool
+	unsentMessagesLock  sync.Mutex
+	unsentMessages      []unsentRpcMessage
+	resendTicker        *time.Ticker
 
 	logger   logging.Logger
 	listener RpcClientEventListener
@@ -100,6 +101,18 @@ func (c *AggregatorRpcClient) dialAggregatorRpcClient() error {
 	if err != nil {
 		c.logger.Info("Received error when getting registry coordinator address", "err", err)
 		return err
+	}
+
+	if !c.notifiedInitialized {
+		c.logger.Info("Notifying aggregator of initialization")
+
+		var reply bool
+		err := c.rpcClient.Call("Aggregator.NotifyOperatorInitialization", struct{}{}, &reply)
+		if err != nil {
+			c.logger.Error("Error notifying aggregator of initialization", "err", err)
+		}
+
+		c.notifiedInitialized = true
 	}
 
 	if common.HexToAddress(aggregatorRegistryCoordinatorAddress).Cmp(c.registryCoordinatorAddress) != 0 {
