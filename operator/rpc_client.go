@@ -107,9 +107,10 @@ func (c *AggregatorRpcClient) dialAggregatorRpcClient() error {
 		c.logger.Info("Notifying aggregator of initialization")
 
 		var reply bool
-		err := c.rpcClient.Call("Aggregator.NotifyOperatorInitialization", struct{}{}, &reply)
+		err := client.Call("Aggregator.NotifyOperatorInitialization", struct{}{}, &reply)
 		if err != nil {
 			c.logger.Error("Error notifying aggregator of initialization", "err", err)
+			return err
 		}
 
 		c.notifiedInitialized = true
