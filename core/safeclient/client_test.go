@@ -238,7 +238,9 @@ func NewMockEthClientFromNetwork(ctx context.Context, mockCtrl *gomock.Controlle
 							continue
 						}
 
-						ch <- types.Log{BlockNumber: blockNum, Index: uint(blockNum)}
+						log := types.Log{BlockNumber: blockNum, Index: uint(blockNum)}
+
+						ch <- log
 					}
 				}
 			}()
@@ -263,12 +265,8 @@ func NewMockSafeClientFromNetwork(ctx context.Context, mockCtrl *gomock.Controll
 	return client, err
 }
 
-func NewMockClientControllable(ctx context.Context, mockCtrl *gomock.Controller) (mockClient *MockEthClient, headerProxyC *chan<- *types.Header, logProxyC *chan<- types.Log, blockNum *uint64) {
+func NewMockClientControllable(ctx context.Context, mockCtrl *gomock.Controller, headerProxyC <-chan *types.Header, logProxyC <-chan types.Log, blockNum *uint64) (mockClient *MockEthClient) {
 	fmt.Println("creating mock client")
-
-	blockNum = new(uint64)
-	headerProxyC = new(chan<- *types.Header)
-	logProxyC = new(chan<- types.Log)
 
 	mockClient = &MockEthClient{
 		MockEthClient: mocks.NewMockEthClient(mockCtrl),
@@ -292,8 +290,6 @@ func NewMockClientControllable(ctx context.Context, mockCtrl *gomock.Controller)
 				close(stopCh)
 			}).AnyTimes()
 
-			*headerProxyC = ch
-
 			go func() {
 				for {
 					select {
@@ -307,6 +303,14 @@ func NewMockClientControllable(ctx context.Context, mockCtrl *gomock.Controller)
 						closeCh = mockClient.subscribeToClose()
 						if closed {
 							subErrCh <- errors.New("connection refused")
+						}
+					case header := <-headerProxyC:
+						if mockClient.isClosed {
+							continue
+						}
+
+						if !mockClient.isPaused {
+							ch <- header
 						}
 					}
 				}
@@ -334,8 +338,6 @@ func NewMockClientControllable(ctx context.Context, mockCtrl *gomock.Controller)
 				close(stopCh)
 			}).AnyTimes()
 
-			*logProxyC = ch
-
 			go func() {
 				for {
 					select {
@@ -353,6 +355,14 @@ func NewMockClientControllable(ctx context.Context, mockCtrl *gomock.Controller)
 						if closed {
 							subErrCh <- errors.New("connection refused")
 						}
+					case log := <-logProxyC:
+						if mockClient.isClosed {
+							continue
+						}
+
+						if !mockClient.isPaused {
+							ch <- log
+						}
 					}
 				}
 			}()
@@ -367,21 +377,16 @@ func NewMockClientControllable(ctx context.Context, mockCtrl *gomock.Controller)
 		},
 	).AnyTimes()
 
-	return mockClient, headerProxyC, logProxyC, blockNum
+	return mockClient
 }
 
-func NewMockSafeClientControllable(ctx context.Context, mockCtrl *gomock.Controller, logger logging.Logger) (*safeclient.SafeEthClient, *chan<- *types.Header, *chan<- types.Log, *uint64, error) {
-	var mockClient *MockEthClient
-	var headerProxyC *chan<- *types.Header
-	var logProxyC *chan<- types.Log
-	var blockNum *uint64
-
+func NewMockSafeClientControllable(ctx context.Context, mockCtrl *gomock.Controller, logger logging.Logger, headerProxyC <-chan *types.Header, logProxyC <-chan types.Log, blockNum *uint64) (*safeclient.SafeEthClient, error) {
 	client, err := safeclient.NewSafeEthClient("", logger, safeclient.WithCustomCreateClient(func(rpcUrl string, logger logging.Logger) (eth.Client, error) {
-		mockClient, headerProxyC, logProxyC, blockNum = NewMockClientControllable(ctx, mockCtrl)
+		mockClient := NewMockClientControllable(ctx, mockCtrl, headerProxyC, logProxyC, blockNum)
 		return mockClient, nil
 	}))
 
-	return client, headerProxyC, logProxyC, blockNum, err
+	return client, err
 }
 
 func TestSubscribeNewHead(t *testing.T) {
@@ -549,7 +554,11 @@ func TestLogCache(t *testing.T) {
 	logger, err := logging.NewZapLogger("development")
 	assert.NoError(t, err)
 
-	client, _, logProxyC, _, err := NewMockSafeClientControllable(ctx, mockCtrl, logger)
+	blockNum := uint64(0)
+	headerProxyC := make(chan *types.Header)
+	logProxyC := make(chan types.Log)
+
+	client, err := NewMockSafeClientControllable(ctx, mockCtrl, logger, headerProxyC, logProxyC, &blockNum)
 	assert.NoError(t, err)
 
 	logCh := make(chan types.Log, 10)
@@ -563,7 +572,7 @@ func TestLogCache(t *testing.T) {
 				return
 			case <-time.After(100 * time.Millisecond):
 				fmt.Println("sending log")
-				*logProxyC <- types.Log{BlockHash: common.Hash{1}}
+				logProxyC <- types.Log{BlockHash: common.Hash{1}}
 			}
 		}
 	}()
@@ -572,7 +581,7 @@ func TestLogCache(t *testing.T) {
 
 	assert.Equal(t, 1, len(logCh))
 
-	*logProxyC <- types.Log{BlockHash: common.Hash{2}}
+	logProxyC <- types.Log{BlockHash: common.Hash{2}}
 
 	time.Sleep(2 * time.Second)
 
