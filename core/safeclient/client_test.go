@@ -238,7 +238,7 @@ func NewMockEthClientFromNetwork(ctx context.Context, mockCtrl *gomock.Controlle
 							continue
 						}
 
-						ch <- types.Log{BlockNumber: blockNum}
+						ch <- types.Log{BlockNumber: blockNum, Index: uint(blockNum)}
 					}
 				}
 			}()
