@@ -200,6 +200,8 @@ func (attestor *Attestor) processRollupHeaders(rollupId uint32, headersC chan *e
 		select {
 		case <-subscription.Err():
 			attestor.logger.Error("Header subscription error", "rollupId", rollupId)
+			subscription.Unsubscribe()
+			close(headersC)
 			return
 		case header, ok := <-headersC:
 			if !ok {

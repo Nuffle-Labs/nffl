@@ -11,10 +11,10 @@ import (
 	"github.com/Layr-Labs/eigensdk-go/chainio/clients/elcontracts"
 	"github.com/Layr-Labs/eigensdk-go/chainio/clients/eth"
 	"github.com/Layr-Labs/eigensdk-go/chainio/txmgr"
+	eigenutils "github.com/Layr-Labs/eigensdk-go/chainio/utils"
 	"github.com/Layr-Labs/eigensdk-go/crypto/bls"
 	sdklogging "github.com/Layr-Labs/eigensdk-go/logging"
 	eigentypes "github.com/Layr-Labs/eigensdk-go/types"
-	eigenutils "github.com/Layr-Labs/eigensdk-go/chainio/utils"
 	"github.com/ethereum/go-ethereum/accounts/abi/bind"
 	"github.com/ethereum/go-ethereum/common"
 	"github.com/ethereum/go-ethereum/crypto"
@@ -141,30 +141,23 @@ func (avsManager *AvsManager) Start(ctx context.Context, operatorAddr common.Add
 				return
 
 			case err := <-newTasksSub.Err():
-				avsManager.logger.Error("Error in websocket subscription", "err", err)
-				// TODO(samlaf): write unit tests to check if this fixed the issues we were seeing
+				avsManager.logger.Error("New tasks subscription error", "err", err)
 				newTasksSub.Unsubscribe()
-				// TODO(samlaf): wrap this call with increase in avs-node-spec metric
-				newTasksSub, err = avsManager.avsSubscriber.SubscribeToNewTasks(avsManager.checkpointTaskCreatedChan)
-				if err != nil {
-					avsManager.logger.Error("Error re-subscribing to new tasks", "err", err)
-					close(avsManager.checkpointTaskCreatedChan)
-					return
-				}
+				return
+			}
+		}
+	}()
 
-				continue
+	go func() {
+		for {
+			select {
+			case <-ctx.Done():
+				return
 
 			case err := <-operatorSetUpdateSub.Err():
-				avsManager.logger.Error("Error in websocket subscription", "err", err)
+				avsManager.logger.Error("Operator set update subscription error", "err", err)
 				operatorSetUpdateSub.Unsubscribe()
-				operatorSetUpdateSub, err = avsManager.avsSubscriber.SubscribeToOperatorSetUpdates(avsManager.operatorSetUpdateChan)
-				if err != nil {
-					avsManager.logger.Error("Error re-subscribing to operator set updates", "err", err)
-					close(avsManager.operatorSetUpdateChan)
-					return
-				}
-
-				continue
+				return
 
 			case operatorSetUpdate := <-avsManager.operatorSetUpdateChan:
 				go avsManager.handleOperatorSetUpdate(ctx, operatorSetUpdate)
