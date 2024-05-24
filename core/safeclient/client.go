@@ -106,7 +106,7 @@ func WithCustomCreateClient(createClient func(string, logging.Logger) (eth.Clien
 }
 
 type SafeSubscription struct {
-	sub          ethereum.Subscription
+	underlying   ethereum.Subscription
 	lock         sync.Mutex
 	errC         chan error
 	unsubscribed bool
@@ -114,8 +114,8 @@ type SafeSubscription struct {
 
 func NewSafeSubscription(sub ethereum.Subscription) *SafeSubscription {
 	return &SafeSubscription{
-		sub:  sub,
-		errC: make(chan error, 1),
+		underlying: sub,
+		errC:       make(chan error, 1),
 	}
 }
 
@@ -131,7 +131,7 @@ func (s *SafeSubscription) Unsubscribe() {
 		return
 	}
 
-	s.sub.Unsubscribe()
+	s.underlying.Unsubscribe()
 	s.unsubscribed = true
 	s.lock.Unlock()
 
@@ -142,8 +142,8 @@ func (s *SafeSubscription) SetUnderlyingSub(sub ethereum.Subscription) {
 	s.lock.Lock()
 	defer s.lock.Unlock()
 
-	s.sub.Unsubscribe()
-	s.sub = sub
+	s.underlying.Unsubscribe()
+	s.underlying = sub
 }
 
 func (c *SafeEthClient) SubscribeFilterLogs(ctx context.Context, q ethereum.FilterQuery, ch chan<- types.Log) (ethereum.Subscription, error) {
@@ -156,14 +156,14 @@ func (c *SafeEthClient) SubscribeFilterLogs(ctx context.Context, q ethereum.Filt
 
 	proxyC := make(chan types.Log, 100)
 
-	sub, err := c.Client.SubscribeFilterLogs(ctx, q, proxyC)
+	newSub, err := c.Client.SubscribeFilterLogs(ctx, q, proxyC)
 	if err != nil {
 		c.logger.Error("Failed to subscribe to logs", "err", err)
 		return nil, err
 	}
 	c.logger.Info("Subscribed to logs")
 
-	safeSub := NewSafeSubscription(sub)
+	safeSub := NewSafeSubscription(newSub)
 	lastBlock := currentBlock
 
 	resubFilterLogs := func() ([]types.Log, error) {
@@ -227,8 +227,7 @@ func (c *SafeEthClient) SubscribeFilterLogs(ctx context.Context, q ethereum.Filt
 			return err
 		}
 
-		sub = newSub
-		safeSub.SetUnderlyingSub(sub)
+		safeSub.SetUnderlyingSub(newSub)
 
 		for _, log := range missedLogs {
 			lastBlock = max(lastBlock, log.BlockNumber)
@@ -274,7 +273,7 @@ func (c *SafeEthClient) SubscribeFilterLogs(ctx context.Context, q ethereum.Filt
 			case <-ticker.C:
 				c.logger.Debug("Resub ticker fired")
 				handleResub()
-			case <-sub.Err():
+			case <-safeSub.underlying.Err():
 				c.logger.Info("Underlying subscription ended, resubscribing")
 				handleResub()
 			case <-c.closeC:
@@ -305,14 +304,14 @@ func (c *SafeEthClient) Close() {
 }
 
 func (c *SafeEthClient) SubscribeNewHead(ctx context.Context, ch chan<- *types.Header) (ethereum.Subscription, error) {
-	sub, err := c.Client.SubscribeNewHead(ctx, ch)
+	newSub, err := c.Client.SubscribeNewHead(ctx, ch)
 	if err != nil {
 		c.logger.Error("Failed to subscribe to new heads", "err", err)
 		return nil, err
 	}
 	c.logger.Info("Subscribed to new heads")
 
-	safeSub := NewSafeSubscription(sub)
+	safeSub := NewSafeSubscription(newSub)
 	proxyC := make(chan *types.Header, 100)
 
 	resub := func() error {
@@ -323,8 +322,7 @@ func (c *SafeEthClient) SubscribeNewHead(ctx context.Context, ch chan<- *types.H
 		}
 		c.logger.Info("Resubscribed to new heads")
 
-		sub = newSub
-		safeSub.SetUnderlyingSub(sub)
+		safeSub.SetUnderlyingSub(newSub)
 
 		return nil
 	}
@@ -356,7 +354,7 @@ func (c *SafeEthClient) SubscribeNewHead(ctx context.Context, ch chan<- *types.H
 			case <-safeSub.Err():
 				c.logger.Info("Safe subscription to new heads ended")
 				return
-			case <-sub.Err():
+			case <-safeSub.underlying.Err():
 				c.logger.Info("Underlying subscription to new heads ended, resubscribing")
 				handleResub()
 			case <-headerTicker.C:
