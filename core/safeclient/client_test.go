@@ -10,6 +10,7 @@ import (
 	"time"
 
 	"github.com/ethereum/go-ethereum"
+	"github.com/ethereum/go-ethereum/common"
 	"github.com/ethereum/go-ethereum/core/types"
 	"github.com/stretchr/testify/assert"
 	"go.uber.org/mock/gomock"
@@ -133,7 +134,7 @@ func (m *MockEthClient) subscribeToClose() <-chan bool {
 	return ch
 }
 
-func NewMockEthClient(ctx context.Context, mockCtrl *gomock.Controller, mockNetwork *MockNetwork) *MockEthClient {
+func NewMockEthClientFromNetwork(ctx context.Context, mockCtrl *gomock.Controller, mockNetwork *MockNetwork) *MockEthClient {
 	fmt.Println("creating mock client")
 
 	mockClient := &MockEthClient{
@@ -254,12 +255,133 @@ func NewMockEthClient(ctx context.Context, mockCtrl *gomock.Controller, mockNetw
 	return mockClient
 }
 
-func NewMockSafeClient(ctx context.Context, mockCtrl *gomock.Controller, logger logging.Logger, mockNetwork *MockNetwork) (*safeclient.SafeEthClient, error) {
+func NewMockSafeClientFromNetwork(ctx context.Context, mockCtrl *gomock.Controller, logger logging.Logger, mockNetwork *MockNetwork) (*safeclient.SafeEthClient, error) {
 	client, err := safeclient.NewSafeEthClient("", logger, safeclient.WithCustomCreateClient(func(rpcUrl string, logger logging.Logger) (eth.Client, error) {
-		return NewMockEthClient(ctx, mockCtrl, mockNetwork), nil
+		return NewMockEthClientFromNetwork(ctx, mockCtrl, mockNetwork), nil
 	}))
 
 	return client, err
+}
+
+func NewMockClientControllable(ctx context.Context, mockCtrl *gomock.Controller) (mockClient *MockEthClient, headerProxyC *chan<- *types.Header, logProxyC *chan<- types.Log, blockNum *uint64) {
+	fmt.Println("creating mock client")
+
+	blockNum = new(uint64)
+	headerProxyC = new(chan<- *types.Header)
+	logProxyC = new(chan<- types.Log)
+
+	mockClient = &MockEthClient{
+		MockEthClient: mocks.NewMockEthClient(mockCtrl),
+	}
+
+	mockClient.EXPECT().SubscribeNewHead(gomock.Any(), gomock.Any()).DoAndReturn(
+		func(ctx context.Context, ch chan<- *types.Header) (ethereum.Subscription, error) {
+			if mockClient.isClosed {
+				return nil, errors.New("connection refused")
+			}
+
+			sub := mocks.NewMockSubscription(mockCtrl)
+
+			closeCh := mockClient.subscribeToClose()
+
+			subErrCh := make(chan error)
+			stopCh := make(chan struct{})
+
+			sub.EXPECT().Err().Return(subErrCh).AnyTimes()
+			sub.EXPECT().Unsubscribe().Do(func() {
+				close(stopCh)
+			}).AnyTimes()
+
+			*headerProxyC = ch
+
+			go func() {
+				for {
+					select {
+					case <-stopCh:
+						return
+					case <-ctx.Done():
+						return
+					case closed := <-closeCh:
+						fmt.Println("closed", closed)
+
+						closeCh = mockClient.subscribeToClose()
+						if closed {
+							subErrCh <- errors.New("connection refused")
+						}
+					}
+				}
+			}()
+
+			return sub, nil
+		},
+	).AnyTimes()
+
+	mockClient.EXPECT().SubscribeFilterLogs(gomock.Any(), gomock.Any(), gomock.Any()).DoAndReturn(
+		func(ctx context.Context, q ethereum.FilterQuery, ch chan<- types.Log) (ethereum.Subscription, error) {
+			if mockClient.isClosed {
+				return nil, errors.New("connection refused")
+			}
+
+			sub := mocks.NewMockSubscription(mockCtrl)
+
+			closeCh := mockClient.subscribeToClose()
+
+			subErrCh := make(chan error)
+			stopCh := make(chan struct{})
+
+			sub.EXPECT().Err().Return(subErrCh).AnyTimes()
+			sub.EXPECT().Unsubscribe().Do(func() {
+				close(stopCh)
+			}).AnyTimes()
+
+			*logProxyC = ch
+
+			go func() {
+				for {
+					select {
+					case <-stopCh:
+						fmt.Println("subscription done")
+						return
+					case <-ctx.Done():
+						fmt.Println("subscription done")
+						return
+					case closed := <-closeCh:
+						fmt.Println("closed", closed)
+
+						closeCh = mockClient.subscribeToClose()
+
+						if closed {
+							subErrCh <- errors.New("connection refused")
+						}
+					}
+				}
+			}()
+
+			return sub, nil
+		},
+	).AnyTimes()
+
+	mockClient.EXPECT().BlockNumber(gomock.Any()).DoAndReturn(
+		func(ctx context.Context) (uint64, error) {
+			return *blockNum, nil
+		},
+	).AnyTimes()
+
+	return mockClient, headerProxyC, logProxyC, blockNum
+}
+
+func NewMockSafeClientControllable(ctx context.Context, mockCtrl *gomock.Controller, logger logging.Logger) (*safeclient.SafeEthClient, *chan<- *types.Header, *chan<- types.Log, *uint64, error) {
+	var mockClient *MockEthClient
+	var headerProxyC *chan<- *types.Header
+	var logProxyC *chan<- types.Log
+	var blockNum *uint64
+
+	client, err := safeclient.NewSafeEthClient("", logger, safeclient.WithCustomCreateClient(func(rpcUrl string, logger logging.Logger) (eth.Client, error) {
+		mockClient, headerProxyC, logProxyC, blockNum = NewMockClientControllable(ctx, mockCtrl)
+		return mockClient, nil
+	}))
+
+	return client, headerProxyC, logProxyC, blockNum, err
 }
 
 func TestSubscribeNewHead(t *testing.T) {
@@ -274,7 +396,7 @@ func TestSubscribeNewHead(t *testing.T) {
 
 	mockNetwork := NewMockNetwork(ctx, mockCtrl)
 
-	client, err := NewMockSafeClient(ctx, mockCtrl, logger, mockNetwork)
+	client, err := NewMockSafeClientFromNetwork(ctx, mockCtrl, logger, mockNetwork)
 	assert.NoError(t, err)
 	mockClient := client.Client.(*MockEthClient)
 
@@ -361,7 +483,7 @@ func TestSubscribeFilterLogs(t *testing.T) {
 
 	mockNetwork := NewMockNetwork(ctx, mockCtrl)
 
-	client, err := NewMockSafeClient(ctx, mockCtrl, logger, mockNetwork)
+	client, err := NewMockSafeClientFromNetwork(ctx, mockCtrl, logger, mockNetwork)
 	assert.NoError(t, err)
 
 	mockClient := client.Client.(*MockEthClient)
@@ -415,4 +537,44 @@ func TestSubscribeFilterLogs(t *testing.T) {
 
 		fmt.Println("log", log.BlockNumber)
 	}
+}
+
+func TestLogCache(t *testing.T) {
+	mockCtrl := gomock.NewController(t)
+	defer mockCtrl.Finish()
+
+	ctx, cancel := context.WithCancel(context.Background())
+	defer cancel()
+
+	logger, err := logging.NewZapLogger("development")
+	assert.NoError(t, err)
+
+	client, _, logProxyC, _, err := NewMockSafeClientControllable(ctx, mockCtrl, logger)
+	assert.NoError(t, err)
+
+	logCh := make(chan types.Log, 10)
+	_, err = client.SubscribeFilterLogs(ctx, ethereum.FilterQuery{}, logCh)
+	assert.NoError(t, err)
+
+	go func() {
+		for {
+			select {
+			case <-ctx.Done():
+				return
+			case <-time.After(100 * time.Millisecond):
+				fmt.Println("sending log")
+				*logProxyC <- types.Log{BlockHash: common.Hash{1}}
+			}
+		}
+	}()
+
+	time.Sleep(2 * time.Second)
+
+	assert.Equal(t, 1, len(logCh))
+
+	*logProxyC <- types.Log{BlockHash: common.Hash{2}}
+
+	time.Sleep(2 * time.Second)
+
+	assert.Equal(t, 2, len(logCh))
 }
