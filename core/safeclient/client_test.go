@@ -572,7 +572,7 @@ func TestLogCache(t *testing.T) {
 				return
 			case <-time.After(100 * time.Millisecond):
 				fmt.Println("sending log")
-				logProxyC <- types.Log{BlockHash: common.Hash{1}}
+				logProxyC <- types.Log{BlockNumber: 1, BlockHash: common.Hash{1}}
 			}
 		}
 	}()
@@ -581,9 +581,14 @@ func TestLogCache(t *testing.T) {
 
 	assert.Equal(t, 1, len(logCh))
 
-	logProxyC <- types.Log{BlockHash: common.Hash{2}}
+	logProxyC <- types.Log{BlockNumber: 2, BlockHash: common.Hash{2}}
 
 	time.Sleep(2 * time.Second)
 
 	assert.Equal(t, 2, len(logCh))
+
+	log := <-logCh
+	assert.Equal(t, uint64(1), log.BlockNumber)
+	log = <-logCh
+	assert.Equal(t, uint64(2), log.BlockNumber)
 }
