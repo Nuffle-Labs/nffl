@@ -200,7 +200,7 @@ func (c *SafeEthClient) SubscribeFilterLogs(ctx context.Context, q ethereum.Filt
 			rangeStartBlock = 0
 		}
 
-		fromBlock := max(lastBlock, rangeStartBlock) + 1
+		fromBlock := max(lastBlock, rangeStartBlock+1)
 
 		for ; fromBlock < currentBlock; fromBlock += (c.blockChunkSize + 1) {
 			toBlock := min(fromBlock+c.blockChunkSize, currentBlock)
