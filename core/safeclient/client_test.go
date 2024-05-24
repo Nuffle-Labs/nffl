@@ -403,6 +403,9 @@ func TestSubscribeNewHead(t *testing.T) {
 
 	client, err := NewMockSafeClientFromNetwork(ctx, mockCtrl, logger, mockNetwork)
 	assert.NoError(t, err)
+
+	defer client.Close()
+
 	mockClient := client.Client.(*MockEthClient)
 
 	headCh := make(chan *types.Header)
@@ -491,6 +494,8 @@ func TestSubscribeFilterLogs(t *testing.T) {
 	client, err := NewMockSafeClientFromNetwork(ctx, mockCtrl, logger, mockNetwork)
 	assert.NoError(t, err)
 
+	defer client.Close()
+
 	mockClient := client.Client.(*MockEthClient)
 
 	logCh := make(chan types.Log)
@@ -560,6 +565,8 @@ func TestLogCache(t *testing.T) {
 
 	client, err := NewMockSafeClientControllable(ctx, mockCtrl, logger, headerProxyC, logProxyC, &blockNum)
 	assert.NoError(t, err)
+
+	defer client.Close()
 
 	logCh := make(chan types.Log, 10)
 	_, err = client.SubscribeFilterLogs(ctx, ethereum.FilterQuery{}, logCh)
