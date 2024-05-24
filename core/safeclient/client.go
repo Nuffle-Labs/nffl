@@ -136,7 +136,7 @@ func (s *SafeSubscription) Unsubscribe() {
 	s.unsubscribed = true
 	s.lock.Unlock()
 
-	<-s.errC
+	close(s.errC)
 }
 
 func (s *SafeSubscription) SetUnderlyingSub(sub ethereum.Subscription) {
