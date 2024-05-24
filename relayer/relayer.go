@@ -160,7 +160,9 @@ func (r *Relayer) listenToBlocks(ctx context.Context, blockBatchC chan []*ethtyp
 	for {
 		select {
 		case err := <-sub.Err():
-			r.logger.Error("Error on rollup block subscription", "err", err)
+			r.logger.Error("Rollup block subscription error", "err", err)
+			sub.Unsubscribe()
+			close(headers)
 			return
 		case header := <-headers:
 			r.logger.Info("Received rollup block header", "number", header.Number.Uint64())

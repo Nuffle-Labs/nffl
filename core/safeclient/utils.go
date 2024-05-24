@@ -1,11 +1,13 @@
 package safeclient
 
 import (
-	"strings"
+	"crypto/sha256"
+	"math/big"
 
 	"github.com/Layr-Labs/eigensdk-go/chainio/clients/eth"
 	"github.com/Layr-Labs/eigensdk-go/logging"
 	rpccalls "github.com/Layr-Labs/eigensdk-go/metrics/collectors/rpc_calls"
+	"github.com/ethereum/go-ethereum/core/types"
 )
 
 func createDefaultClient(rpcUrl string, logger logging.Logger) (eth.Client, error) {
@@ -26,14 +28,15 @@ func createInstrumentedClient(rpcUrl string, collector *rpccalls.Collector, logg
 	return client, nil
 }
 
-func isConnectionError(err error) bool {
-	if err == nil {
-		return false
-	}
+func hashLog(log *types.Log) [32]byte {
+	h := sha256.New()
 
-	isConnectionReset := strings.Contains(err.Error(), "connection reset")
-	isConnectionRefused := strings.Contains(err.Error(), "connection refused")
-	isAbnormalClosure := strings.Contains(err.Error(), "abnormal closure")
+	log.EncodeRLP(h)
 
-	return isConnectionReset || isConnectionRefused || isAbnormalClosure
+	// EncodeRLP only serializes the address, topics and data, so adding some additional block and tx info
+	h.Write(log.BlockHash.Bytes())
+	h.Write(log.TxHash.Bytes())
+	h.Write(new(big.Int).SetUint64(uint64(log.Index)).Bytes())
+
+	return [32]byte(h.Sum(nil))
 }

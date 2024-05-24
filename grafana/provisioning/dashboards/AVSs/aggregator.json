@@ -632,6 +632,98 @@
       "fieldConfig": {
         "defaults": {
           "color": {
+            "mode": "palette-classic"
+          },
+          "custom": {
+            "axisCenteredZero": false,
+            "axisColorMode": "text",
+            "axisLabel": "",
+            "axisPlacement": "auto",
+            "barAlignment": 0,
+            "drawStyle": "line",
+            "fillOpacity": 0,
+            "gradientMode": "none",
+            "hideFrom": {
+              "legend": false,
+              "tooltip": false,
+              "viz": false
+            },
+            "lineInterpolation": "linear",
+            "lineWidth": 1,
+            "pointSize": 5,
+            "scaleDistribution": {
+              "type": "linear"
+            },
+            "showPoints": "auto",
+            "spanNulls": false,
+            "stacking": {
+              "group": "A",
+              "mode": "none"
+            },
+            "thresholdsStyle": {
+              "mode": "off"
+            }
+          },
+          "mappings": [],
+          "thresholds": {
+            "mode": "absolute",
+            "steps": [
+              {
+                "color": "green",
+                "value": null
+              },
+              {
+                "color": "red",
+                "value": 80
+              }
+            ]
+          }
+        },
+        "overrides": []
+      },
+      "gridPos": {
+        "h": 7,
+        "w": 18,
+        "x": 0,
+        "y": 13
+      },
+      "id": 30,
+      "options": {
+        "legend": {
+          "calcs": [],
+          "displayMode": "list",
+          "placement": "bottom",
+          "showLegend": true
+        },
+        "tooltip": {
+          "mode": "single",
+          "sort": "none"
+        }
+      },
+      "targets": [
+        {
+          "datasource": {
+            "type": "prometheus",
+            "uid": "prometheus"
+          },
+          "editorMode": "builder",
+          "expr": "sffl_aggregator_operator_initializations_total{operator_id=\"$operatorId\"}",
+          "legendFormat": "Initializations",
+          "range": true,
+          "refId": "A"
+        }
+      ],
+      "title": "Operator Initializations",
+      "type": "timeseries"
+    },
+    {
+      "datasource": {
+        "type": "prometheus",
+        "uid": "prometheus"
+      },
+      "fieldConfig": {
+        "defaults": {
+          "color": {
             "mode": "thresholds"
           },
           "mappings": [],
@@ -669,7 +761,7 @@
         "h": 10,
         "w": 9,
         "x": 0,
-        "y": 13
+        "y": 20
       },
       "id": 4,
       "options": {
@@ -771,7 +863,7 @@
         "h": 10,
         "w": 9,
         "x": 9,
-        "y": 13
+        "y": 20
       },
       "id": 16,
       "options": {
@@ -818,7 +910,7 @@
           "editorMode": "builder",
           "expr": "sffl_aggregator_signed_state_root_update_messages_total{operator_id=\"$operatorId\"}",
           "hide": false,
-          "legendFormat": "State Root Update (errored: {{errored}}, near_da: {{has_near_da}})",
+          "legendFormat": "State Root Update (rollup_id: {{rollup_id}}, errored: {{errored}}, near_da: {{has_near_da}})",
           "range": true,
           "refId": "C"
         }
@@ -836,7 +928,7 @@
     "list": [
       {
         "current": {
-          "selected": false,
+          "selected": true,
           "text": [
             "All"
           ],
@@ -874,6 +966,6 @@
   "timezone": "",
   "title": "Aggregator",
   "uid": "b3FGg5PIz",
-  "version": 8,
+  "version": 9,
   "weekStart": ""
 }

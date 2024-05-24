@@ -11,6 +11,7 @@ import (
 	"github.com/Layr-Labs/eigensdk-go/chainio/clients/elcontracts"
 	"github.com/Layr-Labs/eigensdk-go/chainio/clients/eth"
 	"github.com/Layr-Labs/eigensdk-go/chainio/txmgr"
+	eigenutils "github.com/Layr-Labs/eigensdk-go/chainio/utils"
 	"github.com/Layr-Labs/eigensdk-go/crypto/bls"
 	sdklogging "github.com/Layr-Labs/eigensdk-go/logging"
 	eigentypes "github.com/Layr-Labs/eigensdk-go/types"
@@ -35,7 +36,7 @@ type AvsManagerer interface {
 		operatorEcdsaKeyPair *ecdsa.PrivateKey,
 		blsKeyPair *bls.KeyPair,
 	) error
-
+	DeregisterOperator(blsKeyPair *bls.KeyPair) error
 	GetOperatorId(options *bind.CallOpts, address common.Address) ([32]byte, error)
 	GetCheckpointTaskCreatedChan() <-chan *taskmanager.ContractSFFLTaskManagerCheckpointTaskCreated
 	GetOperatorSetUpdateChan() <-chan messages.OperatorSetUpdateMessage
@@ -58,7 +59,9 @@ type AvsManager struct {
 	logger sdklogging.Logger
 }
 
-func NewAvsManager(config *optypes.NodeConfig, ethRpcClient eth.Client, ethWsClient eth.Client, sdkClients *clients.Clients, txManager *txmgr.SimpleTxManager, logger sdklogging.Logger) (*AvsManager, error) {
+var _ AvsManagerer = (*AvsManager)(nil)
+
+func NewAvsManager(config *optypes.NodeConfig, ethRpcClient eth.Client, ethWsClient eth.Client, sdkClients *clients.Clients, txManager txmgr.TxManager, logger sdklogging.Logger) (*AvsManager, error) {
 	avsWriter, err := chainio.BuildAvsWriter(
 		txManager, common.HexToAddress(config.AVSRegistryCoordinatorAddress),
 		common.HexToAddress(config.OperatorStateRetrieverAddress), ethRpcClient, logger,
@@ -138,30 +141,23 @@ func (avsManager *AvsManager) Start(ctx context.Context, operatorAddr common.Add
 				return
 
 			case err := <-newTasksSub.Err():
-				avsManager.logger.Error("Error in websocket subscription", "err", err)
-				// TODO(samlaf): write unit tests to check if this fixed the issues we were seeing
+				avsManager.logger.Error("New tasks subscription error", "err", err)
 				newTasksSub.Unsubscribe()
-				// TODO(samlaf): wrap this call with increase in avs-node-spec metric
-				newTasksSub, err = avsManager.avsSubscriber.SubscribeToNewTasks(avsManager.checkpointTaskCreatedChan)
-				if err != nil {
-					avsManager.logger.Error("Error re-subscribing to new tasks", "err", err)
-					close(avsManager.checkpointTaskCreatedChan)
-					return
-				}
+				return
+			}
+		}
+	}()
 
-				continue
+	go func() {
+		for {
+			select {
+			case <-ctx.Done():
+				return
 
 			case err := <-operatorSetUpdateSub.Err():
-				avsManager.logger.Error("Error in websocket subscription", "err", err)
+				avsManager.logger.Error("Operator set update subscription error", "err", err)
 				operatorSetUpdateSub.Unsubscribe()
-				operatorSetUpdateSub, err = avsManager.avsSubscriber.SubscribeToOperatorSetUpdates(avsManager.operatorSetUpdateChan)
-				if err != nil {
-					avsManager.logger.Error("Error re-subscribing to operator set updates", "err", err)
-					close(avsManager.operatorSetUpdateChan)
-					return
-				}
-
-				continue
+				return
 
 			case operatorSetUpdate := <-avsManager.operatorSetUpdateChan:
 				go avsManager.handleOperatorSetUpdate(ctx, operatorSetUpdate)
@@ -281,6 +277,21 @@ func (avsManager *AvsManager) RegisterOperatorWithAvs(
 		return err
 	}
 	avsManager.logger.Infof("Registered operator with avs registry coordinator.")
+
+	return nil
+}
+
+func (avsManager *AvsManager) DeregisterOperator(blsKeyPair *bls.KeyPair) error {
+	// TODO: 'QuorumNums' is hardcoded for now
+	quorumNumbers := eigentypes.QuorumNums{0}
+	pubKey := eigenutils.ConvertToBN254G1Point(blsKeyPair.GetPubKeyG1())
+
+	_, err := avsManager.avsWriter.DeregisterOperator(context.Background(), quorumNumbers, pubKey)
+	if err != nil {
+		avsManager.logger.Error("Unable to deregister operator with avs registry coordinator", "err", err)
+		return err
+	}
+	avsManager.logger.Info("Deregistered operator with avs registry coordinator")
 
 	return nil
 }

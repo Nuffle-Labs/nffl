@@ -29,4 +29,4 @@ rollup_ids_to_registry_addresses:
 
 # metrics related
 enable_metrics: true
-metrics_ip_port_address: 127.0.0.1:9091
+metrics_ip_port_address: 0.0.0.0:9091

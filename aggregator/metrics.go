@@ -14,8 +14,9 @@ const (
 )
 
 type RpcEventListener interface {
+	IncOperatorInitializations(operatorId [32]byte)
 	IncSignedCheckpointTaskResponse(operatorId [32]byte, errored, notFound bool)
-	IncSignedStateRootUpdateMessage(operatorId [32]byte, errored, hasNearDa bool)
+	IncSignedStateRootUpdateMessage(operatorId [32]byte, rollupId uint32, errored, hasNearDa bool)
 	IncSignedOperatorSetUpdateMessage(operatorId [32]byte, errored bool)
 	IncTotalSignedCheckpointTaskResponse()
 	IncTotalSignedStateRootUpdateMessage()
@@ -24,13 +25,20 @@ type RpcEventListener interface {
 }
 
 type SelectiveRpcListener struct {
+	IncOperatorInitializationsCb             func(operatorId [32]byte)
 	IncSignedCheckpointTaskResponseCb        func(operatorId [32]byte, errored, notFound bool)
-	IncSignedStateRootUpdateMessageCb        func(operatorId [32]byte, errored, hasNearDa bool)
+	IncSignedStateRootUpdateMessageCb        func(operatorId [32]byte, rollupId uint32, errored, hasNearDa bool)
 	IncSignedOperatorSetUpdateMessageCb      func(operatorId [32]byte, errored bool)
 	IncTotalSignedCheckpointTaskResponseCb   func()
 	IncTotalSignedStateRootUpdateMessageCb   func()
 	IncTotalSignedOperatorSetUpdateMessageCb func()
 	ObserveLastMessageReceivedTimeCb         func(operatorId [32]byte, messageType string)
+}
+
+func (l *SelectiveRpcListener) IncOperatorInitializations(operatorId [32]byte) {
+	if l.IncOperatorInitializationsCb != nil {
+		l.IncOperatorInitializationsCb(operatorId)
+	}
 }
 
 func (l *SelectiveRpcListener) IncSignedCheckpointTaskResponse(operatorId [32]byte, errored, notFound bool) {
@@ -39,9 +47,9 @@ func (l *SelectiveRpcListener) IncSignedCheckpointTaskResponse(operatorId [32]by
 	}
 }
 
-func (l *SelectiveRpcListener) IncSignedStateRootUpdateMessage(operatorId [32]byte, errored, hasNearDa bool) {
+func (l *SelectiveRpcListener) IncSignedStateRootUpdateMessage(operatorId [32]byte, rollupId uint32, errored, hasNearDa bool) {
 	if l.IncSignedStateRootUpdateMessageCb != nil {
-		l.IncSignedStateRootUpdateMessageCb(operatorId, errored, hasNearDa)
+		l.IncSignedStateRootUpdateMessageCb(operatorId, rollupId, errored, hasNearDa)
 	}
 }
 
@@ -261,6 +269,18 @@ func MakeRestServerMetrics(registry *prometheus.Registry) (RestEventListener, er
 }
 
 func MakeRpcServerMetrics(registry *prometheus.Registry) (RpcEventListener, error) {
+	operatorInitializationsTotal := prometheus.NewCounterVec(
+		prometheus.CounterOpts{
+			Namespace: AggregatorNamespace,
+			Name:      "operator_initializations_total",
+			Help:      "Total number of operator initializations",
+		},
+		[]string{"operator_id"},
+	)
+	if err := registry.Register(operatorInitializationsTotal); err != nil {
+		return nil, fmt.Errorf("error registering operatorInitializationsTotal counter: %w", err)
+	}
+
 	signedCheckpointTaskResponsesTotal := prometheus.NewCounterVec(
 		prometheus.CounterOpts{
 			Namespace: AggregatorNamespace,
@@ -279,7 +299,7 @@ func MakeRpcServerMetrics(registry *prometheus.Registry) (RpcEventListener, erro
 			Name:      "signed_state_root_update_messages_total",
 			Help:      "Total number of signed state root update messages received per operator",
 		},
-		[]string{"operator_id", "errored", "has_near_da"},
+		[]string{"operator_id", "rollup_id", "errored", "has_near_da"},
 	)
 	if err := registry.Register(signedStateRootUpdateMessagesTotal); err != nil {
 		return nil, fmt.Errorf("error registering signedStateRootUpdateMessagesTotal counter: %w", err)
@@ -310,11 +330,14 @@ func MakeRpcServerMetrics(registry *prometheus.Registry) (RpcEventListener, erro
 	}
 
 	return &SelectiveRpcListener{
+		IncOperatorInitializationsCb: func(operatorId [32]byte) {
+			operatorInitializationsTotal.WithLabelValues(fmt.Sprintf("%x", operatorId)).Inc()
+		},
 		IncSignedCheckpointTaskResponseCb: func(operatorId [32]byte, errored, expired bool) {
 			signedCheckpointTaskResponsesTotal.WithLabelValues(fmt.Sprintf("%x", operatorId), fmt.Sprintf("%t", errored), fmt.Sprintf("%t", expired)).Inc()
 		},
-		IncSignedStateRootUpdateMessageCb: func(operatorId [32]byte, errored, hasNearDa bool) {
-			signedStateRootUpdateMessagesTotal.WithLabelValues(fmt.Sprintf("%x", operatorId), fmt.Sprintf("%t", errored), fmt.Sprintf("%t", hasNearDa)).Inc()
+		IncSignedStateRootUpdateMessageCb: func(operatorId [32]byte, rollupId uint32, errored, hasNearDa bool) {
+			signedStateRootUpdateMessagesTotal.WithLabelValues(fmt.Sprintf("%x", operatorId), fmt.Sprintf("%d", rollupId), fmt.Sprintf("%t", errored), fmt.Sprintf("%t", hasNearDa)).Inc()
 		},
 		IncSignedOperatorSetUpdateMessageCb: func(operatorId [32]byte, errored bool) {
 			signedOperatorSetUpdateMessagesTotal.WithLabelValues(fmt.Sprintf("%x", operatorId), fmt.Sprintf("%t", errored)).Inc()
@@ -451,10 +474,10 @@ func MakeAggregatorMetrics(registry *prometheus.Registry) (AggregatorEventListen
 
 	return &SelectiveAggregatorListener{
 		ObserveLastStateRootUpdateAggregatedCb: func(rollupId uint32, blockNumber uint64) {
-			lastStateRootUpdateAggregated.WithLabelValues(fmt.Sprintf("%x", rollupId)).Set(float64(blockNumber))
+			lastStateRootUpdateAggregated.WithLabelValues(fmt.Sprintf("%d", rollupId)).Set(float64(blockNumber))
 		},
 		ObserveLastStateRootUpdateReceivedCb: func(rollupId uint32, blockNumber uint64) {
-			lastStateRootUpdateReceived.WithLabelValues(fmt.Sprintf("%x", rollupId)).Set(float64(blockNumber))
+			lastStateRootUpdateReceived.WithLabelValues(fmt.Sprintf("%d", rollupId)).Set(float64(blockNumber))
 		},
 		ObserveLastOperatorSetUpdateAggregatedCb: func(operatorSetUpdateId uint64) {
 			lastOperatorSetUpdateAggregated.Set(float64(operatorSetUpdateId))

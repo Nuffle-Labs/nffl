@@ -108,6 +108,7 @@ func (agg *Aggregator) ProcessSignedStateRootUpdateMessage(signedStateRootUpdate
 
 	hasNearDaCommitment := signedStateRootUpdateMessage.Message.HasNearDaCommitment()
 	operatorId := signedStateRootUpdateMessage.OperatorId
+	rollupId := signedStateRootUpdateMessage.Message.RollupId
 
 	agg.rpcListener.IncTotalSignedStateRootUpdateMessage()
 	agg.rpcListener.ObserveLastMessageReceivedTime(operatorId, StateRootUpdateMessageLabel)
@@ -121,7 +122,7 @@ func (agg *Aggregator) ProcessSignedStateRootUpdateMessage(signedStateRootUpdate
 		0,
 	)
 	if err != nil {
-		agg.rpcListener.IncSignedStateRootUpdateMessage(operatorId, true, hasNearDaCommitment)
+		agg.rpcListener.IncSignedStateRootUpdateMessage(operatorId, rollupId, true, hasNearDaCommitment)
 		return err
 	}
 
@@ -134,11 +135,11 @@ func (agg *Aggregator) ProcessSignedStateRootUpdateMessage(signedStateRootUpdate
 		&signedStateRootUpdateMessage.BlsSignature, signedStateRootUpdateMessage.OperatorId,
 	)
 	if err != nil {
-		agg.rpcListener.IncSignedStateRootUpdateMessage(operatorId, true, hasNearDaCommitment)
+		agg.rpcListener.IncSignedStateRootUpdateMessage(operatorId, rollupId, true, hasNearDaCommitment)
 		return err
 	}
 
-	agg.rpcListener.IncSignedStateRootUpdateMessage(operatorId, false, hasNearDaCommitment)
+	agg.rpcListener.IncSignedStateRootUpdateMessage(operatorId, rollupId, false, hasNearDaCommitment)
 
 	return nil
 }
@@ -227,5 +228,10 @@ func (agg *Aggregator) GetAggregatedCheckpointMessages(args *GetAggregatedCheckp
 
 func (agg *Aggregator) GetRegistryCoordinatorAddress(_ *struct{}, reply *string) error {
 	*reply = agg.config.SFFLRegistryCoordinatorAddr.String()
+	return nil
+}
+
+func (agg *Aggregator) NotifyOperatorInitialization(operatorId eigentypes.OperatorId, reply *bool) error {
+	agg.rpcListener.IncOperatorInitializations(operatorId)
 	return nil
 }

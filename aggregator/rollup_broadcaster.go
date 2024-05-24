@@ -94,16 +94,10 @@ func (b *RollupBroadcaster) initializeRollupOperatorSetsOnUpdate(ctx context.Con
 		case <-ctx.Done():
 			return
 		case err := <-operatorSetUpdateSub.Err():
-			b.logger.Error("Error in websocket subscription", "err", err)
+			b.logger.Error("Operator set update subscription error", "err", err)
 			operatorSetUpdateSub.Unsubscribe()
-			operatorSetUpdateSub, err = avsSubscriber.SubscribeToOperatorSetUpdates(operatorSetUpdatedChan)
-			if err != nil {
-				b.logger.Error("Error re-subscribing to operator set updates", "err", err)
-				close(operatorSetUpdatedChan)
-				return
-			}
-
-			continue
+			close(operatorSetUpdatedChan)
+			return
 		case event := <-operatorSetUpdatedChan:
 			b.logger.Info("Received operator set update", "id", event.Id)
 
