@@ -198,8 +198,8 @@ func (attestor *Attestor) processMQBlocks(ctx context.Context) {
 func (attestor *Attestor) processRollupHeaders(rollupId uint32, headersC chan *ethtypes.Header, subscription ethereum.Subscription, ctx context.Context) {
 	for {
 		select {
-		case <-subscription.Err():
-			attestor.logger.Error("Header subscription error", "rollupId", rollupId)
+		case err := <-subscription.Err():
+			attestor.logger.Error("Header subscription error", "rollupId", rollupId, "err", err)
 			subscription.Unsubscribe()
 			close(headersC)
 			return
