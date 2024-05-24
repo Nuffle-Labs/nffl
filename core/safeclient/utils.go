@@ -2,6 +2,7 @@ package safeclient
 
 import (
 	"crypto/sha256"
+	"math/big"
 
 	"github.com/Layr-Labs/eigensdk-go/chainio/clients/eth"
 	"github.com/Layr-Labs/eigensdk-go/logging"
@@ -29,6 +30,13 @@ func createInstrumentedClient(rpcUrl string, collector *rpccalls.Collector, logg
 
 func hashLog(log *types.Log) [32]byte {
 	h := sha256.New()
+
 	log.EncodeRLP(h)
+
+	// EncodeRLP only serializes the address, topics and data, so adding some additional block and tx info
+	h.Write(log.BlockHash.Bytes())
+	h.Write(log.TxHash.Bytes())
+	h.Write(new(big.Int).SetUint64(uint64(log.Index)).Bytes())
+
 	return [32]byte(h.Sum(nil))
 }
