@@ -9,6 +9,7 @@ import (
 	"time"
 
 	"github.com/Layr-Labs/eigensdk-go/logging"
+	eigentypes "github.com/Layr-Labs/eigensdk-go/types"
 	"github.com/ethereum/go-ethereum/common"
 	"github.com/prometheus/client_golang/prometheus"
 
@@ -41,6 +42,9 @@ type AggregatorRpcClient struct {
 	aggregatorIpPortAddr       string
 	registryCoordinatorAddress common.Address
 
+	operatorId          eigentypes.OperatorId
+	notifiedInitialized bool
+
 	unsentMessagesLock sync.Mutex
 	unsentMessages     []unsentRpcMessage
 	resendTicker       *time.Ticker
@@ -51,7 +55,7 @@ type AggregatorRpcClient struct {
 
 var _ core.Metricable = (*AggregatorRpcClient)(nil)
 
-func NewAggregatorRpcClient(aggregatorIpPortAddr string, registryCoordinatorAddress common.Address, logger logging.Logger) (*AggregatorRpcClient, error) {
+func NewAggregatorRpcClient(aggregatorIpPortAddr string, operatorId eigentypes.OperatorId, registryCoordinatorAddress common.Address, logger logging.Logger) (*AggregatorRpcClient, error) {
 	resendTicker := time.NewTicker(ResendInterval)
 
 	client := &AggregatorRpcClient{
@@ -100,6 +104,19 @@ func (c *AggregatorRpcClient) dialAggregatorRpcClient() error {
 	if err != nil {
 		c.logger.Info("Received error when getting registry coordinator address", "err", err)
 		return err
+	}
+
+	if !c.notifiedInitialized {
+		c.logger.Info("Notifying aggregator of initialization")
+
+		var reply bool
+		err := client.Call("Aggregator.NotifyOperatorInitialization", c.operatorId, &reply)
+		if err != nil {
+			c.logger.Error("Error notifying aggregator of initialization", "err", err)
+			return err
+		}
+
+		c.notifiedInitialized = true
 	}
 
 	if common.HexToAddress(aggregatorRegistryCoordinatorAddress).Cmp(c.registryCoordinatorAddress) != 0 {
