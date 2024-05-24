@@ -8,6 +8,7 @@ require (
 	github.com/Layr-Labs/eigensdk-go v0.1.4
 	github.com/ethereum/go-ethereum v1.13.14
 	github.com/gorilla/mux v1.8.1
+	github.com/hashicorp/golang-lru/v2 v2.0.7
 	github.com/near/borsh-go v0.3.1
 	github.com/near/rollup-data-availability v0.2.4-0.20240327150603-b004cd803551
 	github.com/pokt-network/smt v0.9.2
@@ -27,7 +28,6 @@ require (
 	github.com/go-logr/logr v1.2.4 // indirect
 	github.com/go-logr/stdr v1.2.2 // indirect
 	github.com/golang-jwt/jwt v3.2.2+incompatible // indirect
-	github.com/hashicorp/golang-lru/v2 v2.0.7 // indirect
 	github.com/jinzhu/inflection v1.0.0 // indirect
 	github.com/jinzhu/now v1.1.5 // indirect
 	github.com/mattn/go-sqlite3 v1.14.22 // indirect
