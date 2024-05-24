@@ -12,6 +12,7 @@ import (
 	"github.com/ethereum/go-ethereum"
 	"github.com/ethereum/go-ethereum/core/types"
 	"github.com/ethereum/go-ethereum/ethclient"
+	lru "github.com/hashicorp/golang-lru/v2"
 )
 
 const (
@@ -147,6 +148,18 @@ func (s *SafeSubscription) SetUnderlyingSub(sub ethereum.Subscription) {
 }
 
 func (c *SafeEthClient) SubscribeFilterLogs(ctx context.Context, q ethereum.FilterQuery, ch chan<- types.Log) (ethereum.Subscription, error) {
+	logCache, err := lru.New[[32]byte, any](100)
+	if err != nil {
+		c.logger.Error("Failed to create log cache", "err", err)
+		return nil, err
+	}
+
+	tryCacheLog := func(log *types.Log) bool {
+		hash := hashLog(log)
+		ok, _ := logCache.ContainsOrAdd(hash, nil)
+		return !ok
+	}
+
 	currentBlock, err := c.Client.BlockNumber(ctx)
 	if err != nil {
 		c.logger.Error("Failed to get current block number", "err", err)
@@ -187,7 +200,7 @@ func (c *SafeEthClient) SubscribeFilterLogs(ctx context.Context, q ethereum.Filt
 			rangeStartBlock = 0
 		}
 
-		fromBlock := max(lastBlock, rangeStartBlock) + 1
+		fromBlock := max(lastBlock, rangeStartBlock+1)
 
 		for ; fromBlock < currentBlock; fromBlock += (c.blockChunkSize + 1) {
 			toBlock := min(fromBlock+c.blockChunkSize, currentBlock)
@@ -230,8 +243,10 @@ func (c *SafeEthClient) SubscribeFilterLogs(ctx context.Context, q ethereum.Filt
 		safeSub.SetUnderlyingSub(newSub)
 
 		for _, log := range missedLogs {
-			lastBlock = max(lastBlock, log.BlockNumber)
-			ch <- log
+			if tryCacheLog(&log) {
+				lastBlock = max(lastBlock, log.BlockNumber)
+				ch <- log
+			}
 		}
 
 		return nil
@@ -262,14 +277,10 @@ func (c *SafeEthClient) SubscribeFilterLogs(ctx context.Context, q ethereum.Filt
 				c.logger.Debug("Safe subscription ended")
 				return
 			case log := <-proxyC:
-				// if that's the case, then most likely we got an event on filterLog and are getting the same one in the sub
-				if lastBlock > log.BlockNumber {
-					continue
+				if tryCacheLog(&log) {
+					lastBlock = max(lastBlock, log.BlockNumber)
+					ch <- log
 				}
-
-				// since resub pushes the missed blocks directly to the channel and updates lastBlock, this is ordered
-				lastBlock = log.BlockNumber
-				ch <- log
 			case <-ticker.C:
 				c.logger.Debug("Resub ticker fired")
 				handleResub()
