@@ -315,7 +315,9 @@ func (c *SafeEthClient) Close() {
 }
 
 func (c *SafeEthClient) SubscribeNewHead(ctx context.Context, ch chan<- *types.Header) (ethereum.Subscription, error) {
-	newSub, err := c.Client.SubscribeNewHead(ctx, ch)
+	proxyC := make(chan *types.Header, 100)
+
+	newSub, err := c.Client.SubscribeNewHead(ctx, proxyC)
 	if err != nil {
 		c.logger.Error("Failed to subscribe to new heads", "err", err)
 		return nil, err
@@ -323,7 +325,6 @@ func (c *SafeEthClient) SubscribeNewHead(ctx context.Context, ch chan<- *types.H
 	c.logger.Info("Subscribed to new heads")
 
 	safeSub := NewSafeSubscription(newSub)
-	proxyC := make(chan *types.Header, 100)
 
 	resub := func() error {
 		newSub, err := c.Client.SubscribeNewHead(ctx, proxyC)
