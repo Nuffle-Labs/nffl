@@ -94,12 +94,12 @@ func NewOperatorFromConfig(c optypes.NodeConfig) (*Operator, error) {
 	nodeApi := nodeapi.NewNodeApi(AVS_NAME, SEM_VER, c.NodeApiIpPortAddress, logger)
 	blsKeyPassword, ok := os.LookupEnv("OPERATOR_BLS_KEY_PASSWORD")
 	if !ok {
-		logger.Warnf("OPERATOR_BLS_KEY_PASSWORD env var not set. using empty string")
+		logger.Warn("OPERATOR_BLS_KEY_PASSWORD env var not set. using empty string")
 	}
 
 	blsKeyPair, err := bls.ReadPrivateKeyFromFile(c.BlsPrivateKeyStorePath, blsKeyPassword)
 	if err != nil {
-		logger.Errorf("Cannot parse bls private key", "err", err)
+		logger.Error("Cannot parse bls private key", "err", err)
 		return nil, err
 	}
 
@@ -107,7 +107,7 @@ func NewOperatorFromConfig(c optypes.NodeConfig) (*Operator, error) {
 
 	ecdsaKeyPassword, ok := os.LookupEnv("OPERATOR_ECDSA_KEY_PASSWORD")
 	if !ok {
-		logger.Warnf("OPERATOR_ECDSA_KEY_PASSWORD env var not set. using empty string")
+		logger.Warn("OPERATOR_ECDSA_KEY_PASSWORD env var not set. using empty string")
 	}
 
 	ecdsaPrivateKey, err := sdkecdsa.ReadKey(c.EcdsaPrivateKeyStorePath, ecdsaKeyPassword)
@@ -265,7 +265,7 @@ func (o *Operator) EnableMetrics(registry *prometheus.Registry) error {
 }
 
 func (o *Operator) Start(ctx context.Context) error {
-	o.logger.Infof("Starting operator.")
+	o.logger.Info("Starting operator.")
 
 	if o.config.EnableNodeApi {
 		o.nodeApi.Start()
@@ -473,7 +473,7 @@ func (o *Operator) registerOperatorOnStartup(
 		// This error might only be that the operator was already registered with eigenlayer, so we don't want to fatal
 		o.logger.Error("Error registering operator with eigenlayer", "err", err)
 	} else {
-		o.logger.Infof("Registered operator with eigenlayer")
+		o.logger.Info("Registered operator with eigenlayer")
 	}
 
 	if mockTokenStrategyAddr.Cmp(common.Address{}) != 0 {
@@ -483,7 +483,7 @@ func (o *Operator) registerOperatorOnStartup(
 		if err != nil {
 			o.logger.Fatal("Error depositing into strategy", "err", err)
 		}
-		o.logger.Infof("Deposited %s into strategy %s", amount, mockTokenStrategyAddr)
+		o.logger.Info("Deposited into strategy", "amount", amount, "strategy", mockTokenStrategyAddr)
 	}
 
 	isOperatorRegistered, err := o.avsManager.avsReader.IsOperatorRegistered(&bind.CallOpts{}, o.operatorAddr)
@@ -496,9 +496,9 @@ func (o *Operator) registerOperatorOnStartup(
 		if err != nil {
 			o.logger.Fatal("Error registering operator with avs", "err", err)
 		}
-		o.logger.Infof("Registered operator with avs")
+		o.logger.Info("Registered operator with avs")
 	} else {
-		o.logger.Infof("Operator already registered with avs")
+		o.logger.Info("Operator already registered with avs")
 	}
 }
 
