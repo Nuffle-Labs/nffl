@@ -43,6 +43,16 @@ jobs:
           cache-from: type=gha,scope=relayer
           cache-to: type=gha,mode=max,scope=relayer
 
+      - name: Build plugin container
+        uses: docker/build-push-action@v5
+        with:
+          load: true
+          context: .
+          file: ./plugin/cmd/Dockerfile
+          tags: near-sffl-operator-plugin
+          cache-from: type=gha,scope=plugin
+          cache-to: type=gha,mode=max,scope=plugin
+
       - name: Install Node.js
         uses: actions/setup-node@v3
         with:

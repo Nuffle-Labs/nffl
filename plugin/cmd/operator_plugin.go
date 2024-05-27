@@ -31,17 +31,8 @@ type CliOperatorPlugin struct {
 	avsReader        *chainio.AvsReader
 	avsWriter        *chainio.AvsWriter
 
-	ctx    *cli.Context
 	logger logging.Logger
 }
-
-type OperatorPlugin interface {
-	OptIn() error
-	OptOut() error
-	Deposit() error
-}
-
-var _ OperatorPlugin = &CliOperatorPlugin{}
 
 func NewOperatorPluginFromCLIContext(ctx *cli.Context) (*CliOperatorPlugin, error) {
 	goCtx := context.Background()
@@ -66,7 +57,7 @@ func NewOperatorPluginFromCLIContext(ctx *cli.Context) (*CliOperatorPlugin, erro
 		RegistryCoordinatorAddr:    avsConfig.AVSRegistryCoordinatorAddress,
 		OperatorStateRetrieverAddr: avsConfig.OperatorStateRetrieverAddress,
 		AvsName:                    "super-fast-finality-layer",
-		PromMetricsIpPortAddress:   avsConfig.EigenMetricsIpPortAddress,
+		PromMetricsIpPortAddress:   "127.0.0.1:9090",
 	}
 
 	ethHttpClient, err := eth.NewClient(avsConfig.EthRpcUrl)
@@ -149,8 +140,8 @@ func NewOperatorPluginFromCLIContext(ctx *cli.Context) (*CliOperatorPlugin, erro
 	}, nil
 }
 
-func (o *CliOperatorPlugin) OptIn() error {
-	blsKeyPassword := o.ctx.GlobalString(BlsKeyPasswordFlag.Name)
+func (o *CliOperatorPlugin) OptIn(ctx *cli.Context) error {
+	blsKeyPassword := ctx.GlobalString(BlsKeyPasswordFlag.Name)
 
 	blsKeypair, err := bls.ReadPrivateKeyFromFile(o.avsConfig.BlsPrivateKeyStorePath, blsKeyPassword)
 	if err != nil {
@@ -176,8 +167,8 @@ func (o *CliOperatorPlugin) OptIn() error {
 	return nil
 }
 
-func (o *CliOperatorPlugin) OptOut() error {
-	blsKeyPassword := o.ctx.GlobalString(BlsKeyPasswordFlag.Name)
+func (o *CliOperatorPlugin) OptOut(ctx *cli.Context) error {
+	blsKeyPassword := ctx.GlobalString(BlsKeyPasswordFlag.Name)
 
 	blsKeypair, err := bls.ReadPrivateKeyFromFile(o.avsConfig.BlsPrivateKeyStorePath, blsKeyPassword)
 	if err != nil {
@@ -194,14 +185,14 @@ func (o *CliOperatorPlugin) OptOut() error {
 	return nil
 }
 
-func (o *CliOperatorPlugin) Deposit() error {
-	strategy := o.ctx.GlobalString(StrategyAddrFlag.Name)
+func (o *CliOperatorPlugin) Deposit(ctx *cli.Context) error {
+	strategy := ctx.GlobalString(StrategyAddrFlag.Name)
 	if len(strategy) == 0 {
 		o.logger.Error("Strategy address is required for deposit operation")
 		return errors.New("strategy address is required for deposit operation")
 	}
 
-	strategyAddr := common.HexToAddress(o.ctx.GlobalString(StrategyAddrFlag.Name))
+	strategyAddr := common.HexToAddress(ctx.GlobalString(StrategyAddrFlag.Name))
 	_, tokenAddr, err := o.clients.ElChainReader.GetStrategyAndUnderlyingToken(&bind.CallOpts{}, strategyAddr)
 	if err != nil {
 		o.logger.Error("Failed to fetch strategy contract", "err", err)

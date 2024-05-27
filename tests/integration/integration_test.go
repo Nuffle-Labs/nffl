@@ -18,16 +18,13 @@ import (
 	"testing"
 	"time"
 
-	"github.com/Layr-Labs/eigensdk-go/chainio/clients/eth"
 	"github.com/Layr-Labs/eigensdk-go/crypto/bls"
 	sdkEcdsa "github.com/Layr-Labs/eigensdk-go/crypto/ecdsa"
 	sdklogging "github.com/Layr-Labs/eigensdk-go/logging"
 	sdkutils "github.com/Layr-Labs/eigensdk-go/utils"
-	"github.com/docker/go-connections/nat"
 	"github.com/ethereum/go-ethereum/accounts/abi/bind"
 	"github.com/ethereum/go-ethereum/common"
 	"github.com/ethereum/go-ethereum/crypto"
-	"github.com/ethereum/go-ethereum/rpc"
 	"github.com/stretchr/testify/assert"
 	"github.com/testcontainers/testcontainers-go"
 	"github.com/testcontainers/testcontainers-go/modules/rabbitmq"
@@ -197,10 +194,10 @@ func setupTestEnv(t *testing.T, ctx context.Context) *testEnv {
 	rollup1AnvilContainerName := "rollup1-anvil"
 	rmqContainerName := "rmq"
 
-	mainnetAnvil := startAnvilTestContainer(t, containersCtx, mainnetAnvilContainerName, "8545", "1", true, networkName)
+	mainnetAnvil := utils.StartAnvilTestContainer(t, containersCtx, mainnetAnvilContainerName, "8545", "1", true, networkName)
 	rollupAnvils := []*utils.AnvilInstance{
-		startAnvilTestContainer(t, containersCtx, rollup0AnvilContainerName, "8546", "2", false, networkName),
-		startAnvilTestContainer(t, containersCtx, rollup1AnvilContainerName, "8547", "3", false, networkName),
+		utils.StartAnvilTestContainer(t, containersCtx, rollup0AnvilContainerName, "8546", "2", false, networkName),
+		utils.StartAnvilTestContainer(t, containersCtx, rollup1AnvilContainerName, "8547", "3", false, networkName),
 	}
 	rabbitMq := startRabbitMqContainer(t, containersCtx, rmqContainerName, networkName)
 	indexerContainer, relayers := startIndexer(t, containersCtx, indexerContainerName, rollupAnvils, rabbitMq, networkName)
@@ -463,94 +460,6 @@ func buildConfig(t *testing.T, sfflDeploymentRaw config.SFFLDeploymentRaw, addre
 		EnableMetrics:                  false,
 		MetricsIpPortAddress:           aggConfigRaw.MetricsIpPortAddress,
 	}
-}
-
-func startAnvilTestContainer(t *testing.T, ctx context.Context, name, exposedPort, chainId string, isMainnet bool, networkName string) *utils.AnvilInstance {
-	integrationDir, err := os.Getwd()
-	if err != nil {
-		panic(err)
-	}
-
-	req := testcontainers.ContainerRequest{
-		Image:        "ghcr.io/foundry-rs/foundry:latest@sha256:8b843eb65cc7b155303b316f65d27173c862b37719dc095ef3a2ef27ce8d3c00",
-		Name:         name,
-		Entrypoint:   []string{"anvil"},
-		ExposedPorts: []string{exposedPort + "/tcp"},
-		WaitingFor:   wait.ForLog("Listening on"),
-		Networks:     []string{networkName},
-	}
-
-	if isMainnet {
-		req.Mounts = testcontainers.ContainerMounts{
-			testcontainers.ContainerMount{
-				Source: testcontainers.GenericBindMountSource{
-					HostPath: filepath.Join(integrationDir, "../anvil/data/avs-and-eigenlayer-deployed-anvil-state.json"),
-				},
-				Target: "/root/.anvil/state.json",
-			},
-		}
-		req.Cmd = []string{"--host", "0.0.0.0", "--load-state", "/root/.anvil/state.json", "--port", exposedPort, "--chain-id", chainId}
-	} else {
-		req.Cmd = []string{"--host", "0.0.0.0", "--port", exposedPort, "--block-time", "10", "--chain-id", chainId}
-	}
-
-	anvilC, err := testcontainers.GenericContainer(ctx, testcontainers.GenericContainerRequest{
-		ContainerRequest: req,
-		Started:          true,
-	})
-	if err != nil {
-		t.Fatalf("Error starting anvil container: %s", err.Error())
-	}
-
-	anvilEndpoint, err := anvilC.PortEndpoint(ctx, nat.Port(exposedPort), "")
-	if err != nil {
-		t.Fatalf("Error getting anvil endpoint: %s", err.Error())
-	}
-
-	httpUrl := "http://" + anvilEndpoint
-	httpClient, err := eth.NewClient(httpUrl)
-	if err != nil {
-		t.Fatalf("Failed to create anvil HTTP client: %s", err.Error())
-	}
-	rpcClient, err := rpc.Dial(httpUrl)
-	if err != nil {
-		t.Fatalf("Failed to create anvil RPC client: %s", err.Error())
-	}
-
-	wsUrl := "ws://" + anvilEndpoint
-	wsClient, err := eth.NewClient(wsUrl)
-	if err != nil {
-		t.Fatalf("Failed to create anvil WS client: %s", err.Error())
-	}
-
-	expectedChainId, ok := big.NewInt(0).SetString(chainId, 10)
-	if !ok {
-		t.Fatalf("Bad chain ID: %s", chainId)
-	}
-
-	fetchedChainId, err := httpClient.ChainID(ctx)
-	if err != nil {
-		t.Fatalf("Failed to get anvil chainId: %s", err.Error())
-	}
-	if fetchedChainId.Cmp(expectedChainId) != 0 {
-		t.Fatalf("Anvil chainId is not the expected: expected %s, got %s", expectedChainId.String(), fetchedChainId.String())
-	}
-
-	anvil := &utils.AnvilInstance{
-		Container:  anvilC,
-		HttpClient: httpClient,
-		HttpUrl:    httpUrl,
-		WsClient:   wsClient,
-		WsUrl:      wsUrl,
-		RpcClient:  rpcClient,
-		ChainID:    fetchedChainId,
-	}
-
-	if isMainnet {
-		anvil.Mine(big.NewInt(100), big.NewInt(1))
-	}
-
-	return anvil
 }
 
 func deployRegistryRollups(t *testing.T, anvils []*utils.AnvilInstance) ([]common.Address, []*registryrollup.ContractSFFLRegistryRollup, []*bind.TransactOpts, []*bind.TransactOpts) {

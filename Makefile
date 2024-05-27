@@ -123,4 +123,5 @@ tests-contract: ## runs all forge tests
 
 tests-integration: ## runs all integration tests
 	go test ./tests/integration/integration_test.go -v -count=1
+	go test ./tests/integration/registration_test.go -v -count=1
 
