@@ -171,7 +171,7 @@ func (attestor *Attestor) processMQBlocks(ctx context.Context) {
 			attestor.logger.Info("Notifying", "rollupId", mqBlock.RollupId, "height", mqBlock.Block.Header().Number.Uint64())
 			err := attestor.notifier.Notify(mqBlock.RollupId, mqBlock)
 			if err != nil {
-				attestor.logger.Error("notifier", "err", err)
+				attestor.logger.Error("Notifier", "err", err)
 			}
 
 			// Rebroadcast in case mq block arrives first
