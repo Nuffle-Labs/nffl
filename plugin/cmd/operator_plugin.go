@@ -57,7 +57,7 @@ func NewOperatorPluginFromCLIContext(ctx *cli.Context) (*CliOperatorPlugin, erro
 		RegistryCoordinatorAddr:    avsConfig.AVSRegistryCoordinatorAddress,
 		OperatorStateRetrieverAddr: avsConfig.OperatorStateRetrieverAddress,
 		AvsName:                    "super-fast-finality-layer",
-		PromMetricsIpPortAddress:   avsConfig.EigenMetricsIpPortAddress,
+		PromMetricsIpPortAddress:   "127.0.0.1:9090",
 	}
 
 	ethHttpClient, err := eth.NewClient(avsConfig.EthRpcUrl)
