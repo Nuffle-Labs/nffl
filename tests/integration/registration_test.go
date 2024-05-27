@@ -3,11 +3,14 @@ package integration
 import (
 	"context"
 	"os"
-	"path"
+	"path/filepath"
 	"testing"
 	"time"
 
+	sdkclients "github.com/Layr-Labs/eigensdk-go/chainio/clients"
+	sdkecdsa "github.com/Layr-Labs/eigensdk-go/crypto/ecdsa"
 	"github.com/Layr-Labs/eigensdk-go/logging"
+	"github.com/Layr-Labs/eigensdk-go/types"
 	sdkutils "github.com/Layr-Labs/eigensdk-go/utils"
 	"github.com/NethermindEth/near-sffl/core/chainio"
 	optypes "github.com/NethermindEth/near-sffl/operator/types"
@@ -40,7 +43,6 @@ func TestRegistration(t *testing.T) {
 	}
 
 	mainnetAnvilContainerName := "mainnet-anvil"
-	pluginContainerName := "plugin"
 
 	mainnetAnvil := utils.StartAnvilTestContainer(t, ctx, mainnetAnvilContainerName, "8545", "1", true, networkName)
 
@@ -51,22 +53,48 @@ func TestRegistration(t *testing.T) {
 		t.Fatalf("Failed to read yaml config: %s", err.Error())
 	}
 
+	operatorAddr := common.HexToAddress(nodeConfig.OperatorAddress)
+
 	avsReader, err := chainio.BuildAvsReader(common.HexToAddress(nodeConfig.AVSRegistryCoordinatorAddress), common.HexToAddress(nodeConfig.OperatorStateRetrieverAddress), mainnetAnvil.HttpClient, logger)
 	if err != nil {
 		t.Fatalf("Error building avs reader: %s", err.Error())
 	}
 
-	blsPassword, err := os.ReadFile(path.Dir(nodeConfig.BlsPrivateKeyStorePath) + "/password.txt")
+	blsPassword, err := os.ReadFile("../../tests/keys/bls/1/password.txt")
 	if err != nil {
 		t.Fatalf("Error reading bls password: %s", err.Error())
 	}
 
-	ecdsaPassword, err := os.ReadFile(path.Dir(nodeConfig.EcdsaPrivateKeyStorePath) + "/password.txt")
+	ecdsaPassword, err := os.ReadFile("../../tests/keys/ecdsa/1/password.txt")
 	if err != nil {
 		t.Fatalf("Error reading ecdsa password: %s", err.Error())
 	}
 
-	operatorPluginContainerOptIn := runOperatorPluginContainer(t, ctx, pluginContainerName, networkName, "opt-in", string(ecdsaPassword), string(blsPassword))
+	ecdsaPrivateKey, err := sdkecdsa.ReadKey("../../tests/keys/ecdsa/1/key.json", string(ecdsaPassword))
+	if err != nil {
+		t.Fatalf("Error reading ecdsa private key: %s", err.Error())
+	}
+
+	buildClientConfig := sdkclients.BuildAllConfig{
+		EthHttpUrl:                 mainnetAnvil.HttpUrl,
+		EthWsUrl:                   mainnetAnvil.WsUrl,
+		RegistryCoordinatorAddr:    nodeConfig.AVSRegistryCoordinatorAddress,
+		OperatorStateRetrieverAddr: nodeConfig.OperatorStateRetrieverAddress,
+		AvsName:                    "super-fast-finality-layer",
+		PromMetricsIpPortAddress:   "127.0.0.1:9090",
+	}
+
+	clients, err := sdkclients.BuildAll(buildClientConfig, ecdsaPrivateKey, logger)
+	if err != nil {
+		t.Fatalf("Error building clients: %s", err.Error())
+	}
+
+	_, err = clients.ElChainWriter.RegisterAsOperator(ctx, types.Operator{Address: operatorAddr.String(), EarningsReceiverAddress: operatorAddr.String()})
+	if err != nil {
+		t.Fatalf("Error registering operator: %s", err.Error())
+	}
+
+	operatorPluginContainerOptIn := runOperatorPluginContainer(t, ctx, "plugin-opt-in", networkName, "opt-in", string(ecdsaPassword), string(blsPassword))
 
 	isOperatorRegistered, err := avsReader.IsOperatorRegistered(&bind.CallOpts{}, common.HexToAddress(nodeConfig.OperatorAddress))
 	if err != nil {
@@ -77,7 +105,7 @@ func TestRegistration(t *testing.T) {
 		t.Fatal("Operator should be registered after opting in")
 	}
 
-	operatorPluginContainerOptOut := runOperatorPluginContainer(t, ctx, pluginContainerName, networkName, "opt-out", string(ecdsaPassword), string(blsPassword))
+	operatorPluginContainerOptOut := runOperatorPluginContainer(t, ctx, "plugin-opt-out", networkName, "opt-out", string(ecdsaPassword), string(blsPassword))
 
 	isOperatorRegistered, err = avsReader.IsOperatorRegistered(&bind.CallOpts{}, common.HexToAddress(nodeConfig.OperatorAddress))
 	if err != nil {
@@ -111,6 +139,11 @@ func TestRegistration(t *testing.T) {
 }
 
 func runOperatorPluginContainer(t *testing.T, ctx context.Context, name, networkName, operation, ecdsaPassword, blsPassword string) testcontainers.Container {
+	keysPath, err := filepath.Abs("../../tests/keys/")
+	if err != nil {
+		t.Fatalf("Error getting absolute path: %s", err.Error())
+	}
+
 	req := testcontainers.ContainerRequest{
 		Image:    "near-sffl-operator-plugin",
 		Name:     name,
@@ -124,14 +157,21 @@ func runOperatorPluginContainer(t *testing.T, ctx context.Context, name, network
 				HostFilePath:      "../../config-files/plugin.anvil.yaml",
 				ContainerFilePath: "/near-sffl/config.yml",
 			},
-			{
-				HostFilePath:      "../../tests/keys/ecdsa/1/key.json",
-				ContainerFilePath: "/near-sffl/keys/ecdsa.json",
+		},
+		Mounts: testcontainers.ContainerMounts{
+			testcontainers.ContainerMount{
+				Source: testcontainers.GenericBindMountSource{
+					HostPath: keysPath,
+				},
+				Target:   testcontainers.ContainerMountTarget("/near-sffl/keys/"),
+				ReadOnly: true,
 			},
-			{
-				HostFilePath:      "../../tests/keys/bls/1/key.json",
-				ContainerFilePath: "/near-sffl/keys/bls.json",
-			},
+		},
+		Cmd: []string{
+			"--config",
+			"/near-sffl/config.yml",
+			"--operation-type",
+			operation,
 		},
 		WaitingFor: wait.ForExit(),
 	}
