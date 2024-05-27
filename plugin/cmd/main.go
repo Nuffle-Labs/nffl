@@ -62,11 +62,11 @@ func main() {
 		operationType := ctx.GlobalString(OperationFlag.Name)
 		switch operationType {
 		case "opt-in":
-			return operatorPlugin.OptIn()
+			return operatorPlugin.OptIn(ctx)
 		case "opt-out":
-			return operatorPlugin.OptOut()
+			return operatorPlugin.OptOut(ctx)
 		case "deposit":
-			return operatorPlugin.Deposit()
+			return operatorPlugin.Deposit(ctx)
 		default:
 			return cli.NewExitError(fmt.Sprintf("Invalid operation type: %v", operationType), 1)
 		}
