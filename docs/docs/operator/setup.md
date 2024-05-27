@@ -252,7 +252,7 @@ Your indexer should now continue the syncing process on it's own!
 Keep it running until it’s time to run the operator, as it’ll keep synced with
 NEAR.
 
-### Step 10: Register using the operator plugin
+### Step 9: Register using the operator plugin
 
 :::warning
 
@@ -273,7 +273,7 @@ cd near-sffl/setup/plugin
 ./register.sh
 ```
 
-### Step 9: Run your operator
+### Step 10: Run your operator
 
 :::info
 
