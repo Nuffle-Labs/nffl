@@ -1,4 +1,4 @@
-FROM rust:1.75 AS builder
+FROM rust:1.77 AS builder
 WORKDIR /tmp/indexer
 
 # Copy from nearcore:
