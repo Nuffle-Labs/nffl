@@ -7,8 +7,8 @@ avs_registry_coordinator_address: 0x8f86403A4DE0BB5791fa46B8e795C547942fE4Cf
 operator_state_retriever_address: 0x4c5859f0F772848b2D91F1D83E2Fe57935348029
 
 # AVS network RPCs
-eth_rpc_url: http://localhost:8545
-eth_ws_url: ws://localhost:8545
+eth_rpc_url: http://mainnet-anvil:8545
+eth_ws_url: ws://mainnet-anvil:8545
 
 # EigenLayer ECDSA and BLS private key paths
 ecdsa_private_key_store_path: /near-sffl/keys/ecdsa/1/key.json
