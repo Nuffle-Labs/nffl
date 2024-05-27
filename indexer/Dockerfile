@@ -34,7 +34,7 @@ RUN chmod +x ./entrypoint.sh
 
 EXPOSE 3030
 
-HEALTHCHECK --interval=20s --timeout=30s --retries=200 \
+HEALTHCHECK --interval=20s --timeout=30s --retries=2000 \
   CMD nc -zv localhost 3030 && \
       sh -c 'while true; do \
         resp=$(http --ignore-stdin post http://localhost:3030 jsonrpc=2.0 method=status params:="[]" id=dontcare); \
