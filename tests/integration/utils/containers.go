@@ -4,6 +4,7 @@ import (
 	"context"
 	"fmt"
 	"math/big"
+	"os"
 	"os/user"
 	"path/filepath"
 	"strings"
@@ -151,4 +152,92 @@ func StartRelayer(t *testing.T, ctx context.Context, daAccountId, indexerContain
 
 	t.Log("Relayer metrics endpoint:", addr)
 	return relayerContainer, nil
+}
+
+func StartAnvilTestContainer(t *testing.T, ctx context.Context, name, exposedPort, chainId string, isMainnet bool, networkName string) *AnvilInstance {
+	integrationDir, err := os.Getwd()
+	if err != nil {
+		panic(err)
+	}
+
+	req := testcontainers.ContainerRequest{
+		Image:        "ghcr.io/foundry-rs/foundry:latest@sha256:8b843eb65cc7b155303b316f65d27173c862b37719dc095ef3a2ef27ce8d3c00",
+		Name:         name,
+		Entrypoint:   []string{"anvil"},
+		ExposedPorts: []string{exposedPort + "/tcp"},
+		WaitingFor:   wait.ForLog("Listening on"),
+		Networks:     []string{networkName},
+	}
+
+	if isMainnet {
+		req.Mounts = testcontainers.ContainerMounts{
+			testcontainers.ContainerMount{
+				Source: testcontainers.GenericBindMountSource{
+					HostPath: filepath.Join(integrationDir, "../anvil/data/avs-and-eigenlayer-deployed-anvil-state.json"),
+				},
+				Target: "/root/.anvil/state.json",
+			},
+		}
+		req.Cmd = []string{"--host", "0.0.0.0", "--load-state", "/root/.anvil/state.json", "--port", exposedPort, "--chain-id", chainId}
+	} else {
+		req.Cmd = []string{"--host", "0.0.0.0", "--port", exposedPort, "--block-time", "10", "--chain-id", chainId}
+	}
+
+	anvilC, err := testcontainers.GenericContainer(ctx, testcontainers.GenericContainerRequest{
+		ContainerRequest: req,
+		Started:          true,
+	})
+	if err != nil {
+		t.Fatalf("Error starting anvil container: %s", err.Error())
+	}
+
+	anvilEndpoint, err := anvilC.PortEndpoint(ctx, nat.Port(exposedPort), "")
+	if err != nil {
+		t.Fatalf("Error getting anvil endpoint: %s", err.Error())
+	}
+
+	httpUrl := "http://" + anvilEndpoint
+	httpClient, err := eth.NewClient(httpUrl)
+	if err != nil {
+		t.Fatalf("Failed to create anvil HTTP client: %s", err.Error())
+	}
+	rpcClient, err := rpc.Dial(httpUrl)
+	if err != nil {
+		t.Fatalf("Failed to create anvil RPC client: %s", err.Error())
+	}
+
+	wsUrl := "ws://" + anvilEndpoint
+	wsClient, err := eth.NewClient(wsUrl)
+	if err != nil {
+		t.Fatalf("Failed to create anvil WS client: %s", err.Error())
+	}
+
+	expectedChainId, ok := big.NewInt(0).SetString(chainId, 10)
+	if !ok {
+		t.Fatalf("Bad chain ID: %s", chainId)
+	}
+
+	fetchedChainId, err := httpClient.ChainID(ctx)
+	if err != nil {
+		t.Fatalf("Failed to get anvil chainId: %s", err.Error())
+	}
+	if fetchedChainId.Cmp(expectedChainId) != 0 {
+		t.Fatalf("Anvil chainId is not the expected: expected %s, got %s", expectedChainId.String(), fetchedChainId.String())
+	}
+
+	anvil := &AnvilInstance{
+		Container:  anvilC,
+		HttpClient: httpClient,
+		HttpUrl:    httpUrl,
+		WsClient:   wsClient,
+		WsUrl:      wsUrl,
+		RpcClient:  rpcClient,
+		ChainID:    fetchedChainId,
+	}
+
+	if isMainnet {
+		anvil.Mine(big.NewInt(100), big.NewInt(1))
+	}
+
+	return anvil
 }
