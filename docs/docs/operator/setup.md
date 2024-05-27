@@ -236,6 +236,7 @@ data snapshots to speed up the syncing process.
 ### Step 8: Synchronize your NEAR node
 
 In order to do that, follow the [instructions in NEAR Nodes](https://near-nodes.io/intro/node-data-snapshots).
+Here we'll be using the `testnet` and `rpc` snapshot.
 Do remember that you'll need to download the snapshot to
 `${NEAR_HOME_DIR}/data` - based on your `.env` file.
 
