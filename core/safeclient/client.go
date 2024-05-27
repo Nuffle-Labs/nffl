@@ -351,8 +351,6 @@ func (c *SafeEthClient) SubscribeNewHead(ctx context.Context, ch chan<- *types.H
 			if err != nil {
 				c.logger.Error("Failed to resubscribe to heads", "err", err)
 				headerTicker.Reset(c.headerTimeout)
-			} else {
-				headerTicker.Stop()
 			}
 		}
 
