@@ -116,7 +116,7 @@ func TestRegistration(t *testing.T) {
 		t.Fatal("Operator should not be registered after opting out")
 	}
 
-	defer func() {
+	cleanup := func() {
 		if err := mainnetAnvil.Container.Terminate(ctx); err != nil {
 			t.Fatalf("Error terminating container: %s", err.Error())
 		}
@@ -132,10 +132,10 @@ func TestRegistration(t *testing.T) {
 		}
 
 		cancel()
-	}()
+	}
 
 	t.Log("Done")
-	<-ctx.Done()
+	cleanup()
 }
 
 func runOperatorPluginContainer(t *testing.T, ctx context.Context, name, networkName, operation, ecdsaPassword, blsPassword string) testcontainers.Container {
