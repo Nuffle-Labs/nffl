@@ -67,6 +67,7 @@ func NewAggregatorRpcClient(aggregatorIpPortAddr string, operatorId eigentypes.O
 		unsentMessages:             make([]unsentRpcMessage, 0),
 		resendTicker:               resendTicker,
 		listener:                   &SelectiveRpcClientListener{},
+		operatorId:                 operatorId,
 	}
 
 	go client.onTick()
