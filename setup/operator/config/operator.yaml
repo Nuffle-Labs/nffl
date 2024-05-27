@@ -32,8 +32,8 @@ node_api_ip_port_address: 0.0.0.0:9010
 # Whether to try and register the operator in the AVS and in EL on startup.
 # It will not re-register the operator if already registered.
 # If unset, the operator will not be registered on startup! You'll need to
-# manually register the operator - not recommended
-register_operator_on_startup: true
+# manually register the operator.
+register_operator_on_startup: false
 
 # RMQ address and indexer rollup IDs
 near_da_indexer_rmq_ip_port_address: amqp://rmq:5672

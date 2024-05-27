@@ -69,20 +69,33 @@ Clone the SFFL repository and execute the following.
 
 ```
 git clone https://github.com/NethermindEth/near-sffl.git
-cd near-sffl/setup/operator
-cp .env.example .env
+cp near-sffl/setup/operator/.env.example near-sffl/setup/operator/.env
+cp near-sffl/setup/plugin/.env.example near-sffl/setup/plugin/.env
 ```
 
-### Step 4: Copy your EigenLayer operator keys to the setup directory
+### Step 4: Copy your EigenLayer operator keys to the setup directories
 
 ```
-cp <path-to-your-operator-ecdsa-key> ./config/keys/ecdsa.json
-cp <path-to-your-operator-bls-key> ./config/keys/bls.json
+cp <path-to-your-operator-ecdsa-key> near-sffl/setup/plugin/config/keys/ecdsa.json
+
+cp <path-to-your-operator-bls-key> near-sffl/setup/plugin/config/keys/bls.json
+cp <path-to-your-operator-bls-key> near-sffl/setup/operator/config/keys/bls.json
 ```
 
-### Step 5: Update your `.env` file
+### Step 5: Update your `.env` files
 
-You should have something similar to this in your `.env`:
+You should have something similar to this in your `near-sffl/setup/plugin/.env`:
+```bash
+# Operator BLS and ECDSA key passwords (from config/keys files)
+BLS_KEY_PASSWORD=fDUMDLmBROwlzzPXyIcy
+ECDSA_KEY_PASSWORD=EnJuncq01CiVk9UbuBYl
+```
+
+Set your EigenLayer ECDSA and BLS key passwords in the
+`ECDSA_KEY_PASSWORD` and `BLS_KEY_PASSWORD` fields.
+
+Then, for the node environment variables, you should have something similar to
+this in your `near-sffl/setup/operator/.env`:
 ```bash
 # Tagged release for SFFL containers
 SFFL_RELEASE=latest
@@ -94,8 +107,11 @@ NEAR_CHAIN_ID=testnet
 NEAR_HOME_DIR=~/.near
 NEAR_KEYS_DIR=~/.near-credentials
 
-# Operator BLS and ECDSA key passwords (from config/keys files)
+# Operator BLS key password (from config/keys files)
 OPERATOR_BLS_KEY_PASSWORD=fDUMDLmBROwlzzPXyIcy
+
+# Operator BLS key password (from config/keys files)
+# Only set this if you're using the `register_on_startup` configuration
 OPERATOR_ECDSA_KEY_PASSWORD=EnJuncq01CiVk9UbuBYl
 ```
 
@@ -105,12 +121,32 @@ service, you should set especially `NEAR_HOME_DIR` to the block storage mount
 point. Do note you should choose a directory that has enough space for your
 NEAR node's data, **which should be around 1TB**.
 
-Then, set your EigenLayer ECDSA and BLS key passwords in the
-`OPERATOR_ECDSA_KEY_PASSWORD` and `OPERATOR_BLS_KEY_PASSWORD` fields.
+Then, set your EigenLayer BLS key password in the `OPERATOR_BLS_KEY_PASSWORD`
+field.
 
 ### Step 6: Update your configuration files
 
-Now, in `setup/operator/config/operator.yaml`, set the relevant fields.
+In `setup/plugin/config/operator.yaml`, set the your `operator_address`:
+
+```yaml
+# Operator ECDSA address
+operator_address: 0xD5A0359da7B310917d7760385516B2426E86ab7f
+
+# AVS contract addresses
+avs_registry_coordinator_address: 0x0069A298e68c09B047E5447b3b762E42114a99a2
+operator_state_retriever_address: 0x8D0b27Df027bc5C41855Da352Da4B5B2C406c1F0
+
+# AVS network RPCs
+eth_rpc_url: https://ethereum-holesky-rpc.publicnode.com
+eth_ws_url: wss://ethereum-holesky-rpc.publicnode.com
+
+# EigenLayer ECDSA and BLS private key paths
+ecdsa_private_key_store_path: /near-sffl/config/keys/ecdsa.json
+bls_private_key_store_path: /near-sffl/config/keys/bls.json
+```
+
+Then, in `setup/operator/config/operator.yaml`, set all the relevant fields
+mentioned below.
 
 ```yaml
 # Production flag for logging - false for printing debug logs
@@ -137,16 +173,17 @@ bls_private_key_store_path: /near-sffl/config/keys/bls.json
 aggregator_server_ip_port_address: near-sffl-aggregator:8090
 
 # Operator EigenLayer metrics server IP and port
-eigen_metrics_ip_port_address: 0.0.0.0:9090
 enable_metrics: true
-node_api_ip_port_address: 0.0.0.0:9010
+eigen_metrics_ip_port_address: 0.0.0.0:9091
+
 enable_node_api: true
+node_api_ip_port_address: 0.0.0.0:9010
 
 # Whether to try and register the operator in the AVS and in EL on startup.
 # It will not re-register the operator if already registered.
 # If unset, the operator will not be registered on startup! You'll need to
-# manually register the operator - not recommended
-register_operator_on_startup: true
+# manually register the operator.
+register_operator_on_startup: false
 
 # RMQ address and indexer rollup IDs
 near_da_indexer_rmq_ip_port_address: amqp://rmq:5672
@@ -156,6 +193,8 @@ near_da_indexer_rollup_ids: [421614, 11155420]
 rollup_ids_to_rpc_urls:
   421614: wss://arbitrum-sepolia-rpc.publicnode.com
   11155420: wss://optimism-sepolia-rpc.publicnode.com
+
+task_response_wait_ms: 60000
 
 # Token strategy address
 # Mock strategy to deposit when registering (only used for testing)
@@ -179,7 +218,7 @@ contract addresses.
 Follow the commands below in the operator setup directory:
 
 ```
-source .env
+cd near-sffl/setup/operator
 docker compose --profile indexer up
 ```
 
@@ -210,6 +249,27 @@ Your indexer should now continue the syncing process on it's own!
 Keep it running until it’s time to run the operator, as it’ll keep synced with
 NEAR.
 
+### Step 10: Register using the operator plugin
+
+:::warning
+
+After registering, you're part of the network consensus. Run your operator
+node as soon as you've successfully registered so as to not impact any
+activity.
+
+:::
+
+You can skip this step if you've already pre-registered.
+
+Let us know your indexer is synced and we'll whitelist your operator address.
+After that, you can use the operator plugin in order to register your operator.
+Simply run:
+
+```bash
+cd near-sffl/setup/plugin
+./register.sh
+```
+
 ### Step 9: Run your operator
 
 :::info
@@ -220,7 +280,8 @@ This step is only available once the testnet deployment is completely made.
 
 This is the final step!
 
-Stop the previous execution with `Ctrl+C`. Then, update your repository state:
+Go back to the indexer execution, and stop it with `Ctrl+C`. Then, update your
+repository state:
 ```
 git stash
 git pull
@@ -230,7 +291,7 @@ git stash pop
 After that, double-check your `.env` and `config/operator.yaml` files, then
 simply run:
 ```
-source .env
+docker compose --profile indexer --profile operator down -v
 docker compose --profile indexer --profile operator pull
 docker compose --profile indexer --profile operator up
 ```
