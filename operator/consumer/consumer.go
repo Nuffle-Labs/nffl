@@ -186,7 +186,7 @@ func (consumer *Consumer) ResetChannel(ctx context.Context, conn *rmq.Connection
 				return true
 
 			case rmqError := <-consumer.connClosedErrC:
-				if rmqError.Recover {
+				if !rmqError.Recover {
 					consumer.logger.Error("Can't recover connection", "err", err)
 					return true
 				}
