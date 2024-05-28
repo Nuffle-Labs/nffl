@@ -218,10 +218,10 @@ contract addresses.
 
 ### Step 7: Set up your indexer
 
-Follow the commands below in the operator setup directory:
+Follow the command below in the operator setup directory:
 
-```
-cd near-sffl/setup/operator
+```bash
+# cd near-sffl/setup/operator
 docker compose --profile indexer up
 ```
 
