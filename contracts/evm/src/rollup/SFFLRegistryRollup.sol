@@ -146,6 +146,21 @@ contract SFFLRegistryRollup is Initializable, OwnableUpgradeable, Pausable, SFFL
     }
 
     /**
+     * @notice Forces an operator set update. This is meant to be used only
+     * by the owner in a testnet scenario in case there is no consensus on a
+     * particular operator set update. This can also be used while operator
+     * set updating is paused.
+     * @param message Operator set update message
+     */
+    function forceOperatorSetUpdate(OperatorSetUpdate.Message calldata message) external onlyOwner {
+        require(message.id == nextOperatorUpdateId, "Wrong message ID");
+
+        nextOperatorUpdateId = message.id + 1;
+
+        _operatorSet.update(message.operators);
+    }
+
+    /**
      * @notice Sets the operator set quorum weight threshold
      * @param newQuorumThreshold New quorum threshold, based on
      * THRESHOLD_DENOMINATOR
