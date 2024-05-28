@@ -137,6 +137,7 @@ func NewOperatorPluginFromCLIContext(ctx *cli.Context) (*CliOperatorPlugin, erro
 		avsManager:       avsManager,
 		avsReader:        avsReader,
 		avsWriter:        avsWriter,
+		logger:           logger,
 	}, nil
 }
 
