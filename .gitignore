@@ -43,3 +43,5 @@ aggregator.db
 # Operator setup keys
 setup/operator/config/keys/bls.json
 setup/operator/config/keys/ecdsa.json
+setup/plugin/config/keys/bls.json
+setup/plugin/config/keys/ecdsa.json

@@ -134,13 +134,13 @@ func (attestor *Attestor) Start(ctx context.Context) error {
 		headersC := make(chan *ethtypes.Header, 100)
 		subscription, err := client.SubscribeNewHead(ctx, headersC)
 		if err != nil {
-			attestor.logger.Fatalf("Failed to subscribe to new header: %v, for rollupId: %v", err, rollupId)
+			attestor.logger.Fatal("Failed to subscribe to new header", "err", err, "rollupId", rollupId)
 			return err
 		}
 
 		blockNumber, err := client.BlockNumber(ctx)
 		if err != nil {
-			attestor.logger.Fatalf("Failed to get block number: %v, for rollupId: %v", err, rollupId)
+			attestor.logger.Fatal("Failed to get block number", "err", err, "rollupId", rollupId)
 			return err
 		}
 
@@ -171,7 +171,7 @@ func (attestor *Attestor) processMQBlocks(ctx context.Context) {
 			attestor.logger.Info("Notifying", "rollupId", mqBlock.RollupId, "height", mqBlock.Block.Header().Number.Uint64())
 			err := attestor.notifier.Notify(mqBlock.RollupId, mqBlock)
 			if err != nil {
-				attestor.logger.Errorf("Notifier: %v", err)
+				attestor.logger.Error("Notifier", "err", err)
 			}
 
 			// Rebroadcast in case mq block arrives first
@@ -229,7 +229,7 @@ func (attestor *Attestor) processHeader(rollupId uint32, rollupHeader *ethtypes.
 
 	predicate := func(mqBlock consumer.BlockData) bool {
 		if mqBlock.RollupId != rollupId {
-			attestor.logger.Warnf("Subscriber expected rollupId: %v, but got %v", rollupId, mqBlock.RollupId)
+			attestor.logger.Warn("Subscriber rollupId mismatch", "expected", rollupId, "actual", mqBlock.RollupId)
 			return false
 		}
 
@@ -238,7 +238,7 @@ func (attestor *Attestor) processHeader(rollupId uint32, rollupHeader *ethtypes.
 		}
 
 		if mqBlock.Block.Header().Root != rollupHeader.Root {
-			attestor.logger.Warnf("StateRoot from MQ doesn't match one from Node")
+			attestor.logger.Warn("StateRoot from MQ doesn't match one from Node")
 			attestor.listener.OnBlockMismatch(rollupId)
 
 			return false

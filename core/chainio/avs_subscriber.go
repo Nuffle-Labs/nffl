@@ -32,7 +32,7 @@ type AvsSubscriber struct {
 func BuildAvsSubscriber(registryCoordinatorAddr, blsOperatorStateRetrieverAddr gethcommon.Address, ethclient eth.Client, logger sdklogging.Logger) (*AvsSubscriber, error) {
 	avsContractBindings, err := NewAvsManagersBindings(registryCoordinatorAddr, blsOperatorStateRetrieverAddr, ethclient, logger)
 	if err != nil {
-		logger.Errorf("Failed to create contract bindings", "err", err)
+		logger.Error("Failed to create contract bindings", "err", err)
 		return nil, err
 	}
 	return NewAvsSubscriber(avsContractBindings, logger), nil
@@ -53,7 +53,7 @@ func (s *AvsSubscriber) SubscribeToNewTasks(checkpointTaskCreatedChan chan *task
 		s.logger.Error("Failed to subscribe to new TaskManager tasks", "err", err)
 		return nil, err
 	}
-	s.logger.Infof("Subscribed to new TaskManager tasks")
+	s.logger.Info("Subscribed to new TaskManager tasks")
 	return sub, nil
 }
 
@@ -65,7 +65,7 @@ func (s *AvsSubscriber) SubscribeToTaskResponses(taskResponseChan chan *taskmana
 		s.logger.Error("Failed to subscribe to CheckpointTaskResponded events", "err", err)
 		return nil, err
 	}
-	s.logger.Infof("Subscribed to CheckpointTaskResponded events")
+	s.logger.Info("Subscribed to CheckpointTaskResponded events")
 	return sub, nil
 }
 
@@ -81,6 +81,6 @@ func (s *AvsSubscriber) SubscribeToOperatorSetUpdates(operatorSetUpdateChan chan
 		s.logger.Error("Failed to subscribe to OperatorSetUpdatedAtBlock events", "err", err)
 		return nil, err
 	}
-	s.logger.Infof("Subscribed to OperatorSetUpdatedAtBlock events")
+	s.logger.Info("Subscribed to OperatorSetUpdatedAtBlock events")
 	return sub, nil
 }

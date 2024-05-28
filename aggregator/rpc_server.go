@@ -3,6 +3,7 @@ package aggregator
 import (
 	"context"
 	"errors"
+	"fmt"
 	"math"
 	"net/http"
 	"net/rpc"
@@ -46,9 +47,9 @@ func (agg *Aggregator) startServer() error {
 // rpc framework forces a reply type to exist, so we put bool as a placeholder
 func (agg *Aggregator) ProcessSignedCheckpointTaskResponse(signedCheckpointTaskResponse *messages.SignedCheckpointTaskResponse, reply *bool) error {
 	if signedCheckpointTaskResponse.BlsSignature.G1Point != nil {
-		agg.logger.Infof("Received signed task response: %#v %s", signedCheckpointTaskResponse, signedCheckpointTaskResponse.BlsSignature.String())
+		agg.logger.Info("Received signed task response", "response", fmt.Sprintf("%#v", signedCheckpointTaskResponse), "signature", signedCheckpointTaskResponse.BlsSignature.String())
 	} else {
-		agg.logger.Infof("Received signed task response: %#v", signedCheckpointTaskResponse)
+		agg.logger.Info("Received signed task response", "response", fmt.Sprintf("%#v", signedCheckpointTaskResponse))
 	}
 
 	taskIndex := signedCheckpointTaskResponse.TaskResponse.ReferenceTaskIndex
@@ -96,9 +97,9 @@ func (agg *Aggregator) ProcessSignedStateRootUpdateMessage(signedStateRootUpdate
 	}
 
 	if signedStateRootUpdateMessage.BlsSignature.G1Point != nil {
-		agg.logger.Infof("Received signed state root update message: %v %#v %s", messageDigest, signedStateRootUpdateMessage, signedStateRootUpdateMessage.BlsSignature.String())
+		agg.logger.Info("Received signed state root update message", "updateMessage", fmt.Sprintf("%#v", signedStateRootUpdateMessage), "messageDigest", fmt.Sprintf("%#v", messageDigest), "signature", signedStateRootUpdateMessage.BlsSignature.String())
 	} else {
-		agg.logger.Infof("Received signed state root update message: %v %#v", messageDigest, signedStateRootUpdateMessage)
+		agg.logger.Info("Received signed state root update message", "updateMessage", fmt.Sprintf("%#v", signedStateRootUpdateMessage), "messageDigest", fmt.Sprintf("%#v", messageDigest))
 	}
 
 	if signedStateRootUpdateMessage.Message.Timestamp < uint64(time.Now().Unix())-60 {
@@ -146,9 +147,9 @@ func (agg *Aggregator) ProcessSignedStateRootUpdateMessage(signedStateRootUpdate
 
 func (agg *Aggregator) ProcessSignedOperatorSetUpdateMessage(signedOperatorSetUpdateMessage *messages.SignedOperatorSetUpdateMessage, reply *bool) error {
 	if signedOperatorSetUpdateMessage.BlsSignature.G1Point != nil {
-		agg.logger.Infof("Received signed operator set update message: %#v %s", signedOperatorSetUpdateMessage, signedOperatorSetUpdateMessage.BlsSignature.String())
+		agg.logger.Info("Received signed operator set update message", "message", fmt.Sprintf("%#v", signedOperatorSetUpdateMessage), "signature", signedOperatorSetUpdateMessage.BlsSignature.String())
 	} else {
-		agg.logger.Infof("Received signed operator set update message: %#v", signedOperatorSetUpdateMessage)
+		agg.logger.Info("Received signed operator set update message", "message", fmt.Sprintf("%#v", signedOperatorSetUpdateMessage))
 	}
 
 	messageDigest, err := signedOperatorSetUpdateMessage.Message.Digest()

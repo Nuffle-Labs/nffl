@@ -151,7 +151,7 @@ func (r *Relayer) listenToBlocks(ctx context.Context, blockBatchC chan []*ethtyp
 
 	sub, err := r.rpcClient.SubscribeNewHead(ctx, headers)
 	if err != nil {
-		r.logger.Fatalf("Error subscribing to new rollup block headers: %s", err.Error())
+		r.logger.Fatal("Error subscribing to new rollup block headers", "err", err.Error())
 	}
 	defer sub.Unsubscribe()
 
