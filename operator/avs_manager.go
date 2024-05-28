@@ -172,7 +172,7 @@ func (avsManager *AvsManager) Start(ctx context.Context, operatorAddr common.Add
 func (avsManager *AvsManager) handleOperatorSetUpdate(ctx context.Context, data *opsetupdatereg.ContractSFFLOperatorSetUpdateRegistryOperatorSetUpdatedAtBlock) error {
 	operatorSetDelta, err := avsManager.avsReader.GetOperatorSetUpdateDelta(ctx, data.Id)
 	if err != nil {
-		avsManager.logger.Errorf("Couldn't get Operator set update delta: %v for block: %v", err, data.Id)
+		avsManager.logger.Error("Couldn't get Operator set update delta", "err", err, "block", data.Id)
 		return err
 	}
 
@@ -208,18 +208,18 @@ func (avsManager *AvsManager) DepositIntoStrategy(operatorAddr common.Address, s
 	txOpts, err := avsManager.avsWriter.TxMgr.GetNoSendTxOpts()
 	tx, err := contractErc20Mock.Mint(txOpts, operatorAddr, amount)
 	if err != nil {
-		avsManager.logger.Errorf("Error assembling Mint tx")
+		avsManager.logger.Error("Error assembling Mint tx")
 		return err
 	}
 	_, err = avsManager.avsWriter.TxMgr.Send(context.Background(), tx)
 	if err != nil {
-		avsManager.logger.Errorf("Error submitting Mint tx")
+		avsManager.logger.Error("Error submitting Mint tx")
 		return err
 	}
 
 	_, err = avsManager.eigenlayerWriter.DepositERC20IntoStrategy(context.Background(), strategyAddr, amount)
 	if err != nil {
-		avsManager.logger.Errorf("Error depositing into strategy", "err", err)
+		avsManager.logger.Error("Error depositing into strategy", "err", err)
 		return err
 	}
 	return nil
@@ -232,7 +232,7 @@ func (avsManager *AvsManager) RegisterOperatorWithEigenlayer(operatorAddr common
 	}
 	_, err := avsManager.eigenlayerWriter.RegisterAsOperator(context.Background(), operator)
 	if err != nil {
-		avsManager.logger.Errorf("Error registering operator with eigenlayer")
+		avsManager.logger.Error("Error registering operator with eigenlayer")
 		return err
 	}
 
@@ -250,13 +250,13 @@ func (avsManager *AvsManager) RegisterOperatorWithAvs(
 	socket := "Not Needed"
 	curBlockNum, err := client.BlockNumber(context.Background())
 	if err != nil {
-		avsManager.logger.Errorf("Unable to get current block number")
+		avsManager.logger.Error("Unable to get current block number")
 		return err
 	}
 
 	curBlock, err := client.BlockByNumber(context.Background(), big.NewInt(int64(curBlockNum)))
 	if err != nil {
-		avsManager.logger.Errorf("Unable to get current block")
+		avsManager.logger.Error("Unable to get current block")
 		return err
 	}
 
@@ -273,10 +273,10 @@ func (avsManager *AvsManager) RegisterOperatorWithAvs(
 	)
 
 	if err != nil {
-		avsManager.logger.Errorf("Unable to register operator with avs registry coordinator")
+		avsManager.logger.Error("Unable to register operator with avs registry coordinator")
 		return err
 	}
-	avsManager.logger.Infof("Registered operator with avs registry coordinator.")
+	avsManager.logger.Info("Registered operator with avs registry coordinator.")
 
 	return nil
 }

@@ -121,7 +121,7 @@ func NewAggregator(ctx context.Context, config *config.Config, logger logging.Lo
 	}
 	clients, err := eigenclients.BuildAll(chainioConfig, config.EcdsaPrivateKey, logger)
 	if err != nil {
-		logger.Errorf("Cannot create sdk clients", "err", err)
+		logger.Error("Cannot create sdk clients", "err", err)
 		return nil, err
 	}
 	registry := clients.PrometheusRegistry
@@ -134,7 +134,7 @@ func NewAggregator(ctx context.Context, config *config.Config, logger logging.Lo
 		logger,
 	)
 	if err != nil {
-		logger.Errorf("Cannot create http ethclient", "err", err)
+		logger.Error("Cannot create http ethclient", "err", err)
 		return nil, err
 	}
 
@@ -146,7 +146,7 @@ func NewAggregator(ctx context.Context, config *config.Config, logger logging.Lo
 		logger,
 	)
 	if err != nil {
-		logger.Errorf("Cannot create ws ethclient", "err", err)
+		logger.Error("Cannot create ws ethclient", "err", err)
 		return nil, err
 	}
 
@@ -178,7 +178,7 @@ func NewAggregator(ctx context.Context, config *config.Config, logger logging.Lo
 
 	avsWriter, err := chainio.BuildAvsWriterFromConfig(txMgr, config, ethHttpClient, logger)
 	if err != nil {
-		logger.Errorf("Cannot create avsWriter", "err", err)
+		logger.Error("Cannot create avsWriter", "err", err)
 		return nil, err
 	}
 
@@ -190,7 +190,7 @@ func NewAggregator(ctx context.Context, config *config.Config, logger logging.Lo
 
 	msgDb, err := database.NewDatabase(config.AggregatorDatabasePath)
 	if err != nil {
-		logger.Errorf("Cannot create database", "err", err)
+		logger.Error("Cannot create database", "err", err)
 		return nil, err
 	}
 
@@ -270,20 +270,20 @@ func (agg *Aggregator) EnableMetrics(registry *prometheus.Registry) error {
 }
 
 func (agg *Aggregator) Start(ctx context.Context) error {
-	agg.logger.Infof("Starting aggregator.")
+	agg.logger.Info("Starting aggregator.")
 
 	if agg.metrics != nil {
 		agg.metrics.Start(ctx, agg.registry)
 	}
 
-	agg.logger.Infof("Starting aggregator rpc server.")
+	agg.logger.Info("Starting aggregator rpc server.")
 	go agg.startServer()
 
-	agg.logger.Infof("Starting aggregator REST API.")
+	agg.logger.Info("Starting aggregator REST API.")
 	go agg.startRestServer()
 
 	ticker := time.NewTicker(agg.checkpointInterval)
-	agg.logger.Infof("Aggregator set to send new task every %s...", agg.checkpointInterval.String())
+	agg.logger.Info("Aggregator set to send new task", "interval", agg.checkpointInterval.String())
 	defer ticker.Stop()
 
 	broadcasterErrorChan := agg.rollupBroadcaster.GetErrorChan()
@@ -355,7 +355,7 @@ func (agg *Aggregator) sendAggregatedResponseToContract(blsAggServiceResp blsagg
 
 	currentBlock, err := agg.httpClient.BlockNumber(context.Background())
 	if err != nil {
-		agg.logger.Errorf("Error getting current block number", "err", err)
+		agg.logger.Error("Error getting current block number", "err", err)
 		return
 	}
 

@@ -120,7 +120,7 @@ func relayerMain(config config.RelayerConfig) error {
 			logger.Fatal(err.Error())
 		}
 
-		logger.Infof("Config: %s", string(configJson))
+		logger.Info("Read config", "config", string(configJson))
 	}
 
 	logger.Info("initializing relayer")

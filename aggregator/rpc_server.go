@@ -3,6 +3,7 @@ package aggregator
 import (
 	"context"
 	"errors"
+	"fmt"
 	"net/http"
 	"net/rpc"
 	"strings"
@@ -43,7 +44,7 @@ func (agg *Aggregator) startServer() error {
 // reply doesn't need to be checked. If there are no errors, the task response is accepted
 // rpc framework forces a reply type to exist, so we put bool as a placeholder
 func (agg *Aggregator) ProcessSignedCheckpointTaskResponse(signedCheckpointTaskResponse *messages.SignedCheckpointTaskResponse, reply *bool) error {
-	agg.logger.Infof("Received signed task response: %#v", signedCheckpointTaskResponse)
+	agg.logger.Info("Received signed task response", "response", fmt.Sprintf("%#v", signedCheckpointTaskResponse))
 
 	taskIndex := signedCheckpointTaskResponse.TaskResponse.ReferenceTaskIndex
 	taskResponseDigest, err := signedCheckpointTaskResponse.TaskResponse.Digest()
@@ -93,7 +94,7 @@ func (agg *Aggregator) ProcessSignedStateRootUpdateMessage(signedStateRootUpdate
 	operatorId := signedStateRootUpdateMessage.OperatorId
 	rollupId := signedStateRootUpdateMessage.Message.RollupId
 
-	agg.logger.Infof("Received signed state root update message: %#v %#v", signedStateRootUpdateMessage, messageDigest)
+	agg.logger.Info("Received signed state root update message", "updateMessage", fmt.Sprintf("%#v", signedStateRootUpdateMessage) , "messageDigest", fmt.Sprintf("%#v", messageDigest))
 
 	agg.rpcListener.IncTotalSignedCheckpointTaskResponse()
 	agg.rpcListener.ObserveLastMessageReceivedTime(operatorId, StateRootUpdateMessageLabel)
@@ -138,7 +139,7 @@ func (agg *Aggregator) ProcessSignedOperatorSetUpdateMessage(signedOperatorSetUp
 
 	operatorId := signedOperatorSetUpdateMessage.OperatorId
 
-	agg.logger.Infof("Received signed operator set update message: %#v", signedOperatorSetUpdateMessage)
+	agg.logger.Info("Received signed operator set update message", "message", fmt.Sprintf("%#v", signedOperatorSetUpdateMessage))
 
 	agg.rpcListener.IncTotalSignedOperatorSetUpdateMessage()
 	agg.rpcListener.ObserveLastMessageReceivedTime(operatorId, OperatorSetUpdateMessageLabel)
