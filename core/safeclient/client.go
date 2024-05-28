@@ -266,8 +266,6 @@ func (c *SafeEthClient) SubscribeFilterLogs(ctx context.Context, q ethereum.Filt
 			if err != nil {
 				c.logger.Error("Failed to resubscribe to logs", "err", err)
 				ticker.Reset(c.logResubInterval)
-			} else {
-				ticker.Stop()
 			}
 		}
 
