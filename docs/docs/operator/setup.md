@@ -241,8 +241,7 @@ Do remember that you'll need to download the snapshot to
 `${NEAR_HOME_DIR}/data` - based on your `.env` file.
 
 After that, run the following again:
-```
-source .env
+```bash
 docker compose --profile indexer up
 ```
 
