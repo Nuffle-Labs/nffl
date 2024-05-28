@@ -266,10 +266,10 @@ You can skip this step if you've already pre-registered.
 
 Let us know your indexer is synced and we'll whitelist your operator address.
 After that, you can use the operator plugin in order to register your operator.
-Simply run:
+Simply go to your operator plugin setup directory and run:
 
 ```bash
-cd near-sffl/setup/plugin
+# cd near-sffl/setup/plugin
 ./register.sh
 ```
 
