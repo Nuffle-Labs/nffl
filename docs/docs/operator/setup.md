@@ -81,7 +81,7 @@ cp <path-to-your-operator-bls-key> near-sffl/setup/plugin/config/keys/bls.json
 
 # Using a placeholder ECDSA key only as we'll not be using the
 # register_operator_on_startup configuration
-cp near-sffl/setup/plugin/config/keys/ecdsa.example.json near-sffl/setup/plugin/config/keys/ecdsa.json
+cp near-sffl/setup/operator/config/keys/ecdsa.example.json near-sffl/setup/operator/config/keys/ecdsa.json
 cp <path-to-your-operator-bls-key> near-sffl/setup/operator/config/keys/bls.json
 ```
 
