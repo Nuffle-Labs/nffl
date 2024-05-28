@@ -14,7 +14,6 @@ import (
 	"github.com/Layr-Labs/eigensdk-go/metrics"
 	"github.com/Layr-Labs/eigensdk-go/services/avsregistry"
 	blsagg "github.com/Layr-Labs/eigensdk-go/services/bls_aggregation"
-	oppubkeysserv "github.com/Layr-Labs/eigensdk-go/services/operatorpubkeys"
 	"github.com/Layr-Labs/eigensdk-go/signerv2"
 	eigentypes "github.com/Layr-Labs/eigensdk-go/types"
 	"github.com/prometheus/client_golang/prometheus"
@@ -91,6 +90,7 @@ type Aggregator struct {
 	restListener       RestEventListener
 	aggregatorListener AggregatorEventListener
 
+	operatorRegistrationsService           OperatorRegistrationsService
 	taskBlsAggregationService              blsagg.BlsAggregationService
 	stateRootUpdateBlsAggregationService   MessageBlsAggregationService
 	operatorSetUpdateBlsAggregationService MessageBlsAggregationService
@@ -200,8 +200,8 @@ func NewAggregator(ctx context.Context, config *config.Config, logger logging.Lo
 		return nil, err
 	}
 
-	operatorPubkeysService := oppubkeysserv.NewOperatorPubkeysServiceInMemory(ctx, clients.AvsRegistryChainSubscriber, clients.AvsRegistryChainReader, logger)
-	avsRegistryService := avsregistry.NewAvsRegistryServiceChainCaller(avsReader, operatorPubkeysService, logger)
+	operatorRegistrationsService := NewOperatorRegistrationsServiceInMemory(ctx, clients.AvsRegistryChainSubscriber, clients.AvsRegistryChainReader, logger)
+	avsRegistryService := avsregistry.NewAvsRegistryServiceChainCaller(avsReader, operatorRegistrationsService, logger)
 	taskBlsAggregationService := blsagg.NewBlsAggregatorService(avsRegistryService, logger)
 	stateRootUpdateBlsAggregationService := NewMessageBlsAggregatorService(avsRegistryService, clients.EthHttpClient, logger)
 	operatorSetUpdateBlsAggregationService := NewMessageBlsAggregatorService(avsRegistryService, clients.EthHttpClient, logger)
@@ -217,6 +217,7 @@ func NewAggregator(ctx context.Context, config *config.Config, logger logging.Lo
 		rollupBroadcaster:                      rollupBroadcaster,
 		httpClient:                             ethHttpClient,
 		wsClient:                               ethWsClient,
+		operatorRegistrationsService:           operatorRegistrationsService,
 		taskBlsAggregationService:              taskBlsAggregationService,
 		stateRootUpdateBlsAggregationService:   stateRootUpdateBlsAggregationService,
 		operatorSetUpdateBlsAggregationService: operatorSetUpdateBlsAggregationService,

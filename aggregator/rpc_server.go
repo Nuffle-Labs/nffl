@@ -8,6 +8,7 @@ import (
 	"net/rpc"
 	"strings"
 
+	"github.com/Layr-Labs/eigensdk-go/crypto/bls"
 	eigentypes "github.com/Layr-Labs/eigensdk-go/types"
 
 	"github.com/NethermindEth/near-sffl/aggregator/types"
@@ -40,25 +41,50 @@ func (agg *Aggregator) startServer() error {
 	return nil
 }
 
+func (agg *Aggregator) verifyOperatorIdRegistered(operatorId eigentypes.OperatorId, messageDigest [32]byte, signature bls.Signature) (bool, error) {
+	operatorPubkeys, ok := agg.operatorRegistrationsService.GetOperatorPubkeysById(context.Background(), operatorId)
+	if !ok {
+		return false, OperatorNotPartOfTaskQuorum400
+	}
+
+	ok, err := signature.Verify(operatorPubkeys.G2Pubkey, messageDigest)
+	if err != nil {
+		return false, UnknownErrorWhileVerifyingSignature400
+	}
+
+	return ok, nil
+}
+
 // rpc endpoint which is called by operator
 // reply doesn't need to be checked. If there are no errors, the task response is accepted
 // rpc framework forces a reply type to exist, so we put bool as a placeholder
 func (agg *Aggregator) ProcessSignedCheckpointTaskResponse(signedCheckpointTaskResponse *messages.SignedCheckpointTaskResponse, reply *bool) error {
 	agg.logger.Info("Received signed task response", "response", fmt.Sprintf("%#v", signedCheckpointTaskResponse))
-
-	taskIndex := signedCheckpointTaskResponse.TaskResponse.ReferenceTaskIndex
 	taskResponseDigest, err := signedCheckpointTaskResponse.TaskResponse.Digest()
 	if err != nil {
 		agg.logger.Error("Failed to get task response digest", "err", err)
 		return TaskResponseDigestNotFoundError500
 	}
 
+	operatorId := signedCheckpointTaskResponse.OperatorId
+	signature := signedCheckpointTaskResponse.BlsSignature
+	ok, err := agg.verifyOperatorIdRegistered(operatorId, taskResponseDigest, signature)
+	if err != nil {
+		agg.logger.Error("Failed to verify message", "err", err)
+		return err
+	}
+	if !ok {
+		agg.logger.Info("Invalid operator signature", "err", err)
+		return SignatureVerificationFailed400
+	}
+
 	agg.rpcListener.IncTotalSignedCheckpointTaskResponse()
 	agg.rpcListener.ObserveLastMessageReceivedTime(signedCheckpointTaskResponse.OperatorId, CheckpointTaskResponseLabel)
 
+	taskIndex := signedCheckpointTaskResponse.TaskResponse.ReferenceTaskIndex
 	err = agg.taskBlsAggregationService.ProcessNewSignature(
 		context.Background(), taskIndex, taskResponseDigest,
-		&signedCheckpointTaskResponse.BlsSignature, signedCheckpointTaskResponse.OperatorId,
+		&signature, signedCheckpointTaskResponse.OperatorId,
 	)
 	if err != nil {
 		agg.rpcListener.IncSignedCheckpointTaskResponse(
@@ -78,7 +104,7 @@ func (agg *Aggregator) ProcessSignedCheckpointTaskResponse(signedCheckpointTaskR
 	}
 	agg.taskResponsesLock.Unlock()
 
-	agg.rpcListener.IncSignedCheckpointTaskResponse(signedCheckpointTaskResponse.OperatorId, false, false)
+	agg.rpcListener.IncSignedCheckpointTaskResponse(operatorId, false, false)
 
 	return nil
 }
@@ -90,15 +116,25 @@ func (agg *Aggregator) ProcessSignedStateRootUpdateMessage(signedStateRootUpdate
 		return TaskResponseDigestNotFoundError500
 	}
 
-	hasNearDaCommitment := signedStateRootUpdateMessage.Message.HasNearDaCommitment()
 	operatorId := signedStateRootUpdateMessage.OperatorId
-	rollupId := signedStateRootUpdateMessage.Message.RollupId
+	signature := signedStateRootUpdateMessage.BlsSignature
+	ok, err := agg.verifyOperatorIdRegistered(operatorId, messageDigest, signature)
+	if err != nil {
+		agg.logger.Error("Failed to verify message", "err", err)
+		return err
+	}
+	if !ok {
+		agg.logger.Info("Invalid operator signature", "err", err)
+		return SignatureVerificationFailed400
+	}
 
 	agg.logger.Info("Received signed state root update message", "updateMessage", fmt.Sprintf("%#v", signedStateRootUpdateMessage) , "messageDigest", fmt.Sprintf("%#v", messageDigest))
 
 	agg.rpcListener.IncTotalSignedCheckpointTaskResponse()
 	agg.rpcListener.ObserveLastMessageReceivedTime(operatorId, StateRootUpdateMessageLabel)
 
+	rollupId := signedStateRootUpdateMessage.Message.RollupId
+	hasNearDaCommitment := signedStateRootUpdateMessage.Message.HasNearDaCommitment()
 	err = agg.stateRootUpdateBlsAggregationService.InitializeMessageIfNotExists(
 		messageDigest,
 		coretypes.QUORUM_NUMBERS,
@@ -118,7 +154,7 @@ func (agg *Aggregator) ProcessSignedStateRootUpdateMessage(signedStateRootUpdate
 
 	err = agg.stateRootUpdateBlsAggregationService.ProcessNewSignature(
 		context.Background(), messageDigest,
-		&signedStateRootUpdateMessage.BlsSignature, signedStateRootUpdateMessage.OperatorId,
+		&signature, signedStateRootUpdateMessage.OperatorId,
 	)
 	if err != nil {
 		agg.rpcListener.IncSignedStateRootUpdateMessage(operatorId, rollupId, true, hasNearDaCommitment)
@@ -138,6 +174,16 @@ func (agg *Aggregator) ProcessSignedOperatorSetUpdateMessage(signedOperatorSetUp
 	}
 
 	operatorId := signedOperatorSetUpdateMessage.OperatorId
+	signature := signedOperatorSetUpdateMessage.BlsSignature
+	ok, err := agg.verifyOperatorIdRegistered(operatorId, messageDigest, signature)
+	if err != nil {
+		agg.logger.Error("Failed to verify message", "err", err)
+		return err
+	}
+	if !ok {
+		agg.logger.Info("Invalid operator signature", "err", err)
+		return SignatureVerificationFailed400
+	}
 
 	agg.logger.Info("Received signed operator set update message", "message", fmt.Sprintf("%#v", signedOperatorSetUpdateMessage))
 
@@ -171,7 +217,7 @@ func (agg *Aggregator) ProcessSignedOperatorSetUpdateMessage(signedOperatorSetUp
 
 	err = agg.operatorSetUpdateBlsAggregationService.ProcessNewSignature(
 		context.Background(), messageDigest,
-		&signedOperatorSetUpdateMessage.BlsSignature, signedOperatorSetUpdateMessage.OperatorId,
+		&signature, signedOperatorSetUpdateMessage.OperatorId,
 	)
 	if err != nil {
 		agg.rpcListener.IncSignedOperatorSetUpdateMessage(operatorId, true)
