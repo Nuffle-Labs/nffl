@@ -37,7 +37,7 @@ Install [Docker Engine on Linux](https://docs.docker.com/engine/install/ubuntu/)
 
 Clone the SFFL repository and execute the following.
 
-```
+```bash
 git clone https://github.com/NethermindEth/near-sffl.git
 cd near-sffl/setup/plugin
 cp .env.example .env
@@ -45,7 +45,7 @@ cp .env.example .env
 
 ### Step 4: Copy your EigenLayer operator keys to the setup directory
 
-```
+```bash
 cp <path-to-your-operator-ecdsa-key> ./config/keys/ecdsa.json
 cp <path-to-your-operator-bls-key> ./config/keys/bls.json
 ```

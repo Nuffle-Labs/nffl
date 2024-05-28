@@ -39,7 +39,7 @@ that indexes NEAR DA submissions on the NEAR blockchain.
 
 Verify CPU feature support by running the following command on Linux:
 
-```
+```bash
 lscpu | grep -P '(?=.*avx )(?=.*sse4.2 )(?=.*cx16 )(?=.*popcnt )' > /dev/null \
   && echo "Supported" \
   || echo "Not supported"
@@ -67,7 +67,7 @@ Install [Docker Engine on Linux](https://docs.docker.com/engine/install/ubuntu/)
 
 Clone the SFFL repository and execute the following.
 
-```
+```bash
 git clone https://github.com/NethermindEth/near-sffl.git
 cp near-sffl/setup/operator/.env.example near-sffl/setup/operator/.env
 cp near-sffl/setup/plugin/.env.example near-sffl/setup/plugin/.env
@@ -285,7 +285,7 @@ This is the final step!
 
 Go back to the indexer execution, and stop it with `Ctrl+C`. Then, update your
 repository state:
-```
+```bash
 git stash
 git pull
 git stash pop
@@ -293,7 +293,7 @@ git stash pop
 
 After that, double-check your `.env` and `config/operator.yaml` files, then
 simply run:
-```
+```bash
 docker compose --profile indexer --profile operator down -v
 docker compose --profile indexer --profile operator pull
 docker compose --profile indexer --profile operator up
