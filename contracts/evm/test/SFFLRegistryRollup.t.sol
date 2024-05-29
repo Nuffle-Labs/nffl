@@ -400,6 +400,58 @@ contract SFFLRegistryRollupTest is TestUtils {
         registry.updateStateRoot(message, signatureInfo);
     }
 
+    function test_forceUpdateOperatorSet() public {
+        RollupOperators.Operator[] memory operators = new RollupOperators.Operator[](3);
+
+        operators[0] = RollupOperators.Operator(initialOperators[3].pubkey, 0);
+        operators[1] = RollupOperators.Operator(initialOperators[2].pubkey, 3 * DEFAULT_WEIGHT);
+        operators[2] = extraOperators[0];
+
+        OperatorSetUpdate.Message memory message =
+            OperatorSetUpdate.Message(registry.nextOperatorUpdateId(), 0, operators);
+
+        vm.expectEmit(true, false, false, true);
+        emit OperatorUpdated(operators[0].pubkey.hashG1Point(), 0);
+        vm.expectEmit(true, false, false, true);
+        emit OperatorUpdated(operators[1].pubkey.hashG1Point(), 3 * DEFAULT_WEIGHT);
+        vm.expectEmit(true, false, false, true);
+        emit OperatorUpdated(operators[2].pubkey.hashG1Point(), DEFAULT_WEIGHT);
+
+        registry.forceOperatorSetUpdate(message);
+
+        assertEq(
+            registry.getApk().hashG1Point(),
+            BN254.G1Point(
+                20722407922923263883576268605784225769666234232258906224209479286774407267165,
+                2757196487678270995513080287135364337546940931709504737604569117674180167662
+            ).hashG1Point()
+        );
+        assertEq(registry.getTotalWeight(), 400 - DEFAULT_WEIGHT - DEFAULT_WEIGHT + 3 * DEFAULT_WEIGHT + DEFAULT_WEIGHT);
+        assertEq(registry.getOperatorWeight(operators[0].pubkey.hashG1Point()), 0);
+        assertEq(registry.getOperatorWeight(operators[1].pubkey.hashG1Point()), 3 * DEFAULT_WEIGHT);
+        assertEq(registry.getOperatorWeight(operators[2].pubkey.hashG1Point()), DEFAULT_WEIGHT);
+        assertEq(registry.nextOperatorUpdateId(), message.id + 1);
+    }
+
+    function test_forceUpdateOperatorSet_RevertWhen_WrongMessageId() public {
+        RollupOperators.Operator[] memory operators = new RollupOperators.Operator[](3);
+
+        operators[0] = RollupOperators.Operator(initialOperators[3].pubkey, 0);
+        operators[1] = RollupOperators.Operator(initialOperators[2].pubkey, 3 * DEFAULT_WEIGHT);
+        operators[2] = extraOperators[0];
+
+        OperatorSetUpdate.Message memory message =
+            OperatorSetUpdate.Message(registry.nextOperatorUpdateId() + 1, 0, operators);
+
+        BN254.G1Point[] memory nonSignerPubkeys = new BN254.G1Point[](2);
+        nonSignerPubkeys[0] = initialOperators[3].pubkey;
+        nonSignerPubkeys[1] = initialOperators[2].pubkey;
+
+        vm.expectRevert("Wrong message ID");
+
+        registry.forceOperatorSetUpdate(message);
+    }
+
     function test_forceOperatorSetUpdate_RevertWhen_CallerNotOwner() public {
         vm.expectRevert("Ownable: caller is not the owner");
 
