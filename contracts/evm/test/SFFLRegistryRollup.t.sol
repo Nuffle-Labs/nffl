@@ -417,6 +417,7 @@ contract SFFLRegistryRollupTest is TestUtils {
         vm.expectEmit(true, false, false, true);
         emit OperatorUpdated(operators[2].pubkey.hashG1Point(), DEFAULT_WEIGHT);
 
+        vm.prank(addr("owner"));
         registry.forceOperatorSetUpdate(message);
 
         assertEq(
@@ -449,6 +450,7 @@ contract SFFLRegistryRollupTest is TestUtils {
 
         vm.expectRevert("Wrong message ID");
 
+        vm.prank(addr("owner"));
         registry.forceOperatorSetUpdate(message);
     }
 
