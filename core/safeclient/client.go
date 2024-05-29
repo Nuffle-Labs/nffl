@@ -202,8 +202,8 @@ func (c *SafeEthClient) SubscribeFilterLogs(ctx context.Context, q ethereum.Filt
 
 		fromBlock := max(lastBlock, rangeStartBlock+1)
 
-		for ; fromBlock < currentBlock; fromBlock += (c.blockChunkSize + 1) {
-			toBlock := min(fromBlock+c.blockChunkSize, currentBlock)
+		for ; fromBlock <= currentBlock; fromBlock += c.blockChunkSize {
+			toBlock := min(fromBlock+c.blockChunkSize-1, currentBlock)
 
 			c.logger.Debug("Getting past logs", "fromBlock", fromBlock, "toBlock", toBlock)
 
