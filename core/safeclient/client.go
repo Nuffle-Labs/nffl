@@ -16,8 +16,8 @@ import (
 )
 
 const (
-	BLOCK_CHUNK_SIZE   = 2000
-	BLOCK_MAX_RANGE    = 10000
+	BLOCK_CHUNK_SIZE   = 100
+	BLOCK_MAX_RANGE    = 100
 	LOG_RESUB_INTERVAL = 5 * time.Minute
 	HEADER_TIMEOUT     = 30 * time.Second
 )
@@ -202,8 +202,8 @@ func (c *SafeEthClient) SubscribeFilterLogs(ctx context.Context, q ethereum.Filt
 
 		fromBlock := max(lastBlock, rangeStartBlock+1)
 
-		for ; fromBlock < currentBlock; fromBlock += (c.blockChunkSize + 1) {
-			toBlock := min(fromBlock+c.blockChunkSize, currentBlock)
+		for ; fromBlock <= currentBlock; fromBlock += c.blockChunkSize {
+			toBlock := min(fromBlock+c.blockChunkSize-1, currentBlock)
 
 			c.logger.Debug("Getting past logs", "fromBlock", fromBlock, "toBlock", toBlock)
 
@@ -233,14 +233,13 @@ func (c *SafeEthClient) SubscribeFilterLogs(ctx context.Context, q ethereum.Filt
 		}
 		c.logger.Info("Resubscribed to logs")
 
+		safeSub.SetUnderlyingSub(newSub)
+
 		missedLogs, err := resubFilterLogs()
 		if err != nil {
 			c.logger.Error("Failed to get missed logs", "err", err)
-			newSub.Unsubscribe()
 			return err
 		}
-
-		safeSub.SetUnderlyingSub(newSub)
 
 		for _, log := range missedLogs {
 			if tryCacheLog(&log) {
@@ -265,8 +264,9 @@ func (c *SafeEthClient) SubscribeFilterLogs(ctx context.Context, q ethereum.Filt
 			err := resub()
 			if err != nil {
 				c.logger.Error("Failed to resubscribe to logs", "err", err)
-				ticker.Reset(c.logResubInterval)
 			}
+
+			ticker.Reset(c.logResubInterval)
 		}
 
 		for {
@@ -348,8 +348,9 @@ func (c *SafeEthClient) SubscribeNewHead(ctx context.Context, ch chan<- *types.H
 			err := resub()
 			if err != nil {
 				c.logger.Error("Failed to resubscribe to heads", "err", err)
-				headerTicker.Reset(c.headerTimeout)
 			}
+
+			headerTicker.Reset(c.headerTimeout)
 		}
 
 		receivedBlock := false
