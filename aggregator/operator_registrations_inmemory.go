@@ -82,10 +82,10 @@ func (ors *OperatorRegistrationsServiceInMemory) startServiceInGoroutine(ctx con
 		pubkeyByAddrDict := make(map[common.Address]types.OperatorPubkeys)
 		pubkeyByIdDict := make(map[types.OperatorId]types.OperatorPubkeys)
 
-		ors.logger.Debug("Subscribing to new pubkey registration events on blsApkRegistry contract", "service", "OperatorPubkeysServiceInMemory")
+		ors.logger.Debug("Subscribing to new pubkey registration events on blsApkRegistry contract", "service", "OperatorRegistrationsServiceInMemory")
 		newPubkeyRegistrationC, newPubkeyRegistrationSub, err := ors.avsRegistrySubscriber.SubscribeToNewPubkeyRegistrations()
 		if err != nil {
-			ors.logger.Error("Fatal error opening websocket subscription for new pubkey registrations", "err", err, "service", "OperatorPubkeysServiceInMemory")
+			ors.logger.Error("Fatal error opening websocket subscription for new pubkey registrations", "err", err, "service", "OperatorRegistrationsServiceInMemory")
 			// see the warning above the struct definition to understand why we panic here
 			panic(err)
 		}
@@ -99,15 +99,15 @@ func (ors *OperatorRegistrationsServiceInMemory) startServiceInGoroutine(ctx con
 		for {
 			select {
 			case <-ctx.Done():
-				ors.logger.Infof("OperatorPubkeysServiceInMemory: Context cancelled, exiting")
+				ors.logger.Infof("OperatorRegistrationsServiceInMemory: Context cancelled, exiting")
 				return
 
 			case err := <-newPubkeyRegistrationSub.Err():
-				ors.logger.Error("Error in websocket subscription for new pubkey registration events. Attempting to reconnect...", "err", err, "service", "OperatorPubkeysServiceInMemory")
+				ors.logger.Error("Error in websocket subscription for new pubkey registration events. Attempting to reconnect...", "err", err, "service", "OperatorRegistrationsServiceInMemory")
 				newPubkeyRegistrationSub.Unsubscribe()
 				newPubkeyRegistrationC, newPubkeyRegistrationSub, err = ors.avsRegistrySubscriber.SubscribeToNewPubkeyRegistrations()
 				if err != nil {
-					ors.logger.Error("Error opening websocket subscription for new pubkey registrations", "err", err, "service", "OperatorPubkeysServiceInMemory")
+					ors.logger.Error("Error opening websocket subscription for new pubkey registrations", "err", err, "service", "OperatorRegistrationsServiceInMemory")
 					// see the warning above the struct definition to understand why we panic here
 					panic(err)
 				}
@@ -124,7 +124,7 @@ func (ors *OperatorRegistrationsServiceInMemory) startServiceInGoroutine(ctx con
 				pubkeyByIdDict[operatorId] = pubkeys
 
 				ors.logger.Debug("Added operator pubkeys to pubkey dict",
-					"service", "OperatorPubkeysServiceInMemory",
+					"service", "OperatorRegistrationsServiceInMemory",
 					"block", newPubkeyRegistrationEvent.Raw.BlockNumber,
 					"operatorAddr", operatorAddr,
 					"operatorId", operatorId,
@@ -151,11 +151,11 @@ func (ors *OperatorRegistrationsServiceInMemory) queryPastRegisteredOperatorEven
 	// since we will just overwrite the pubkey dict with the same values.
 	alreadyRegisteredOperatorAddrs, alreadyRegisteredOperatorPubkeys, err := ors.avsRegistryReader.QueryExistingRegisteredOperatorPubKeys(ctx, nil, nil)
 	if err != nil {
-		ors.logger.Error("Fatal error querying existing registered operators", "err", err, "service", "OperatorPubkeysServiceInMemory")
+		ors.logger.Error("Fatal error querying existing registered operators", "err", err, "service", "OperatorRegistrationsServiceInMemory")
 		panic(err)
 	}
 
-	ors.logger.Debug("List of queried operator registration events in blsApkRegistry", "alreadyRegisteredOperatorAddr", alreadyRegisteredOperatorAddrs, "service", "OperatorPubkeysServiceInMemory")
+	ors.logger.Debug("List of queried operator registration events in blsApkRegistry", "alreadyRegisteredOperatorAddr", alreadyRegisteredOperatorAddrs, "service", "OperatorRegistrationsServiceInMemory")
 	for i, operatorAddr := range alreadyRegisteredOperatorAddrs {
 		operatorPubkeys := alreadyRegisteredOperatorPubkeys[i]
 		pubkeyByAddrDict[operatorAddr] = operatorPubkeys
