@@ -404,6 +404,7 @@ func TestConcurrentClose(t *testing.T) {
 			client.Close()
 		}()
 	}
+	wg.Wait()
 }
 
 func TestSubscribeNewHead(t *testing.T) {
