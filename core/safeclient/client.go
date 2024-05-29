@@ -233,14 +233,13 @@ func (c *SafeEthClient) SubscribeFilterLogs(ctx context.Context, q ethereum.Filt
 		}
 		c.logger.Info("Resubscribed to logs")
 
+		safeSub.SetUnderlyingSub(newSub)
+
 		missedLogs, err := resubFilterLogs()
 		if err != nil {
 			c.logger.Error("Failed to get missed logs", "err", err)
-			newSub.Unsubscribe()
 			return err
 		}
-
-		safeSub.SetUnderlyingSub(newSub)
 
 		for _, log := range missedLogs {
 			if tryCacheLog(&log) {
