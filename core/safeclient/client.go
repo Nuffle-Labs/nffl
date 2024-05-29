@@ -264,8 +264,9 @@ func (c *SafeEthClient) SubscribeFilterLogs(ctx context.Context, q ethereum.Filt
 			err := resub()
 			if err != nil {
 				c.logger.Error("Failed to resubscribe to logs", "err", err)
-				ticker.Reset(c.logResubInterval)
 			}
+
+			ticker.Reset(c.logResubInterval)
 		}
 
 		for {
@@ -347,8 +348,9 @@ func (c *SafeEthClient) SubscribeNewHead(ctx context.Context, ch chan<- *types.H
 			err := resub()
 			if err != nil {
 				c.logger.Error("Failed to resubscribe to heads", "err", err)
-				headerTicker.Reset(c.headerTimeout)
 			}
+
+			headerTicker.Reset(c.headerTimeout)
 		}
 
 		receivedBlock := false
