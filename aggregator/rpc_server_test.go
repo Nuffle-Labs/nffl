@@ -27,7 +27,7 @@ func TestProcessSignedCheckpointTaskResponse(t *testing.T) {
 	var FROM_NEAR_BLOCK = uint64(3)
 	var TO_NEAR_BLOCK = uint64(4)
 
-	aggregator, _, _, mockBlsAggServ, _, _, _, _, _, err := createMockAggregator(mockCtrl, MOCK_OPERATOR_PUBKEY_DICT)
+	aggregator, _, _, mockBlsAggServ, _, _, mockOperatorRegistrationsServ, _, _, _, err := createMockAggregator(mockCtrl, MOCK_OPERATOR_PUBKEY_DICT)
 	assert.Nil(t, err)
 
 	signedCheckpointTaskResponse, err := createMockSignedCheckpointTaskResponse(MockTask{
@@ -43,8 +43,11 @@ func TestProcessSignedCheckpointTaskResponse(t *testing.T) {
 	// TODO(samlaf): is this the right way to test writing to external service?
 	// or is there some wisdom to "don't mock 3rd party code"?
 	// see https://hynek.me/articles/what-to-mock-in-5-mins/
-	mockBlsAggServ.EXPECT().ProcessNewSignature(context.Background(), TASK_INDEX, signedCheckpointTaskResponseDigest,
+	ctx := context.Background()
+	mockBlsAggServ.EXPECT().ProcessNewSignature(ctx, TASK_INDEX, signedCheckpointTaskResponseDigest,
 		&signedCheckpointTaskResponse.BlsSignature, signedCheckpointTaskResponse.OperatorId)
+	mockOperatorRegistrationsServ.EXPECT().GetOperatorPubkeysById(ctx, signedCheckpointTaskResponse.OperatorId).Return(MOCK_OPERATOR_PUBKEYS, true)
+
 	err = aggregator.ProcessSignedCheckpointTaskResponse(signedCheckpointTaskResponse, nil)
 	assert.Nil(t, err)
 }
@@ -53,7 +56,7 @@ func TestProcessSignedStateRootUpdateMessage(t *testing.T) {
 	mockCtrl := gomock.NewController(t)
 	defer mockCtrl.Finish()
 
-	aggregator, _, _, _, mockMessageBlsAggServ, _, _, _, _, err := createMockAggregator(mockCtrl, MOCK_OPERATOR_PUBKEY_DICT)
+	aggregator, _, _, _, mockMessageBlsAggServ, _, mockOperatorRegistrationsServ, _, _, _, err := createMockAggregator(mockCtrl, MOCK_OPERATOR_PUBKEY_DICT)
 	assert.Nil(t, err)
 
 	message := messages.StateRootUpdateMessage{
@@ -73,15 +76,42 @@ func TestProcessSignedStateRootUpdateMessage(t *testing.T) {
 	mockMessageBlsAggServ.EXPECT().ProcessNewSignature(context.Background(), messageDigest,
 		&signedMessage.BlsSignature, signedMessage.OperatorId)
 	mockMessageBlsAggServ.EXPECT().InitializeMessageIfNotExists(messageDigest, coretypes.QUORUM_NUMBERS, []eigentypes.QuorumThresholdPercentage{types.MESSAGE_AGGREGATION_QUORUM_THRESHOLD}, types.MESSAGE_TTL, types.MESSAGE_BLS_AGGREGATION_TIMEOUT, uint64(0))
+	mockOperatorRegistrationsServ.EXPECT().GetOperatorPubkeysById(context.Background(), signedMessage.OperatorId).Return(MOCK_OPERATOR_PUBKEYS, true)
+
 	err = aggregator.ProcessSignedStateRootUpdateMessage(signedMessage, nil)
 	assert.Nil(t, err)
+}
+
+func TestProcessInvalidSignedStateRootUpdateMessage(t *testing.T) {
+	mockCtrl := gomock.NewController(t)
+	defer mockCtrl.Finish()
+
+	aggregator, _, _, _, _, _, mockOperatorRegistrationsServ, _, _, _, err := createMockAggregator(mockCtrl, MOCK_OPERATOR_PUBKEY_DICT)
+	assert.Nil(t, err)
+
+	message := messages.StateRootUpdateMessage{
+		RollupId:            1,
+		BlockHeight:         2,
+		Timestamp:           3,
+		NearDaCommitment:    keccak256(4),
+		NearDaTransactionId: keccak256(5),
+		StateRoot:           keccak256(6),
+	}
+
+	signedMessage, err := createMockSignedStateRootUpdateMessage(message, *MOCK_OPERATOR_KEYPAIR)
+	assert.Nil(t, err)
+	invalidateSignature(&signedMessage.BlsSignature)
+
+	mockOperatorRegistrationsServ.EXPECT().GetOperatorPubkeysById(context.Background(), signedMessage.OperatorId).Return(MOCK_OPERATOR_PUBKEYS, true)
+	err = aggregator.ProcessSignedStateRootUpdateMessage(signedMessage, nil)
+	assert.Equal(t, err.Error(), "400. Signature verification failed")
 }
 
 func TestProcessOperatorSetUpdateMessage(t *testing.T) {
 	mockCtrl := gomock.NewController(t)
 	defer mockCtrl.Finish()
 
-	aggregator, mockAvsReader, _, _, _, mockMessageBlsAggServ, _, _, _, err := createMockAggregator(mockCtrl, MOCK_OPERATOR_PUBKEY_DICT)
+	aggregator, mockAvsReader, _, _, _, mockMessageBlsAggServ, mockOperatorRegistrationsServ, _, _, _, err := createMockAggregator(mockCtrl, MOCK_OPERATOR_PUBKEY_DICT)
 	assert.Nil(t, err)
 
 	message := messages.OperatorSetUpdateMessage{
@@ -97,11 +127,14 @@ func TestProcessOperatorSetUpdateMessage(t *testing.T) {
 	messageDigest, err := signedMessage.Message.Digest()
 	assert.Nil(t, err)
 
-	mockAvsReader.EXPECT().GetOperatorSetUpdateBlock(context.Background(), uint64(1)).Return(uint32(10), nil)
+	ctx := context.Background()
+	mockAvsReader.EXPECT().GetOperatorSetUpdateBlock(ctx, uint64(1)).Return(uint32(10), nil)
 
-	mockMessageBlsAggServ.EXPECT().ProcessNewSignature(context.Background(), messageDigest,
+	mockMessageBlsAggServ.EXPECT().ProcessNewSignature(ctx, messageDigest,
 		&signedMessage.BlsSignature, signedMessage.OperatorId)
 	mockMessageBlsAggServ.EXPECT().InitializeMessageIfNotExists(messageDigest, coretypes.QUORUM_NUMBERS, []eigentypes.QuorumThresholdPercentage{types.MESSAGE_AGGREGATION_QUORUM_THRESHOLD}, types.MESSAGE_TTL, types.MESSAGE_BLS_AGGREGATION_TIMEOUT, uint64(9))
+	mockOperatorRegistrationsServ.EXPECT().GetOperatorPubkeysById(ctx, signedMessage.OperatorId).Return(MOCK_OPERATOR_PUBKEYS, true)
+
 	err = aggregator.ProcessSignedOperatorSetUpdateMessage(signedMessage, nil)
 	assert.Nil(t, err)
 }
@@ -110,7 +143,7 @@ func TestGetAggregatedCheckpointMessages(t *testing.T) {
 	mockCtrl := gomock.NewController(t)
 	defer mockCtrl.Finish()
 
-	aggregator, _, _, _, _, _, mockDb, _, _, err := createMockAggregator(mockCtrl, MOCK_OPERATOR_PUBKEY_DICT)
+	aggregator, _, _, _, _, _, _, mockDb, _, _, err := createMockAggregator(mockCtrl, MOCK_OPERATOR_PUBKEY_DICT)
 	assert.Nil(t, err)
 
 	var checkpointMessages messages.CheckpointMessages
@@ -174,4 +207,8 @@ func createMockSignedOperatorSetUpdateMessage(mockMessage messages.OperatorSetUp
 		OperatorId:   MOCK_OPERATOR_ID,
 	}
 	return signedOperatorSetUpdateMessage, nil
+}
+
+func invalidateSignature(signature *bls.Signature) {
+	signature.G1Affine.Neg(signature.G1Affine)
 }
