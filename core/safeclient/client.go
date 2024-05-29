@@ -225,15 +225,17 @@ func (c *SafeEthClient) SubscribeFilterLogs(ctx context.Context, q ethereum.Filt
 		return missedLogs, nil
 	}
 
-	resub := func() error {
-		newSub, err := c.Client.SubscribeFilterLogs(ctx, q, proxyC)
-		if err != nil {
-			c.logger.Error("Failed to resubscribe to logs", "err", err)
-			return err
-		}
+	resub := func(hadError bool) error {
 		c.logger.Info("Resubscribed to logs")
 
-		safeSub.SetUnderlyingSub(newSub)
+		if hadError {
+			newSub, err := c.Client.SubscribeFilterLogs(ctx, q, proxyC)
+			if err != nil {
+				c.logger.Error("Failed to resubscribe to logs", "err", err)
+				return err
+			}
+			safeSub.SetUnderlyingSub(newSub)
+		}
 
 		missedLogs, err := resubFilterLogs()
 		if err != nil {
@@ -260,8 +262,8 @@ func (c *SafeEthClient) SubscribeFilterLogs(ctx context.Context, q ethereum.Filt
 		ticker := time.NewTicker(c.logResubInterval)
 		defer ticker.Stop()
 
-		handleResub := func() {
-			err := resub()
+		handleResub := func(hadError bool) {
+			err := resub(hadError)
 			if err != nil {
 				c.logger.Error("Failed to resubscribe to logs", "err", err)
 			}
@@ -281,10 +283,10 @@ func (c *SafeEthClient) SubscribeFilterLogs(ctx context.Context, q ethereum.Filt
 				}
 			case <-ticker.C:
 				c.logger.Debug("Resub ticker fired")
-				handleResub()
+				handleResub(false)
 			case <-safeSub.underlying.Err():
 				c.logger.Info("Underlying subscription ended, resubscribing")
-				handleResub()
+				handleResub(true)
 			case <-c.closeC:
 				c.logger.Info("Received close signal, ending subscription")
 				safeSub.Unsubscribe()
