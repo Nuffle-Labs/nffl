@@ -136,10 +136,10 @@ contract SFFLRegistryRollupTest is TestUtils {
                     3453374196609277266042659107600871924832557088868662992636101033001416801985,
                     2630500117064331827715800222355515273572786883080373379723474133051328147838
                 ]
-                ),
+            ),
             sigma: BN254.hashToG1(message.hash()).scalar_mul(
                 6305737925830641523797682626723526790077499630761662964405387941160208990354
-                )
+            )
         });
 
         vm.expectEmit(true, false, false, true);
@@ -190,10 +190,10 @@ contract SFFLRegistryRollupTest is TestUtils {
                     16914633983767821662837413448515342510443742248193301243910656017619171484704,
                     19066719044691333956823624407701006018002836358629451345855468619321548553433
                 ]
-                ),
+            ),
             sigma: BN254.hashToG1(message.hash()).scalar_mul(
                 10871270083209376487778842013958292562863808577713565975978123572762179443915
-                )
+            )
         });
 
         vm.expectRevert("Quorum not met");
@@ -226,10 +226,10 @@ contract SFFLRegistryRollupTest is TestUtils {
                     16914633983767821662837413448515342510443742248193301243910656017619171484704,
                     19066719044691333956823624407701006018002836358629451345855468619321548553433
                 ]
-                ),
+            ),
             sigma: BN254.hashToG1(message.hash()).scalar_mul(
                 10871270083209376487778842013958292562863808577713565975978123572762179443915
-                )
+            )
         });
 
         vm.expectRevert("Wrong message ID");
@@ -255,10 +255,10 @@ contract SFFLRegistryRollupTest is TestUtils {
                     3453374196609277266042659107600871924832557088868662992636101033001416801985,
                     2630500117064331827715800222355515273572786883080373379723474133051328147838
                 ]
-                ),
+            ),
             sigma: BN254.hashToG1(message.hash()).scalar_mul(
                 6305737925830641523797682626723526790077499630761662964405387941160208990354
-                )
+            )
         });
 
         assertEq(registry.getStateRoot(message.rollupId, message.blockHeight), bytes32(0));
@@ -290,10 +290,10 @@ contract SFFLRegistryRollupTest is TestUtils {
                     16914633983767821662837413448515342510443742248193301243910656017619171484704,
                     19066719044691333956823624407701006018002836358629451345855468619321548553433
                 ]
-                ),
+            ),
             sigma: BN254.hashToG1(message.hash()).scalar_mul(
                 10871270083209376487778842013958292562863808577713565975978123572762179443915
-                )
+            )
         });
 
         vm.expectRevert("Quorum not met");
@@ -355,10 +355,10 @@ contract SFFLRegistryRollupTest is TestUtils {
                     3453374196609277266042659107600871924832557088868662992636101033001416801985,
                     2630500117064331827715800222355515273572786883080373379723474133051328147838
                 ]
-                ),
+            ),
             sigma: BN254.hashToG1(message.hash()).scalar_mul(
                 6305737925830641523797682626723526790077499630761662964405387941160208990354
-                )
+            )
         });
 
         vm.expectRevert("Pausable: index is paused");
@@ -389,14 +389,76 @@ contract SFFLRegistryRollupTest is TestUtils {
                     3453374196609277266042659107600871924832557088868662992636101033001416801985,
                     2630500117064331827715800222355515273572786883080373379723474133051328147838
                 ]
-                ),
+            ),
             sigma: BN254.hashToG1(message.hash()).scalar_mul(
                 6305737925830641523797682626723526790077499630761662964405387941160208990354
-                )
+            )
         });
 
         vm.expectRevert("Pausable: index is paused");
 
         registry.updateStateRoot(message, signatureInfo);
+    }
+
+    function test_forceUpdateOperatorSet() public {
+        RollupOperators.Operator[] memory operators = new RollupOperators.Operator[](3);
+
+        operators[0] = RollupOperators.Operator(initialOperators[3].pubkey, 0);
+        operators[1] = RollupOperators.Operator(initialOperators[2].pubkey, 3 * DEFAULT_WEIGHT);
+        operators[2] = extraOperators[0];
+
+        OperatorSetUpdate.Message memory message =
+            OperatorSetUpdate.Message(registry.nextOperatorUpdateId(), 0, operators);
+
+        vm.expectEmit(true, false, false, true);
+        emit OperatorUpdated(operators[0].pubkey.hashG1Point(), 0);
+        vm.expectEmit(true, false, false, true);
+        emit OperatorUpdated(operators[1].pubkey.hashG1Point(), 3 * DEFAULT_WEIGHT);
+        vm.expectEmit(true, false, false, true);
+        emit OperatorUpdated(operators[2].pubkey.hashG1Point(), DEFAULT_WEIGHT);
+
+        vm.prank(addr("owner"));
+        registry.forceOperatorSetUpdate(message);
+
+        assertEq(
+            registry.getApk().hashG1Point(),
+            BN254.G1Point(
+                20722407922923263883576268605784225769666234232258906224209479286774407267165,
+                2757196487678270995513080287135364337546940931709504737604569117674180167662
+            ).hashG1Point()
+        );
+        assertEq(registry.getTotalWeight(), 400 - DEFAULT_WEIGHT - DEFAULT_WEIGHT + 3 * DEFAULT_WEIGHT + DEFAULT_WEIGHT);
+        assertEq(registry.getOperatorWeight(operators[0].pubkey.hashG1Point()), 0);
+        assertEq(registry.getOperatorWeight(operators[1].pubkey.hashG1Point()), 3 * DEFAULT_WEIGHT);
+        assertEq(registry.getOperatorWeight(operators[2].pubkey.hashG1Point()), DEFAULT_WEIGHT);
+        assertEq(registry.nextOperatorUpdateId(), message.id + 1);
+    }
+
+    function test_forceUpdateOperatorSet_RevertWhen_WrongMessageId() public {
+        RollupOperators.Operator[] memory operators = new RollupOperators.Operator[](3);
+
+        operators[0] = RollupOperators.Operator(initialOperators[3].pubkey, 0);
+        operators[1] = RollupOperators.Operator(initialOperators[2].pubkey, 3 * DEFAULT_WEIGHT);
+        operators[2] = extraOperators[0];
+
+        OperatorSetUpdate.Message memory message =
+            OperatorSetUpdate.Message(registry.nextOperatorUpdateId() + 1, 0, operators);
+
+        BN254.G1Point[] memory nonSignerPubkeys = new BN254.G1Point[](2);
+        nonSignerPubkeys[0] = initialOperators[3].pubkey;
+        nonSignerPubkeys[1] = initialOperators[2].pubkey;
+
+        vm.expectRevert("Wrong message ID");
+
+        vm.prank(addr("owner"));
+        registry.forceOperatorSetUpdate(message);
+    }
+
+    function test_forceOperatorSetUpdate_RevertWhen_CallerNotOwner() public {
+        vm.expectRevert("Ownable: caller is not the owner");
+
+        OperatorSetUpdate.Message memory message;
+
+        registry.forceOperatorSetUpdate(message);
     }
 }
