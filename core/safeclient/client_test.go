@@ -389,6 +389,24 @@ func NewMockSafeClientControllable(ctx context.Context, mockCtrl *gomock.Control
 	return client, err
 }
 
+func TestConcurrentClose(t *testing.T) {
+	logger, err := logging.NewZapLogger("development")
+	assert.NoError(t, err)
+
+	client, err := safeclient.NewSafeEthClient("", logger, safeclient.WithCustomCreateClient(func(string, logging.Logger) (eth.Client, error) { return nil, nil }))
+	assert.NoError(t, err)
+
+	var wg sync.WaitGroup
+	for i := 1; i <= 10; i++ {
+		wg.Add(1)
+		go func() {
+			defer wg.Done()
+			client.Close()
+		}()
+	}
+	wg.Wait()
+}
+
 func TestSubscribeNewHead(t *testing.T) {
 	mockCtrl := gomock.NewController(t)
 	defer mockCtrl.Finish()
