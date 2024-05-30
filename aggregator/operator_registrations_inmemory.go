@@ -79,9 +79,6 @@ func NewOperatorRegistrationsServiceInMemory(
 
 func (ors *OperatorRegistrationsServiceInMemory) startServiceInGoroutine(ctx context.Context, queryByAddrC <-chan queryByAddr, queryByIdC <-chan queryById, wg *sync.WaitGroup) {
 	go func() {
-		pubkeyByAddrDict := make(map[common.Address]types.OperatorPubkeys)
-		pubkeyByIdDict := make(map[types.OperatorId]types.OperatorPubkeys)
-
 		ors.logger.Debug("Subscribing to new pubkey registration events on blsApkRegistry contract", "service", "OperatorRegistrationsServiceInMemory")
 		newPubkeyRegistrationC, newPubkeyRegistrationSub, err := ors.avsRegistrySubscriber.SubscribeToNewPubkeyRegistrations()
 		if err != nil {
@@ -90,7 +87,7 @@ func (ors *OperatorRegistrationsServiceInMemory) startServiceInGoroutine(ctx con
 			panic(err)
 		}
 
-		ors.queryPastRegisteredOperatorEventsAndFillDb(ctx, pubkeyByAddrDict, pubkeyByIdDict)
+		pubkeyByAddrDict, pubkeyByIdDict := ors.queryPastRegisteredOperators(ctx)
 
 		// The constructor can return after we have backfilled the db by querying the events of operators that have registered with the blsApkRegistry
 		// before the block at which we started the ws subscription above
@@ -146,7 +143,7 @@ func (ors *OperatorRegistrationsServiceInMemory) startServiceInGoroutine(ctx con
 	}()
 }
 
-func (ors *OperatorRegistrationsServiceInMemory) queryPastRegisteredOperatorEventsAndFillDb(ctx context.Context, pubkeyByAddrDict map[common.Address]types.OperatorPubkeys, pubkeyByIdDict map[types.OperatorId]types.OperatorPubkeys) {
+func (ors *OperatorRegistrationsServiceInMemory) queryPastRegisteredOperators(ctx context.Context) (map[common.Address]types.OperatorPubkeys, map[types.OperatorId]types.OperatorPubkeys) {
 	// Querying with nil startBlock and stopBlock will return all events. It doesn't matter if we queryByAddr some events that we will receive again in the websocket,
 	// since we will just overwrite the pubkey dict with the same values.
 	alreadyRegisteredOperatorAddrs, alreadyRegisteredOperatorPubkeys, err := ors.avsRegistryReader.QueryExistingRegisteredOperatorPubKeys(ctx, nil, nil)
@@ -154,8 +151,10 @@ func (ors *OperatorRegistrationsServiceInMemory) queryPastRegisteredOperatorEven
 		ors.logger.Error("Fatal error querying existing registered operators", "err", err, "service", "OperatorRegistrationsServiceInMemory")
 		panic(err)
 	}
-
 	ors.logger.Debug("List of queried operator registration events in blsApkRegistry", "alreadyRegisteredOperatorAddr", alreadyRegisteredOperatorAddrs, "service", "OperatorRegistrationsServiceInMemory")
+
+	pubkeyByAddrDict := make(map[common.Address]types.OperatorPubkeys)
+	pubkeyByIdDict := make(map[types.OperatorId]types.OperatorPubkeys)
 	for i, operatorAddr := range alreadyRegisteredOperatorAddrs {
 		operatorPubkeys := alreadyRegisteredOperatorPubkeys[i]
 		pubkeyByAddrDict[operatorAddr] = operatorPubkeys
@@ -163,6 +162,8 @@ func (ors *OperatorRegistrationsServiceInMemory) queryPastRegisteredOperatorEven
 		operatorId := types.OperatorIdFromPubkey(operatorPubkeys.G1Pubkey)
 		pubkeyByIdDict[operatorId] = operatorPubkeys
 	}
+
+	return pubkeyByAddrDict, pubkeyByIdDict
 }
 
 func (ors *OperatorRegistrationsServiceInMemory) GetOperatorPubkeys(ctx context.Context, operator common.Address) (types.OperatorPubkeys, bool) {
