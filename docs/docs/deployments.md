@@ -33,7 +33,7 @@ operational just yet.
 
 | Name               | Proxy                                                                                                                          | Implementation                                                                                                                 |
 | ------------------ | ------------------------------------------------------------------------------------------------------------------------------ | ------------------------------------------------------------------------------------------------------------------------------ |
-| SFFLRegistryRollup | [`0x1988c716Acf7d92E5B252E6d72d13095230E4142`](https://sepolia.arbiscan.io/address/0x1988c716Acf7d92E5B252E6d72d13095230E4142) | [`0x96aD1164F2265e281f5d48207d8f0d3265EDFF4d`](https://sepolia.arbiscan.io/address/0x96aD1164F2265e281f5d48207d8f0d3265EDFF4d) |
+| SFFLRegistryRollup | [`0x1988c716Acf7d92E5B252E6d72d13095230E4142`](https://sepolia.arbiscan.io/address/0x1988c716Acf7d92E5B252E6d72d13095230E4142) | [`0x8919867ca8E87052EB0C8c247B557b8cE3809fFB`](https://sepolia.arbiscan.io/address/0x8919867ca8E87052EB0C8c247B557b8cE3809fFB) |
 | ProxyAdmin         | -                                                                                                                              | [`0xc4E5F72B362c6ea70317D9f43905182099Db8aeD`](https://sepolia.arbiscan.io/address/0xc4E5F72B362c6ea70317D9f43905182099Db8aeD) |
 | PauserRegistry     | -                                                                                                                              | [`0xad7E2A061E2eB8c73cF62E43f276d86d27678363`](https://sepolia.arbiscan.io/address/0xad7E2A061E2eB8c73cF62E43f276d86d27678363) |
 
@@ -41,7 +41,7 @@ operational just yet.
 
 | Name               | Proxy                                                                                                                                    | Implementation                                                                                                                           |
 | ------------------ | ---------------------------------------------------------------------------------------------------------------------------------------- | ---------------------------------------------------------------------------------------------------------------------------------------- |
-| SFFLRegistryRollup | [`0xc8B72887e184D033595e060A749212509Ec1B6C8`](https://sepolia-optimism.etherscan.io/address/0xc8B72887e184D033595e060A749212509Ec1B6C8) | [`0x08aA5922785793A90A472A0a581833e74db8939a`](https://sepolia-optimism.etherscan.io/address/0x08aA5922785793A90A472A0a581833e74db8939a) |
+| SFFLRegistryRollup | [`0xc8B72887e184D033595e060A749212509Ec1B6C8`](https://sepolia-optimism.etherscan.io/address/0xc8B72887e184D033595e060A749212509Ec1B6C8) | [`0x254cfb4b4306CA87494d78C9d6Ce06D61dB3d464`](https://sepolia-optimism.etherscan.io/address/0x254cfb4b4306CA87494d78C9d6Ce06D61dB3d464) |
 | ProxyAdmin         | -                                                                                                                                        | [`0x7D8d41b1b983b720a3970cA5902c5381cB36b098`](https://sepolia-optimism.etherscan.io/address/0x7D8d41b1b983b720a3970cA5902c5381cB36b098) |
 | PauserRegistry     | -                                                                                                                                        | [`0xA782B1fc36666964a544a64F5559bf6aA75E73C0`](https://sepolia-optimism.etherscan.io/address/0xA782B1fc36666964a544a64F5559bf6aA75E73C0) |
 

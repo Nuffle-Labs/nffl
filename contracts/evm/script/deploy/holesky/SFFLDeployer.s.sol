@@ -309,8 +309,10 @@ contract SFFLDeployer is Script, Utils {
         addressesOutput = vm.serializeAddress(addresses, "indexRegistryImpl", address(indexRegistryImpl));
         addressesOutput = vm.serializeAddress(addresses, "stakeRegistry", address(stakeRegistry));
         addressesOutput = vm.serializeAddress(addresses, "stakeRegistryImpl", address(stakeRegistryImpl));
-        addressesOutput = vm.serializeAddress(addresses, "operatorSetUpdateRegistry", address(operatorSetUpdateRegistry));
-        addressesOutput = vm.serializeAddress(addresses, "operatorSetUpdateRegistryImpl", address(operatorSetUpdateRegistryImpl));
+        addressesOutput =
+            vm.serializeAddress(addresses, "operatorSetUpdateRegistry", address(operatorSetUpdateRegistry));
+        addressesOutput =
+            vm.serializeAddress(addresses, "operatorSetUpdateRegistryImpl", address(operatorSetUpdateRegistryImpl));
         addressesOutput = vm.serializeAddress(addresses, "sfflServiceManager", address(sfflServiceManager));
         addressesOutput = vm.serializeAddress(addresses, "sfflServiceManagerImpl", address(sfflServiceManagerImpl));
         addressesOutput = vm.serializeAddress(addresses, "sfflTaskManager", address(sfflTaskManager));
