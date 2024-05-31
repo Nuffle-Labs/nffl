@@ -10,44 +10,6 @@ const (
 	AggregatorNamespace = "sffl_aggregator"
 )
 
-type RestEventListener interface {
-	IncStateRootUpdateRequests()
-	IncOperatorSetUpdateRequests()
-	IncCheckpointMessagesRequests()
-	APIErrors()
-}
-
-type SelectiveRestListener struct {
-	IncStateRootUpdateRequestsCb    func()
-	IncOperatorSetUpdateRequestsCb  func()
-	IncCheckpointMessagesRequestsCb func()
-	APIErrorsCb                     func()
-}
-
-func (l *SelectiveRestListener) IncStateRootUpdateRequests() {
-	if l.IncStateRootUpdateRequestsCb != nil {
-		l.IncStateRootUpdateRequestsCb()
-	}
-}
-
-func (l *SelectiveRestListener) IncOperatorSetUpdateRequests() {
-	if l.IncOperatorSetUpdateRequestsCb != nil {
-		l.IncOperatorSetUpdateRequestsCb()
-	}
-}
-
-func (l *SelectiveRestListener) IncCheckpointMessagesRequests() {
-	if l.IncCheckpointMessagesRequestsCb != nil {
-		l.IncCheckpointMessagesRequestsCb()
-	}
-}
-
-func (l *SelectiveRestListener) APIErrors() {
-	if l.APIErrorsCb != nil {
-		l.APIErrorsCb()
-	}
-}
-
 type AggregatorEventListener interface {
 	ObserveLastStateRootUpdateAggregated(rollupId uint32, blockNumber uint64)
 	ObserveLastStateRootUpdateReceived(rollupId uint32, blockNumber uint64)
@@ -140,59 +102,6 @@ func (l *SelectiveAggregatorListener) ObserveLastCheckpointTaskReferenceAggregat
 	if l.ObserveLastCheckpointTaskReferenceAggregatedCb != nil {
 		l.ObserveLastCheckpointTaskReferenceAggregatedCb(referenceId)
 	}
-}
-
-func MakeRestServerMetrics(registry *prometheus.Registry) (RestEventListener, error) {
-	stateRootUpdateRequests := prometheus.NewCounter(prometheus.CounterOpts{
-		Namespace: AggregatorNamespace,
-		Name:      "state_root_update_requests_total",
-		Help:      "Total number of state root update requests received",
-	})
-	if err := registry.Register(stateRootUpdateRequests); err != nil {
-		return nil, fmt.Errorf("error registering stateRootUpdateRequests counter: %w", err)
-	}
-
-	operatorSetUpdateRequests := prometheus.NewCounter(prometheus.CounterOpts{
-		Namespace: AggregatorNamespace,
-		Name:      "operator_set_update_requests_total",
-		Help:      "Total number of operator set update requests received",
-	})
-	if err := registry.Register(operatorSetUpdateRequests); err != nil {
-		return nil, fmt.Errorf("error registering operatorSetUpdateRequests counter: %w", err)
-	}
-
-	checkpointMessagesRequests := prometheus.NewCounter(prometheus.CounterOpts{
-		Namespace: AggregatorNamespace,
-		Name:      "checkpoint_messages_requests_total",
-		Help:      "Total number of checkpoint messages requests received",
-	})
-	if err := registry.Register(checkpointMessagesRequests); err != nil {
-		return nil, fmt.Errorf("error registering checkpointMessagesRequests counter: %w", err)
-	}
-
-	apiErrors := prometheus.NewCounter(prometheus.CounterOpts{
-		Namespace: AggregatorNamespace,
-		Name:      "api_errors_total",
-		Help:      "Total number of API errors",
-	})
-	if err := registry.Register(apiErrors); err != nil {
-		return nil, fmt.Errorf("error registering apiErrors counter: %w", err)
-	}
-
-	return &SelectiveRestListener{
-		IncStateRootUpdateRequestsCb: func() {
-			stateRootUpdateRequests.Inc()
-		},
-		IncOperatorSetUpdateRequestsCb: func() {
-			operatorSetUpdateRequests.Inc()
-		},
-		IncCheckpointMessagesRequestsCb: func() {
-			checkpointMessagesRequests.Inc()
-		},
-		APIErrorsCb: func() {
-			apiErrors.Inc()
-		},
-	}, nil
 }
 
 func MakeAggregatorMetrics(registry *prometheus.Registry) (AggregatorEventListener, error) {

@@ -42,9 +42,17 @@ const (
 )
 
 var (
+	// RPC errors
 	DigestError                    = errors.New("Failed to get message digest")
 	TaskResponseDigestError        = errors.New("Failed to get task response digest")
 	GetOperatorSetUpdateBlockError = errors.New("Failed to get operator set update block")
+
+	// REST errors
+	StateRootUpdateNotFoundError = errors.New("StateRootUpdate not found")
+	StateRootAggNotFoundError    = errors.New("StateRootUpdate aggregation not found")
+	OperatorSetNotFoundError     = errors.New("OperatorSetUpdate not found")
+	OperatorAggNotFoundError     = errors.New("OperatorSetUpdate aggregation not found")
+	CheckpointNotFoundError      = errors.New("CheckpointMessages not found")
 )
 
 // Aggregator sends checkpoint tasks onchain, then listens for operator signed TaskResponses.
@@ -95,7 +103,6 @@ type Aggregator struct {
 	// TODO(edwin): once rpc & rest decouple from aggregator fome it with them
 	registry           *prometheus.Registry
 	metrics            metrics.Metrics
-	restListener       RestEventListener
 	aggregatorListener AggregatorEventListener
 
 	taskBlsAggregationService              blsagg.BlsAggregationService
@@ -215,7 +222,6 @@ func NewAggregator(ctx context.Context, config *config.Config, logger logging.Lo
 		taskResponses:                          make(map[coretypes.TaskIndex]map[eigentypes.TaskResponseDigest]messages.CheckpointTaskResponse),
 		stateRootUpdates:                       make(map[coretypes.MessageDigest]messages.StateRootUpdateMessage),
 		operatorSetUpdates:                     make(map[coretypes.MessageDigest]messages.OperatorSetUpdateMessage),
-		restListener:                           &SelectiveRestListener{},
 		aggregatorListener:                     &SelectiveAggregatorListener{},
 	}
 
@@ -235,12 +241,6 @@ func NewAggregator(ctx context.Context, config *config.Config, logger logging.Lo
 }
 
 func (agg *Aggregator) EnableMetrics(registry *prometheus.Registry) error {
-	restListener, err := MakeRestServerMetrics(registry)
-	if err != nil {
-		return err
-	}
-	agg.restListener = restListener
-
 	aggregatorListener, err := MakeAggregatorMetrics(registry)
 	if err != nil {
 		return err
@@ -260,9 +260,6 @@ func (agg *Aggregator) Start(ctx context.Context) error {
 	if agg.metrics != nil {
 		agg.metrics.Start(ctx, agg.registry)
 	}
-
-	agg.logger.Info("Starting aggregator REST API.")
-	go agg.startRestServer()
 
 	ticker := time.NewTicker(agg.checkpointInterval)
 	agg.logger.Info("Aggregator set to send new task", "interval", agg.checkpointInterval.String())
@@ -534,6 +531,7 @@ func (agg *Aggregator) ProcessSignedCheckpointTaskResponse(signedCheckpointTaskR
 	return nil
 }
 
+// Rpc request handlers
 func (agg *Aggregator) ProcessSignedStateRootUpdateMessage(signedStateRootUpdateMessage *messages.SignedStateRootUpdateMessage, reply *bool) error {
 	messageDigest, err := signedStateRootUpdateMessage.Message.Digest()
 	if err != nil {
@@ -601,6 +599,11 @@ func (agg *Aggregator) ProcessSignedOperatorSetUpdateMessage(signedOperatorSetUp
 	return err
 }
 
+// May return nil
+func (agg *Aggregator) GetRegistry() *prometheus.Registry {
+	return agg.registry
+}
+
 type GetAggregatedCheckpointMessagesArgs struct {
 	FromTimestamp, ToTimestamp uint64
 }
@@ -619,4 +622,50 @@ func (agg *Aggregator) GetAggregatedCheckpointMessages(args *GetAggregatedCheckp
 func (agg *Aggregator) GetRegistryCoordinatorAddress(_ *struct{}, reply *string) error {
 	*reply = agg.config.SFFLRegistryCoordinatorAddr.String()
 	return nil
+}
+
+// Rest requests
+func (agg *Aggregator) GetStateRootUpdateAggregation(rollupId uint32, blockHeight uint64) (*types.GetStateRootUpdateAggregationResponse, error) {
+	message, err := agg.msgDb.FetchStateRootUpdate(uint32(rollupId), blockHeight)
+	if err != nil {
+		return nil, StateRootUpdateNotFoundError
+	}
+
+	aggregation, err := agg.msgDb.FetchStateRootUpdateAggregation(uint32(rollupId), blockHeight)
+	if err != nil {
+		return nil, StateRootAggNotFoundError
+	}
+
+	return &types.GetStateRootUpdateAggregationResponse{
+		Message:     *message,
+		Aggregation: *aggregation,
+	}, nil
+}
+
+func (agg *Aggregator) GetOperatorSetUpdateAggregation(id uint64) (*types.GetOperatorSetUpdateAggregationResponse, error) {
+	message, err := agg.msgDb.FetchOperatorSetUpdate(id)
+	if err != nil {
+		return nil, OperatorSetNotFoundError
+	}
+
+	aggregation, err := agg.msgDb.FetchOperatorSetUpdateAggregation(id)
+	if err != nil {
+		return nil, OperatorAggNotFoundError
+	}
+
+	return &types.GetOperatorSetUpdateAggregationResponse{
+		Message:     *message,
+		Aggregation: *aggregation,
+	}, nil
+}
+
+func (agg *Aggregator) GetCheckpointMessages(fromTimestamp, toTimestamp uint64) (*types.GetCheckpointMessagesResponse, error) {
+	checkpointMessages, err := agg.msgDb.FetchCheckpointMessages(fromTimestamp, toTimestamp)
+	if err != nil {
+		return nil, CheckpointNotFoundError
+	}
+
+	return &types.GetCheckpointMessagesResponse{
+		CheckpointMessages: *checkpointMessages,
+	}, nil
 }

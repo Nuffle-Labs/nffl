@@ -31,7 +31,8 @@ import (
 	"github.com/testcontainers/testcontainers-go/wait"
 
 	"github.com/NethermindEth/near-sffl/aggregator"
-	"github.com/NethermindEth/near-sffl/aggregator/rpc_server"
+	restserver "github.com/NethermindEth/near-sffl/aggregator/rest_server"
+	rpcserver "github.com/NethermindEth/near-sffl/aggregator/rpc_server"
 	aggtypes "github.com/NethermindEth/near-sffl/aggregator/types"
 	registryrollup "github.com/NethermindEth/near-sffl/contracts/bindings/SFFLRegistryRollup"
 	transparentproxy "github.com/NethermindEth/near-sffl/contracts/bindings/TransparentUpgradeableProxy"
@@ -295,10 +296,27 @@ func startAggregator(t *testing.T, ctx context.Context, config *config.Config, l
 	if err != nil {
 		t.Fatalf("Failed to create aggregator: %s", err.Error())
 	}
-	go agg.Start(ctx)
 
-	rpcServer := rpc_server.NewRpcServer(config.AggregatorServerIpPortAddr, agg, logger)
+	registry := agg.GetRegistry()
+	rpcServer := rpcserver.NewRpcServer(config.AggregatorServerIpPortAddr, agg, logger)
+	if registry != nil {
+		err = rpcServer.EnableMetrics(registry)
+		if err != nil {
+			t.Fatalf("Failed to create metrics for rpc server: %s", err.Error())
+		}
+	}
 	go rpcServer.Start()
+
+	restServer := restserver.NewRestServer(config.AggregatorRestServerIpPortAddr, agg, logger)
+	if registry != nil {
+		err = restServer.EnableMetrics(registry)
+		if err != nil {
+			t.Fatalf("Failed to create metrics for rest server: %s", err.Error())
+		}
+	}
+	go restServer.Start()
+
+	go agg.Start(ctx)
 
 	t.Log("Started aggregator. Sleeping 20 seconds to give operator time to answer task 1...")
 	time.Sleep(20 * time.Second)

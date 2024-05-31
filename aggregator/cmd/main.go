@@ -11,6 +11,7 @@ import (
 	"github.com/urfave/cli"
 
 	"github.com/NethermindEth/near-sffl/aggregator"
+	restserver "github.com/NethermindEth/near-sffl/aggregator/rest_server"
 	rpcserver "github.com/NethermindEth/near-sffl/aggregator/rpc_server"
 	"github.com/NethermindEth/near-sffl/core/config"
 )
@@ -70,10 +71,19 @@ func aggregatorMain(ctx *cli.Context) error {
 		return err
 	}
 
+	registry := agg.GetRegistry()
 	rpcServer := rpcserver.NewRpcServer(config.AggregatorServerIpPortAddr, agg, logger)
-	// TODO
-	// rpcServer.EnableMetrics()
+	if registry != nil {
+		rpcServer.EnableMetrics(registry)
+	}
+
 	go rpcServer.Start()
+
+	restServer := restserver.NewRestServer(config.AggregatorRestServerIpPortAddr, agg, logger)
+	if registry != nil {
+		restServer.EnableMetrics(registry)
+	}
+	go restServer.Start()
 
 	err = agg.Start(bgCtx)
 	if err != nil {
