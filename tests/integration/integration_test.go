@@ -31,6 +31,7 @@ import (
 	"github.com/testcontainers/testcontainers-go/wait"
 
 	"github.com/NethermindEth/near-sffl/aggregator"
+	"github.com/NethermindEth/near-sffl/aggregator/rpc_server"
 	aggtypes "github.com/NethermindEth/near-sffl/aggregator/types"
 	registryrollup "github.com/NethermindEth/near-sffl/contracts/bindings/SFFLRegistryRollup"
 	transparentproxy "github.com/NethermindEth/near-sffl/contracts/bindings/TransparentUpgradeableProxy"
@@ -294,8 +295,10 @@ func startAggregator(t *testing.T, ctx context.Context, config *config.Config, l
 	if err != nil {
 		t.Fatalf("Failed to create aggregator: %s", err.Error())
 	}
-
 	go agg.Start(ctx)
+
+	rpcServer := rpc_server.NewRpcServer(config.AggregatorServerIpPortAddr, agg, logger)
+	go rpcServer.Start()
 
 	t.Log("Started aggregator. Sleeping 20 seconds to give operator time to answer task 1...")
 	time.Sleep(20 * time.Second)

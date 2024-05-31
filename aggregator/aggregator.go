@@ -41,6 +41,12 @@ const (
 	avsName                  = "super-fast-finality-layer"
 )
 
+var (
+	DigestError                    = errors.New("Failed to get message digest")
+	TaskResponseDigestError        = errors.New("Failed to get task response digest")
+	GetOperatorSetUpdateBlockError = errors.New("Failed to get operator set update block")
+)
+
 // Aggregator sends checkpoint tasks onchain, then listens for operator signed TaskResponses.
 // It aggregates responses signatures, and if any of the TaskResponses reaches the QuorumThreshold for each quorum
 // (currently we only use a single quorum of the ERC20Mock token), it sends the aggregated TaskResponse and signature onchain.
@@ -89,7 +95,6 @@ type Aggregator struct {
 	// TODO(edwin): once rpc & rest decouple from aggregator fome it with them
 	registry           *prometheus.Registry
 	metrics            metrics.Metrics
-	rpcListener        RpcEventListener
 	restListener       RestEventListener
 	aggregatorListener AggregatorEventListener
 
@@ -211,7 +216,6 @@ func NewAggregator(ctx context.Context, config *config.Config, logger logging.Lo
 		stateRootUpdates:                       make(map[coretypes.MessageDigest]messages.StateRootUpdateMessage),
 		operatorSetUpdates:                     make(map[coretypes.MessageDigest]messages.OperatorSetUpdateMessage),
 		restListener:                           &SelectiveRestListener{},
-		rpcListener:                            &SelectiveRpcListener{},
 		aggregatorListener:                     &SelectiveAggregatorListener{},
 	}
 
@@ -237,12 +241,6 @@ func (agg *Aggregator) EnableMetrics(registry *prometheus.Registry) error {
 	}
 	agg.restListener = restListener
 
-	rpcListener, err := MakeRpcServerMetrics(registry)
-	if err != nil {
-		return err
-	}
-	agg.rpcListener = rpcListener
-
 	aggregatorListener, err := MakeAggregatorMetrics(registry)
 	if err != nil {
 		return err
@@ -262,9 +260,6 @@ func (agg *Aggregator) Start(ctx context.Context) error {
 	if agg.metrics != nil {
 		agg.metrics.Start(ctx, agg.registry)
 	}
-
-	agg.logger.Info("Starting aggregator rpc server.")
-	go agg.startServer()
 
 	agg.logger.Info("Starting aggregator REST API.")
 	go agg.startRestServer()
@@ -509,4 +504,119 @@ func (agg *Aggregator) handleOperatorSetUpdateReachedQuorum(ctx context.Context,
 		agg.logger.Error("Aggregator could not store message aggregation")
 		return
 	}
+}
+
+func (agg *Aggregator) ProcessSignedCheckpointTaskResponse(signedCheckpointTaskResponse *messages.SignedCheckpointTaskResponse, reply *bool) error {
+	taskIndex := signedCheckpointTaskResponse.TaskResponse.ReferenceTaskIndex
+	taskResponseDigest, err := signedCheckpointTaskResponse.TaskResponse.Digest()
+	if err != nil {
+		agg.logger.Error("Failed to get task response digest", "err", err)
+		return TaskResponseDigestError
+	}
+
+	err = agg.taskBlsAggregationService.ProcessNewSignature(
+		context.Background(), taskIndex, taskResponseDigest,
+		&signedCheckpointTaskResponse.BlsSignature, signedCheckpointTaskResponse.OperatorId,
+	)
+	if err != nil {
+		return err
+	}
+
+	agg.taskResponsesLock.Lock()
+	if _, ok := agg.taskResponses[taskIndex]; !ok {
+		agg.taskResponses[taskIndex] = make(map[eigentypes.TaskResponseDigest]messages.CheckpointTaskResponse)
+	}
+	if _, ok := agg.taskResponses[taskIndex][taskResponseDigest]; !ok {
+		agg.taskResponses[taskIndex][taskResponseDigest] = signedCheckpointTaskResponse.TaskResponse
+	}
+	agg.taskResponsesLock.Unlock()
+
+	return nil
+}
+
+func (agg *Aggregator) ProcessSignedStateRootUpdateMessage(signedStateRootUpdateMessage *messages.SignedStateRootUpdateMessage, reply *bool) error {
+	messageDigest, err := signedStateRootUpdateMessage.Message.Digest()
+	if err != nil {
+		agg.logger.Error("Failed to get message digest", "err", err)
+		return DigestError
+	}
+
+	err = agg.stateRootUpdateBlsAggregationService.InitializeMessageIfNotExists(
+		messageDigest,
+		coretypes.QUORUM_NUMBERS,
+		[]eigentypes.QuorumThresholdPercentage{types.MESSAGE_AGGREGATION_QUORUM_THRESHOLD},
+		types.MESSAGE_TTL,
+		types.MESSAGE_BLS_AGGREGATION_TIMEOUT,
+		0,
+	)
+	if err != nil {
+		return err
+	}
+
+	agg.stateRootUpdatesLock.Lock()
+	agg.stateRootUpdates[messageDigest] = signedStateRootUpdateMessage.Message
+	agg.stateRootUpdatesLock.Unlock()
+
+	err = agg.stateRootUpdateBlsAggregationService.ProcessNewSignature(
+		context.Background(), messageDigest,
+		&signedStateRootUpdateMessage.BlsSignature, signedStateRootUpdateMessage.OperatorId,
+	)
+	return err
+}
+
+func (agg *Aggregator) ProcessSignedOperatorSetUpdateMessage(signedOperatorSetUpdateMessage *messages.SignedOperatorSetUpdateMessage, reply *bool) error {
+	messageDigest, err := signedOperatorSetUpdateMessage.Message.Digest()
+	if err != nil {
+		agg.logger.Error("Failed to get message digest", "err", err)
+		return DigestError
+	}
+
+	blockNumber, err := agg.avsReader.GetOperatorSetUpdateBlock(context.Background(), signedOperatorSetUpdateMessage.Message.Id)
+	if err != nil {
+		agg.logger.Error("Failed to get operator set update block", "err", err)
+		return GetOperatorSetUpdateBlockError
+	}
+
+	err = agg.operatorSetUpdateBlsAggregationService.InitializeMessageIfNotExists(
+		messageDigest,
+		coretypes.QUORUM_NUMBERS,
+		[]eigentypes.QuorumThresholdPercentage{types.MESSAGE_AGGREGATION_QUORUM_THRESHOLD},
+		types.MESSAGE_TTL,
+		types.MESSAGE_BLS_AGGREGATION_TIMEOUT,
+		uint64(blockNumber)-1,
+	)
+	if err != nil {
+		return err
+	}
+
+	agg.operatorSetUpdatesLock.Lock()
+	agg.operatorSetUpdates[messageDigest] = signedOperatorSetUpdateMessage.Message
+	agg.operatorSetUpdatesLock.Unlock()
+
+	err = agg.operatorSetUpdateBlsAggregationService.ProcessNewSignature(
+		context.Background(), messageDigest,
+		&signedOperatorSetUpdateMessage.BlsSignature, signedOperatorSetUpdateMessage.OperatorId,
+	)
+
+	return err
+}
+
+type GetAggregatedCheckpointMessagesArgs struct {
+	FromTimestamp, ToTimestamp uint64
+}
+
+func (agg *Aggregator) GetAggregatedCheckpointMessages(args *GetAggregatedCheckpointMessagesArgs, reply *messages.CheckpointMessages) error {
+	checkpointMessages, err := agg.msgDb.FetchCheckpointMessages(args.FromTimestamp, args.ToTimestamp)
+	if err != nil {
+		return err
+	}
+
+	*reply = *checkpointMessages
+
+	return nil
+}
+
+func (agg *Aggregator) GetRegistryCoordinatorAddress(_ *struct{}, reply *string) error {
+	*reply = agg.config.SFFLRegistryCoordinatorAddr.String()
+	return nil
 }
