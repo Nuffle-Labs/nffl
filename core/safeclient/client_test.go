@@ -679,3 +679,21 @@ func TestSubscribeFilterLogs_ErrorInSubscription_Resubscribe(t *testing.T) {
 
 	triggerError()
 }
+
+func TestSafeSubscription_ConcurrentUnsubscribe(t *testing.T) {
+	mockCtrl := gomock.NewController(t)
+	sub := mocks.NewMockSubscription(mockCtrl)
+	sub.EXPECT().Unsubscribe().Times(1)
+
+	safeSub := safeclient.NewSafeSubscription(sub)
+
+	var wg sync.WaitGroup
+	for i := 1; i <= 10; i++ {
+		wg.Add(1)
+		go func() {
+			defer wg.Done()
+			safeSub.Unsubscribe()
+		}()
+	}
+	wg.Wait()
+}
