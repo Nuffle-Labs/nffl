@@ -36,7 +36,7 @@ var (
 
 type RpcServer struct {
 	serverIpPortAddr string
-	app              *aggregator.Aggregator
+	app              aggregator.RpcAggregatorer
 
 	logger   logging.Logger
 	listener EventListener
@@ -44,7 +44,7 @@ type RpcServer struct {
 
 var _ core.Metricable = (*RpcServer)(nil)
 
-func NewRpcServer(serverIpPortAddr string, app *aggregator.Aggregator, logger logging.Logger) *RpcServer {
+func NewRpcServer(serverIpPortAddr string, app aggregator.RpcAggregatorer, logger logging.Logger) *RpcServer {
 	return &RpcServer{
 		serverIpPortAddr: serverIpPortAddr,
 		app:              app,
@@ -96,7 +96,7 @@ func (s *RpcServer) ProcessSignedCheckpointTaskResponse(signedCheckpointTaskResp
 	s.listener.IncTotalSignedCheckpointTaskResponse()
 	s.listener.ObserveLastMessageReceivedTime(signedCheckpointTaskResponse.OperatorId, CheckpointTaskResponseLabel)
 
-	err := s.app.ProcessSignedCheckpointTaskResponse(signedCheckpointTaskResponse, reply)
+	err := s.app.ProcessSignedCheckpointTaskResponse(signedCheckpointTaskResponse)
 	if err != nil {
 		s.listener.IncSignedCheckpointTaskResponse(
 			signedCheckpointTaskResponse.OperatorId,
@@ -120,7 +120,7 @@ func (s *RpcServer) ProcessSignedStateRootUpdateMessage(signedStateRootUpdateMes
 	operatorId := signedStateRootUpdateMessage.OperatorId
 	rollupId := signedStateRootUpdateMessage.Message.RollupId
 
-	err := s.app.ProcessSignedStateRootUpdateMessage(signedStateRootUpdateMessage, reply)
+	err := s.app.ProcessSignedStateRootUpdateMessage(signedStateRootUpdateMessage)
 	s.listener.IncSignedStateRootUpdateMessage(operatorId, rollupId, err != nil, hasNearDaCommitment)
 	if err != nil {
 		return mapErrors(err)
@@ -136,7 +136,7 @@ func (s *RpcServer) ProcessSignedOperatorSetUpdateMessage(signedOperatorSetUpdat
 	s.listener.ObserveLastMessageReceivedTime(operatorId, OperatorSetUpdateMessageLabel)
 	s.listener.IncTotalSignedOperatorSetUpdateMessage()
 
-	err := s.app.ProcessSignedOperatorSetUpdateMessage(signedOperatorSetUpdateMessage, reply)
+	err := s.app.ProcessSignedOperatorSetUpdateMessage(signedOperatorSetUpdateMessage)
 	s.listener.IncSignedOperatorSetUpdateMessage(operatorId, err != nil)
 	if err != nil {
 		return mapErrors(err)
@@ -145,12 +145,23 @@ func (s *RpcServer) ProcessSignedOperatorSetUpdateMessage(signedOperatorSetUpdat
 	return nil
 }
 
-func (s *RpcServer) GetAggregatedCheckpointMessages(args *aggregator.GetAggregatedCheckpointMessagesArgs, reply *messages.CheckpointMessages) error {
-	return s.app.GetAggregatedCheckpointMessages(args, reply)
+type GetAggregatedCheckpointMessagesArgs struct {
+	FromTimestamp, ToTimestamp uint64
 }
 
-func (s *RpcServer) GetRegistryCoordinatorAddress(data *struct{}, reply *string) error {
-	return s.app.GetRegistryCoordinatorAddress(data, reply)
+func (s *RpcServer) GetAggregatedCheckpointMessages(args *GetAggregatedCheckpointMessagesArgs, reply *messages.CheckpointMessages) error {
+	result, err := s.app.GetAggregatedCheckpointMessages(args.FromTimestamp, args.ToTimestamp)
+	if err != nil {
+		return mapErrors(err)
+	}
+
+	*reply = *result
+
+	return nil
+}
+
+func (s *RpcServer) GetRegistryCoordinatorAddress(_ *struct{}, reply *string) error {
+	return s.app.GetRegistryCoordinatorAddress(reply)
 }
 
 func (s *RpcServer) NotifyOperatorInitialization(operatorId eigentypes.OperatorId, reply *bool) error {

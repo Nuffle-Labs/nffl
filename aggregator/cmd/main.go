@@ -74,14 +74,18 @@ func aggregatorMain(ctx *cli.Context) error {
 	registry := agg.GetRegistry()
 	rpcServer := rpcserver.NewRpcServer(config.AggregatorServerIpPortAddr, agg, logger)
 	if registry != nil {
-		rpcServer.EnableMetrics(registry)
+		if err = rpcServer.EnableMetrics(registry); err != nil {
+			return err
+		}
 	}
 
 	go rpcServer.Start()
 
 	restServer := restserver.NewRestServer(config.AggregatorRestServerIpPortAddr, agg, logger)
 	if registry != nil {
-		restServer.EnableMetrics(registry)
+		if err = restServer.EnableMetrics(registry); err != nil {
+			return err
+		}
 	}
 	go restServer.Start()
 

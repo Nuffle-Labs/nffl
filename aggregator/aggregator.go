@@ -55,6 +55,20 @@ var (
 	CheckpointNotFoundError      = errors.New("CheckpointMessages not found")
 )
 
+type RpcAggregatorer interface {
+	ProcessSignedCheckpointTaskResponse(signedCheckpointTaskResponse *messages.SignedCheckpointTaskResponse) error
+	ProcessSignedStateRootUpdateMessage(signedStateRootUpdateMessage *messages.SignedStateRootUpdateMessage) error
+	ProcessSignedOperatorSetUpdateMessage(signedOperatorSetUpdateMessage *messages.SignedOperatorSetUpdateMessage) error
+	GetAggregatedCheckpointMessages(fromTimestamp, toTimestamp uint64) (*messages.CheckpointMessages, error)
+	GetRegistryCoordinatorAddress(reply *string) error
+}
+
+type RestAggregatorer interface {
+	GetStateRootUpdateAggregation(rollupId uint32, blockHeight uint64) (*types.GetStateRootUpdateAggregationResponse, error)
+	GetOperatorSetUpdateAggregation(id uint64) (*types.GetOperatorSetUpdateAggregationResponse, error)
+	GetCheckpointMessages(fromTimestamp, toTimestamp uint64) (*types.GetCheckpointMessagesResponse, error)
+}
+
 // Aggregator sends checkpoint tasks onchain, then listens for operator signed TaskResponses.
 // It aggregates responses signatures, and if any of the TaskResponses reaches the QuorumThreshold for each quorum
 // (currently we only use a single quorum of the ERC20Mock token), it sends the aggregated TaskResponse and signature onchain.
@@ -120,6 +134,8 @@ type Aggregator struct {
 }
 
 var _ core.Metricable = (*Aggregator)(nil)
+var _ RpcAggregatorer = (*Aggregator)(nil)
+var _ RestAggregatorer = (*Aggregator)(nil)
 
 // NewAggregator creates a new Aggregator with the provided config.
 // TODO: Remove this context once OperatorPubkeysServiceInMemory's API is
@@ -503,7 +519,7 @@ func (agg *Aggregator) handleOperatorSetUpdateReachedQuorum(ctx context.Context,
 	}
 }
 
-func (agg *Aggregator) ProcessSignedCheckpointTaskResponse(signedCheckpointTaskResponse *messages.SignedCheckpointTaskResponse, reply *bool) error {
+func (agg *Aggregator) ProcessSignedCheckpointTaskResponse(signedCheckpointTaskResponse *messages.SignedCheckpointTaskResponse) error {
 	taskIndex := signedCheckpointTaskResponse.TaskResponse.ReferenceTaskIndex
 	taskResponseDigest, err := signedCheckpointTaskResponse.TaskResponse.Digest()
 	if err != nil {
@@ -532,7 +548,7 @@ func (agg *Aggregator) ProcessSignedCheckpointTaskResponse(signedCheckpointTaskR
 }
 
 // Rpc request handlers
-func (agg *Aggregator) ProcessSignedStateRootUpdateMessage(signedStateRootUpdateMessage *messages.SignedStateRootUpdateMessage, reply *bool) error {
+func (agg *Aggregator) ProcessSignedStateRootUpdateMessage(signedStateRootUpdateMessage *messages.SignedStateRootUpdateMessage) error {
 	messageDigest, err := signedStateRootUpdateMessage.Message.Digest()
 	if err != nil {
 		agg.logger.Error("Failed to get message digest", "err", err)
@@ -562,7 +578,7 @@ func (agg *Aggregator) ProcessSignedStateRootUpdateMessage(signedStateRootUpdate
 	return err
 }
 
-func (agg *Aggregator) ProcessSignedOperatorSetUpdateMessage(signedOperatorSetUpdateMessage *messages.SignedOperatorSetUpdateMessage, reply *bool) error {
+func (agg *Aggregator) ProcessSignedOperatorSetUpdateMessage(signedOperatorSetUpdateMessage *messages.SignedOperatorSetUpdateMessage) error {
 	messageDigest, err := signedOperatorSetUpdateMessage.Message.Digest()
 	if err != nil {
 		agg.logger.Error("Failed to get message digest", "err", err)
@@ -604,22 +620,16 @@ func (agg *Aggregator) GetRegistry() *prometheus.Registry {
 	return agg.registry
 }
 
-type GetAggregatedCheckpointMessagesArgs struct {
-	FromTimestamp, ToTimestamp uint64
-}
-
-func (agg *Aggregator) GetAggregatedCheckpointMessages(args *GetAggregatedCheckpointMessagesArgs, reply *messages.CheckpointMessages) error {
-	checkpointMessages, err := agg.msgDb.FetchCheckpointMessages(args.FromTimestamp, args.ToTimestamp)
+func (agg *Aggregator) GetAggregatedCheckpointMessages(fromTimestamp, toTimestamp uint64) (*messages.CheckpointMessages, error) {
+	checkpointMessages, err := agg.msgDb.FetchCheckpointMessages(fromTimestamp, toTimestamp)
 	if err != nil {
-		return err
+		return nil, err
 	}
 
-	*reply = *checkpointMessages
-
-	return nil
+	return checkpointMessages, nil
 }
 
-func (agg *Aggregator) GetRegistryCoordinatorAddress(_ *struct{}, reply *string) error {
+func (agg *Aggregator) GetRegistryCoordinatorAddress(reply *string) error {
 	*reply = agg.config.SFFLRegistryCoordinatorAddr.String()
 	return nil
 }

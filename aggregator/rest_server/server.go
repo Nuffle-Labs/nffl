@@ -24,7 +24,7 @@ var (
 
 type RestServer struct {
 	serverIpPortAddr string
-	app              *aggregator.Aggregator
+	app              aggregator.RestAggregatorer
 
 	logger   logging.Logger
 	listener EventListener
@@ -32,7 +32,7 @@ type RestServer struct {
 
 var _ core.Metricable = (*RestServer)(nil)
 
-func NewRestServer(serverIpPortAddr string, app *aggregator.Aggregator, logger logging.Logger) *RestServer {
+func NewRestServer(serverIpPortAddr string, app aggregator.RestAggregatorer, logger logging.Logger) *RestServer {
 	return &RestServer{
 		serverIpPortAddr: serverIpPortAddr,
 		app:              app,
