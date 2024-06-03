@@ -207,6 +207,8 @@ type GetAggregatedCheckpointMessagesArgs struct {
 }
 
 func (agg *Aggregator) GetAggregatedCheckpointMessages(args *GetAggregatedCheckpointMessagesArgs, reply *messages.CheckpointMessages) error {
+	agg.logger.Info("GetAggregatedCheckpointMessages", "from", args.FromTimestamp, "to", args.ToTimestamp, "time", time.Now())
+
 	if args.FromTimestamp > math.MaxInt64 || args.ToTimestamp > math.MaxInt64 {
 		return errors.New("timestamp does not fit in int64")
 	}
@@ -214,13 +216,17 @@ func (agg *Aggregator) GetAggregatedCheckpointMessages(args *GetAggregatedCheckp
 	minWaitSec := uint64(types.MESSAGE_BLS_AGGREGATION_TIMEOUT.Seconds() + 1)
 
 	if uint64(time.Now().Unix()) < args.ToTimestamp+minWaitSec {
+		agg.logger.Info("Waiting for aggregation to complete", "duration", time.Until(time.Unix(int64(args.ToTimestamp+minWaitSec), 0)))
 		time.Sleep(time.Until(time.Unix(int64(args.ToTimestamp+minWaitSec), 0)))
 	}
 
 	checkpointMessages, err := agg.msgDb.FetchCheckpointMessages(args.FromTimestamp, args.ToTimestamp)
 	if err != nil {
+		agg.logger.Error("Failed to fetch checkpoint messages", "err", err)
 		return err
 	}
+
+	agg.logger.Info("Fetched checkpoint messages", "stateRootUpdateMessageCount", len(checkpointMessages.StateRootUpdateMessages))
 
 	*reply = *checkpointMessages
 
