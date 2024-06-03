@@ -24,6 +24,7 @@ import (
 type MockNetwork struct {
 	blockTicker          *time.Ticker
 	blockNum             uint64
+	blockNumLock         sync.Mutex
 	blockSubscribers     []chan<- uint64
 	blockSubscribersLock sync.Mutex
 }
@@ -44,12 +45,14 @@ func NewMockNetwork(ctx context.Context, mockCtrl *gomock.Controller) *MockNetwo
 			case <-ctx.Done():
 				return
 			case <-mockNetwork.blockTicker.C:
+				mockNetwork.blockNumLock.Lock()
 				mockNetwork.blockNum++
+				mockNetwork.blockNumLock.Unlock()
+
+				mockNetwork.blockSubscribersLock.Lock()
 				for _, ch := range mockNetwork.blockSubscribers {
 					ch <- mockNetwork.blockNum
 				}
-
-				mockNetwork.blockSubscribersLock.Lock()
 				mockNetwork.blockSubscribers = nil
 				mockNetwork.blockSubscribersLock.Unlock()
 			}
@@ -72,11 +75,15 @@ func (m *MockNetwork) ResumeBlockProduction() {
 }
 
 func (m *MockNetwork) BlockNumber() uint64 {
+	m.blockNumLock.Lock()
+	defer m.blockNumLock.Unlock()
+
 	return m.blockNum
 }
 
 type MockEthClient struct {
 	*mocks.MockEthClient
+	stateLock            sync.Mutex
 	isClosed             bool
 	isPaused             bool
 	closeSubscribers     []chan<- bool
@@ -113,14 +120,23 @@ func (m *MockNetwork) SubscribeToBlocks() <-chan uint64 {
 }
 
 func (m *MockEthClient) ReopenConnection() {
+	m.stateLock.Lock()
+	defer m.stateLock.Unlock()
+
 	m.isClosed = false
 }
 
 func (m *MockEthClient) PauseHeaderSubscriptions() {
+	m.stateLock.Lock()
+	defer m.stateLock.Unlock()
+
 	m.isPaused = true
 }
 
 func (m *MockEthClient) ResumeHeaderSubscriptions() {
+	m.stateLock.Lock()
+	defer m.stateLock.Unlock()
+
 	m.isPaused = false
 }
 
@@ -195,7 +211,10 @@ func NewMockEthClientFromNetwork(ctx context.Context, mockCtrl *gomock.Controlle
 
 	mockClient.EXPECT().SubscribeFilterLogs(gomock.Any(), gomock.Any(), gomock.Any()).DoAndReturn(
 		func(ctx context.Context, q ethereum.FilterQuery, ch chan<- types.Log) (ethereum.Subscription, error) {
-			if mockClient.isClosed {
+			mockClient.stateLock.Lock()
+			isClosed := mockClient.isClosed
+			mockClient.stateLock.Unlock()
+			if isClosed {
 				return nil, errors.New("connection refused")
 			}
 
@@ -234,7 +253,10 @@ func NewMockEthClientFromNetwork(ctx context.Context, mockCtrl *gomock.Controlle
 
 						blockCh = mockNetwork.SubscribeToBlocks()
 
-						if mockClient.isClosed {
+						mockClient.stateLock.Lock()
+						isClosed := mockClient.isClosed
+						mockClient.stateLock.Unlock()
+						if isClosed {
 							continue
 						}
 
@@ -250,6 +272,9 @@ func NewMockEthClientFromNetwork(ctx context.Context, mockCtrl *gomock.Controlle
 
 	mockClient.EXPECT().BlockNumber(gomock.Any()).DoAndReturn(
 		func(ctx context.Context) (uint64, error) {
+			mockNetwork.blockNumLock.Lock()
+			defer mockNetwork.blockNumLock.Unlock()
+
 			return mockNetwork.blockNum, nil
 		},
 	).AnyTimes()
@@ -504,8 +529,7 @@ func TestSubscribeFilterLogs(t *testing.T) {
 	ctx, cancel := context.WithCancel(context.Background())
 	defer cancel()
 
-	logger, err := logging.NewZapLogger("development")
-	assert.NoError(t, err)
+	logger := logging.NewNoopLogger()
 
 	mockNetwork := NewMockNetwork(ctx, mockCtrl)
 
@@ -517,10 +541,15 @@ func TestSubscribeFilterLogs(t *testing.T) {
 	mockClient := client.Client.(*MockEthClient)
 
 	logCh := make(chan types.Log)
-	flushLogCh := func() {
-		select {
-		case <-logCh:
-		case <-time.After(100 * time.Millisecond):
+	flushLogCh := func() int {
+		logCount := 0
+		for {
+			select {
+			case <-logCh:
+				logCount++
+			case <-time.After(2 * time.Second):
+				return logCount
+			}
 		}
 	}
 
@@ -540,7 +569,9 @@ func TestSubscribeFilterLogs(t *testing.T) {
 
 	mockNetwork.PauseBlockProduction()
 	block := mockNetwork.BlockNumber()
-	flushLogCh()
+	fmt.Println("network paused", "block", block)
+	flushedLogCount := flushLogCh()
+	fmt.Println("flushed", flushedLogCount)
 	mockNetwork.ResumeBlockProduction()
 
 	for i := block + 1; i <= block+3; i++ {
@@ -556,7 +587,9 @@ func TestSubscribeFilterLogs(t *testing.T) {
 
 	mockNetwork.PauseBlockProduction()
 	block = mockNetwork.BlockNumber()
-	flushLogCh()
+	fmt.Println("Network paused at block number", block)
+	flushedLogCount = flushLogCh()
+	fmt.Println("flushLogCh", "flushed", flushedLogCount, "logs")
 	mockNetwork.ResumeBlockProduction()
 
 	for i := block + 1; i <= block+3; i++ {
