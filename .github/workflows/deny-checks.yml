@@ -14,7 +14,7 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
-      - uses: taiki-e/install-action@91af8c38814c3998cb755869e5cbeffd3ab0e462
+      - uses: taiki-e/install-action@2.34.1
         with:
-          tool: cargo-deny
+          tool: cargo-deny@0.14.24
       - run: cargo deny --all-features --locked check bans
