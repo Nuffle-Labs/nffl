@@ -622,8 +622,7 @@ func TestLogCache(t *testing.T) {
 	ctx, cancel := context.WithCancel(context.Background())
 	defer cancel()
 
-	logger, err := logging.NewZapLogger("development")
-	assert.NoError(t, err)
+	logger := logging.NewNoopLogger()
 
 	blockNum := uint64(0)
 	headerProxyC := make(chan *types.Header)
