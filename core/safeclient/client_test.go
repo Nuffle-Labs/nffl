@@ -448,8 +448,7 @@ func TestSubscribeNewHead(t *testing.T) {
 	ctx, cancel := context.WithCancel(context.Background())
 	defer cancel()
 
-	logger, err := logging.NewZapLogger("development")
-	assert.NoError(t, err)
+	logger := logging.NewNoopLogger()
 
 	mockNetwork := NewMockNetwork(ctx, mockCtrl)
 
@@ -461,13 +460,17 @@ func TestSubscribeNewHead(t *testing.T) {
 	mockClient := client.Client.(*MockEthClient)
 
 	headCh := make(chan *types.Header)
-	flushHeadCh := func() {
-		select {
-		case <-headCh:
-		case <-time.After(100 * time.Millisecond):
+	flushHeadCh := func() int {
+		headCount := 0
+		for {
+			select {
+			case <-headCh:
+				headCount++
+			case <-time.After(2 * time.Second):
+				return headCount
+			}
 		}
 	}
-
 	_, err = client.SubscribeNewHead(ctx, headCh)
 	assert.NoError(t, err)
 
@@ -488,7 +491,8 @@ func TestSubscribeNewHead(t *testing.T) {
 
 	mockNetwork.PauseBlockProduction()
 	block := mockNetwork.BlockNumber()
-	flushHeadCh()
+	flushedHeadCount := flushHeadCh()
+	fmt.Println("flushed", flushedHeadCount)
 	mockNetwork.ResumeBlockProduction()
 
 	for i := block + 1; i <= block+3; i++ {
@@ -504,7 +508,8 @@ func TestSubscribeNewHead(t *testing.T) {
 
 	mockNetwork.PauseBlockProduction()
 	block = mockNetwork.BlockNumber()
-	flushHeadCh()
+	flushedHeadCount = flushHeadCh()
+	fmt.Println("flushed", flushedHeadCount)
 	mockNetwork.ResumeBlockProduction()
 
 	for i := block + 1; i <= block+3; i++ {
@@ -520,7 +525,8 @@ func TestSubscribeNewHead(t *testing.T) {
 
 	mockNetwork.PauseBlockProduction()
 	block = mockNetwork.BlockNumber()
-	flushHeadCh()
+	flushedHeadCount = flushHeadCh()
+	fmt.Println("flushed", flushedHeadCount)
 	mockNetwork.ResumeBlockProduction()
 
 	for i := block + 1; i <= block+3; i++ {
