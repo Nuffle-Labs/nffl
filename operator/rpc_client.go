@@ -101,7 +101,7 @@ func (c *AggregatorRpcClient) dialAggregatorRpcClient() error {
 	}
 
 	var aggregatorRegistryCoordinatorAddress string
-	err = client.Call("RpcServer.GetRegistryCoordinatorAddress", struct{}{}, &aggregatorRegistryCoordinatorAddress)
+	err = client.Call("Aggregator.GetRegistryCoordinatorAddress", struct{}{}, &aggregatorRegistryCoordinatorAddress)
 	if err != nil {
 		c.logger.Info("Received error when getting registry coordinator address", "err", err)
 		return err
@@ -111,7 +111,7 @@ func (c *AggregatorRpcClient) dialAggregatorRpcClient() error {
 		c.logger.Info("Notifying aggregator of initialization")
 
 		var reply bool
-		err := client.Call("RpcServer.NotifyOperatorInitialization", c.operatorId, &reply)
+		err := client.Call("Aggregator.NotifyOperatorInitialization", c.operatorId, &reply)
 		if err != nil {
 			c.logger.Error("Error notifying aggregator of initialization", "err", err)
 			return err
@@ -219,7 +219,7 @@ func (c *AggregatorRpcClient) tryResendFromDeque() {
 
 		switch message := message.(type) {
 		case *messages.SignedCheckpointTaskResponse:
-			err = c.rpcClient.Call("RpcServer.ProcessSignedCheckpointTaskResponse", message, &reply)
+			err = c.rpcClient.Call("Aggregator.ProcessSignedCheckpointTaskResponse", message, &reply)
 			if err != nil {
 				c.listener.IncErroredCheckpointSubmissions(true)
 			} else {
@@ -228,7 +228,7 @@ func (c *AggregatorRpcClient) tryResendFromDeque() {
 			}
 
 		case *messages.SignedStateRootUpdateMessage:
-			err = c.rpcClient.Call("RpcServer.ProcessSignedStateRootUpdateMessage", message, &reply)
+			err = c.rpcClient.Call("Aggregator.ProcessSignedStateRootUpdateMessage", message, &reply)
 			if err != nil {
 				c.listener.IncErroredStateRootUpdateSubmissions(message.Message.RollupId, true)
 			} else {
@@ -236,7 +236,7 @@ func (c *AggregatorRpcClient) tryResendFromDeque() {
 			}
 
 		case *messages.SignedOperatorSetUpdateMessage:
-			err = c.rpcClient.Call("RpcServer.ProcessSignedOperatorSetUpdateMessage", message, &reply)
+			err = c.rpcClient.Call("Aggregator.ProcessSignedOperatorSetUpdateMessage", message, &reply)
 			if err != nil {
 				c.listener.IncErroredOperatorSetUpdateSubmissions(true)
 			} else {
@@ -335,7 +335,7 @@ func (c *AggregatorRpcClient) SendSignedCheckpointTaskResponseToAggregator(signe
 
 	c.sendOperatorMessage(func() error {
 		var reply bool
-		err := c.rpcClient.Call("RpcServer.ProcessSignedCheckpointTaskResponse", signedCheckpointTaskResponse, &reply)
+		err := c.rpcClient.Call("Aggregator.ProcessSignedCheckpointTaskResponse", signedCheckpointTaskResponse, &reply)
 		if err != nil {
 			c.listener.IncErroredCheckpointSubmissions(false)
 
@@ -357,7 +357,7 @@ func (c *AggregatorRpcClient) SendSignedStateRootUpdateToAggregator(signedStateR
 
 	c.sendOperatorMessage(func() error {
 		var reply bool
-		err := c.rpcClient.Call("RpcServer.ProcessSignedStateRootUpdateMessage", signedStateRootUpdateMessage, &reply)
+		err := c.rpcClient.Call("Aggregator.ProcessSignedStateRootUpdateMessage", signedStateRootUpdateMessage, &reply)
 		if err != nil {
 			c.listener.IncErroredStateRootUpdateSubmissions(signedStateRootUpdateMessage.Message.RollupId, false)
 
@@ -378,7 +378,7 @@ func (c *AggregatorRpcClient) SendSignedOperatorSetUpdateToAggregator(signedOper
 
 	c.sendOperatorMessage(func() error {
 		var reply bool
-		err := c.rpcClient.Call("RpcServer.ProcessSignedOperatorSetUpdateMessage", signedOperatorSetUpdateMessage, &reply)
+		err := c.rpcClient.Call("Aggregator.ProcessSignedOperatorSetUpdateMessage", signedOperatorSetUpdateMessage, &reply)
 		if err != nil {
 			c.listener.IncErroredOperatorSetUpdateSubmissions(false)
 
@@ -405,7 +405,7 @@ func (c *AggregatorRpcClient) GetAggregatedCheckpointMessages(fromTimestamp, toT
 	}
 
 	err := c.sendRequest(func() error {
-		err := c.rpcClient.Call("RpcServer.GetAggregatedCheckpointMessages", &Args{fromTimestamp, toTimestamp}, &checkpointMessages)
+		err := c.rpcClient.Call("Aggregator.GetAggregatedCheckpointMessages", &Args{fromTimestamp, toTimestamp}, &checkpointMessages)
 		if err != nil {
 			c.logger.Info("Received error from aggregator", "err", err)
 			return err

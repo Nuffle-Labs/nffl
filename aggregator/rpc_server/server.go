@@ -66,7 +66,7 @@ func (s *RpcServer) EnableMetrics(registry *prometheus.Registry) error {
 func (s *RpcServer) Start() error {
 	s.logger.Info("Starting aggregator rpc server.")
 
-	err := rpc.Register(s)
+	err := rpc.RegisterName("Aggregator", s)
 	if err != nil {
 		s.logger.Fatal("Format of service TaskManager isn't correct. ", "err", err)
 	}
