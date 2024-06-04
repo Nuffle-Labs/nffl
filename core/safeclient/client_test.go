@@ -159,7 +159,11 @@ func NewMockEthClientFromNetwork(ctx context.Context, mockCtrl *gomock.Controlle
 
 	mockClient.EXPECT().SubscribeNewHead(gomock.Any(), gomock.Any()).DoAndReturn(
 		func(ctx context.Context, ch chan<- *types.Header) (ethereum.Subscription, error) {
-			if mockClient.isClosed {
+			mockClient.stateLock.Lock()
+			isClosed := mockClient.isClosed
+			mockClient.stateLock.Unlock()
+
+			if isClosed {
 				return nil, errors.New("connection refused")
 			}
 
@@ -191,15 +195,20 @@ func NewMockEthClientFromNetwork(ctx context.Context, mockCtrl *gomock.Controlle
 							subErrCh <- errors.New("connection refused")
 						}
 					case blockNum := <-blockCh:
-						fmt.Println("header block", blockNum, "closed", mockClient.isClosed, "paused", mockClient.isPaused)
+						mockClient.stateLock.Lock()
+						isClosed := mockClient.isClosed
+						isPaused := mockClient.isPaused
+						mockClient.stateLock.Unlock()
+
+						fmt.Println("header block", blockNum, "closed", isClosed, "paused", isPaused)
 
 						blockCh = mockNetwork.SubscribeToBlocks()
 
-						if mockClient.isClosed {
+						if isClosed {
 							continue
 						}
 
-						if !mockClient.isPaused {
+						if !isPaused {
 							ch <- &types.Header{Number: big.NewInt(int64(blockNum))}
 						}
 					}
