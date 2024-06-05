@@ -52,7 +52,7 @@ contract BLSUtilsFFI is Test {
     function _ffi(string[] memory command) internal returns (bytes memory) {
         string[] memory inputs = new string[](command.length + 1);
 
-        inputs[0] = "./test/ffi/bls-utils/target/debug/bls-utils";
+        inputs[0] = "../../target/debug/bls-utils";
         for (uint256 i = 0; i < command.length; i++) {
             inputs[i + 1] = command[i];
         }
