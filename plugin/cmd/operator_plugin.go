@@ -123,7 +123,14 @@ func NewOperatorPluginFromCLIContext(ctx *cli.Context) (*CliOperatorPlugin, erro
 		return nil, err
 	}
 
-	avsManager, err := operator.NewAvsManager(&avsConfig, clients.EthHttpClient, clients.EthWsClient, clients, txMgr, logger)
+	avsManager, err := operator.NewAvsManager(
+		&avsConfig,
+		clients.EthHttpClient,
+		clients.EthWsClient,
+		clients.ElChainReader,
+		clients.ElChainWriter,
+		txMgr, logger,
+	)
 	if err != nil {
 		logger.Error("Failed to create avs manager", "err", err)
 		return nil, err

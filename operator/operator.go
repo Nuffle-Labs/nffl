@@ -10,7 +10,6 @@ import (
 	"os"
 	"time"
 
-	"github.com/Layr-Labs/eigensdk-go/chainio/clients"
 	"github.com/Layr-Labs/eigensdk-go/chainio/clients/wallet"
 	"github.com/Layr-Labs/eigensdk-go/chainio/txmgr"
 	"github.com/Layr-Labs/eigensdk-go/crypto/bls"
@@ -18,6 +17,7 @@ import (
 	sdklogging "github.com/Layr-Labs/eigensdk-go/logging"
 	"github.com/Layr-Labs/eigensdk-go/metrics"
 	"github.com/Layr-Labs/eigensdk-go/metrics/collectors/economic"
+	rpccalls "github.com/Layr-Labs/eigensdk-go/metrics/collectors/rpc_calls"
 	"github.com/Layr-Labs/eigensdk-go/nodeapi"
 	"github.com/Layr-Labs/eigensdk-go/signerv2"
 	eigentypes "github.com/Layr-Labs/eigensdk-go/types"
@@ -27,6 +27,7 @@ import (
 
 	taskmanager "github.com/NethermindEth/near-sffl/contracts/bindings/SFFLTaskManager"
 	"github.com/NethermindEth/near-sffl/core"
+	"github.com/NethermindEth/near-sffl/core/chainio"
 	"github.com/NethermindEth/near-sffl/core/safeclient"
 	"github.com/NethermindEth/near-sffl/core/types/messages"
 	"github.com/NethermindEth/near-sffl/operator/attestor"
@@ -116,36 +117,45 @@ func NewOperatorFromConfig(c optypes.NodeConfig) (*Operator, error) {
 		return nil, err
 	}
 
-	chainioConfig := clients.BuildAllConfig{
-		EthHttpUrl:                 c.EthRpcUrl,
-		EthWsUrl:                   c.EthWsUrl,
-		RegistryCoordinatorAddr:    c.AVSRegistryCoordinatorAddress,
-		OperatorStateRetrieverAddr: c.OperatorStateRetrieverAddress,
-		AvsName:                    AVS_NAME,
-		PromMetricsIpPortAddress:   c.EigenMetricsIpPortAddress,
+	reg := prometheus.NewRegistry()
+	rpcCallsCollector := rpccalls.NewCollector(c.OperatorAddress+OperatorSubsytem, reg)
+	var withOptionalMetrics safeclient.SafeEthClientOption
+	if c.EnableMetrics {
+		withOptionalMetrics = safeclient.WithInstrumentedCreateClient(rpcCallsCollector)
+	} else {
+		withOptionalMetrics = func(*safeclient.SafeEthClient) {}
 	}
-	sdkClients, err := clients.BuildAll(chainioConfig, ecdsaPrivateKey, logger)
+
+	ethHttpClient, err := safeclient.NewSafeEthClient(c.EthRpcUrl, logger, withOptionalMetrics)
+	if err != nil {
+		logger.Error("Cannot create http ethclient", "err", err)
+		return nil, err
+	}
+
+	ethWsClient, err := safeclient.NewSafeEthClient(c.EthWsUrl, logger, withOptionalMetrics)
+	if err != nil {
+		logger.Error("Cannot create ws ethclient", "err", err)
+		return nil, err
+	}
+
+	sdkClients, err := chainio.BuildAll(
+		AVS_NAME,
+		c.AVSRegistryCoordinatorAddress,
+		c.OperatorStateRetrieverAddress,
+		ethHttpClient,
+		ethWsClient,
+		ecdsaPrivateKey,
+		logger,
+	)
 	if err != nil {
 		panic(err)
-	}
-	reg := sdkClients.PrometheusRegistry
-
-	id := c.OperatorAddress + OperatorSubsytem
-	ethRpcClient, err := core.CreateEthClientWithCollector(id, c.EthRpcUrl, c.EnableMetrics, reg, logger)
-	if err != nil {
-		return nil, err
-	}
-
-	ethWsClient, err := core.CreateEthClientWithCollector(id, c.EthWsUrl, c.EnableMetrics, reg, logger)
-	if err != nil {
-		return nil, err
 	}
 
 	// TODO(edwin): I agree with below.
 	// TODO(samlaf): should we add the chainId to the config instead?
 	// this way we can prevent creating a signer that signs on mainnet by mistake
 	// if the config says chainId=5, then we can only create a goerli signer
-	chainId, err := ethRpcClient.ChainID(context.Background())
+	chainId, err := ethHttpClient.ChainID(context.Background())
 	if err != nil {
 		logger.Error("Cannot get chainId", "err", err)
 		return nil, err
@@ -159,16 +169,13 @@ func NewOperatorFromConfig(c optypes.NodeConfig) (*Operator, error) {
 		panic(err)
 	}
 
-	txSender, err := wallet.NewPrivateKeyWallet(ethRpcClient, signerV2, common.HexToAddress(c.OperatorAddress), logger)
+	txSender, err := wallet.NewPrivateKeyWallet(ethHttpClient, signerV2, common.HexToAddress(c.OperatorAddress), logger)
 	if err != nil {
 		logger.Error("Failed to create transaction sender", "err", err)
 		return nil, err
 	}
 
-	txMgr := txmgr.NewSimpleTxManager(txSender, ethRpcClient, logger, common.HexToAddress(c.OperatorAddress)).WithGasLimitMultiplier(1.5)
-
-	// Use eigen registry
-	reg = sdkClients.PrometheusRegistry
+	txMgr := txmgr.NewSimpleTxManager(txSender, ethHttpClient, logger, common.HexToAddress(c.OperatorAddress)).WithGasLimitMultiplier(1.5)
 
 	registryCoordinatorAddress := common.HexToAddress(c.AVSRegistryCoordinatorAddress)
 	aggregatorRpcClient, err := NewAggregatorRpcClient(c.AggregatorServerIpPortAddress, operatorId, registryCoordinatorAddress, logger)
@@ -177,7 +184,15 @@ func NewOperatorFromConfig(c optypes.NodeConfig) (*Operator, error) {
 		return nil, err
 	}
 
-	avsManager, err := NewAvsManager(&c, ethRpcClient, ethWsClient, sdkClients, txMgr, logger)
+	avsManager, err := NewAvsManager(
+		&c,
+		ethHttpClient,
+		ethWsClient,
+		sdkClients.ElChainReader,
+		sdkClients.ElChainWriter,
+		txMgr,
+		logger,
+	)
 	if err != nil {
 		logger.Error("Cannot create AvsManager", "err", err)
 		return nil, err
@@ -189,17 +204,28 @@ func NewOperatorFromConfig(c optypes.NodeConfig) (*Operator, error) {
 		0: "quorum0",
 	}
 	economicMetricsCollector := economic.NewCollector(
-		sdkClients.ElChainReader, sdkClients.AvsRegistryChainReader,
-		AVS_NAME, logger, common.HexToAddress(c.OperatorAddress), quorumNames)
+		sdkClients.ElChainReader,
+		sdkClients.AvsRegistryChainReader,
+		AVS_NAME,
+		logger,
+		common.HexToAddress(c.OperatorAddress),
+		quorumNames,
+	)
 	reg.MustRegister(economicMetricsCollector)
 
+	var optionalMetrics metrics.Metrics
+	if c.EnableMetrics {
+		optionalMetrics = metrics.NewEigenMetrics(AVS_NAME, c.EigenMetricsIpPortAddress, reg, logger)
+	} else {
+		optionalMetrics = metrics.NewNoopMetrics()
+	}
+
 	operator := &Operator{
-		config:     c,
-		logger:     logger,
-		ethClient:  ethRpcClient,
-		metricsReg: reg,
-		// TODO: replace with noop in case not enabled
-		metrics:                    sdkClients.Metrics,
+		config:                     c,
+		logger:                     logger,
+		ethClient:                  ethHttpClient,
+		metricsReg:                 reg,
+		metrics:                    optionalMetrics,
 		listener:                   &SelectiveOperatorListener{},
 		nodeApi:                    nodeApi,
 		avsManager:                 avsManager,
