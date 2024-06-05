@@ -5,7 +5,7 @@ import (
 	"errors"
 	"math/big"
 
-	sdkclients "github.com/Layr-Labs/eigensdk-go/chainio/clients"
+	"github.com/Layr-Labs/eigensdk-go/chainio/clients/elcontracts"
 	"github.com/Layr-Labs/eigensdk-go/chainio/clients/eth"
 	"github.com/Layr-Labs/eigensdk-go/chainio/clients/wallet"
 	"github.com/Layr-Labs/eigensdk-go/chainio/txmgr"
@@ -15,6 +15,7 @@ import (
 	"github.com/Layr-Labs/eigensdk-go/signerv2"
 	"github.com/Layr-Labs/eigensdk-go/utils"
 	"github.com/NethermindEth/near-sffl/core/chainio"
+	"github.com/NethermindEth/near-sffl/core/safeclient"
 	"github.com/NethermindEth/near-sffl/operator"
 	optypes "github.com/NethermindEth/near-sffl/operator/types"
 	"github.com/ethereum/go-ethereum/accounts/abi/bind"
@@ -25,7 +26,8 @@ import (
 type CliOperatorPlugin struct {
 	ecdsaKeyPassword string
 	ethHttpClient    eth.Client
-	clients          *sdkclients.Clients
+	elChainReader    *elcontracts.ELChainReader
+	elChainWriter    *elcontracts.ELChainWriter
 	avsConfig        optypes.NodeConfig
 	avsManager       *operator.AvsManager
 	avsReader        *chainio.AvsReader
@@ -51,16 +53,13 @@ func NewOperatorPluginFromCLIContext(ctx *cli.Context) (*CliOperatorPlugin, erro
 
 	ecdsaKeyPassword := ctx.GlobalString(EcdsaKeyPasswordFlag.Name)
 
-	buildClientConfig := sdkclients.BuildAllConfig{
-		EthHttpUrl:                 avsConfig.EthRpcUrl,
-		EthWsUrl:                   avsConfig.EthWsUrl,
-		RegistryCoordinatorAddr:    avsConfig.AVSRegistryCoordinatorAddress,
-		OperatorStateRetrieverAddr: avsConfig.OperatorStateRetrieverAddress,
-		AvsName:                    "super-fast-finality-layer",
-		PromMetricsIpPortAddress:   "127.0.0.1:9090",
+	ethHttpClient, err := safeclient.NewSafeEthClient(avsConfig.EthRpcUrl, logger)
+	if err != nil {
+		logger.Error("Failed to connect to eth client", "err", err)
+		return nil, err
 	}
 
-	ethHttpClient, err := eth.NewClient(avsConfig.EthRpcUrl)
+	ethWsClient, err := safeclient.NewSafeEthClient(avsConfig.EthWsUrl, logger)
 	if err != nil {
 		logger.Error("Failed to connect to eth client", "err", err)
 		return nil, err
@@ -87,7 +86,15 @@ func NewOperatorPluginFromCLIContext(ctx *cli.Context) (*CliOperatorPlugin, erro
 		return nil, err
 	}
 
-	clients, err := sdkclients.BuildAll(buildClientConfig, ecdsaPrivateKey, logger)
+	clients, err := chainio.BuildAll(
+		"super-fast-finality-layer",
+		avsConfig.AVSRegistryCoordinatorAddress,
+		avsConfig.OperatorAddress,
+		ethHttpClient,
+		ethWsClient,
+		ecdsaPrivateKey,
+		logger,
+	)
 	if err != nil {
 		logger.Error("Failed to create sdk clients", "err", err)
 		return nil, err
@@ -125,8 +132,8 @@ func NewOperatorPluginFromCLIContext(ctx *cli.Context) (*CliOperatorPlugin, erro
 
 	avsManager, err := operator.NewAvsManager(
 		&avsConfig,
-		clients.EthHttpClient,
-		clients.EthWsClient,
+		ethHttpClient,
+		ethWsClient,
 		clients.ElChainReader,
 		clients.ElChainWriter,
 		txMgr, logger,
@@ -139,7 +146,8 @@ func NewOperatorPluginFromCLIContext(ctx *cli.Context) (*CliOperatorPlugin, erro
 	return &CliOperatorPlugin{
 		ecdsaKeyPassword: ecdsaKeyPassword,
 		ethHttpClient:    ethHttpClient,
-		clients:          clients,
+		elChainReader:    clients.ElChainReader,
+		elChainWriter:    clients.ElChainWriter,
 		avsConfig:        avsConfig,
 		avsManager:       avsManager,
 		avsReader:        avsReader,
@@ -201,7 +209,7 @@ func (o *CliOperatorPlugin) Deposit(ctx *cli.Context) error {
 	}
 
 	strategyAddr := common.HexToAddress(ctx.GlobalString(StrategyAddrFlag.Name))
-	_, tokenAddr, err := o.clients.ElChainReader.GetStrategyAndUnderlyingToken(&bind.CallOpts{}, strategyAddr)
+	_, tokenAddr, err := o.elChainReader.GetStrategyAndUnderlyingToken(&bind.CallOpts{}, strategyAddr)
 	if err != nil {
 		o.logger.Error("Failed to fetch strategy contract", "err", err)
 		return err
@@ -232,7 +240,7 @@ func (o *CliOperatorPlugin) Deposit(ctx *cli.Context) error {
 		return err
 	}
 
-	_, err = o.clients.ElChainWriter.DepositERC20IntoStrategy(context.Background(), strategyAddr, amount)
+	_, err = o.elChainWriter.DepositERC20IntoStrategy(context.Background(), strategyAddr, amount)
 	if err != nil {
 		o.logger.Error("Failed to deposit into strategy", "err", err)
 		return err
