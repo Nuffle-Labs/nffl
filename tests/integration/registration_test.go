@@ -7,7 +7,7 @@ import (
 	"testing"
 	"time"
 
-	sdkclients "github.com/Layr-Labs/eigensdk-go/chainio/clients"
+	"github.com/Layr-Labs/eigensdk-go/chainio/clients/eth"
 	sdkecdsa "github.com/Layr-Labs/eigensdk-go/crypto/ecdsa"
 	"github.com/Layr-Labs/eigensdk-go/logging"
 	"github.com/Layr-Labs/eigensdk-go/types"
@@ -75,16 +75,24 @@ func TestRegistration(t *testing.T) {
 		t.Fatalf("Error reading ecdsa private key: %s", err.Error())
 	}
 
-	buildClientConfig := sdkclients.BuildAllConfig{
-		EthHttpUrl:                 mainnetAnvil.HttpUrl,
-		EthWsUrl:                   mainnetAnvil.WsUrl,
-		RegistryCoordinatorAddr:    nodeConfig.AVSRegistryCoordinatorAddress,
-		OperatorStateRetrieverAddr: nodeConfig.OperatorStateRetrieverAddress,
-		AvsName:                    "super-fast-finality-layer",
-		PromMetricsIpPortAddress:   "127.0.0.1:9090",
+	ethHttpClient, err := eth.NewClient(mainnetAnvil.HttpUrl)
+	if err != nil {
+		t.Fatalf("Error building ethHttpClient: %s", err.Error())
+	}
+	ethWsClient, err := eth.NewClient(mainnetAnvil.WsUrl)
+	if err != nil {
+		t.Fatalf("Error building ethWsClient: %s", err.Error())
 	}
 
-	clients, err := sdkclients.BuildAll(buildClientConfig, ecdsaPrivateKey, logger)
+	clients, err := chainio.BuildAll(
+		"super-fast-finality-layer",
+		nodeConfig.AVSRegistryCoordinatorAddress,
+		nodeConfig.OperatorStateRetrieverAddress,
+		ethHttpClient,
+		ethWsClient,
+		ecdsaPrivateKey,
+		logger,
+	)
 	if err != nil {
 		t.Fatalf("Error building clients: %s", err.Error())
 	}
