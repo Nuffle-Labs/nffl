@@ -7,12 +7,12 @@ import (
 	"testing"
 	"time"
 
-	"github.com/Layr-Labs/eigensdk-go/chainio/clients/eth"
 	sdkecdsa "github.com/Layr-Labs/eigensdk-go/crypto/ecdsa"
 	"github.com/Layr-Labs/eigensdk-go/logging"
 	"github.com/Layr-Labs/eigensdk-go/types"
 	sdkutils "github.com/Layr-Labs/eigensdk-go/utils"
 	"github.com/NethermindEth/near-sffl/core/chainio"
+	"github.com/NethermindEth/near-sffl/core/safeclient"
 	optypes "github.com/NethermindEth/near-sffl/operator/types"
 	"github.com/NethermindEth/near-sffl/tests/integration/utils"
 	"github.com/ethereum/go-ethereum/accounts/abi/bind"
@@ -75,11 +75,12 @@ func TestRegistration(t *testing.T) {
 		t.Fatalf("Error reading ecdsa private key: %s", err.Error())
 	}
 
-	ethHttpClient, err := eth.NewClient(mainnetAnvil.HttpUrl)
+	ethHttpClient, err := safeclient.NewSafeEthClient(mainnetAnvil.HttpUrl, logger)
 	if err != nil {
 		t.Fatalf("Error building ethHttpClient: %s", err.Error())
 	}
-	ethWsClient, err := eth.NewClient(mainnetAnvil.WsUrl)
+
+	ethWsClient, err := safeclient.NewSafeEthClient(mainnetAnvil.WsUrl, logger)
 	if err != nil {
 		t.Fatalf("Error building ethWsClient: %s", err.Error())
 	}
