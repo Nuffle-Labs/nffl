@@ -7,11 +7,11 @@ import (
 	"sync"
 	"time"
 
-	eigenclients "github.com/Layr-Labs/eigensdk-go/chainio/clients"
 	"github.com/Layr-Labs/eigensdk-go/chainio/clients/wallet"
 	"github.com/Layr-Labs/eigensdk-go/chainio/txmgr"
 	"github.com/Layr-Labs/eigensdk-go/logging"
 	"github.com/Layr-Labs/eigensdk-go/metrics"
+	rpccalls "github.com/Layr-Labs/eigensdk-go/metrics/collectors/rpc_calls"
 	"github.com/Layr-Labs/eigensdk-go/services/avsregistry"
 	blsagg "github.com/Layr-Labs/eigensdk-go/services/bls_aggregation"
 	oppubkeysserv "github.com/Layr-Labs/eigensdk-go/services/operatorpubkeys"
@@ -111,42 +111,38 @@ var _ core.Metricable = (*Aggregator)(nil)
 // TODO: Remove this context once OperatorPubkeysServiceInMemory's API is
 // changed and we can gracefully exit otherwise
 func NewAggregator(ctx context.Context, config *config.Config, logger logging.Logger) (*Aggregator, error) {
-	chainioConfig := eigenclients.BuildAllConfig{
-		EthHttpUrl:                 config.EthHttpRpcUrl,
-		EthWsUrl:                   config.EthWsRpcUrl,
-		RegistryCoordinatorAddr:    config.SFFLRegistryCoordinatorAddr.String(),
-		OperatorStateRetrieverAddr: config.OperatorStateRetrieverAddr.String(),
-		AvsName:                    avsName,
-		PromMetricsIpPortAddress:   config.MetricsIpPortAddress,
-	}
-	clients, err := eigenclients.BuildAll(chainioConfig, config.EcdsaPrivateKey, logger)
-	if err != nil {
-		logger.Error("Cannot create sdk clients", "err", err)
-		return nil, err
-	}
-	registry := clients.PrometheusRegistry
+	withOptionalMetrics := func(url string) safeclient.SafeEthClientOption {
+		if !config.EnableMetrics {
+			return func(*safeclient.SafeEthClient) {}
+		}
 
-	ethHttpClient, err := core.CreateEthClientWithCollector(
-		AggregatorNamespace,
-		config.EthHttpRpcUrl,
-		config.EnableMetrics,
-		registry,
-		logger,
-	)
+		registry := prometheus.NewRegistry()
+		rpcCallsCollector := rpccalls.NewCollector(AggregatorNamespace+url, registry)
+		return safeclient.WithInstrumentedCreateClient(rpcCallsCollector)
+	}
+
+	ethHttpClient, err := safeclient.NewSafeEthClient(config.EthHttpRpcUrl, logger, withOptionalMetrics(config.EthHttpRpcUrl))
 	if err != nil {
 		logger.Error("Cannot create http ethclient", "err", err)
 		return nil, err
 	}
 
-	ethWsClient, err := core.CreateEthClientWithCollector(
-		AggregatorNamespace,
-		config.EthWsRpcUrl,
-		config.EnableMetrics,
-		registry,
-		logger,
-	)
+	ethWsClient, err := safeclient.NewSafeEthClient(config.EthWsRpcUrl, logger, withOptionalMetrics(config.EthWsRpcUrl))
 	if err != nil {
 		logger.Error("Cannot create ws ethclient", "err", err)
+		return nil, err
+	}
+
+	clients, err := chainio.BuildAll(
+		avsName,
+		config.SFFLRegistryCoordinatorAddr.String(),
+		config.OperatorStateRetrieverAddr.String(),
+		ethHttpClient,
+		ethWsClient,
+		config.EcdsaPrivateKey,
+		logger)
+	if err != nil {
+		logger.Error("Cannot create sdk clients", "err", err)
 		return nil, err
 	}
 
@@ -203,8 +199,8 @@ func NewAggregator(ctx context.Context, config *config.Config, logger logging.Lo
 	operatorPubkeysService := oppubkeysserv.NewOperatorPubkeysServiceInMemory(ctx, clients.AvsRegistryChainSubscriber, clients.AvsRegistryChainReader, logger)
 	avsRegistryService := avsregistry.NewAvsRegistryServiceChainCaller(avsReader, operatorPubkeysService, logger)
 	taskBlsAggregationService := blsagg.NewBlsAggregatorService(avsRegistryService, logger)
-	stateRootUpdateBlsAggregationService := NewMessageBlsAggregatorService(avsRegistryService, clients.EthHttpClient, logger)
-	operatorSetUpdateBlsAggregationService := NewMessageBlsAggregatorService(avsRegistryService, clients.EthHttpClient, logger)
+	stateRootUpdateBlsAggregationService := NewMessageBlsAggregatorService(avsRegistryService, ethHttpClient, logger)
+	operatorSetUpdateBlsAggregationService := NewMessageBlsAggregatorService(avsRegistryService, ethHttpClient, logger)
 
 	agg := &Aggregator{
 		config:                                 config,
@@ -231,10 +227,13 @@ func NewAggregator(ctx context.Context, config *config.Config, logger logging.Lo
 	}
 
 	if config.EnableMetrics {
+		registry := prometheus.NewRegistry()
+		eigenMetrics := metrics.NewEigenMetrics(avsName, config.MetricsIpPortAddress, registry, logger)
 		if err = agg.EnableMetrics(registry); err != nil {
 			return nil, err
 		}
-		agg.metrics = clients.Metrics
+
+		agg.metrics = eigenMetrics
 		agg.registry = registry
 	}
 
