@@ -17,7 +17,6 @@ import (
 	sdklogging "github.com/Layr-Labs/eigensdk-go/logging"
 	"github.com/Layr-Labs/eigensdk-go/metrics"
 	"github.com/Layr-Labs/eigensdk-go/metrics/collectors/economic"
-	rpccalls "github.com/Layr-Labs/eigensdk-go/metrics/collectors/rpc_calls"
 	"github.com/Layr-Labs/eigensdk-go/nodeapi"
 	"github.com/Layr-Labs/eigensdk-go/signerv2"
 	eigentypes "github.com/Layr-Labs/eigensdk-go/types"
@@ -118,21 +117,15 @@ func NewOperatorFromConfig(c optypes.NodeConfig) (*Operator, error) {
 	}
 
 	reg := prometheus.NewRegistry()
-	rpcCallsCollector := rpccalls.NewCollector(c.OperatorAddress+OperatorSubsytem, reg)
-	var withOptionalMetrics safeclient.SafeEthClientOption
-	if c.EnableMetrics {
-		withOptionalMetrics = safeclient.WithInstrumentedCreateClient(rpcCallsCollector)
-	} else {
-		withOptionalMetrics = func(*safeclient.SafeEthClient) {}
-	}
 
-	ethHttpClient, err := safeclient.NewSafeEthClient(c.EthRpcUrl, logger, withOptionalMetrics)
+	id := c.OperatorAddress + OperatorSubsytem
+	ethHttpClient, err := core.CreateEthClientWithCollector(id, c.EthRpcUrl, c.EnableMetrics, reg, logger)
 	if err != nil {
 		logger.Error("Cannot create http ethclient", "err", err)
 		return nil, err
 	}
 
-	ethWsClient, err := safeclient.NewSafeEthClient(c.EthWsUrl, logger, withOptionalMetrics)
+	ethWsClient, err := core.CreateEthClientWithCollector(id, c.EthWsUrl, c.EnableMetrics, reg, logger)
 	if err != nil {
 		logger.Error("Cannot create ws ethclient", "err", err)
 		return nil, err
