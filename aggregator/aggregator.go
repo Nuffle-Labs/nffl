@@ -114,6 +114,7 @@ var _ core.Metricable = (*Aggregator)(nil)
 // TODO: Remove this context once OperatorPubkeysServiceInMemory's API is
 // changed and we can gracefully exit otherwise
 func NewAggregator(ctx context.Context, config *config.Config, logger logging.Logger) (*Aggregator, error) {
+	// TODO: Pass the registry as a parameter (see https://github.com/NethermindEth/near-sffl/pull/211#pullrequestreview-2101946551)
 	registry := prometheus.NewRegistry()
 
 	ethHttpClient, err := core.CreateEthClientWithCollector(AggregatorNamespace, config.EthHttpRpcUrl, config.EnableMetrics, registry, logger)
