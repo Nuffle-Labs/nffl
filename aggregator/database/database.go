@@ -68,6 +68,13 @@ func NewDatabase(dbPath string) (*Database, error) {
 		&models.OperatorSetUpdateMessage{},
 	)
 
+	underlyingDb, err := db.DB()
+	if err != nil {
+		return nil, err
+	}
+
+	underlyingDb.SetMaxOpenConns(1)
+
 	return &Database{
 		db:       db,
 		dbPath:   dbPath,
