@@ -8,8 +8,10 @@ import (
 	"sync"
 	"time"
 
+	chainioavsregistry "github.com/Layr-Labs/eigensdk-go/chainio/clients/avsregistry"
 	"github.com/Layr-Labs/eigensdk-go/chainio/clients/wallet"
 	"github.com/Layr-Labs/eigensdk-go/chainio/txmgr"
+	chainioutils "github.com/Layr-Labs/eigensdk-go/chainio/utils"
 	"github.com/Layr-Labs/eigensdk-go/logging"
 	"github.com/Layr-Labs/eigensdk-go/metrics"
 	"github.com/Layr-Labs/eigensdk-go/services/avsregistry"
@@ -17,6 +19,7 @@ import (
 	opinfoserv "github.com/Layr-Labs/eigensdk-go/services/operatorsinfo"
 	"github.com/Layr-Labs/eigensdk-go/signerv2"
 	eigentypes "github.com/Layr-Labs/eigensdk-go/types"
+	"github.com/ethereum/go-ethereum/common"
 	"github.com/prometheus/client_golang/prometheus"
 
 	"github.com/NethermindEth/near-sffl/aggregator/database"
@@ -125,19 +128,6 @@ func NewAggregator(ctx context.Context, config *config.Config, logger logging.Lo
 		return nil, err
 	}
 
-	clients, err := chainio.BuildAll(
-		avsName,
-		config.SFFLRegistryCoordinatorAddr.String(),
-		config.OperatorStateRetrieverAddr.String(),
-		ethHttpClient,
-		ethWsClient,
-		config.EcdsaPrivateKey,
-		logger)
-	if err != nil {
-		logger.Error("Cannot create sdk clients", "err", err)
-		return nil, err
-	}
-
 	avsReader, err := chainio.BuildAvsReaderFromConfig(config, ethHttpClient, logger)
 	if err != nil {
 		logger.Error("Cannot create avsReader", "err", err)
@@ -164,6 +154,38 @@ func NewAggregator(ctx context.Context, config *config.Config, logger logging.Lo
 
 	txMgr := txmgr.NewSimpleTxManager(txSender, ethHttpClient, logger, config.AggregatorAddress).WithGasLimitMultiplier(1.5)
 
+	avsRegistryContractBindings, err := chainioutils.NewAVSRegistryContractBindings(
+		common.HexToAddress(config.SFFLRegistryCoordinatorAddr.String()),
+		common.HexToAddress(config.OperatorStateRetrieverAddr.String()),
+		ethHttpClient,
+		logger,
+	)
+	if err != nil {
+		logger.Error("Cannot create AVSRegistryContractBindings", "err", err)
+		return nil, err
+	}
+
+	avsRegistryChainReader := chainioavsregistry.NewAvsRegistryChainReader(
+		avsRegistryContractBindings.RegistryCoordinatorAddr,
+		avsRegistryContractBindings.BlsApkRegistryAddr,
+		avsRegistryContractBindings.RegistryCoordinator,
+		avsRegistryContractBindings.OperatorStateRetriever,
+		avsRegistryContractBindings.StakeRegistry,
+		logger,
+		ethHttpClient,
+	)
+
+	// note that the subscriber needs a ws connection instead of http
+	avsRegistryChainSubscriber, err := chainioavsregistry.BuildAvsRegistryChainSubscriber(
+		avsRegistryContractBindings.RegistryCoordinatorAddr,
+		ethWsClient,
+		logger,
+	)
+	if err != nil {
+		logger.Error("Cannot create AvsRegistryChainSubscriber", "err", err)
+		return nil, err
+	}
+
 	avsWriter, err := chainio.BuildAvsWriterFromConfig(txMgr, config, ethHttpClient, logger)
 	if err != nil {
 		logger.Error("Cannot create avsWriter", "err", err)
@@ -188,7 +210,7 @@ func NewAggregator(ctx context.Context, config *config.Config, logger logging.Lo
 		return nil, err
 	}
 
-	operatorPubkeysService := opinfoserv.NewOperatorsInfoServiceInMemory(ctx, clients.AvsRegistryChainSubscriber, clients.AvsRegistryChainReader, logger)
+	operatorPubkeysService := opinfoserv.NewOperatorsInfoServiceInMemory(ctx, avsRegistryChainSubscriber, avsRegistryChainReader, logger)
 	avsRegistryService := avsregistry.NewAvsRegistryServiceChainCaller(avsReader, operatorPubkeysService, logger)
 	taskBlsAggregationService := blsagg.NewBlsAggregatorService(avsRegistryService, logger)
 	stateRootUpdateBlsAggregationService := NewMessageBlsAggregatorService(avsRegistryService, ethHttpClient, logger)
