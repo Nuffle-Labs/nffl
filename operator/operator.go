@@ -166,6 +166,16 @@ func NewOperatorFromConfig(c optypes.NodeConfig) (*Operator, error) {
 		return nil, err
 	}
 
+	avsRegistryChainReader := chainioavsregistry.NewAvsRegistryChainReader(
+		avsRegistryContractBindings.RegistryCoordinatorAddr,
+		avsRegistryContractBindings.BlsApkRegistryAddr,
+		avsRegistryContractBindings.RegistryCoordinator,
+		avsRegistryContractBindings.OperatorStateRetriever,
+		avsRegistryContractBindings.StakeRegistry,
+		logger,
+		ethHttpClient,
+	)
+
 	delegationManagerAddr, err := avsRegistryContractBindings.StakeRegistry.Delegation(&bind.CallOpts{})
 	if err != nil {
 		logger.Fatal("Failed to fetch Slasher contract", "err", err)
@@ -208,16 +218,6 @@ func NewOperatorFromConfig(c optypes.NodeConfig) (*Operator, error) {
 		logger,
 		nil,
 		txMgr,
-	)
-
-	avsRegistryChainReader := chainioavsregistry.NewAvsRegistryChainReader(
-		avsRegistryContractBindings.RegistryCoordinatorAddr,
-		avsRegistryContractBindings.BlsApkRegistryAddr,
-		avsRegistryContractBindings.RegistryCoordinator,
-		avsRegistryContractBindings.OperatorStateRetriever,
-		avsRegistryContractBindings.StakeRegistry,
-		logger,
-		ethHttpClient,
 	)
 
 	aggregatorRpcClient, err := NewAggregatorRpcClient(
