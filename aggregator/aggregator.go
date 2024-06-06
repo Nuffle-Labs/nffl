@@ -112,22 +112,14 @@ var _ core.Metricable = (*Aggregator)(nil)
 // changed and we can gracefully exit otherwise
 func NewAggregator(ctx context.Context, config *config.Config, logger logging.Logger) (*Aggregator, error) {
 	registry := prometheus.NewRegistry()
-	withOptionalMetrics := func(url string) safeclient.SafeEthClientOption {
-		if !config.EnableMetrics {
-			return func(*safeclient.SafeEthClient) {}
-		} else {
-			rpcCallsCollector := rpccalls.NewCollector(AggregatorNamespace+url, registry)
-			return safeclient.WithInstrumentedCreateClient(rpcCallsCollector)
-		}
-	}
 
-	ethHttpClient, err := safeclient.NewSafeEthClient(config.EthHttpRpcUrl, logger, withOptionalMetrics(config.EthHttpRpcUrl))
+	ethHttpClient, err := core.CreateEthClientWithCollector(AggregatorNamespace, config.EthHttpRpcUrl, config.EnableMetrics, registry, logger)
 	if err != nil {
 		logger.Error("Cannot create http ethclient", "err", err)
 		return nil, err
 	}
 
-	ethWsClient, err := safeclient.NewSafeEthClient(config.EthWsRpcUrl, logger, withOptionalMetrics(config.EthWsRpcUrl))
+	ethWsClient, err := core.CreateEthClientWithCollector(AggregatorNamespace, config.EthWsRpcUrl, config.EnableMetrics, registry, logger)
 	if err != nil {
 		logger.Error("Cannot create ws ethclient", "err", err)
 		return nil, err
