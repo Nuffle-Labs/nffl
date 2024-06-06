@@ -9,6 +9,7 @@ import (
 	"github.com/Layr-Labs/eigensdk-go/chainio/clients/eth"
 	"github.com/Layr-Labs/eigensdk-go/chainio/clients/wallet"
 	"github.com/Layr-Labs/eigensdk-go/chainio/txmgr"
+	chainioutils "github.com/Layr-Labs/eigensdk-go/chainio/utils"
 	"github.com/Layr-Labs/eigensdk-go/crypto/bls"
 	sdkecdsa "github.com/Layr-Labs/eigensdk-go/crypto/ecdsa"
 	"github.com/Layr-Labs/eigensdk-go/logging"
@@ -84,29 +85,12 @@ func NewOperatorPluginFromCLIContext(ctx *cli.Context) (*CliOperatorPlugin, erro
 		return nil, err
 	}
 
-	ecdsaPrivateKey, err := sdkecdsa.ReadKey(avsConfig.EcdsaPrivateKeyStorePath, ecdsaKeyPassword)
-	if err != nil {
-		logger.Error("Failed to read ecdsa private key", "err", err)
-		return nil, err
-	}
-
-	clients, err := chainio.BuildAll(
-		AVS_NAME,
-		avsConfig.AVSRegistryCoordinatorAddress,
-		avsConfig.OperatorAddress,
-		ethHttpClient,
-		ethWsClient,
-		ecdsaPrivateKey,
-		logger,
-	)
-	if err != nil {
-		logger.Error("Failed to create sdk clients", "err", err)
-		return nil, err
-	}
+	avsRegistryCoordinatorAddress := common.HexToAddress(avsConfig.AVSRegistryCoordinatorAddress)
+	operatorStateRetrieverAddress := common.HexToAddress(avsConfig.OperatorStateRetrieverAddress)
 
 	avsReader, err := chainio.BuildAvsReader(
-		common.HexToAddress(avsConfig.AVSRegistryCoordinatorAddress),
-		common.HexToAddress(avsConfig.OperatorStateRetrieverAddress),
+		avsRegistryCoordinatorAddress,
+		operatorStateRetrieverAddress,
 		ethHttpClient,
 		logger,
 	)
@@ -122,10 +106,11 @@ func NewOperatorPluginFromCLIContext(ctx *cli.Context) (*CliOperatorPlugin, erro
 	}
 
 	txMgr := txmgr.NewSimpleTxManager(txSender, ethHttpClient, logger, common.HexToAddress(avsConfig.OperatorAddress)).WithGasLimitMultiplier(1.5)
+
 	avsWriter, err := chainio.BuildAvsWriter(
 		txMgr,
-		common.HexToAddress(avsConfig.AVSRegistryCoordinatorAddress),
-		common.HexToAddress(avsConfig.OperatorStateRetrieverAddress),
+		avsRegistryCoordinatorAddress,
+		operatorStateRetrieverAddress,
 		ethHttpClient,
 		logger,
 	)
@@ -134,12 +119,67 @@ func NewOperatorPluginFromCLIContext(ctx *cli.Context) (*CliOperatorPlugin, erro
 		return nil, err
 	}
 
+	avsRegistryContractBindings, err := chainioutils.NewAVSRegistryContractBindings(
+		avsRegistryCoordinatorAddress,
+		operatorStateRetrieverAddress,
+		ethHttpClient,
+		logger,
+	)
+	if err != nil {
+		logger.Error("Cannot create AVSRegistryContractBindings", "err", err)
+		return nil, err
+	}
+
+	delegationManagerAddr, err := avsRegistryContractBindings.StakeRegistry.Delegation(&bind.CallOpts{})
+	if err != nil {
+		logger.Fatal("Failed to fetch Slasher contract", "err", err)
+		return nil, err
+	}
+
+	avsDirectoryAddr, err := avsRegistryContractBindings.ServiceManager.AvsDirectory(&bind.CallOpts{})
+	if err != nil {
+		logger.Fatal("Failed to fetch Slasher contract", "err", err)
+		return nil, err
+	}
+
+	elContractBindings, err := chainioutils.NewEigenlayerContractBindings(
+		delegationManagerAddr,
+		avsDirectoryAddr,
+		ethHttpClient,
+		logger,
+	)
+	if err != nil {
+		logger.Fatal("Failed to create EigenlayerContractBindings", "err", err)
+		return nil, err
+	}
+
+	elChainReader := elcontracts.NewELChainReader(
+		elContractBindings.Slasher,
+		elContractBindings.DelegationManager,
+		elContractBindings.StrategyManager,
+		elContractBindings.AvsDirectory,
+		logger,
+		ethHttpClient,
+	)
+
+	elChainWriter := elcontracts.NewELChainWriter(
+		elContractBindings.Slasher,
+		elContractBindings.DelegationManager,
+		elContractBindings.StrategyManager,
+		elContractBindings.StrategyManagerAddr,
+		elChainReader,
+		ethHttpClient,
+		logger,
+		nil,
+		txMgr,
+	)
+
 	avsManager, err := operator.NewAvsManager(
 		&avsConfig,
 		ethHttpClient,
 		ethWsClient,
-		clients.ElChainReader,
-		clients.ElChainWriter,
+		elChainReader,
+		elChainWriter,
 		txMgr, logger,
 	)
 	if err != nil {
@@ -150,8 +190,8 @@ func NewOperatorPluginFromCLIContext(ctx *cli.Context) (*CliOperatorPlugin, erro
 	return &CliOperatorPlugin{
 		ecdsaKeyPassword: ecdsaKeyPassword,
 		ethHttpClient:    ethHttpClient,
-		elChainReader:    clients.ElChainReader,
-		elChainWriter:    clients.ElChainWriter,
+		elChainReader:    elChainReader,
+		elChainWriter:    elChainWriter,
 		avsConfig:        avsConfig,
 		avsManager:       avsManager,
 		avsReader:        avsReader,
