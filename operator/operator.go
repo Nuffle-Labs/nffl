@@ -231,15 +231,7 @@ func NewOperatorFromConfig(c optypes.NodeConfig) (*Operator, error) {
 		return nil, err
 	}
 
-	avsManager, err := NewAvsManager(
-		&c,
-		ethHttpClient,
-		ethWsClient,
-		elChainReader,
-		elChainWriter,
-		txMgr,
-		logger,
-	)
+	avsManager, err := NewAvsManager(&c,ethHttpClient,ethWsClient,elChainReader,elChainWriter,txMgr,logger)
 	if err != nil {
 		logger.Error("Cannot create AvsManager", "err", err)
 		return nil, err
