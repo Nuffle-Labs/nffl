@@ -16,7 +16,7 @@ import (
 	chainioutils "github.com/Layr-Labs/eigensdk-go/chainio/utils"
 	"github.com/Layr-Labs/eigensdk-go/logging"
 	"github.com/Layr-Labs/eigensdk-go/signerv2"
-	"github.com/Layr-Labs/eigensdk-go/types"
+	"github.com/Layr-Labs/eigensdk-go/utils"
 	"github.com/ethereum/go-ethereum/accounts/abi/bind"
 	gethcommon "github.com/ethereum/go-ethereum/common"
 )
@@ -42,17 +42,17 @@ func BuildAll(
 	defer cancel()
 	chainid, err := ethHttpClient.ChainID(rpcCtx)
 	if err != nil {
-		return nil, types.WrapError(errors.New("cannot get chain id"), err)
+		return nil, utils.WrapError(errors.New("cannot get chain id"), err)
 	}
 
 	signerV2, addr, err := signerv2.SignerFromConfig(signerv2.Config{PrivateKey: ecdsaPrivateKey}, chainid)
 	if err != nil {
-		return nil, types.WrapError(errors.New("cannot create signer from config"), err)
+		return nil, utils.WrapError(errors.New("cannot create signer from config"), err)
 	}
 
 	pkWallet, err := wallet.NewPrivateKeyWallet(ethHttpClient, signerV2, addr, logger)
 	if err != nil {
-		return nil, types.WrapError(errors.New("failed to create transaction sender"), err)
+		return nil, utils.WrapError(errors.New("failed to create transaction sender"), err)
 	}
 
 	txMgr := txmgr.NewSimpleTxManager(pkWallet, ethHttpClient, logger, addr)
@@ -66,7 +66,7 @@ func BuildAll(
 		logger,
 	)
 	if err != nil {
-		return nil, types.WrapError(errors.New("failed to create EL Reader, Writer and Subscriber"), err)
+		return nil, utils.WrapError(errors.New("failed to create EL Reader, Writer and Subscriber"), err)
 	}
 
 	// creating AVS clients: Reader and Writer
@@ -80,7 +80,7 @@ func BuildAll(
 		logger,
 	)
 	if err != nil {
-		return nil, types.WrapError(errors.New("failed to create AVS Registry Reader and Writer"), err)
+		return nil, utils.WrapError(errors.New("failed to create AVS Registry Reader and Writer"), err)
 	}
 
 	return &Clients{
@@ -108,7 +108,7 @@ func buildElClients(
 		logger,
 	)
 	if err != nil {
-		return nil, nil, types.WrapError(errors.New("failed to create AVSRegistryContractBindings"), err)
+		return nil, nil, utils.WrapError(errors.New("failed to create AVSRegistryContractBindings"), err)
 	}
 
 	delegationManagerAddr, err := avsRegistryContractBindings.StakeRegistry.Delegation(&bind.CallOpts{})
@@ -128,7 +128,7 @@ func buildElClients(
 		logger,
 	)
 	if err != nil {
-		return nil, nil, types.WrapError(errors.New("failed to create EigenlayerContractBindings"), err)
+		return nil, nil, utils.WrapError(errors.New("failed to create EigenlayerContractBindings"), err)
 	}
 
 	// get the Reader for the EL contracts
@@ -173,7 +173,7 @@ func buildAvsClients(
 		logger,
 	)
 	if err != nil {
-		return nil, nil, nil, types.WrapError(errors.New("failed to create AVSRegistryContractBindings"), err)
+		return nil, nil, nil, utils.WrapError(errors.New("failed to create AVSRegistryContractBindings"), err)
 	}
 
 	avsRegistryChainReader := avsregistry.NewAvsRegistryChainReader(
@@ -198,7 +198,7 @@ func buildAvsClients(
 		txMgr,
 	)
 	if err != nil {
-		return nil, nil, nil, types.WrapError(errors.New("failed to create AvsRegistryChainWriter"), err)
+		return nil, nil, nil, utils.WrapError(errors.New("failed to create AvsRegistryChainWriter"), err)
 	}
 
 	avsRegistrySubscriber, err := avsregistry.BuildAvsRegistryChainSubscriber(
@@ -207,7 +207,7 @@ func buildAvsClients(
 		logger,
 	)
 	if err != nil {
-		return nil, nil, nil, types.WrapError(errors.New("failed to create AvsRegistryChainSubscriber"), err)
+		return nil, nil, nil, utils.WrapError(errors.New("failed to create AvsRegistryChainSubscriber"), err)
 	}
 
 	return avsRegistryChainReader, avsRegistrySubscriber, avsRegistryChainWriter, nil
