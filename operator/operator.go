@@ -103,7 +103,7 @@ func NewOperatorFromConfig(c optypes.NodeConfig) (*Operator, error) {
 		return nil, err
 	}
 
-	operatorId := eigentypes.OperatorIdFromPubkey(blsKeyPair.GetPubKeyG1())
+	operatorId := eigentypes.OperatorIdFromG1Pubkey(blsKeyPair.GetPubKeyG1())
 
 	ecdsaKeyPassword, ok := os.LookupEnv("OPERATOR_ECDSA_KEY_PASSWORD")
 	if !ok {

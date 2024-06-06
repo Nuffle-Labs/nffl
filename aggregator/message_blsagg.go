@@ -347,14 +347,14 @@ func (mbas *MessageBlsAggregatorService) handleSignedMessageDigest(signedMessage
 	if !ok {
 		digestAggregatedOperators = AggregatedOperators{
 			// we've already verified that the operator is part of the task's quorum, so we don't need checks here
-			signersApkG2:               bls.NewZeroG2Point().Add(validationInfo.operatorsAvsStateDict[signedMessageDigest.OperatorId].Pubkeys.G2Pubkey),
+			signersApkG2:               bls.NewZeroG2Point().Add(validationInfo.operatorsAvsStateDict[signedMessageDigest.OperatorId].OperatorInfo.Pubkeys.G2Pubkey),
 			signersAggSigG1:            signedMessageDigest.BlsSignature,
 			signersOperatorIdsSet:      map[eigentypes.OperatorId]bool{signedMessageDigest.OperatorId: true},
 			signersTotalStakePerQuorum: validationInfo.operatorsAvsStateDict[signedMessageDigest.OperatorId].StakePerQuorum,
 		}
 	} else {
 		digestAggregatedOperators.signersAggSigG1.Add(signedMessageDigest.BlsSignature)
-		digestAggregatedOperators.signersApkG2.Add(validationInfo.operatorsAvsStateDict[signedMessageDigest.OperatorId].Pubkeys.G2Pubkey)
+		digestAggregatedOperators.signersApkG2.Add(validationInfo.operatorsAvsStateDict[signedMessageDigest.OperatorId].OperatorInfo.Pubkeys.G2Pubkey)
 		digestAggregatedOperators.signersOperatorIdsSet[signedMessageDigest.OperatorId] = true
 		for quorumNum, stake := range validationInfo.operatorsAvsStateDict[signedMessageDigest.OperatorId].StakePerQuorum {
 			if _, ok := digestAggregatedOperators.signersTotalStakePerQuorum[quorumNum]; !ok {
@@ -475,7 +475,7 @@ func (mbas *MessageBlsAggregatorService) verifySignature(
 	}
 
 	// 0. verify that the msg actually came from the correct operator
-	operatorG2Pubkey := operatorsAvsStateDict[signedMessageDigest.OperatorId].Pubkeys.G2Pubkey
+	operatorG2Pubkey := operatorsAvsStateDict[signedMessageDigest.OperatorId].OperatorInfo.Pubkeys.G2Pubkey
 	if operatorG2Pubkey == nil {
 		mbas.logger.Fatal("Operator G2 pubkey not found")
 	}
@@ -527,7 +527,7 @@ func getG1PubkeysOfNonSigners(signersOperatorIdsSet map[eigentypes.OperatorId]bo
 	nonSignersG1Pubkeys := []*bls.G1Point{}
 	for operatorId, operator := range operatorAvsStateDict {
 		if _, operatorSigned := signersOperatorIdsSet[operatorId]; !operatorSigned {
-			nonSignersG1Pubkeys = append(nonSignersG1Pubkeys, operator.Pubkeys.G1Pubkey)
+			nonSignersG1Pubkeys = append(nonSignersG1Pubkeys, operator.OperatorInfo.Pubkeys.G1Pubkey)
 		}
 	}
 	return nonSignersG1Pubkeys
