@@ -288,6 +288,9 @@ func (d *Database) FetchCheckpointMessages(fromTimestamp uint64, toTimestamp uin
 	operatorSetUpdateMessageAggregations := make([]messages.MessageBlsAggregation, 0, len(operatorSetUpdates))
 
 	for _, stateRootUpdate := range stateRootUpdates {
+		if stateRootUpdate.Aggregation == nil {
+			return nil, errors.New("aggregation not found")
+		}
 		agg := stateRootUpdate.Aggregation
 
 		stateRootUpdateMessages = append(stateRootUpdateMessages, stateRootUpdate.ToMessage())
@@ -295,6 +298,9 @@ func (d *Database) FetchCheckpointMessages(fromTimestamp uint64, toTimestamp uin
 	}
 
 	for _, operatorSetUpdate := range operatorSetUpdates {
+		if operatorSetUpdate.Aggregation == nil {
+			return nil, errors.New("aggregation not found")
+		}
 		agg := operatorSetUpdate.Aggregation
 
 		operatorSetUpdateMessages = append(operatorSetUpdateMessages, operatorSetUpdate.ToMessage())
