@@ -218,7 +218,6 @@ func NewAggregator(ctx context.Context, config *config.Config, logger logging.Lo
 	}
 
 	if config.EnableMetrics {
-		registry := prometheus.NewRegistry()
 		eigenMetrics := metrics.NewEigenMetrics(avsName, config.MetricsIpPortAddress, registry, logger)
 		if err = agg.EnableMetrics(registry); err != nil {
 			return nil, err
