@@ -260,7 +260,7 @@ func (avsManager *AvsManager) RegisterOperatorWithAvs(
 		return err
 	}
 
-	operatorId := eigentypes.OperatorIdFromPubkey(blsKeyPair.GetPubKeyG1())
+	operatorId := eigentypes.OperatorIdFromG1Pubkey(blsKeyPair.GetPubKeyG1())
 
 	sigValidForSeconds := int64(1_000_000)
 	operatorToAvsRegistrationSigExpiry := big.NewInt(int64(curBlock.Time()) + sigValidForSeconds)

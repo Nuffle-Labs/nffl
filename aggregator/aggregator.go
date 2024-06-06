@@ -4,6 +4,7 @@ import (
 	"context"
 	"errors"
 	"math/big"
+	"strings"
 	"sync"
 	"time"
 
@@ -14,7 +15,7 @@ import (
 	"github.com/Layr-Labs/eigensdk-go/metrics"
 	"github.com/Layr-Labs/eigensdk-go/services/avsregistry"
 	blsagg "github.com/Layr-Labs/eigensdk-go/services/bls_aggregation"
-	oppubkeysserv "github.com/Layr-Labs/eigensdk-go/services/operatorpubkeys"
+	opinfoserv "github.com/Layr-Labs/eigensdk-go/services/operatorsinfo"
 	"github.com/Layr-Labs/eigensdk-go/signerv2"
 	eigentypes "github.com/Layr-Labs/eigensdk-go/types"
 	"github.com/prometheus/client_golang/prometheus"
@@ -200,7 +201,7 @@ func NewAggregator(ctx context.Context, config *config.Config, logger logging.Lo
 		return nil, err
 	}
 
-	operatorPubkeysService := oppubkeysserv.NewOperatorPubkeysServiceInMemory(ctx, clients.AvsRegistryChainSubscriber, clients.AvsRegistryChainReader, logger)
+	operatorPubkeysService := opinfoserv.NewOperatorsInfoServiceInMemory(ctx, clients.AvsRegistryChainSubscriber, clients.AvsRegistryChainReader, logger)
 	avsRegistryService := avsregistry.NewAvsRegistryServiceChainCaller(avsReader, operatorPubkeysService, logger)
 	taskBlsAggregationService := blsagg.NewBlsAggregatorService(avsRegistryService, logger)
 	stateRootUpdateBlsAggregationService := NewMessageBlsAggregatorService(avsRegistryService, clients.EthHttpClient, logger)
@@ -325,7 +326,7 @@ func (agg *Aggregator) Close() error {
 func (agg *Aggregator) sendAggregatedResponseToContract(blsAggServiceResp blsagg.BlsAggregationServiceResponse) {
 	if blsAggServiceResp.Err != nil {
 		agg.aggregatorListener.IncErroredSubmissions()
-		if errors.Is(blsAggServiceResp.Err, blsagg.TaskExpiredError) {
+		if strings.Contains(blsAggServiceResp.Err.Error(), "expired") {
 			agg.aggregatorListener.IncExpiredTasks()
 		}
 
