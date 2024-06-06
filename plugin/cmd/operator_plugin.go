@@ -24,10 +24,6 @@ import (
 	"github.com/urfave/cli"
 )
 
-const (
-	AVS_NAME = "super-fast-finality-layer"
-)
-
 type CliOperatorPlugin struct {
 	ecdsaKeyPassword string
 	ethHttpClient    eth.Client
