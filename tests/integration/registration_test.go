@@ -2,13 +2,20 @@ package integration
 
 import (
 	"context"
+	"crypto/ecdsa"
 	"os"
 	"path/filepath"
 	"testing"
 	"time"
 
+	"github.com/Layr-Labs/eigensdk-go/chainio/clients/elcontracts"
+	"github.com/Layr-Labs/eigensdk-go/chainio/clients/eth"
+	"github.com/Layr-Labs/eigensdk-go/chainio/clients/wallet"
+	"github.com/Layr-Labs/eigensdk-go/chainio/txmgr"
+	chainioutils "github.com/Layr-Labs/eigensdk-go/chainio/utils"
 	sdkecdsa "github.com/Layr-Labs/eigensdk-go/crypto/ecdsa"
 	"github.com/Layr-Labs/eigensdk-go/logging"
+	"github.com/Layr-Labs/eigensdk-go/signerv2"
 	"github.com/Layr-Labs/eigensdk-go/types"
 	sdkutils "github.com/Layr-Labs/eigensdk-go/utils"
 	"github.com/NethermindEth/near-sffl/core/chainio"
@@ -80,25 +87,18 @@ func TestRegistration(t *testing.T) {
 		t.Fatalf("Error building ethHttpClient: %s", err.Error())
 	}
 
-	ethWsClient, err := safeclient.NewSafeEthClient(mainnetAnvil.WsUrl, logger)
-	if err != nil {
-		t.Fatalf("Error building ethWsClient: %s", err.Error())
-	}
-
-	clients, err := chainio.BuildAll(
-		"super-fast-finality-layer",
-		nodeConfig.AVSRegistryCoordinatorAddress,
-		nodeConfig.OperatorStateRetrieverAddress,
-		ethHttpClient,
-		ethWsClient,
+	elChainWriter, err := buildElChainWriter(
+		common.HexToAddress(nodeConfig.AVSRegistryCoordinatorAddress),
+		common.HexToAddress(nodeConfig.OperatorStateRetrieverAddress),
 		ecdsaPrivateKey,
+		ethHttpClient,
 		logger,
 	)
 	if err != nil {
 		t.Fatalf("Error building clients: %s", err.Error())
 	}
 
-	_, err = clients.ElChainWriter.RegisterAsOperator(ctx, types.Operator{Address: operatorAddr.String(), EarningsReceiverAddress: operatorAddr.String()})
+	_, err = elChainWriter.RegisterAsOperator(ctx, types.Operator{Address: operatorAddr.String(), EarningsReceiverAddress: operatorAddr.String()})
 	if err != nil {
 		t.Fatalf("Error registering operator: %s", err.Error())
 	}
@@ -196,4 +196,74 @@ func runOperatorPluginContainer(t *testing.T, ctx context.Context, name, network
 	}
 
 	return container
+}
+
+func buildElChainWriter(
+	avsRegistryCoordinatorAddress common.Address,
+	operatorStateRetrieverAddress common.Address,
+	ecdsaPrivateKey *ecdsa.PrivateKey,
+	ethHttpClient eth.Client,
+	logger logging.Logger,
+) (*elcontracts.ELChainWriter, error) {
+	rpcCtx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
+	defer cancel()
+	chainid, err := ethHttpClient.ChainID(rpcCtx)
+	if err != nil {
+		return nil, err
+	}
+
+	signerV2, addr, err := signerv2.SignerFromConfig(signerv2.Config{PrivateKey: ecdsaPrivateKey}, chainid)
+	if err != nil {
+		return nil, err
+	}
+
+	pkWallet, err := wallet.NewPrivateKeyWallet(ethHttpClient, signerV2, addr, logger)
+	if err != nil {
+		return nil, err
+	}
+
+	txMgr := txmgr.NewSimpleTxManager(pkWallet, ethHttpClient, logger, addr).WithGasLimitMultiplier(1.5)
+
+	avsRegistryContractBindings, err := chainioutils.NewAVSRegistryContractBindings(avsRegistryCoordinatorAddress, operatorStateRetrieverAddress, ethHttpClient, logger)
+	if err != nil {
+		return nil, err
+	}
+
+	delegationManagerAddr, err := avsRegistryContractBindings.StakeRegistry.Delegation(&bind.CallOpts{})
+	if err != nil {
+		return nil, err
+	}
+
+	avsDirectoryAddr, err := avsRegistryContractBindings.ServiceManager.AvsDirectory(&bind.CallOpts{})
+	if err != nil {
+		return nil, err
+	}
+
+	elContractBindings, err := chainioutils.NewEigenlayerContractBindings(delegationManagerAddr, avsDirectoryAddr, ethHttpClient, logger)
+	if err != nil {
+		return nil, err
+	}
+
+	elChainReader := elcontracts.NewELChainReader(
+		elContractBindings.Slasher,
+		elContractBindings.DelegationManager,
+		elContractBindings.StrategyManager,
+		elContractBindings.AvsDirectory,
+		logger,
+		ethHttpClient,
+	)
+
+	elChainWriter := elcontracts.NewELChainWriter(
+		elContractBindings.Slasher,
+		elContractBindings.DelegationManager,
+		elContractBindings.StrategyManager,
+		elContractBindings.StrategyManagerAddr,
+		elChainReader,
+		ethHttpClient,
+		logger,
+		nil,
+		txMgr,
+	)
+
+	return elChainWriter, nil
 }
