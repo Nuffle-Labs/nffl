@@ -111,14 +111,14 @@ var _ core.Metricable = (*Aggregator)(nil)
 // TODO: Remove this context once OperatorPubkeysServiceInMemory's API is
 // changed and we can gracefully exit otherwise
 func NewAggregator(ctx context.Context, config *config.Config, logger logging.Logger) (*Aggregator, error) {
+	registry := prometheus.NewRegistry()
 	withOptionalMetrics := func(url string) safeclient.SafeEthClientOption {
 		if !config.EnableMetrics {
 			return func(*safeclient.SafeEthClient) {}
+		} else {
+			rpcCallsCollector := rpccalls.NewCollector(AggregatorNamespace+url, registry)
+			return safeclient.WithInstrumentedCreateClient(rpcCallsCollector)
 		}
-
-		registry := prometheus.NewRegistry()
-		rpcCallsCollector := rpccalls.NewCollector(AggregatorNamespace+url, registry)
-		return safeclient.WithInstrumentedCreateClient(rpcCallsCollector)
 	}
 
 	ethHttpClient, err := safeclient.NewSafeEthClient(config.EthHttpRpcUrl, logger, withOptionalMetrics(config.EthHttpRpcUrl))
