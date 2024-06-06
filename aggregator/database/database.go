@@ -1,6 +1,7 @@
 package database
 
 import (
+	"context"
 	"errors"
 	"log"
 	"math"
@@ -289,7 +290,8 @@ func (d *Database) FetchCheckpointMessages(fromTimestamp uint64, toTimestamp uin
 
 	for _, stateRootUpdate := range stateRootUpdates {
 		if stateRootUpdate.Aggregation == nil {
-			return nil, errors.New("aggregation not found")
+			d.db.Logger.Warn(context.Background(), "Aggregation is nil for stateRootUpdate: %v", stateRootUpdate)
+			continue
 		}
 		agg := stateRootUpdate.Aggregation
 
@@ -299,7 +301,8 @@ func (d *Database) FetchCheckpointMessages(fromTimestamp uint64, toTimestamp uin
 
 	for _, operatorSetUpdate := range operatorSetUpdates {
 		if operatorSetUpdate.Aggregation == nil {
-			return nil, errors.New("aggregation not found")
+			d.db.Logger.Warn(context.Background(), "Aggregation is nil for operatorSetUpdate: %v", operatorSetUpdate)
+			continue
 		}
 		agg := operatorSetUpdate.Aggregation
 
