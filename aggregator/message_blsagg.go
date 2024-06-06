@@ -25,14 +25,14 @@ import (
 
 var (
 	MessageAlreadyInitializedErrorFn = func(messageDigest coretypes.MessageDigest) error {
-		return fmt.Errorf("message %x already initialized", messageDigest)
+		return fmt.Errorf("message 0x%x already initialized", messageDigest)
 	}
 	MessageExpiredError    = fmt.Errorf("message expired")
 	MessageNotFoundErrorFn = func(messageDigest coretypes.MessageDigest) error {
-		return fmt.Errorf("message %x not initialized or already completed", messageDigest)
+		return fmt.Errorf("message 0x%x not initialized or already completed", messageDigest)
 	}
 	OperatorNotPartOfMessageQuorumErrorFn = func(operatorId eigentypes.OperatorId, messageDigest coretypes.MessageDigest) error {
-		return fmt.Errorf("operator %x not part of message %x's quorum", operatorId, messageDigest)
+		return fmt.Errorf("operator 0x%x not part of message 0x%x's quorum", operatorId, messageDigest)
 	}
 	SignatureVerificationError = func(err error) error {
 		return fmt.Errorf("Failed to verify signature: %w", err)
@@ -232,6 +232,7 @@ func (mbas *MessageBlsAggregatorService) handleSignedMessagePreThreshold(
 				return false
 			}
 		case <-messageExpiredTimer.C:
+			mbas.logger.Debug("Message expired", "messageDigest", messageDigest)
 			mbas.aggregatedResponsesC <- types.MessageBlsAggregationServiceResponse{
 				MessageBlsAggregation: messages.MessageBlsAggregation{
 					MessageDigest:  messageDigest,
@@ -273,6 +274,7 @@ func (mbas *MessageBlsAggregatorService) handleSignedMessageThresholdReached(
 				return
 			}
 		case <-thresholdReachedTimer.C:
+			mbas.logger.Debug("Message expired", "messageDigest", messageDigest)
 			mbas.aggregatedResponsesC <- mbas.getMessageBlsAggregationResponse(messageDigest, validationInfo, true)
 			return
 		}
