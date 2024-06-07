@@ -10,8 +10,6 @@ import (
 	"os"
 	"time"
 
-	chainioavsregistry "github.com/Layr-Labs/eigensdk-go/chainio/clients/avsregistry"
-	"github.com/Layr-Labs/eigensdk-go/chainio/clients/elcontracts"
 	"github.com/Layr-Labs/eigensdk-go/chainio/clients/wallet"
 	"github.com/Layr-Labs/eigensdk-go/chainio/txmgr"
 	chainioutils "github.com/Layr-Labs/eigensdk-go/chainio/utils"
@@ -29,6 +27,7 @@ import (
 
 	taskmanager "github.com/NethermindEth/near-sffl/contracts/bindings/SFFLTaskManager"
 	"github.com/NethermindEth/near-sffl/core"
+	"github.com/NethermindEth/near-sffl/core/chainio"
 	"github.com/NethermindEth/near-sffl/core/safeclient"
 	"github.com/NethermindEth/near-sffl/core/types/messages"
 	"github.com/NethermindEth/near-sffl/operator/attestor"
@@ -155,77 +154,23 @@ func NewOperatorFromConfig(c optypes.NodeConfig) (*Operator, error) {
 	registryCoordinatorAddress := common.HexToAddress(c.AVSRegistryCoordinatorAddress)
 	operatorStateRetrieverAddress := common.HexToAddress(c.OperatorStateRetrieverAddress)
 
-	avsRegistryContractBindings, err := chainioutils.NewAVSRegistryContractBindings(
-		registryCoordinatorAddress,
-		operatorStateRetrieverAddress,
-		ethHttpClient,
-		logger,
-	)
+	avsRegistryContractBindings, err := chainioutils.NewAVSRegistryContractBindings(registryCoordinatorAddress, operatorStateRetrieverAddress, ethHttpClient, logger)
 	if err != nil {
 		logger.Error("Cannot create AVSRegistryContractBindings", "err", err)
 		return nil, err
 	}
 
-	avsRegistryChainReader := chainioavsregistry.NewAvsRegistryChainReader(
-		avsRegistryContractBindings.RegistryCoordinatorAddr,
-		avsRegistryContractBindings.BlsApkRegistryAddr,
-		avsRegistryContractBindings.RegistryCoordinator,
-		avsRegistryContractBindings.OperatorStateRetriever,
-		avsRegistryContractBindings.StakeRegistry,
-		logger,
-		ethHttpClient,
-	)
-
-	delegationManagerAddr, err := avsRegistryContractBindings.StakeRegistry.Delegation(&bind.CallOpts{})
-	if err != nil {
-		logger.Fatal("Failed to fetch Slasher contract", "err", err)
-		return nil, err
-	}
-
-	avsDirectoryAddr, err := avsRegistryContractBindings.ServiceManager.AvsDirectory(&bind.CallOpts{})
-	if err != nil {
-		logger.Fatal("Failed to fetch Slasher contract", "err", err)
-		return nil, err
-	}
-
-	elContractBindings, err := chainioutils.NewEigenlayerContractBindings(
-		delegationManagerAddr,
-		avsDirectoryAddr,
-		ethHttpClient,
-		logger,
-	)
+	elContractBindings, err := chainio.NewEigenlayerContractBindingsFromContract(avsRegistryContractBindings, ethHttpClient, logger)
 	if err != nil {
 		logger.Fatal("Failed to create EigenlayerContractBindings", "err", err)
 		return nil, err
 	}
 
-	elChainReader := elcontracts.NewELChainReader(
-		elContractBindings.Slasher,
-		elContractBindings.DelegationManager,
-		elContractBindings.StrategyManager,
-		elContractBindings.AvsDirectory,
-		logger,
-		ethHttpClient,
-	)
+	avsRegistryChainReader := chainio.NewAvsRegistryChainReaderFromContract(avsRegistryContractBindings, ethHttpClient, logger)
+	elChainReader := chainio.NewELChainReaderFromContract(elContractBindings, ethHttpClient, logger)
+	elChainWriter := chainio.NewElChainWriterFromBindings(elContractBindings, elChainReader, ethHttpClient, txMgr, logger)
 
-	elChainWriter := elcontracts.NewELChainWriter(
-		elContractBindings.Slasher,
-		elContractBindings.DelegationManager,
-		elContractBindings.StrategyManager,
-		elContractBindings.StrategyManagerAddr,
-		elChainReader,
-		ethHttpClient,
-		logger,
-		nil,
-		txMgr,
-	)
-
-	aggregatorRpcClient, err := NewAggregatorRpcClient(
-		c.AggregatorServerIpPortAddress,
-		operatorId,
-		registryCoordinatorAddress,
-		logger,
-	)
+	aggregatorRpcClient, err := NewAggregatorRpcClient(c.AggregatorServerIpPortAddress, operatorId, registryCoordinatorAddress, logger)
 	if err != nil {
 		logger.Error("Cannot create AggregatorRpcClient. Is aggregator running?", "err", err)
 		return nil, err
