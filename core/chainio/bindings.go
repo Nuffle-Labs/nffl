@@ -2,8 +2,8 @@ package chainio
 
 import (
 	"github.com/Layr-Labs/eigensdk-go/chainio/clients/eth"
+	blsapkreg "github.com/Layr-Labs/eigensdk-go/contracts/bindings/BLSApkRegistry"
 	"github.com/Layr-Labs/eigensdk-go/logging"
-
 	"github.com/ethereum/go-ethereum/accounts/abi/bind"
 	"github.com/ethereum/go-ethereum/common"
 
@@ -19,6 +19,7 @@ type AvsManagersBindings struct {
 	OperatorSetUpdateRegistry *opsetupdatereg.ContractSFFLOperatorSetUpdateRegistry
 	TaskManager               *taskmanager.ContractSFFLTaskManager
 	ServiceManager            *csservicemanager.ContractSFFLServiceManager
+	BlsApkRegistry            blsapkreg.ContractBLSApkRegistryFilters
 	ethClient                 eth.Client
 	logger                    logging.Logger
 }
@@ -62,11 +63,22 @@ func NewAvsManagersBindings(registryCoordinatorAddr, operatorStateRetrieverAddr 
 		return nil, err
 	}
 
+	blsApkRegistryAddr, err := contractRegistryCoordinator.BlsApkRegistry(&bind.CallOpts{})
+	if err != nil {
+		return nil, err
+	}
+
+	blsApkRegistry, err := blsapkreg.NewContractBLSApkRegistry(blsApkRegistryAddr, ethclient)
+	if err != nil {
+		return nil, err
+	}
+
 	return &AvsManagersBindings{
 		RegistryCoordinator:       contractRegistryCoordinator,
 		OperatorSetUpdateRegistry: contractOperatorSetUpdateRegistry,
 		ServiceManager:            contractServiceManager,
 		TaskManager:               contractTaskManager,
+		BlsApkRegistry:            blsApkRegistry,
 		ethClient:                 ethclient,
 		logger:                    logger,
 	}, nil

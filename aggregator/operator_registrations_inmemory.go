@@ -55,59 +55,72 @@ func NewOperatorRegistrationsServiceInMemory(
 	avsRegistrySubscriber avsregistry.AvsRegistrySubscriber,
 	avsRegistryReader avsregistry.AvsRegistryReader,
 	logger logging.Logger,
-) *OperatorRegistrationsServiceInMemory {
+) (*OperatorRegistrationsServiceInMemory, error) {
 	queryByAddrC := make(chan queryByAddr)
 	queryByIdC := make(chan queryById)
 
-	pkcs := &OperatorRegistrationsServiceInMemory{
+	ors := &OperatorRegistrationsServiceInMemory{
 		avsRegistrySubscriber: avsRegistrySubscriber,
 		avsRegistryReader:     avsRegistryReader,
 		logger:                logger,
 		queryByAddrC:          queryByAddrC,
 		queryByIdC:            queryByIdC,
 	}
+	err := ors.asyncInit(ctx, queryByAddrC, queryByIdC)
+	if err != nil {
+		return nil, err
+	}
 
-	// We use this waitgroup to wait on the initialization of the inmemory pubkey dict,
-	// which requires querying the past events of the pubkey registration contract
-	wg := sync.WaitGroup{}
-	wg.Add(1)
-	pkcs.startServiceInGoroutine(ctx, queryByAddrC, queryByIdC, &wg)
-	wg.Wait()
-
-	return pkcs
+	return ors, nil
 }
 
-func (ors *OperatorRegistrationsServiceInMemory) startServiceInGoroutine(ctx context.Context, queryByAddrC <-chan queryByAddr, queryByIdC <-chan queryById, wg *sync.WaitGroup) {
+// asyncInit parks caller & schedules initialization of the inmemory pubkey dict,
+// which requires querying the past events of the pubkey registration contract
+func (ors *OperatorRegistrationsServiceInMemory) asyncInit(ctx context.Context, queryByAddrC chan queryByAddr, queryByIdC chan queryById) error {
+	wg := sync.WaitGroup{}
+	defer wg.Wait()
+
+	initErrC := make(chan error)
+	ors.startServiceInGoroutine(ctx, queryByAddrC, queryByIdC, &wg, initErrC)
+
+	return <-initErrC
+}
+
+func (ors *OperatorRegistrationsServiceInMemory) startServiceInGoroutine(ctx context.Context, queryByAddrC <-chan queryByAddr, queryByIdC <-chan queryById, wg *sync.WaitGroup, initErrC chan<- error) {
+	wg.Add(1)
+
 	go func() {
 		ors.logger.Debug("Subscribing to new pubkey registration events on blsApkRegistry contract", "service", "OperatorRegistrationsServiceInMemory")
 		newPubkeyRegistrationC, newPubkeyRegistrationSub, err := ors.avsRegistrySubscriber.SubscribeToNewPubkeyRegistrations()
 		if err != nil {
-			ors.logger.Error("Fatal error opening websocket subscription for new pubkey registrations", "err", err, "service", "OperatorRegistrationsServiceInMemory")
-			// see the warning above the struct definition to understand why we panic here
-			panic(err)
+			ors.logger.Error("Error opening websocket subscription for new pubkey registrations", "err", err, "service", "OperatorRegistrationsServiceInMemory")
+			wg.Done()
+			initErrC <- err
+			return
 		}
 
-		pubkeyByAddrDict, pubkeyByIdDict := ors.queryPastRegisteredOperators(ctx)
-
+		pubkeyByAddrDict, pubkeyByIdDict, err := ors.queryPastRegisteredOperators(ctx)
+		if err != nil {
+			wg.Done()
+			initErrC <- err
+			return
+		}
 		// The constructor can return after we have backfilled the db by querying the events of operators that have registered with the blsApkRegistry
 		// before the block at which we started the ws subscription above
 		wg.Done()
+		close(initErrC)
 
 		for {
 			select {
 			case <-ctx.Done():
-				ors.logger.Infof("OperatorRegistrationsServiceInMemory: Context cancelled, exiting")
+				ors.logger.Info("OperatorRegistrationsServiceInMemory: Context cancelled, exiting")
 				return
 
+			// This shall not really happen unless ctx was canceled & this came first.
 			case err := <-newPubkeyRegistrationSub.Err():
-				ors.logger.Error("Error in websocket subscription for new pubkey registration events. Attempting to reconnect...", "err", err, "service", "OperatorRegistrationsServiceInMemory")
+				// Just report
 				newPubkeyRegistrationSub.Unsubscribe()
-				newPubkeyRegistrationC, newPubkeyRegistrationSub, err = ors.avsRegistrySubscriber.SubscribeToNewPubkeyRegistrations()
-				if err != nil {
-					ors.logger.Error("Error opening websocket subscription for new pubkey registrations", "err", err, "service", "OperatorRegistrationsServiceInMemory")
-					// see the warning above the struct definition to understand why we panic here
-					panic(err)
-				}
+				ors.logger.Error("Error in safe client subscription", "err", err, "service", "OperatorRegistrationsServiceInMemory")
 
 			case newPubkeyRegistrationEvent := <-newPubkeyRegistrationC:
 				pubkeys := types.OperatorPubkeys{
@@ -143,14 +156,15 @@ func (ors *OperatorRegistrationsServiceInMemory) startServiceInGoroutine(ctx con
 	}()
 }
 
-func (ors *OperatorRegistrationsServiceInMemory) queryPastRegisteredOperators(ctx context.Context) (map[common.Address]types.OperatorPubkeys, map[types.OperatorId]types.OperatorPubkeys) {
+func (ors *OperatorRegistrationsServiceInMemory) queryPastRegisteredOperators(ctx context.Context) (map[common.Address]types.OperatorPubkeys, map[types.OperatorId]types.OperatorPubkeys, error) {
 	// Querying with nil startBlock and stopBlock will return all events. It doesn't matter if we queryByAddr some events that we will receive again in the websocket,
 	// since we will just overwrite the pubkey dict with the same values.
 	alreadyRegisteredOperatorAddrs, alreadyRegisteredOperatorPubkeys, err := ors.avsRegistryReader.QueryExistingRegisteredOperatorPubKeys(ctx, nil, nil)
 	if err != nil {
-		ors.logger.Error("Fatal error querying existing registered operators", "err", err, "service", "OperatorRegistrationsServiceInMemory")
-		panic(err)
+		ors.logger.Error("Error querying existing registered operators", "err", err, "service", "OperatorRegistrationsServiceInMemory")
+		return nil, nil, err
 	}
+
 	ors.logger.Debug("List of queried operator registration events in blsApkRegistry", "alreadyRegisteredOperatorAddr", alreadyRegisteredOperatorAddrs, "service", "OperatorRegistrationsServiceInMemory")
 
 	pubkeyByAddrDict := make(map[common.Address]types.OperatorPubkeys)
@@ -163,7 +177,7 @@ func (ors *OperatorRegistrationsServiceInMemory) queryPastRegisteredOperators(ct
 		pubkeyByIdDict[operatorId] = operatorPubkeys
 	}
 
-	return pubkeyByAddrDict, pubkeyByIdDict
+	return pubkeyByAddrDict, pubkeyByIdDict, nil
 }
 
 func (ors *OperatorRegistrationsServiceInMemory) GetOperatorPubkeys(ctx context.Context, operator common.Address) (types.OperatorPubkeys, bool) {

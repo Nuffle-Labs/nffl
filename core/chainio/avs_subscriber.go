@@ -1,19 +1,20 @@
 package chainio
 
 import (
+	"github.com/Layr-Labs/eigensdk-go/chainio/clients/avsregistry"
+	"github.com/Layr-Labs/eigensdk-go/chainio/clients/eth"
+	sdklogging "github.com/Layr-Labs/eigensdk-go/logging"
 	"github.com/ethereum/go-ethereum/accounts/abi/bind"
 	gethcommon "github.com/ethereum/go-ethereum/common"
 	"github.com/ethereum/go-ethereum/core/types"
 	"github.com/ethereum/go-ethereum/event"
-
-	"github.com/Layr-Labs/eigensdk-go/chainio/clients/eth"
-	sdklogging "github.com/Layr-Labs/eigensdk-go/logging"
 
 	opsetupdatereg "github.com/NethermindEth/near-sffl/contracts/bindings/SFFLOperatorSetUpdateRegistry"
 	taskmanager "github.com/NethermindEth/near-sffl/contracts/bindings/SFFLTaskManager"
 )
 
 type AvsSubscriberer interface {
+	avsregistry.AvsRegistrySubscriber
 	SubscribeToNewTasks(checkpointTaskCreatedChan chan *taskmanager.ContractSFFLTaskManagerCheckpointTaskCreated) (event.Subscription, error)
 	SubscribeToTaskResponses(taskResponseLogs chan *taskmanager.ContractSFFLTaskManagerCheckpointTaskResponded) (event.Subscription, error)
 	SubscribeToOperatorSetUpdates(operatorSetUpdateChan chan *opsetupdatereg.ContractSFFLOperatorSetUpdateRegistryOperatorSetUpdatedAtBlock) (event.Subscription, error)
@@ -25,9 +26,12 @@ type AvsSubscriberer interface {
 // it takes a single url, so the bindings, even though they have watcher functions, those can't be used
 // with the http connection... seems very very stupid. Am I missing something?
 type AvsSubscriber struct {
+	avsregistry.AvsRegistrySubscriber
 	AvsContractBindings *AvsManagersBindings
 	logger              sdklogging.Logger
 }
+
+var _ (AvsSubscriberer) = (*AvsSubscriber)(nil)
 
 func BuildAvsSubscriber(registryCoordinatorAddr, blsOperatorStateRetrieverAddr gethcommon.Address, ethclient eth.Client, logger sdklogging.Logger) (*AvsSubscriber, error) {
 	avsContractBindings, err := NewAvsManagersBindings(registryCoordinatorAddr, blsOperatorStateRetrieverAddr, ethclient, logger)
@@ -35,13 +39,21 @@ func BuildAvsSubscriber(registryCoordinatorAddr, blsOperatorStateRetrieverAddr g
 		logger.Error("Failed to create contract bindings", "err", err)
 		return nil, err
 	}
-	return NewAvsSubscriber(avsContractBindings, logger), nil
+
+	avsRegistrySubscriber, err := avsregistry.NewAvsRegistryChainSubscriber(avsContractBindings.BlsApkRegistry, logger)
+	if err != nil {
+		logger.Error("Failed to create chain registry subscriber", "err", err)
+		return nil, err
+	}
+
+	return NewAvsSubscriber(avsContractBindings, avsRegistrySubscriber, logger), nil
 }
 
-func NewAvsSubscriber(avsContractBindings *AvsManagersBindings, logger sdklogging.Logger) *AvsSubscriber {
+func NewAvsSubscriber(avsContractBindings *AvsManagersBindings, avsRegistrySubscriber avsregistry.AvsRegistrySubscriber, logger sdklogging.Logger) *AvsSubscriber {
 	return &AvsSubscriber{
-		AvsContractBindings: avsContractBindings,
-		logger:              logger,
+		AvsRegistrySubscriber: avsRegistrySubscriber,
+		AvsContractBindings:   avsContractBindings,
+		logger:                logger,
 	}
 }
 
