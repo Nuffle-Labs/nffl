@@ -155,9 +155,12 @@ func NewAggregator(ctx context.Context, config *config.Config, logger logging.Lo
 
 	txMgr := txmgr.NewSimpleTxManager(txSender, ethHttpClient, logger, config.AggregatorAddress).WithGasLimitMultiplier(1.5)
 
+	sfflRegistryCoordinatorAddress := common.HexToAddress(config.SFFLRegistryCoordinatorAddr.String())
+	operatorStateRetrieverAddress := common.HexToAddress(config.OperatorStateRetrieverAddr.String())
+
 	avsRegistryContractBindings, err := chainioutils.NewAVSRegistryContractBindings(
-		common.HexToAddress(config.SFFLRegistryCoordinatorAddr.String()),
-		common.HexToAddress(config.OperatorStateRetrieverAddr.String()),
+		sfflRegistryCoordinatorAddress,
+		operatorStateRetrieverAddress,
 		ethHttpClient,
 		logger,
 	)
@@ -166,22 +169,10 @@ func NewAggregator(ctx context.Context, config *config.Config, logger logging.Lo
 		return nil, err
 	}
 
-	avsRegistryChainReader := chainioavsregistry.NewAvsRegistryChainReader(
-		avsRegistryContractBindings.RegistryCoordinatorAddr,
-		avsRegistryContractBindings.BlsApkRegistryAddr,
-		avsRegistryContractBindings.RegistryCoordinator,
-		avsRegistryContractBindings.OperatorStateRetriever,
-		avsRegistryContractBindings.StakeRegistry,
-		logger,
-		ethHttpClient,
-	)
+	avsRegistryChainReader := chainio.NewAvsRegistryChainReaderFromContract(avsRegistryContractBindings, ethHttpClient, logger)
 
 	// note that the subscriber needs a ws connection instead of http
-	avsRegistryChainSubscriber, err := chainioavsregistry.BuildAvsRegistryChainSubscriber(
-		avsRegistryContractBindings.RegistryCoordinatorAddr,
-		ethWsClient,
-		logger,
-	)
+	avsRegistryChainSubscriber, err := chainioavsregistry.BuildAvsRegistryChainSubscriber(sfflRegistryCoordinatorAddress, ethWsClient, logger)
 	if err != nil {
 		logger.Error("Cannot create AvsRegistryChainSubscriber", "err", err)
 		return nil, err
