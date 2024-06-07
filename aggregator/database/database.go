@@ -1,6 +1,7 @@
 package database
 
 import (
+	"context"
 	"errors"
 	"log"
 	"math"
@@ -295,6 +296,10 @@ func (d *Database) FetchCheckpointMessages(fromTimestamp uint64, toTimestamp uin
 	operatorSetUpdateMessageAggregations := make([]messages.MessageBlsAggregation, 0, len(operatorSetUpdates))
 
 	for _, stateRootUpdate := range stateRootUpdates {
+		if stateRootUpdate.Aggregation == nil {
+			d.db.Logger.Warn(context.Background(), "Aggregation is nil for stateRootUpdate: %v", stateRootUpdate)
+			continue
+		}
 		agg := stateRootUpdate.Aggregation
 
 		stateRootUpdateMessages = append(stateRootUpdateMessages, stateRootUpdate.ToMessage())
@@ -302,6 +307,10 @@ func (d *Database) FetchCheckpointMessages(fromTimestamp uint64, toTimestamp uin
 	}
 
 	for _, operatorSetUpdate := range operatorSetUpdates {
+		if operatorSetUpdate.Aggregation == nil {
+			d.db.Logger.Warn(context.Background(), "Aggregation is nil for operatorSetUpdate: %v", operatorSetUpdate)
+			continue
+		}
 		agg := operatorSetUpdate.Aggregation
 
 		operatorSetUpdateMessages = append(operatorSetUpdateMessages, operatorSetUpdate.ToMessage())
