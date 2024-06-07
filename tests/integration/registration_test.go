@@ -95,7 +95,7 @@ func TestRegistration(t *testing.T) {
 		logger,
 	)
 	if err != nil {
-		t.Fatalf("Error building clients: %s", err.Error())
+		t.Fatalf("Error building ElChainWriter: %s", err.Error())
 	}
 
 	_, err = elChainWriter.RegisterAsOperator(ctx, types.Operator{Address: operatorAddr.String(), EarningsReceiverAddress: operatorAddr.String()})
@@ -229,41 +229,12 @@ func buildElChainWriter(
 		return nil, err
 	}
 
-	delegationManagerAddr, err := avsRegistryContractBindings.StakeRegistry.Delegation(&bind.CallOpts{})
+	elContractBindings, err := chainio.NewEigenlayerContractBindingsFromContract(avsRegistryContractBindings, ethHttpClient, logger)
 	if err != nil {
 		return nil, err
 	}
-
-	avsDirectoryAddr, err := avsRegistryContractBindings.ServiceManager.AvsDirectory(&bind.CallOpts{})
-	if err != nil {
-		return nil, err
-	}
-
-	elContractBindings, err := chainioutils.NewEigenlayerContractBindings(delegationManagerAddr, avsDirectoryAddr, ethHttpClient, logger)
-	if err != nil {
-		return nil, err
-	}
-
-	elChainReader := elcontracts.NewELChainReader(
-		elContractBindings.Slasher,
-		elContractBindings.DelegationManager,
-		elContractBindings.StrategyManager,
-		elContractBindings.AvsDirectory,
-		logger,
-		ethHttpClient,
-	)
-
-	elChainWriter := elcontracts.NewELChainWriter(
-		elContractBindings.Slasher,
-		elContractBindings.DelegationManager,
-		elContractBindings.StrategyManager,
-		elContractBindings.StrategyManagerAddr,
-		elChainReader,
-		ethHttpClient,
-		logger,
-		nil,
-		txMgr,
-	)
+	elChainReader := chainio.NewELChainReaderFromContract(elContractBindings, ethHttpClient, logger)
+	elChainWriter := chainio.NewElChainWriterFromBindings(elContractBindings, elChainReader, ethHttpClient, txMgr, logger)
 
 	return elChainWriter, nil
 }
