@@ -126,49 +126,14 @@ func NewOperatorPluginFromCLIContext(ctx *cli.Context) (*CliOperatorPlugin, erro
 		return nil, err
 	}
 
-	delegationManagerAddr, err := avsRegistryContractBindings.StakeRegistry.Delegation(&bind.CallOpts{})
-	if err != nil {
-		logger.Fatal("Failed to fetch Slasher contract", "err", err)
-		return nil, err
-	}
-
-	avsDirectoryAddr, err := avsRegistryContractBindings.ServiceManager.AvsDirectory(&bind.CallOpts{})
-	if err != nil {
-		logger.Fatal("Failed to fetch Slasher contract", "err", err)
-		return nil, err
-	}
-
-	elContractBindings, err := chainioutils.NewEigenlayerContractBindings(
-		delegationManagerAddr,
-		avsDirectoryAddr,
-		ethHttpClient,
-		logger,
-	)
+	elContractBindings, err := chainio.NewEigenlayerContractBindingsFromContract(avsRegistryContractBindings, ethHttpClient, logger)
 	if err != nil {
 		logger.Fatal("Failed to create EigenlayerContractBindings", "err", err)
 		return nil, err
 	}
 
-	elChainReader := elcontracts.NewELChainReader(
-		elContractBindings.Slasher,
-		elContractBindings.DelegationManager,
-		elContractBindings.StrategyManager,
-		elContractBindings.AvsDirectory,
-		logger,
-		ethHttpClient,
-	)
-
-	elChainWriter := elcontracts.NewELChainWriter(
-		elContractBindings.Slasher,
-		elContractBindings.DelegationManager,
-		elContractBindings.StrategyManager,
-		elContractBindings.StrategyManagerAddr,
-		elChainReader,
-		ethHttpClient,
-		logger,
-		nil,
-		txMgr,
-	)
+	elChainReader := chainio.NewELChainReaderFromContract(elContractBindings, ethHttpClient, logger)
+	elChainWriter := chainio.NewElChainWriterFromBindings(elContractBindings, elChainReader, ethHttpClient, txMgr, logger)
 
 	avsManager, err := operator.NewAvsManager(
 		&avsConfig,
