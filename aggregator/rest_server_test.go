@@ -198,7 +198,7 @@ func TestGetCheckpointMessages(t *testing.T) {
 	assert.Equal(t, body, expectedBody)
 }
 
-func TestStateRootUpdate_MissingParameters(t *testing.T) {
+func TestGetStateRootUpdateAggregation_MissingParameters(t *testing.T) {
 	mockCtrl := gomock.NewController(t)
 	defer mockCtrl.Finish()
 
@@ -238,7 +238,7 @@ func TestStateRootUpdate_MissingParameters(t *testing.T) {
 	})
 }
 
-func TestStateRootUpdate_InvalidParameters(t *testing.T) {
+func TestGetStateRootUpdateAggregation_InvalidParameters(t *testing.T) {
 	mockCtrl := gomock.NewController(t)
 	defer mockCtrl.Finish()
 
@@ -261,7 +261,7 @@ func TestStateRootUpdate_InvalidParameters(t *testing.T) {
 	assert.Equal(t, http.StatusBadRequest, recorder.Code)
 }
 
-func TestStateRootUpdate_EmptyParameters(t *testing.T) {
+func TestGetStateRootUpdateAggregation_EmptyParameters(t *testing.T) {
 	mockCtrl := gomock.NewController(t)
 	defer mockCtrl.Finish()
 
