@@ -211,7 +211,7 @@ func TestGetStateRootUpdateAggregation_MissingParameters(t *testing.T) {
 	t.Run("Missing rollupId", func(t *testing.T) {
 		req, err := http.NewRequest(
 			"GET",
-			fmt.Sprintf("/aggregation/state-root-update?&blockHeight=%d", 0),
+			fmt.Sprintf("/aggregation/state-root-update?blockHeight=%d", 0),
 			nil,
 		)
 		assert.Nil(t, err)
