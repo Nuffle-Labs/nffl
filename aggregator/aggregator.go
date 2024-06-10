@@ -8,9 +8,10 @@ import (
 	"sync"
 	"time"
 
-	eigenclients "github.com/Layr-Labs/eigensdk-go/chainio/clients"
+	chainioavsregistry "github.com/Layr-Labs/eigensdk-go/chainio/clients/avsregistry"
 	"github.com/Layr-Labs/eigensdk-go/chainio/clients/wallet"
 	"github.com/Layr-Labs/eigensdk-go/chainio/txmgr"
+	chainioutils "github.com/Layr-Labs/eigensdk-go/chainio/utils"
 	"github.com/Layr-Labs/eigensdk-go/logging"
 	"github.com/Layr-Labs/eigensdk-go/metrics"
 	"github.com/Layr-Labs/eigensdk-go/services/avsregistry"
@@ -18,6 +19,7 @@ import (
 	opinfoserv "github.com/Layr-Labs/eigensdk-go/services/operatorsinfo"
 	"github.com/Layr-Labs/eigensdk-go/signerv2"
 	eigentypes "github.com/Layr-Labs/eigensdk-go/types"
+	"github.com/ethereum/go-ethereum/common"
 	"github.com/prometheus/client_golang/prometheus"
 
 	"github.com/NethermindEth/near-sffl/aggregator/database"
@@ -112,40 +114,16 @@ var _ core.Metricable = (*Aggregator)(nil)
 // TODO: Remove this context once OperatorPubkeysServiceInMemory's API is
 // changed and we can gracefully exit otherwise
 func NewAggregator(ctx context.Context, config *config.Config, logger logging.Logger) (*Aggregator, error) {
-	chainioConfig := eigenclients.BuildAllConfig{
-		EthHttpUrl:                 config.EthHttpRpcUrl,
-		EthWsUrl:                   config.EthWsRpcUrl,
-		RegistryCoordinatorAddr:    config.SFFLRegistryCoordinatorAddr.String(),
-		OperatorStateRetrieverAddr: config.OperatorStateRetrieverAddr.String(),
-		AvsName:                    avsName,
-		PromMetricsIpPortAddress:   config.MetricsIpPortAddress,
-	}
-	clients, err := eigenclients.BuildAll(chainioConfig, config.EcdsaPrivateKey, logger)
-	if err != nil {
-		logger.Error("Cannot create sdk clients", "err", err)
-		return nil, err
-	}
-	registry := clients.PrometheusRegistry
+	// TODO: Pass the registry as a parameter (see https://github.com/NethermindEth/near-sffl/pull/211#pullrequestreview-2101946551)
+	registry := prometheus.NewRegistry()
 
-	ethHttpClient, err := core.CreateEthClientWithCollector(
-		AggregatorNamespace,
-		config.EthHttpRpcUrl,
-		config.EnableMetrics,
-		registry,
-		logger,
-	)
+	ethHttpClient, err := core.CreateEthClientWithCollector(AggregatorNamespace, config.EthHttpRpcUrl, config.EnableMetrics, registry, logger)
 	if err != nil {
 		logger.Error("Cannot create http ethclient", "err", err)
 		return nil, err
 	}
 
-	ethWsClient, err := core.CreateEthClientWithCollector(
-		AggregatorNamespace,
-		config.EthWsRpcUrl,
-		config.EnableMetrics,
-		registry,
-		logger,
-	)
+	ethWsClient, err := core.CreateEthClientWithCollector(AggregatorNamespace, config.EthWsRpcUrl, config.EnableMetrics, registry, logger)
 	if err != nil {
 		logger.Error("Cannot create ws ethclient", "err", err)
 		return nil, err
@@ -177,6 +155,29 @@ func NewAggregator(ctx context.Context, config *config.Config, logger logging.Lo
 
 	txMgr := txmgr.NewSimpleTxManager(txSender, ethHttpClient, logger, config.AggregatorAddress).WithGasLimitMultiplier(1.5)
 
+	sfflRegistryCoordinatorAddress := common.HexToAddress(config.SFFLRegistryCoordinatorAddr.String())
+	operatorStateRetrieverAddress := common.HexToAddress(config.OperatorStateRetrieverAddr.String())
+
+	avsRegistryContractBindings, err := chainioutils.NewAVSRegistryContractBindings(
+		sfflRegistryCoordinatorAddress,
+		operatorStateRetrieverAddress,
+		ethHttpClient,
+		logger,
+	)
+	if err != nil {
+		logger.Error("Cannot create AVSRegistryContractBindings", "err", err)
+		return nil, err
+	}
+
+	avsRegistryChainReader := chainio.NewAvsRegistryChainReaderFromContract(avsRegistryContractBindings, ethHttpClient, logger)
+
+	// note that the subscriber needs a ws connection instead of http
+	avsRegistryChainSubscriber, err := chainioavsregistry.BuildAvsRegistryChainSubscriber(sfflRegistryCoordinatorAddress, ethWsClient, logger)
+	if err != nil {
+		logger.Error("Cannot create AvsRegistryChainSubscriber", "err", err)
+		return nil, err
+	}
+
 	avsWriter, err := chainio.BuildAvsWriterFromConfig(txMgr, config, ethHttpClient, logger)
 	if err != nil {
 		logger.Error("Cannot create avsWriter", "err", err)
@@ -201,11 +202,11 @@ func NewAggregator(ctx context.Context, config *config.Config, logger logging.Lo
 		return nil, err
 	}
 
-	operatorPubkeysService := opinfoserv.NewOperatorsInfoServiceInMemory(ctx, clients.AvsRegistryChainSubscriber, clients.AvsRegistryChainReader, logger)
+	operatorPubkeysService := opinfoserv.NewOperatorsInfoServiceInMemory(ctx, avsRegistryChainSubscriber, avsRegistryChainReader, logger)
 	avsRegistryService := avsregistry.NewAvsRegistryServiceChainCaller(avsReader, operatorPubkeysService, logger)
 	taskBlsAggregationService := blsagg.NewBlsAggregatorService(avsRegistryService, logger)
-	stateRootUpdateBlsAggregationService := NewMessageBlsAggregatorService(avsRegistryService, clients.EthHttpClient, logger)
-	operatorSetUpdateBlsAggregationService := NewMessageBlsAggregatorService(avsRegistryService, clients.EthHttpClient, logger)
+	stateRootUpdateBlsAggregationService := NewMessageBlsAggregatorService(avsRegistryService, ethHttpClient, logger)
+	operatorSetUpdateBlsAggregationService := NewMessageBlsAggregatorService(avsRegistryService, ethHttpClient, logger)
 
 	agg := &Aggregator{
 		config:                                 config,
@@ -232,10 +233,12 @@ func NewAggregator(ctx context.Context, config *config.Config, logger logging.Lo
 	}
 
 	if config.EnableMetrics {
+		eigenMetrics := metrics.NewEigenMetrics(avsName, config.MetricsIpPortAddress, registry, logger)
 		if err = agg.EnableMetrics(registry); err != nil {
 			return nil, err
 		}
-		agg.metrics = clients.Metrics
+
+		agg.metrics = eigenMetrics
 		agg.registry = registry
 	}
 

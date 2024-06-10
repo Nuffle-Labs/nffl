@@ -10,9 +10,9 @@ import (
 	"os"
 	"time"
 
-	"github.com/Layr-Labs/eigensdk-go/chainio/clients"
 	"github.com/Layr-Labs/eigensdk-go/chainio/clients/wallet"
 	"github.com/Layr-Labs/eigensdk-go/chainio/txmgr"
+	chainioutils "github.com/Layr-Labs/eigensdk-go/chainio/utils"
 	"github.com/Layr-Labs/eigensdk-go/crypto/bls"
 	sdkecdsa "github.com/Layr-Labs/eigensdk-go/crypto/ecdsa"
 	sdklogging "github.com/Layr-Labs/eigensdk-go/logging"
@@ -27,6 +27,7 @@ import (
 
 	taskmanager "github.com/NethermindEth/near-sffl/contracts/bindings/SFFLTaskManager"
 	"github.com/NethermindEth/near-sffl/core"
+	"github.com/NethermindEth/near-sffl/core/chainio"
 	"github.com/NethermindEth/near-sffl/core/safeclient"
 	"github.com/NethermindEth/near-sffl/core/types/messages"
 	"github.com/NethermindEth/near-sffl/operator/attestor"
@@ -110,34 +111,17 @@ func NewOperatorFromConfig(c optypes.NodeConfig) (*Operator, error) {
 		logger.Warn("OPERATOR_ECDSA_KEY_PASSWORD env var not set. using empty string")
 	}
 
-	ecdsaPrivateKey, err := sdkecdsa.ReadKey(c.EcdsaPrivateKeyStorePath, ecdsaKeyPassword)
-	if err != nil {
-		logger.Error("Failed to read ecdsa private key", "err", err)
-		return nil, err
-	}
-
-	chainioConfig := clients.BuildAllConfig{
-		EthHttpUrl:                 c.EthRpcUrl,
-		EthWsUrl:                   c.EthWsUrl,
-		RegistryCoordinatorAddr:    c.AVSRegistryCoordinatorAddress,
-		OperatorStateRetrieverAddr: c.OperatorStateRetrieverAddress,
-		AvsName:                    AVS_NAME,
-		PromMetricsIpPortAddress:   c.EigenMetricsIpPortAddress,
-	}
-	sdkClients, err := clients.BuildAll(chainioConfig, ecdsaPrivateKey, logger)
-	if err != nil {
-		panic(err)
-	}
-	reg := sdkClients.PrometheusRegistry
-
+	reg := prometheus.NewRegistry()
 	id := c.OperatorAddress + OperatorSubsytem
-	ethRpcClient, err := core.CreateEthClientWithCollector(id, c.EthRpcUrl, c.EnableMetrics, reg, logger)
+	ethHttpClient, err := core.CreateEthClientWithCollector(id, c.EthRpcUrl, c.EnableMetrics, reg, logger)
 	if err != nil {
+		logger.Error("Cannot create http ethclient", "err", err)
 		return nil, err
 	}
 
 	ethWsClient, err := core.CreateEthClientWithCollector(id, c.EthWsUrl, c.EnableMetrics, reg, logger)
 	if err != nil {
+		logger.Error("Cannot create ws ethclient", "err", err)
 		return nil, err
 	}
 
@@ -145,7 +129,7 @@ func NewOperatorFromConfig(c optypes.NodeConfig) (*Operator, error) {
 	// TODO(samlaf): should we add the chainId to the config instead?
 	// this way we can prevent creating a signer that signs on mainnet by mistake
 	// if the config says chainId=5, then we can only create a goerli signer
-	chainId, err := ethRpcClient.ChainID(context.Background())
+	chainId, err := ethHttpClient.ChainID(context.Background())
 	if err != nil {
 		logger.Error("Cannot get chainId", "err", err)
 		return nil, err
@@ -159,25 +143,40 @@ func NewOperatorFromConfig(c optypes.NodeConfig) (*Operator, error) {
 		panic(err)
 	}
 
-	txSender, err := wallet.NewPrivateKeyWallet(ethRpcClient, signerV2, common.HexToAddress(c.OperatorAddress), logger)
+	txSender, err := wallet.NewPrivateKeyWallet(ethHttpClient, signerV2, common.HexToAddress(c.OperatorAddress), logger)
 	if err != nil {
 		logger.Error("Failed to create transaction sender", "err", err)
 		return nil, err
 	}
 
-	txMgr := txmgr.NewSimpleTxManager(txSender, ethRpcClient, logger, common.HexToAddress(c.OperatorAddress)).WithGasLimitMultiplier(1.5)
-
-	// Use eigen registry
-	reg = sdkClients.PrometheusRegistry
+	txMgr := txmgr.NewSimpleTxManager(txSender, ethHttpClient, logger, common.HexToAddress(c.OperatorAddress)).WithGasLimitMultiplier(1.5)
 
 	registryCoordinatorAddress := common.HexToAddress(c.AVSRegistryCoordinatorAddress)
+	operatorStateRetrieverAddress := common.HexToAddress(c.OperatorStateRetrieverAddress)
+
+	avsRegistryContractBindings, err := chainioutils.NewAVSRegistryContractBindings(registryCoordinatorAddress, operatorStateRetrieverAddress, ethHttpClient, logger)
+	if err != nil {
+		logger.Error("Cannot create AVSRegistryContractBindings", "err", err)
+		return nil, err
+	}
+
+	elContractBindings, err := chainio.NewEigenlayerContractBindingsFromContract(avsRegistryContractBindings, ethHttpClient, logger)
+	if err != nil {
+		logger.Fatal("Failed to create EigenlayerContractBindings", "err", err)
+		return nil, err
+	}
+
+	avsRegistryChainReader := chainio.NewAvsRegistryChainReaderFromContract(avsRegistryContractBindings, ethHttpClient, logger)
+	elChainReader := chainio.NewELChainReaderFromContract(elContractBindings, ethHttpClient, logger)
+	elChainWriter := chainio.NewElChainWriterFromBindings(elContractBindings, elChainReader, ethHttpClient, txMgr, logger)
+
 	aggregatorRpcClient, err := NewAggregatorRpcClient(c.AggregatorServerIpPortAddress, operatorId, registryCoordinatorAddress, logger)
 	if err != nil {
 		logger.Error("Cannot create AggregatorRpcClient. Is aggregator running?", "err", err)
 		return nil, err
 	}
 
-	avsManager, err := NewAvsManager(&c, ethRpcClient, ethWsClient, sdkClients, txMgr, logger)
+	avsManager, err := NewAvsManager(&c, ethHttpClient, ethWsClient, elChainReader, elChainWriter, txMgr, logger)
 	if err != nil {
 		logger.Error("Cannot create AvsManager", "err", err)
 		return nil, err
@@ -189,17 +188,28 @@ func NewOperatorFromConfig(c optypes.NodeConfig) (*Operator, error) {
 		0: "quorum0",
 	}
 	economicMetricsCollector := economic.NewCollector(
-		sdkClients.ElChainReader, sdkClients.AvsRegistryChainReader,
-		AVS_NAME, logger, common.HexToAddress(c.OperatorAddress), quorumNames)
+		elChainReader,
+		avsRegistryChainReader,
+		AVS_NAME,
+		logger,
+		common.HexToAddress(c.OperatorAddress),
+		quorumNames,
+	)
 	reg.MustRegister(economicMetricsCollector)
 
+	var optionalMetrics metrics.Metrics
+	if c.EnableMetrics {
+		optionalMetrics = metrics.NewEigenMetrics(AVS_NAME, c.EigenMetricsIpPortAddress, reg, logger)
+	} else {
+		optionalMetrics = metrics.NewNoopMetrics()
+	}
+
 	operator := &Operator{
-		config:     c,
-		logger:     logger,
-		ethClient:  ethRpcClient,
-		metricsReg: reg,
-		// TODO: replace with noop in case not enabled
-		metrics:                    sdkClients.Metrics,
+		config:                     c,
+		logger:                     logger,
+		ethClient:                  ethHttpClient,
+		metricsReg:                 reg,
+		metrics:                    optionalMetrics,
 		listener:                   &SelectiveOperatorListener{},
 		nodeApi:                    nodeApi,
 		avsManager:                 avsManager,

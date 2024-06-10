@@ -2,17 +2,24 @@ package integration
 
 import (
 	"context"
+	"crypto/ecdsa"
 	"os"
 	"path/filepath"
 	"testing"
 	"time"
 
-	sdkclients "github.com/Layr-Labs/eigensdk-go/chainio/clients"
+	"github.com/Layr-Labs/eigensdk-go/chainio/clients/elcontracts"
+	"github.com/Layr-Labs/eigensdk-go/chainio/clients/eth"
+	"github.com/Layr-Labs/eigensdk-go/chainio/clients/wallet"
+	"github.com/Layr-Labs/eigensdk-go/chainio/txmgr"
+	chainioutils "github.com/Layr-Labs/eigensdk-go/chainio/utils"
 	sdkecdsa "github.com/Layr-Labs/eigensdk-go/crypto/ecdsa"
 	"github.com/Layr-Labs/eigensdk-go/logging"
+	"github.com/Layr-Labs/eigensdk-go/signerv2"
 	"github.com/Layr-Labs/eigensdk-go/types"
 	sdkutils "github.com/Layr-Labs/eigensdk-go/utils"
 	"github.com/NethermindEth/near-sffl/core/chainio"
+	"github.com/NethermindEth/near-sffl/core/safeclient"
 	optypes "github.com/NethermindEth/near-sffl/operator/types"
 	"github.com/NethermindEth/near-sffl/tests/integration/utils"
 	"github.com/ethereum/go-ethereum/accounts/abi/bind"
@@ -75,21 +82,23 @@ func TestRegistration(t *testing.T) {
 		t.Fatalf("Error reading ecdsa private key: %s", err.Error())
 	}
 
-	buildClientConfig := sdkclients.BuildAllConfig{
-		EthHttpUrl:                 mainnetAnvil.HttpUrl,
-		EthWsUrl:                   mainnetAnvil.WsUrl,
-		RegistryCoordinatorAddr:    nodeConfig.AVSRegistryCoordinatorAddress,
-		OperatorStateRetrieverAddr: nodeConfig.OperatorStateRetrieverAddress,
-		AvsName:                    "super-fast-finality-layer",
-		PromMetricsIpPortAddress:   "127.0.0.1:9090",
-	}
-
-	clients, err := sdkclients.BuildAll(buildClientConfig, ecdsaPrivateKey, logger)
+	ethHttpClient, err := safeclient.NewSafeEthClient(mainnetAnvil.HttpUrl, logger)
 	if err != nil {
-		t.Fatalf("Error building clients: %s", err.Error())
+		t.Fatalf("Error building ethHttpClient: %s", err.Error())
 	}
 
-	_, err = clients.ElChainWriter.RegisterAsOperator(ctx, types.Operator{Address: operatorAddr.String(), EarningsReceiverAddress: operatorAddr.String()})
+	elChainWriter, err := buildElChainWriter(
+		common.HexToAddress(nodeConfig.AVSRegistryCoordinatorAddress),
+		common.HexToAddress(nodeConfig.OperatorStateRetrieverAddress),
+		ecdsaPrivateKey,
+		ethHttpClient,
+		logger,
+	)
+	if err != nil {
+		t.Fatalf("Error building ElChainWriter: %s", err.Error())
+	}
+
+	_, err = elChainWriter.RegisterAsOperator(ctx, types.Operator{Address: operatorAddr.String(), EarningsReceiverAddress: operatorAddr.String()})
 	if err != nil {
 		t.Fatalf("Error registering operator: %s", err.Error())
 	}
@@ -187,4 +196,45 @@ func runOperatorPluginContainer(t *testing.T, ctx context.Context, name, network
 	}
 
 	return container
+}
+
+func buildElChainWriter(
+	avsRegistryCoordinatorAddress common.Address,
+	operatorStateRetrieverAddress common.Address,
+	ecdsaPrivateKey *ecdsa.PrivateKey,
+	ethHttpClient eth.Client,
+	logger logging.Logger,
+) (*elcontracts.ELChainWriter, error) {
+	rpcCtx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
+	defer cancel()
+	chainid, err := ethHttpClient.ChainID(rpcCtx)
+	if err != nil {
+		return nil, err
+	}
+
+	signerV2, addr, err := signerv2.SignerFromConfig(signerv2.Config{PrivateKey: ecdsaPrivateKey}, chainid)
+	if err != nil {
+		return nil, err
+	}
+
+	pkWallet, err := wallet.NewPrivateKeyWallet(ethHttpClient, signerV2, addr, logger)
+	if err != nil {
+		return nil, err
+	}
+
+	txMgr := txmgr.NewSimpleTxManager(pkWallet, ethHttpClient, logger, addr).WithGasLimitMultiplier(1.5)
+
+	avsRegistryContractBindings, err := chainioutils.NewAVSRegistryContractBindings(avsRegistryCoordinatorAddress, operatorStateRetrieverAddress, ethHttpClient, logger)
+	if err != nil {
+		return nil, err
+	}
+
+	elContractBindings, err := chainio.NewEigenlayerContractBindingsFromContract(avsRegistryContractBindings, ethHttpClient, logger)
+	if err != nil {
+		return nil, err
+	}
+	elChainReader := chainio.NewELChainReaderFromContract(elContractBindings, ethHttpClient, logger)
+	elChainWriter := chainio.NewElChainWriterFromBindings(elContractBindings, elChainReader, ethHttpClient, txMgr, logger)
+
+	return elChainWriter, nil
 }
