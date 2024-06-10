@@ -331,3 +331,14 @@ func TestFetchCheckpointMessages_TimestampTooLarge(t *testing.T) {
 		assert.NotNil(t, err)
 	})
 }
+
+func TestFetchCheckpointMessages_InvalidRange(t *testing.T) {
+	mockCtrl := gomock.NewController(t)
+	defer mockCtrl.Finish()
+
+	db, err := database.NewDatabase(":memory:")
+	assert.Nil(t, err)
+
+	_, err = db.FetchCheckpointMessages(101, 100)
+	assert.NotNil(t, err)
+}
