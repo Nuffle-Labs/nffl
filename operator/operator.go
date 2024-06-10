@@ -165,7 +165,7 @@ func NewOperatorFromConfig(c optypes.NodeConfig) (*Operator, error) {
 		return nil, err
 	}
 
-	elChainWriter, err := chainio.BuildElWriter(registryCoordinatorAddress, operatorStateRetrieverAddress, elChainReader, txMgr, ethHttpClient, logger)
+	elChainWriter, err := chainio.BuildElWriter(registryCoordinatorAddress, operatorStateRetrieverAddress, txMgr, ethHttpClient, logger)
 	if err != nil {
 		logger.Error("Failed to create ElChainWriter", "err", err)
 		return nil, err

@@ -13,7 +13,6 @@ import (
 func BuildElWriter(
 	registryCoordinatorAddress common.Address,
 	operatorStateRetrieverAddress common.Address,
-	elChainReader *elcontracts.ELChainReader,
 	txMgr *txmgr.SimpleTxManager,
 	ethHttpClient eth.Client,
 	logger logging.Logger,
@@ -45,6 +44,15 @@ func BuildElWriter(
 	if err != nil {
 		return nil, err
 	}
+
+	elChainReader := elcontracts.NewELChainReader(
+		elContractBindings.Slasher,
+		elContractBindings.DelegationManager,
+		elContractBindings.StrategyManager,
+		elContractBindings.AvsDirectory,
+		logger,
+		ethHttpClient,
+	)
 
 	elChainWriter := elcontracts.NewELChainWriter(
 		elContractBindings.Slasher,

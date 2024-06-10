@@ -223,12 +223,7 @@ func buildElChainWriter(
 
 	txMgr := txmgr.NewSimpleTxManager(pkWallet, ethHttpClient, logger, addr).WithGasLimitMultiplier(1.5)
 
-	elChainReader, err := chainio.BuildElReader(avsRegistryCoordinatorAddress, operatorStateRetrieverAddress, ethHttpClient, logger)
-	if err != nil {
-		return nil, err
-	}
-
-	elChainWriter, err := chainio.BuildElWriter(avsRegistryCoordinatorAddress, operatorStateRetrieverAddress, elChainReader, txMgr, ethHttpClient, logger)
+	elChainWriter, err := chainio.BuildElWriter(avsRegistryCoordinatorAddress, operatorStateRetrieverAddress, txMgr, ethHttpClient, logger)
 	if err != nil {
 		return nil, err
 	}

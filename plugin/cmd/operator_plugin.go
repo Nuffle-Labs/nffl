@@ -120,7 +120,7 @@ func NewOperatorPluginFromCLIContext(ctx *cli.Context) (*CliOperatorPlugin, erro
 		return nil, err
 	}
 
-	elChainWriter, err := chainio.BuildElWriter(avsRegistryCoordinatorAddress, operatorStateRetrieverAddress, elChainReader, txMgr, ethHttpClient, logger)
+	elChainWriter, err := chainio.BuildElWriter(avsRegistryCoordinatorAddress, operatorStateRetrieverAddress, txMgr, ethHttpClient, logger)
 	if err != nil {
 		logger.Error("Failed to create ElChainWriter", "err", err)
 		return nil, err
