@@ -394,3 +394,56 @@ func TestGetOperatorSetUpdateAggregation_MissingParameter(t *testing.T) {
 		assert.Equal(t, http.StatusBadRequest, recorder.Code)
 	})
 }
+
+func TestGetOperatorSetUpdateAggregation_OperatorSetUpdateNotFound(t *testing.T) {
+	mockCtrl := gomock.NewController(t)
+	defer mockCtrl.Finish()
+
+	aggregator, _, _, _, _, _, mockDb, _, _, err := createMockAggregator(mockCtrl, MOCK_OPERATOR_PUBKEY_DICT)
+	assert.Nil(t, err)
+
+	go aggregator.startRestServer()
+
+	notFound := errors.New("not found")
+	mockDb.EXPECT().FetchOperatorSetUpdate(gomock.Any()).Return(nil, notFound)
+
+	req, err := http.NewRequest(
+		"GET",
+		fmt.Sprintf("/aggregation/operator-set-update?id=%d", 0),
+		nil,
+	)
+	assert.Nil(t, err)
+
+	recorder := httptest.NewRecorder()
+
+	aggregator.handleGetOperatorSetUpdateAggregation(recorder, req)
+
+	assert.Equal(t, http.StatusNotFound, recorder.Code)
+}
+
+func TestGetOperatorSetUpdateAggregation_OperatorSetUpdateAggregationNotFound(t *testing.T) {
+	mockCtrl := gomock.NewController(t)
+	defer mockCtrl.Finish()
+
+	aggregator, _, _, _, _, _, mockDb, _, _, err := createMockAggregator(mockCtrl, MOCK_OPERATOR_PUBKEY_DICT)
+	assert.Nil(t, err)
+
+	go aggregator.startRestServer()
+
+	notFound := errors.New("not found")
+	mockDb.EXPECT().FetchOperatorSetUpdate(gomock.Any()).Return(&messages.OperatorSetUpdateMessage{}, nil)
+	mockDb.EXPECT().FetchOperatorSetUpdateAggregation(gomock.Any()).Return(nil, notFound)
+
+	req, err := http.NewRequest(
+		"GET",
+		fmt.Sprintf("/aggregation/operator-set-update?id=%d", 0),
+		nil,
+	)
+	assert.Nil(t, err)
+
+	recorder := httptest.NewRecorder()
+
+	aggregator.handleGetOperatorSetUpdateAggregation(recorder, req)
+
+	assert.Equal(t, http.StatusNotFound, recorder.Code)
+}
