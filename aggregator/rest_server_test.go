@@ -197,3 +197,43 @@ func TestGetCheckpointMessages(t *testing.T) {
 
 	assert.Equal(t, body, expectedBody)
 }
+
+func TestStateRootUpdate_MissingParameters(t *testing.T) {
+	mockCtrl := gomock.NewController(t)
+	defer mockCtrl.Finish()
+
+	aggregator, _, _, _, _, _, _, _, _, err := createMockAggregator(mockCtrl, MOCK_OPERATOR_PUBKEY_DICT)
+	assert.Nil(t, err)
+
+	go aggregator.startRestServer()
+
+	t.Run("Missing rollupId", func(t *testing.T) {
+		req, err := http.NewRequest(
+			"GET",
+			fmt.Sprintf("/aggregation/state-root-update?&blockHeight=%d", 0),
+			nil,
+		)
+		assert.Nil(t, err)
+
+		recorder := httptest.NewRecorder()
+
+		aggregator.handleGetStateRootUpdateAggregation(recorder, req)
+
+		assert.Equal(t, http.StatusBadRequest, recorder.Code)
+	})
+
+	t.Run("Missing blockHeight", func(t *testing.T) {
+		req, err := http.NewRequest(
+			"GET",
+			fmt.Sprintf("/aggregation/state-root-update?&rollupId=%d", 0),
+			nil,
+		)
+		assert.Nil(t, err)
+
+		recorder := httptest.NewRecorder()
+
+		aggregator.handleGetStateRootUpdateAggregation(recorder, req)
+
+		assert.Equal(t, http.StatusBadRequest, recorder.Code)
+	})
+}
