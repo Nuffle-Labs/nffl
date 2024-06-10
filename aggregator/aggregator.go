@@ -11,7 +11,6 @@ import (
 	chainioavsregistry "github.com/Layr-Labs/eigensdk-go/chainio/clients/avsregistry"
 	"github.com/Layr-Labs/eigensdk-go/chainio/clients/wallet"
 	"github.com/Layr-Labs/eigensdk-go/chainio/txmgr"
-	chainioutils "github.com/Layr-Labs/eigensdk-go/chainio/utils"
 	"github.com/Layr-Labs/eigensdk-go/logging"
 	"github.com/Layr-Labs/eigensdk-go/metrics"
 	"github.com/Layr-Labs/eigensdk-go/services/avsregistry"
@@ -155,24 +154,8 @@ func NewAggregator(ctx context.Context, config *config.Config, logger logging.Lo
 
 	txMgr := txmgr.NewSimpleTxManager(txSender, ethHttpClient, logger, config.AggregatorAddress).WithGasLimitMultiplier(1.5)
 
-	sfflRegistryCoordinatorAddress := common.HexToAddress(config.SFFLRegistryCoordinatorAddr.String())
-	operatorStateRetrieverAddress := common.HexToAddress(config.OperatorStateRetrieverAddr.String())
-
-	avsRegistryContractBindings, err := chainioutils.NewAVSRegistryContractBindings(
-		sfflRegistryCoordinatorAddress,
-		operatorStateRetrieverAddress,
-		ethHttpClient,
-		logger,
-	)
-	if err != nil {
-		logger.Error("Cannot create AVSRegistryContractBindings", "err", err)
-		return nil, err
-	}
-
-	avsRegistryChainReader := chainio.NewAvsRegistryChainReaderFromContract(avsRegistryContractBindings, ethHttpClient, logger)
-
 	// note that the subscriber needs a ws connection instead of http
-	avsRegistryChainSubscriber, err := chainioavsregistry.BuildAvsRegistryChainSubscriber(sfflRegistryCoordinatorAddress, ethWsClient, logger)
+	avsRegistryChainSubscriber, err := chainioavsregistry.BuildAvsRegistryChainSubscriber(common.HexToAddress(config.SFFLRegistryCoordinatorAddr.String()), ethWsClient, logger)
 	if err != nil {
 		logger.Error("Cannot create AvsRegistryChainSubscriber", "err", err)
 		return nil, err
@@ -202,7 +185,7 @@ func NewAggregator(ctx context.Context, config *config.Config, logger logging.Lo
 		return nil, err
 	}
 
-	operatorPubkeysService := opinfoserv.NewOperatorsInfoServiceInMemory(ctx, avsRegistryChainSubscriber, avsRegistryChainReader, logger)
+	operatorPubkeysService := opinfoserv.NewOperatorsInfoServiceInMemory(ctx, avsRegistryChainSubscriber, avsReader, logger)
 	avsRegistryService := avsregistry.NewAvsRegistryServiceChainCaller(avsReader, operatorPubkeysService, logger)
 	taskBlsAggregationService := blsagg.NewBlsAggregatorService(avsRegistryService, logger)
 	stateRootUpdateBlsAggregationService := NewMessageBlsAggregatorService(avsRegistryService, ethHttpClient, logger)
