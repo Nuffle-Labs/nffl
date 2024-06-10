@@ -369,3 +369,28 @@ func TestGetStateRootUpdateAggregation_StateRootUpdateAggregationNotFound(t *tes
 
 	assert.Equal(t, http.StatusNotFound, recorder.Code)
 }
+
+func TestGetOperatorSetUpdateAggregation_MissingParameter(t *testing.T) {
+	mockCtrl := gomock.NewController(t)
+	defer mockCtrl.Finish()
+
+	aggregator, _, _, _, _, _, _, _, _, err := createMockAggregator(mockCtrl, MOCK_OPERATOR_PUBKEY_DICT)
+	assert.Nil(t, err)
+
+	go aggregator.startRestServer()
+
+	t.Run("Missing id", func(t *testing.T) {
+		req, err := http.NewRequest(
+			"GET",
+			"/aggregation/operator-set-update",
+			nil,
+		)
+		assert.Nil(t, err)
+
+		recorder := httptest.NewRecorder()
+
+		aggregator.handleGetOperatorSetUpdateAggregation(recorder, req)
+
+		assert.Equal(t, http.StatusBadRequest, recorder.Code)
+	})
+}
