@@ -247,18 +247,50 @@ func TestGetStateRootUpdateAggregation_InvalidParameters(t *testing.T) {
 
 	go aggregator.startRestServer()
 
-	req, err := http.NewRequest(
-		"GET",
-		fmt.Sprintf("/aggregation/state-root-update?rollupId=%s&blockHeight=%s", "foo", "bar"),
-		nil,
-	)
-	assert.Nil(t, err)
+	t.Run("Invalid rollupId - incorrect type", func(t *testing.T) {
+		req, err := http.NewRequest(
+			"GET",
+			fmt.Sprintf("/aggregation/state-root-update?rollupId=%s&blockHeight=%d", "foo", 0),
+			nil,
+		)
+		assert.Nil(t, err)
 
-	recorder := httptest.NewRecorder()
+		recorder := httptest.NewRecorder()
 
-	aggregator.handleGetStateRootUpdateAggregation(recorder, req)
+		aggregator.handleGetStateRootUpdateAggregation(recorder, req)
 
-	assert.Equal(t, http.StatusBadRequest, recorder.Code)
+		assert.Equal(t, http.StatusBadRequest, recorder.Code)
+	})
+
+	t.Run("Invalid rollupId - too large", func(t *testing.T) {
+		req, err := http.NewRequest(
+			"GET",
+			fmt.Sprintf("/aggregation/state-root-update?rollupId=%d&blockHeight=%d", uint64(0xFFFFFFFFFFFFFFFF), 0),
+			nil,
+		)
+		assert.Nil(t, err)
+
+		recorder := httptest.NewRecorder()
+
+		aggregator.handleGetStateRootUpdateAggregation(recorder, req)
+
+		assert.Equal(t, http.StatusBadRequest, recorder.Code)
+	})
+
+	t.Run("Invalid blockHeight - incorrect type", func(t *testing.T) {
+		req, err := http.NewRequest(
+			"GET",
+			fmt.Sprintf("/aggregation/state-root-update?rollupId=%d&blockHeight=%s", 0, "foo"),
+			nil,
+		)
+		assert.Nil(t, err)
+
+		recorder := httptest.NewRecorder()
+
+		aggregator.handleGetStateRootUpdateAggregation(recorder, req)
+
+		assert.Equal(t, http.StatusBadRequest, recorder.Code)
+	})
 }
 
 func TestGetStateRootUpdateAggregation_EmptyParameters(t *testing.T) {
