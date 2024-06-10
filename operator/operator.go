@@ -12,7 +12,6 @@ import (
 
 	"github.com/Layr-Labs/eigensdk-go/chainio/clients/wallet"
 	"github.com/Layr-Labs/eigensdk-go/chainio/txmgr"
-	chainioutils "github.com/Layr-Labs/eigensdk-go/chainio/utils"
 	"github.com/Layr-Labs/eigensdk-go/crypto/bls"
 	sdkecdsa "github.com/Layr-Labs/eigensdk-go/crypto/ecdsa"
 	sdklogging "github.com/Layr-Labs/eigensdk-go/logging"
@@ -154,21 +153,23 @@ func NewOperatorFromConfig(c optypes.NodeConfig) (*Operator, error) {
 	registryCoordinatorAddress := common.HexToAddress(c.AVSRegistryCoordinatorAddress)
 	operatorStateRetrieverAddress := common.HexToAddress(c.OperatorStateRetrieverAddress)
 
-	avsRegistryContractBindings, err := chainioutils.NewAVSRegistryContractBindings(registryCoordinatorAddress, operatorStateRetrieverAddress, ethHttpClient, logger)
+	avsReader, err := chainio.BuildAvsReader(registryCoordinatorAddress, operatorStateRetrieverAddress, ethHttpClient, logger)
 	if err != nil {
-		logger.Error("Cannot create AVSRegistryContractBindings", "err", err)
+		logger.Error("Failed to create AvsReader", "err", err)
 		return nil, err
 	}
 
-	elContractBindings, err := chainio.NewEigenlayerContractBindingsFromContract(avsRegistryContractBindings, ethHttpClient, logger)
+	elChainReader, err := chainio.BuildElReader(registryCoordinatorAddress, operatorStateRetrieverAddress, ethHttpClient, logger)
 	if err != nil {
-		logger.Fatal("Failed to create EigenlayerContractBindings", "err", err)
+		logger.Error("Failed to create ElChainReader", "err", err)
 		return nil, err
 	}
 
-	avsRegistryChainReader := chainio.NewAvsRegistryChainReaderFromContract(avsRegistryContractBindings, ethHttpClient, logger)
-	elChainReader := chainio.NewELChainReaderFromContract(elContractBindings, ethHttpClient, logger)
-	elChainWriter := chainio.NewElChainWriterFromBindings(elContractBindings, elChainReader, ethHttpClient, txMgr, logger)
+	elChainWriter, err := chainio.BuildElWriter(registryCoordinatorAddress, operatorStateRetrieverAddress, elChainReader, txMgr, ethHttpClient, logger)
+	if err != nil {
+		logger.Error("Failed to create ElChainWriter", "err", err)
+		return nil, err
+	}
 
 	aggregatorRpcClient, err := NewAggregatorRpcClient(c.AggregatorServerIpPortAddress, operatorId, registryCoordinatorAddress, logger)
 	if err != nil {
@@ -189,7 +190,7 @@ func NewOperatorFromConfig(c optypes.NodeConfig) (*Operator, error) {
 	}
 	economicMetricsCollector := economic.NewCollector(
 		elChainReader,
-		avsRegistryChainReader,
+		avsReader,
 		AVS_NAME,
 		logger,
 		common.HexToAddress(c.OperatorAddress),
