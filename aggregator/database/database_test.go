@@ -313,3 +313,21 @@ func TestFetchCheckpointMessages(t *testing.T) {
 		OperatorSetUpdateMessageAggregations: []messages.MessageBlsAggregation{},
 	})
 }
+
+func TestFetchCheckpointMessages_TimestampTooLarge(t *testing.T) {
+	mockCtrl := gomock.NewController(t)
+	defer mockCtrl.Finish()
+
+	db, err := database.NewDatabase(":memory:")
+	assert.Nil(t, err)
+
+	t.Run("fromTimestamp too large", func(t *testing.T) {
+		_, err := db.FetchCheckpointMessages(uint64(0x8000000000000000), 0)
+		assert.NotNil(t, err)
+	})
+
+	t.Run("toTimestamp too large", func(t *testing.T) {
+		_, err := db.FetchCheckpointMessages(0, uint64(0x8000000000000000))
+		assert.NotNil(t, err)
+	})
+}
