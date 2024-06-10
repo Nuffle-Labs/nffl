@@ -19,19 +19,16 @@ func BuildElWriter(
 ) (*elcontracts.ELChainWriter, error) {
 	avsRegistryContractBindings, err := utils.NewAVSRegistryContractBindings(registryCoordinatorAddress, operatorStateRetrieverAddress, ethHttpClient, logger)
 	if err != nil {
-		logger.Error("Cannot create AVSRegistryContractBindings", "err", err)
 		return nil, err
 	}
 
 	delegationManagerAddr, err := avsRegistryContractBindings.StakeRegistry.Delegation(&bind.CallOpts{})
 	if err != nil {
-		logger.Fatal("Failed to fetch Slasher contract", "err", err)
 		return nil, err
 	}
 
 	avsDirectoryAddr, err := avsRegistryContractBindings.ServiceManager.AvsDirectory(&bind.CallOpts{})
 	if err != nil {
-		logger.Fatal("Failed to fetch Slasher contract", "err", err)
 		return nil, err
 	}
 
