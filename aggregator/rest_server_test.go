@@ -2,6 +2,7 @@ package aggregator
 
 import (
 	"encoding/json"
+	"errors"
 	"fmt"
 	"net/http"
 	"net/http/httptest"
@@ -314,4 +315,57 @@ func TestGetStateRootUpdateAggregation_EmptyParameters(t *testing.T) {
 	aggregator.handleGetStateRootUpdateAggregation(recorder, req)
 
 	assert.Equal(t, http.StatusBadRequest, recorder.Code)
+}
+
+func TestGetStateRootUpdateAggregation_StateRootUpdateNotFound(t *testing.T) {
+	mockCtrl := gomock.NewController(t)
+	defer mockCtrl.Finish()
+
+	aggregator, _, _, _, _, _, mockDb, _, _, err := createMockAggregator(mockCtrl, MOCK_OPERATOR_PUBKEY_DICT)
+	assert.Nil(t, err)
+
+	go aggregator.startRestServer()
+
+	notFound := errors.New("not found")
+	mockDb.EXPECT().FetchStateRootUpdate(gomock.Any(), gomock.Any()).Return(nil, notFound)
+
+	req, err := http.NewRequest(
+		"GET",
+		fmt.Sprintf("/aggregation/state-root-update?rollupId=%d&blockHeight=%d", 0, 0),
+		nil,
+	)
+	assert.Nil(t, err)
+
+	recorder := httptest.NewRecorder()
+
+	aggregator.handleGetStateRootUpdateAggregation(recorder, req)
+
+	assert.Equal(t, http.StatusNotFound, recorder.Code)
+}
+
+func TestGetStateRootUpdateAggregation_StateRootUpdateAggregationNotFound(t *testing.T) {
+	mockCtrl := gomock.NewController(t)
+	defer mockCtrl.Finish()
+
+	aggregator, _, _, _, _, _, mockDb, _, _, err := createMockAggregator(mockCtrl, MOCK_OPERATOR_PUBKEY_DICT)
+	assert.Nil(t, err)
+
+	go aggregator.startRestServer()
+
+	notFound := errors.New("not found")
+	mockDb.EXPECT().FetchStateRootUpdate(gomock.Any(), gomock.Any()).Return(&messages.StateRootUpdateMessage{}, nil)
+	mockDb.EXPECT().FetchStateRootUpdateAggregation(gomock.Any(), gomock.Any()).Return(nil, notFound)
+
+	req, err := http.NewRequest(
+		"GET",
+		fmt.Sprintf("/aggregation/state-root-update?rollupId=%d&blockHeight=%d", 0, 0),
+		nil,
+	)
+	assert.Nil(t, err)
+
+	recorder := httptest.NewRecorder()
+
+	aggregator.handleGetStateRootUpdateAggregation(recorder, req)
+
+	assert.Equal(t, http.StatusNotFound, recorder.Code)
 }
