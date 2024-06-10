@@ -61,7 +61,7 @@ func TestGetStateRootUpdateAggregation(t *testing.T) {
 	}
 	var body aggtypes.GetStateRootUpdateAggregationResponse
 
-	assert.Equal(t, recorder.Code, http.StatusOK)
+	assert.Equal(t, http.StatusOK, recorder.Code)
 
 	if recorder.Code != http.StatusOK {
 		fmt.Printf("HTTP Error: %s", recorder.Body.Bytes())
@@ -70,7 +70,7 @@ func TestGetStateRootUpdateAggregation(t *testing.T) {
 	err = json.Unmarshal(recorder.Body.Bytes(), &body)
 	assert.Nil(t, err)
 
-	assert.Equal(t, body, expectedBody)
+	assert.Equal(t, expectedBody, body)
 }
 
 func TestGetOperatorSetUpdateAggregation(t *testing.T) {
@@ -114,7 +114,7 @@ func TestGetOperatorSetUpdateAggregation(t *testing.T) {
 	}
 	var body aggtypes.GetOperatorSetUpdateAggregationResponse
 
-	assert.Equal(t, recorder.Code, http.StatusOK)
+	assert.Equal(t, http.StatusOK, recorder.Code)
 
 	if recorder.Code != http.StatusOK {
 		fmt.Printf("HTTP Error: %s", recorder.Body.Bytes())
@@ -123,7 +123,7 @@ func TestGetOperatorSetUpdateAggregation(t *testing.T) {
 	err = json.Unmarshal(recorder.Body.Bytes(), &body)
 	assert.Nil(t, err)
 
-	assert.Equal(t, body, expectedBody)
+	assert.Equal(t, expectedBody, body)
 }
 
 func TestGetCheckpointMessages(t *testing.T) {
@@ -186,7 +186,7 @@ func TestGetCheckpointMessages(t *testing.T) {
 	}
 	var body aggtypes.GetCheckpointMessagesResponse
 
-	assert.Equal(t, recorder.Code, http.StatusOK)
+	assert.Equal(t, http.StatusOK, recorder.Code)
 
 	if recorder.Code != http.StatusOK {
 		fmt.Printf("HTTP Error: %s", recorder.Body.Bytes())
@@ -195,7 +195,7 @@ func TestGetCheckpointMessages(t *testing.T) {
 	err = json.Unmarshal(recorder.Body.Bytes(), &body)
 	assert.Nil(t, err)
 
-	assert.Equal(t, body, expectedBody)
+	assert.Equal(t, expectedBody, body)
 }
 
 func TestGetStateRootUpdateAggregation_MissingParameters(t *testing.T) {
