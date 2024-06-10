@@ -237,3 +237,26 @@ func TestStateRootUpdate_MissingParameters(t *testing.T) {
 		assert.Equal(t, http.StatusBadRequest, recorder.Code)
 	})
 }
+
+func TestStateRootUpdate_InvalidParameters(t *testing.T) {
+	mockCtrl := gomock.NewController(t)
+	defer mockCtrl.Finish()
+
+	aggregator, _, _, _, _, _, _, _, _, err := createMockAggregator(mockCtrl, MOCK_OPERATOR_PUBKEY_DICT)
+	assert.Nil(t, err)
+
+	go aggregator.startRestServer()
+
+	req, err := http.NewRequest(
+		"GET",
+		fmt.Sprintf("/aggregation/state-root-update?rollupId=%s&blockHeight=%s", "foo", "bar"),
+		nil,
+	)
+	assert.Nil(t, err)
+
+	recorder := httptest.NewRecorder()
+
+	aggregator.handleGetStateRootUpdateAggregation(recorder, req)
+
+	assert.Equal(t, http.StatusBadRequest, recorder.Code)
+}
