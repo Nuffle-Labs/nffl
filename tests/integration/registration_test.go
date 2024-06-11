@@ -12,7 +12,6 @@ import (
 	"github.com/Layr-Labs/eigensdk-go/chainio/clients/eth"
 	"github.com/Layr-Labs/eigensdk-go/chainio/clients/wallet"
 	"github.com/Layr-Labs/eigensdk-go/chainio/txmgr"
-	chainioutils "github.com/Layr-Labs/eigensdk-go/chainio/utils"
 	sdkecdsa "github.com/Layr-Labs/eigensdk-go/crypto/ecdsa"
 	"github.com/Layr-Labs/eigensdk-go/logging"
 	"github.com/Layr-Labs/eigensdk-go/signerv2"
@@ -224,17 +223,10 @@ func buildElChainWriter(
 
 	txMgr := txmgr.NewSimpleTxManager(pkWallet, ethHttpClient, logger, addr).WithGasLimitMultiplier(1.5)
 
-	avsRegistryContractBindings, err := chainioutils.NewAVSRegistryContractBindings(avsRegistryCoordinatorAddress, operatorStateRetrieverAddress, ethHttpClient, logger)
+	elChainWriter, err := chainio.BuildElWriter(avsRegistryCoordinatorAddress, operatorStateRetrieverAddress, txMgr, ethHttpClient, logger)
 	if err != nil {
 		return nil, err
 	}
-
-	elContractBindings, err := chainio.NewEigenlayerContractBindingsFromContract(avsRegistryContractBindings, ethHttpClient, logger)
-	if err != nil {
-		return nil, err
-	}
-	elChainReader := chainio.NewELChainReaderFromContract(elContractBindings, ethHttpClient, logger)
-	elChainWriter := chainio.NewElChainWriterFromBindings(elContractBindings, elChainReader, ethHttpClient, txMgr, logger)
 
 	return elChainWriter, nil
 }
