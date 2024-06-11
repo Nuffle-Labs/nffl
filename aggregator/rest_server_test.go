@@ -447,3 +447,109 @@ func TestGetOperatorSetUpdateAggregation_OperatorSetUpdateAggregationNotFound(t 
 
 	assert.Equal(t, http.StatusNotFound, recorder.Code)
 }
+
+func TestGetCheckpointMessages_MissingParameters(t *testing.T) {
+	mockCtrl := gomock.NewController(t)
+	defer mockCtrl.Finish()
+
+	aggregator, _, _, _, _, _, _, _, _, err := createMockAggregator(mockCtrl, MOCK_OPERATOR_PUBKEY_DICT)
+	assert.Nil(t, err)
+
+	go aggregator.startRestServer()
+
+	t.Run("Missing fromTimestamp", func(t *testing.T) {
+		req, err := http.NewRequest(
+			"GET",
+			fmt.Sprintf("/checkpoint/messages?toTimestamp=%d", 0),
+			nil,
+		)
+		assert.Nil(t, err)
+
+		recorder := httptest.NewRecorder()
+
+		aggregator.handleGetCheckpointMessages(recorder, req)
+
+		assert.Equal(t, http.StatusBadRequest, recorder.Code)
+	})
+
+	t.Run("Missing toTimestamp", func(t *testing.T) {
+		req, err := http.NewRequest(
+			"GET",
+			fmt.Sprintf("/checkpoint/messages?fromTimestamp=%d", 0),
+			nil,
+		)
+		assert.Nil(t, err)
+
+		recorder := httptest.NewRecorder()
+
+		aggregator.handleGetCheckpointMessages(recorder, req)
+
+		assert.Equal(t, http.StatusBadRequest, recorder.Code)
+	})
+}
+
+func TestGetCheckpointMessages_InvalidParameters(t *testing.T) {
+	mockCtrl := gomock.NewController(t)
+	defer mockCtrl.Finish()
+
+	aggregator, _, _, _, _, _, _, _, _, err := createMockAggregator(mockCtrl, MOCK_OPERATOR_PUBKEY_DICT)
+	assert.Nil(t, err)
+
+	go aggregator.startRestServer()
+
+	t.Run("Invalid fromTimestamp - incorrect type", func(t *testing.T) {
+		req, err := http.NewRequest(
+			"GET",
+			fmt.Sprintf("/checkpoint/messages?fromTimestamp=%s&toTimestamp=%d", "foo", 0),
+			nil,
+		)
+		assert.Nil(t, err)
+
+		recorder := httptest.NewRecorder()
+
+		aggregator.handleGetCheckpointMessages(recorder, req)
+
+		assert.Equal(t, http.StatusBadRequest, recorder.Code)
+	})
+
+	t.Run("Invalid toTimestamp - incorrect type", func(t *testing.T) {
+		req, err := http.NewRequest(
+			"GET",
+			fmt.Sprintf("/checkpoint/messages?fromTimestamp=%d&toTimestamp=%s", 0, "foo"),
+			nil,
+		)
+		assert.Nil(t, err)
+
+		recorder := httptest.NewRecorder()
+
+		aggregator.handleGetCheckpointMessages(recorder, req)
+
+		assert.Equal(t, http.StatusBadRequest, recorder.Code)
+	})
+}
+
+func TestGetCheckpointMessages_CheckpointMessageNotFound(t *testing.T) {
+	mockCtrl := gomock.NewController(t)
+	defer mockCtrl.Finish()
+
+	aggregator, _, _, _, _, _, mockDb, _, _, err := createMockAggregator(mockCtrl, MOCK_OPERATOR_PUBKEY_DICT)
+	assert.Nil(t, err)
+
+	go aggregator.startRestServer()
+
+	notFound := errors.New("not found")
+	mockDb.EXPECT().FetchCheckpointMessages(gomock.Any(), gomock.Any()).Return(nil, notFound)
+
+	req, err := http.NewRequest(
+		"GET",
+		fmt.Sprintf("/checkpoint/messages?fromTimestamp=%d&toTimestamp=%d", 100, 200),
+		nil,
+	)
+	assert.Nil(t, err)
+
+	recorder := httptest.NewRecorder()
+
+	aggregator.handleGetCheckpointMessages(recorder, req)
+
+	assert.Equal(t, http.StatusNotFound, recorder.Code)
+}
