@@ -218,7 +218,8 @@ func TestGetStateRootUpdateAggregation_MissingParameters(t *testing.T) {
 
 		recorder := httptest.NewRecorder()
 
-		aggregator.handleGetStateRootUpdateAggregation(recorder, req)
+		err = aggregator.handleGetStateRootUpdateAggregation(recorder, req)
+		assert.NotNil(t, err)
 
 		assert.Equal(t, http.StatusBadRequest, recorder.Code)
 	})
@@ -233,7 +234,8 @@ func TestGetStateRootUpdateAggregation_MissingParameters(t *testing.T) {
 
 		recorder := httptest.NewRecorder()
 
-		aggregator.handleGetStateRootUpdateAggregation(recorder, req)
+		err = aggregator.handleGetStateRootUpdateAggregation(recorder, req)
+		assert.NotNil(t, err)
 
 		assert.Equal(t, http.StatusBadRequest, recorder.Code)
 	})
@@ -258,7 +260,8 @@ func TestGetStateRootUpdateAggregation_InvalidParameters(t *testing.T) {
 
 		recorder := httptest.NewRecorder()
 
-		aggregator.handleGetStateRootUpdateAggregation(recorder, req)
+		err = aggregator.handleGetStateRootUpdateAggregation(recorder, req)
+		assert.NotNil(t, err)
 
 		assert.Equal(t, http.StatusBadRequest, recorder.Code)
 	})
@@ -273,7 +276,8 @@ func TestGetStateRootUpdateAggregation_InvalidParameters(t *testing.T) {
 
 		recorder := httptest.NewRecorder()
 
-		aggregator.handleGetStateRootUpdateAggregation(recorder, req)
+		err = aggregator.handleGetStateRootUpdateAggregation(recorder, req)
+		assert.NotNil(t, err)
 
 		assert.Equal(t, http.StatusBadRequest, recorder.Code)
 	})
@@ -288,7 +292,8 @@ func TestGetStateRootUpdateAggregation_InvalidParameters(t *testing.T) {
 
 		recorder := httptest.NewRecorder()
 
-		aggregator.handleGetStateRootUpdateAggregation(recorder, req)
+		err = aggregator.handleGetStateRootUpdateAggregation(recorder, req)
+		assert.NotNil(t, err)
 
 		assert.Equal(t, http.StatusBadRequest, recorder.Code)
 	})
@@ -312,7 +317,8 @@ func TestGetStateRootUpdateAggregation_EmptyParameters(t *testing.T) {
 
 	recorder := httptest.NewRecorder()
 
-	aggregator.handleGetStateRootUpdateAggregation(recorder, req)
+	err = aggregator.handleGetStateRootUpdateAggregation(recorder, req)
+	assert.NotNil(t, err)
 
 	assert.Equal(t, http.StatusBadRequest, recorder.Code)
 }
@@ -338,7 +344,8 @@ func TestGetStateRootUpdateAggregation_StateRootUpdateNotFound(t *testing.T) {
 
 	recorder := httptest.NewRecorder()
 
-	aggregator.handleGetStateRootUpdateAggregation(recorder, req)
+	err = aggregator.handleGetStateRootUpdateAggregation(recorder, req)
+	assert.NotNil(t, err)
 
 	assert.Equal(t, http.StatusNotFound, recorder.Code)
 }
@@ -365,7 +372,8 @@ func TestGetStateRootUpdateAggregation_StateRootUpdateAggregationNotFound(t *tes
 
 	recorder := httptest.NewRecorder()
 
-	aggregator.handleGetStateRootUpdateAggregation(recorder, req)
+	err = aggregator.handleGetStateRootUpdateAggregation(recorder, req)
+	assert.NotNil(t, err)
 
 	assert.Equal(t, http.StatusNotFound, recorder.Code)
 }
@@ -389,7 +397,8 @@ func TestGetOperatorSetUpdateAggregation_MissingParameter(t *testing.T) {
 
 		recorder := httptest.NewRecorder()
 
-		aggregator.handleGetOperatorSetUpdateAggregation(recorder, req)
+		err = aggregator.handleGetOperatorSetUpdateAggregation(recorder, req)
+		assert.NotNil(t, err)
 
 		assert.Equal(t, http.StatusBadRequest, recorder.Code)
 	})
@@ -416,7 +425,8 @@ func TestGetOperatorSetUpdateAggregation_OperatorSetUpdateNotFound(t *testing.T)
 
 	recorder := httptest.NewRecorder()
 
-	aggregator.handleGetOperatorSetUpdateAggregation(recorder, req)
+	err = aggregator.handleGetOperatorSetUpdateAggregation(recorder, req)
+	assert.NotNil(t, err)
 
 	assert.Equal(t, http.StatusNotFound, recorder.Code)
 }
@@ -443,7 +453,8 @@ func TestGetOperatorSetUpdateAggregation_OperatorSetUpdateAggregationNotFound(t 
 
 	recorder := httptest.NewRecorder()
 
-	aggregator.handleGetOperatorSetUpdateAggregation(recorder, req)
+	err = aggregator.handleGetOperatorSetUpdateAggregation(recorder, req)
+	assert.NotNil(t, err)
 
 	assert.Equal(t, http.StatusNotFound, recorder.Code)
 }
@@ -467,7 +478,8 @@ func TestGetCheckpointMessages_MissingParameters(t *testing.T) {
 
 		recorder := httptest.NewRecorder()
 
-		aggregator.handleGetCheckpointMessages(recorder, req)
+		err = aggregator.handleGetCheckpointMessages(recorder, req)
+		assert.NotNil(t, err)
 
 		assert.Equal(t, http.StatusBadRequest, recorder.Code)
 	})
@@ -482,7 +494,8 @@ func TestGetCheckpointMessages_MissingParameters(t *testing.T) {
 
 		recorder := httptest.NewRecorder()
 
-		aggregator.handleGetCheckpointMessages(recorder, req)
+		err = aggregator.handleGetCheckpointMessages(recorder, req)
+		assert.NotNil(t, err)
 
 		assert.Equal(t, http.StatusBadRequest, recorder.Code)
 	})
@@ -507,7 +520,8 @@ func TestGetCheckpointMessages_InvalidParameters(t *testing.T) {
 
 		recorder := httptest.NewRecorder()
 
-		aggregator.handleGetCheckpointMessages(recorder, req)
+		err = aggregator.handleGetCheckpointMessages(recorder, req)
+		assert.NotNil(t, err)
 
 		assert.Equal(t, http.StatusBadRequest, recorder.Code)
 	})
@@ -522,7 +536,8 @@ func TestGetCheckpointMessages_InvalidParameters(t *testing.T) {
 
 		recorder := httptest.NewRecorder()
 
-		aggregator.handleGetCheckpointMessages(recorder, req)
+		err = aggregator.handleGetCheckpointMessages(recorder, req)
+		assert.NotNil(t, err)
 
 		assert.Equal(t, http.StatusBadRequest, recorder.Code)
 	})
@@ -549,7 +564,8 @@ func TestGetCheckpointMessages_CheckpointMessageNotFound(t *testing.T) {
 
 	recorder := httptest.NewRecorder()
 
-	aggregator.handleGetCheckpointMessages(recorder, req)
+	err = aggregator.handleGetCheckpointMessages(recorder, req)
+	assert.NotNil(t, err)
 
 	assert.Equal(t, http.StatusNotFound, recorder.Code)
 }
