@@ -69,12 +69,12 @@ func (agg *Aggregator) handleGetStateRootUpdateAggregation(w http.ResponseWriter
 
 	w.WriteHeader(http.StatusOK)
 	w.Header().Set("Content-Type", "application/json")
-	json.NewEncoder(w).Encode(aggtypes.GetStateRootUpdateAggregationResponse{
+	err = json.NewEncoder(w).Encode(aggtypes.GetStateRootUpdateAggregationResponse{
 		Message:     *message,
 		Aggregation: *aggregation,
 	})
 
-	return nil
+	return err
 }
 
 func (agg *Aggregator) handleGetOperatorSetUpdateAggregation(w http.ResponseWriter, r *http.Request) error {
@@ -101,12 +101,12 @@ func (agg *Aggregator) handleGetOperatorSetUpdateAggregation(w http.ResponseWrit
 
 	w.WriteHeader(http.StatusOK)
 	w.Header().Set("Content-Type", "application/json")
-	json.NewEncoder(w).Encode(aggtypes.GetOperatorSetUpdateAggregationResponse{
+	err = json.NewEncoder(w).Encode(aggtypes.GetOperatorSetUpdateAggregationResponse{
 		Message:     *message,
 		Aggregation: *aggregation,
 	})
 
-	return nil
+	return err
 }
 
 func (agg *Aggregator) handleGetCheckpointMessages(w http.ResponseWriter, r *http.Request) error {
@@ -133,9 +133,9 @@ func (agg *Aggregator) handleGetCheckpointMessages(w http.ResponseWriter, r *htt
 
 	w.WriteHeader(http.StatusOK)
 	w.Header().Set("Content-Type", "application/json")
-	json.NewEncoder(w).Encode(aggtypes.GetCheckpointMessagesResponse{
+	err = json.NewEncoder(w).Encode(aggtypes.GetCheckpointMessagesResponse{
 		CheckpointMessages: *checkpointMessages,
 	})
 
-	return nil
+	return err
 }
