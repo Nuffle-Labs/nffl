@@ -101,6 +101,7 @@ func (s *RestServer) handleGetStateRootUpdateAggregation(w http.ResponseWriter, 
 	response, err := s.app.GetStateRootUpdateAggregation(uint32(rollupId), blockHeight)
 	if err != nil {
 		http.Error(w, err.Error(), mapErrorToCode(err))
+		return err
 	}
 
 	w.WriteHeader(http.StatusOK)

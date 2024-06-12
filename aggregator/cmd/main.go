@@ -78,7 +78,6 @@ func aggregatorMain(ctx *cli.Context) error {
 			return err
 		}
 	}
-
 	go rpcServer.Start()
 
 	restServer := restserver.NewRestServer(config.AggregatorRestServerIpPortAddr, agg, logger)
