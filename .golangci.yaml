@@ -1,2 +1,3 @@
 run:
+  # TODO: We want to eventually enable linting for all files, including test code
   tests: false
