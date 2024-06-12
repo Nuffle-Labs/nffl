@@ -289,9 +289,10 @@ func (c *AggregatorRpcClient) sendOperatorMessage(sendCb func() error, message i
 
 	appendProtected := func() {
 		c.unsentMessagesLock.Lock()
+		defer c.unsentMessagesLock.Unlock()
+
 		c.unsentMessages = append(c.unsentMessages, unsentRpcMessage{Message: message})
 		c.listener.ObserveResendQueueSize(len(c.unsentMessages))
-		c.unsentMessagesLock.Unlock()
 	}
 
 	if c.rpcClient == nil {
