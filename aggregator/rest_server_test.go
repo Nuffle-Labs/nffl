@@ -2,7 +2,6 @@ package aggregator
 
 import (
 	"encoding/json"
-	"errors"
 	"fmt"
 	"net/http"
 	"net/http/httptest"
@@ -334,8 +333,7 @@ func TestGetStateRootUpdateAggregation_StateRootUpdateNotFound(t *testing.T) {
 
 	go aggregator.startRestServer()
 
-	notFound := errors.New("not found")
-	mockDb.EXPECT().FetchStateRootUpdate(gomock.Any(), gomock.Any()).Return(nil, notFound)
+	mockDb.EXPECT().FetchStateRootUpdate(gomock.Any(), gomock.Any()).Return(nil, assert.AnError)
 
 	req, err := http.NewRequest(
 		"GET",
@@ -361,9 +359,8 @@ func TestGetStateRootUpdateAggregation_StateRootUpdateAggregationNotFound(t *tes
 
 	go aggregator.startRestServer()
 
-	notFound := errors.New("not found")
 	mockDb.EXPECT().FetchStateRootUpdate(gomock.Any(), gomock.Any()).Return(&messages.StateRootUpdateMessage{}, nil)
-	mockDb.EXPECT().FetchStateRootUpdateAggregation(gomock.Any(), gomock.Any()).Return(nil, notFound)
+	mockDb.EXPECT().FetchStateRootUpdateAggregation(gomock.Any(), gomock.Any()).Return(nil, assert.AnError)
 
 	req, err := http.NewRequest(
 		"GET",
@@ -415,8 +412,7 @@ func TestGetOperatorSetUpdateAggregation_OperatorSetUpdateNotFound(t *testing.T)
 
 	go aggregator.startRestServer()
 
-	notFound := errors.New("not found")
-	mockDb.EXPECT().FetchOperatorSetUpdate(gomock.Any()).Return(nil, notFound)
+	mockDb.EXPECT().FetchOperatorSetUpdate(gomock.Any()).Return(nil, assert.AnError)
 
 	req, err := http.NewRequest(
 		"GET",
@@ -442,9 +438,8 @@ func TestGetOperatorSetUpdateAggregation_OperatorSetUpdateAggregationNotFound(t 
 
 	go aggregator.startRestServer()
 
-	notFound := errors.New("not found")
 	mockDb.EXPECT().FetchOperatorSetUpdate(gomock.Any()).Return(&messages.OperatorSetUpdateMessage{}, nil)
-	mockDb.EXPECT().FetchOperatorSetUpdateAggregation(gomock.Any()).Return(nil, notFound)
+	mockDb.EXPECT().FetchOperatorSetUpdateAggregation(gomock.Any()).Return(nil, assert.AnError)
 
 	req, err := http.NewRequest(
 		"GET",
@@ -554,8 +549,7 @@ func TestGetCheckpointMessages_CheckpointMessageNotFound(t *testing.T) {
 
 	go aggregator.startRestServer()
 
-	notFound := errors.New("not found")
-	mockDb.EXPECT().FetchCheckpointMessages(gomock.Any(), gomock.Any()).Return(nil, notFound)
+	mockDb.EXPECT().FetchCheckpointMessages(gomock.Any(), gomock.Any()).Return(nil, assert.AnError)
 
 	req, err := http.NewRequest(
 		"GET",
