@@ -153,12 +153,10 @@ func isShutdownOrNetworkError(err error) bool {
 	return false
 }
 
-func (c *AggregatorRpcClient) handleRpcError(err error) error {
+func (c *AggregatorRpcClient) handleRpcError(err error) {
 	if isShutdownOrNetworkError(err) {
 		go c.handleRpcShutdown()
 	}
-
-	return nil
 }
 
 func (c *AggregatorRpcClient) handleRpcShutdown() {
