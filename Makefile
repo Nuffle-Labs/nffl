@@ -119,7 +119,7 @@ tests-unit: ## runs all unit tests
 	go tool cover -html=coverage.out -o coverage.html
 
 tests-contract: ## runs all forge tests
-	cd contracts/evm && forge test
+	cd contracts/evm && forge test --ffi
 
 tests-integration: ## runs all integration tests
 	go test ./tests/integration/integration_test.go -v -count=1
