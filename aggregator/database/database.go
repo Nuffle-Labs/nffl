@@ -263,6 +263,10 @@ func (d *Database) FetchCheckpointMessages(fromTimestamp uint64, toTimestamp uin
 		return nil, errors.New("timestamp does not fit in int64")
 	}
 
+	if (toTimestamp < fromTimestamp) {
+		return nil, errors.New("toTimestamp is less than fromTimestamp")
+	}
+
 	start := time.Now()
 	defer func() { d.listener.OnFetch(time.Since(start)) }()
 
