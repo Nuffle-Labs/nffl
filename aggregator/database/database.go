@@ -63,11 +63,14 @@ func NewDatabase(dbPath string) (*Database, error) {
 		return nil, err
 	}
 
-	db.AutoMigrate(
+	err = db.AutoMigrate(
 		&models.MessageBlsAggregation{},
 		&models.StateRootUpdateMessage{},
 		&models.OperatorSetUpdateMessage{},
 	)
+	if err != nil {
+		return nil, err
+	}
 
 	underlyingDb, err := db.DB()
 	if err != nil {
