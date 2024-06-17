@@ -1,14 +1,14 @@
-# SFFL Agreement Registry
+# NFFL Agreement Registry
 
-> [!NOTE]  
+> [!NOTE]
 > This contract is not being used in the current phase.
 
-This contract is a prototype of how SFFL attestations could be done using a
+This contract is a prototype of how NFFL attestations could be done using a
 NEAR smart contract.
 
 Through this contract, operators can link their Ethereum addresses to a NEAR
 account by signing an [EIP712](https://eips.ethereum.org/EIPS/eip-712) message,
-and can then submit their BLS signatures to SFFL messages and tasks to NEAR,
+and can then submit their BLS signatures to NFFL messages and tasks to NEAR,
 which will be available for any external actors.
 
 The aggregation step could be then done by an off-chain actor, or, which would
