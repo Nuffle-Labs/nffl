@@ -125,3 +125,8 @@ tests-contract: ## runs all forge tests
 tests-integration: ## runs all integration tests
 	go test ./tests/integration/integration_test.go -v -count=1
 	go test ./tests/integration/registration_test.go -v -race -count=1
+
+## runs linter on all files
+## TODO: For now, only Go files are linted
+lint:
+	golangci-lint run

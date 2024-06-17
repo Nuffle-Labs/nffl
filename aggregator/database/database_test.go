@@ -1,6 +1,7 @@
 package database_test
 
 import (
+	"math"
 	"math/big"
 	"testing"
 
@@ -312,4 +313,60 @@ func TestFetchCheckpointMessages(t *testing.T) {
 		OperatorSetUpdateMessages:            []messages.OperatorSetUpdateMessage{},
 		OperatorSetUpdateMessageAggregations: []messages.MessageBlsAggregation{},
 	})
+}
+
+func TestFetchCheckpointMessages_TimestampTooLarge(t *testing.T) {
+	mockCtrl := gomock.NewController(t)
+	defer mockCtrl.Finish()
+
+	db, err := database.NewDatabase(":memory:")
+	assert.Nil(t, err)
+
+	t.Run("fromTimestamp too large", func(t *testing.T) {
+		_, err := db.FetchCheckpointMessages(uint64(0x8000000000000000), 0)
+		assert.NotNil(t, err)
+	})
+
+	t.Run("toTimestamp too large", func(t *testing.T) {
+		_, err := db.FetchCheckpointMessages(0, uint64(0x8000000000000000))
+		assert.NotNil(t, err)
+	})
+}
+
+func TestFetchCheckpointMessages_InvalidRange(t *testing.T) {
+	mockCtrl := gomock.NewController(t)
+	defer mockCtrl.Finish()
+
+	db, err := database.NewDatabase(":memory:")
+	assert.Nil(t, err)
+
+	_, err = db.FetchCheckpointMessages(101, 100)
+	assert.NotNil(t, err)
+}
+
+func TestStoreStateRootUpdate_LargeMsgValues(t *testing.T) {
+	t.Skip("Currently impossible to store all uint64 values in the DB")
+
+	mockCtrl := gomock.NewController(t)
+	defer mockCtrl.Finish()
+
+	db, err := database.NewDatabase(":memory:")
+	assert.Nil(t, err)
+
+	msg := messages.StateRootUpdateMessage{
+		RollupId:            math.MaxUint32,
+		BlockHeight:         math.MaxUint64, // TODO: Cannot be stored, maximum possible value is `math.MaxInt64`
+		Timestamp:           math.MaxUint64, // TODO: Cannot be stored, maximum possible value is `math.MaxInt64`
+		NearDaTransactionId: [32]byte{0xFF},
+		NearDaCommitment:    [32]byte{0xFF},
+		StateRoot:           [32]byte{0xFF},
+	}
+	err = db.StoreStateRootUpdate(msg)
+	assert.Nil(t, err)
+
+	stored, err := db.FetchStateRootUpdate(math.MaxUint32, math.MaxUint64)
+	assert.NotNil(t, stored)
+	assert.Nil(t, err)
+
+	assert.Equal(t, &msg, stored)
 }

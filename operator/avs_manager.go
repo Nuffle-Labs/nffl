@@ -205,6 +205,10 @@ func (avsManager *AvsManager) DepositIntoStrategy(operatorAddr common.Address, s
 		return err
 	}
 	txOpts, err := avsManager.avsWriter.TxMgr.GetNoSendTxOpts()
+	if err != nil {
+		avsManager.logger.Error("Error getting tx options")
+		return err
+	}
 	tx, err := contractErc20Mock.Mint(txOpts, operatorAddr, amount)
 	if err != nil {
 		avsManager.logger.Error("Error assembling Mint tx")

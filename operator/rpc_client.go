@@ -153,12 +153,10 @@ func isShutdownOrNetworkError(err error) bool {
 	return false
 }
 
-func (c *AggregatorRpcClient) handleRpcError(err error) error {
+func (c *AggregatorRpcClient) handleRpcError(err error) {
 	if isShutdownOrNetworkError(err) {
 		go c.handleRpcShutdown()
 	}
-
-	return nil
 }
 
 func (c *AggregatorRpcClient) handleRpcShutdown() {
@@ -291,9 +289,10 @@ func (c *AggregatorRpcClient) sendOperatorMessage(sendCb func() error, message i
 
 	appendProtected := func() {
 		c.unsentMessagesLock.Lock()
+		defer c.unsentMessagesLock.Unlock()
+
 		c.unsentMessages = append(c.unsentMessages, unsentRpcMessage{Message: message})
 		c.listener.ObserveResendQueueSize(len(c.unsentMessages))
-		c.unsentMessagesLock.Unlock()
 	}
 
 	if c.rpcClient == nil {

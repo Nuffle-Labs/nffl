@@ -105,6 +105,11 @@ func NewAttestor(config *optypes.NodeConfig, blsKeypair *bls.KeyPair, operatorId
 
 		attestor.clients[rollupId] = client
 		attestor.rpcCallsCollectors[rollupId] = rpcCallsCollector
+
+		logger.Debug("New Attestor for rollup",
+			"rollupId", rollupId,
+			"rollupIdsToUrls", url,
+		)
 	}
 
 	return &attestor, nil
