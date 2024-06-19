@@ -59,11 +59,16 @@ func NoopListener() *MockListener {
 	}
 }
 
+type action struct {
+	run         func() error
+	submittedAt time.Time
+}
+
 type AggRpcClient struct {
 	listener  Listener
 	rpcClient RpcClient
 	logger    logging.Logger
-	actCh     chan (func() error)
+	actionCh  chan action
 
 	once    sync.Once
 	closeCh chan struct{}
@@ -74,7 +79,7 @@ func NewAggRpcClient(listener Listener, rpcClient RpcClient, logger logging.Logg
 		listener:  listener,
 		rpcClient: rpcClient,
 		logger:    logger,
-		actCh:     make(chan func() error, 10),
+		actionCh:  make(chan action, 10),
 
 		once:    sync.Once{},
 		closeCh: make(chan struct{}),
@@ -94,18 +99,18 @@ func (self *AggRpcClient) Start(ctx context.Context) {
 		case <-self.closeCh:
 			self.logger.Debug("AggRpcClient: close message received")
 			return
-		case action, ok := <-self.actCh:
+		case action, ok := <-self.actionCh:
 			if !ok {
 				continue
 			}
 			self.logger.Debug("AggRpcClient: action message received")
-			err := retryTimes(self.logger, 3, action)
+			err := retryTimes(self.logger, 3, action.run)
 			if err != nil {
 				self.logger.Error("AggRpcClient: action failed after retrying", "err", err)
 				self.listener.IncError()
 
 				self.logger.Debug("AggRpcClient: retrying later")
-				self.actCh <- action
+				self.actionCh <- action
 			} else {
 				self.logger.Debug("AggRpcClient: action executed successfully")
 				self.listener.IncSuccess()
@@ -118,7 +123,7 @@ func (self *AggRpcClient) Close() {
 	self.once.Do(func() {
 		self.logger.Debug("AggRpcClient: close")
 
-		close(self.actCh)
+		close(self.actionCh)
 		self.closeCh <- struct{}{}
 
 		<-self.closeCh
@@ -127,23 +132,29 @@ func (self *AggRpcClient) Close() {
 }
 
 func (self *AggRpcClient) SendProcessSignedCheckpointTaskResponse(message *messages.SignedCheckpointTaskResponse) {
-	self.actCh <- func() error {
-		var ignore bool
-		return self.rpcClient.Call("Aggregator.ProcessSignedCheckpointTaskResponse", message, &ignore)
+	self.actionCh <- action{
+		run: func() error {
+			var ignore bool
+			return self.rpcClient.Call("Aggregator.ProcessSignedCheckpointTaskResponse", message, &ignore)
+		},
 	}
 }
 
 func (self *AggRpcClient) SendSignedStateRootUpdateMessage(message *messages.SignedStateRootUpdateMessage) {
-	self.actCh <- func() error {
-		var ignore bool
-		return self.rpcClient.Call("Aggregator.ProcessSignedStateRootUpdateMessage", message, &ignore)
+	self.actionCh <- action{
+		run: func() error {
+			var ignore bool
+			return self.rpcClient.Call("Aggregator.ProcessSignedStateRootUpdateMessage", message, &ignore)
+		},
 	}
 }
 
 func (self *AggRpcClient) SendSignedOperatorSetUpdateMessage(message *messages.SignedOperatorSetUpdateMessage) {
-	self.actCh <- func() error {
-		var ignore bool
-		return self.rpcClient.Call("Aggregator.ProcessSignedOperatorSetUpdateMessage", message, &ignore)
+	self.actionCh <- action{
+		run: func() error {
+			var ignore bool
+			return self.rpcClient.Call("Aggregator.ProcessSignedOperatorSetUpdateMessage", message, &ignore)
+		},
 	}
 
 }
