@@ -83,13 +83,6 @@ type action struct {
 	retryCount  int
 }
 
-type AggregatorRpcClienter interface {
-	SendSignedCheckpointTaskResponseToAggregator(signedCheckpointTaskResponse *messages.SignedCheckpointTaskResponse)
-	SendSignedStateRootUpdateToAggregator(signedStateRootUpdateMessage *messages.SignedStateRootUpdateMessage)
-	SendSignedOperatorSetUpdateToAggregator(signedOperatorSetUpdateMessage *messages.SignedOperatorSetUpdateMessage)
-	GetAggregatedCheckpointMessages(fromTimestamp, toTimestamp uint64) (*messages.CheckpointMessages, error)
-}
-
 type AggregatorRpcClient struct {
 	listener    Listener
 	rpcClient   RpcClient
@@ -100,8 +93,6 @@ type AggregatorRpcClient struct {
 	once    sync.Once
 	closeCh chan struct{}
 }
-
-var _ AggregatorRpcClienter = (*AggregatorRpcClient)(nil)
 
 func NewAggregatorRpcClient(listener Listener, rpcClient RpcClient, retryPredicate RetryPredicate, logger logging.Logger) AggregatorRpcClient {
 	return AggregatorRpcClient{
