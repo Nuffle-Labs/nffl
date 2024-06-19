@@ -72,8 +72,8 @@ func TestSendSuccessfulMessages(t *testing.T) {
 	client := operator.NewAggregatorRpcClient(&listener, &rpcClient, operator.NeverRetry, logger)
 	go client.Start(ctx)
 
-	client.SendSignedStateRootUpdateMessage(&messages.SignedStateRootUpdateMessage{})
-	client.SendSignedOperatorSetUpdateMessage(&messages.SignedOperatorSetUpdateMessage{})
+	client.SendSignedStateRootUpdateToAggregator(&messages.SignedStateRootUpdateMessage{})
+	client.SendSignedOperatorSetUpdateToAggregator(&messages.SignedOperatorSetUpdateMessage{})
 
 	time.Sleep(500 * time.Millisecond)
 	client.Close()
@@ -138,7 +138,7 @@ func TestUnboundedRetry(t *testing.T) {
 	client := operator.NewAggregatorRpcClient(listener, &rpcClient, operator.AlwaysRetry, logger)
 	go client.Start(ctx)
 
-	client.SendSignedStateRootUpdateMessage(&messages.SignedStateRootUpdateMessage{})
+	client.SendSignedStateRootUpdateToAggregator(&messages.SignedStateRootUpdateMessage{})
 
 	time.Sleep(500 * time.Millisecond)
 	client.Close()
@@ -163,7 +163,7 @@ func TestRetryAtMost(t *testing.T) {
 	client := operator.NewAggregatorRpcClient(listener, &rpcClient, operator.RetryAtMost(4), logger)
 	go client.Start(ctx)
 
-	client.SendSignedStateRootUpdateMessage(&messages.SignedStateRootUpdateMessage{})
+	client.SendSignedStateRootUpdateToAggregator(&messages.SignedStateRootUpdateMessage{})
 
 	time.Sleep(500 * time.Millisecond)
 	client.Close()
@@ -189,7 +189,7 @@ func TestRetryLaterIfRecentEnough(t *testing.T) {
 	client := operator.NewAggregatorRpcClient(listener, &rpcClient, operator.RetryIfRecentEnough(500*time.Millisecond), logger)
 	go client.Start(ctx)
 
-	client.SendSignedStateRootUpdateMessage(&messages.SignedStateRootUpdateMessage{})
+	client.SendSignedCheckpointTaskResponseToAggregator(&messages.SignedCheckpointTaskResponse{})
 
 	time.Sleep(500 * time.Millisecond)
 	client.Close()
