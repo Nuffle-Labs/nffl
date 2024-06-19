@@ -220,10 +220,46 @@ func TestGetAggregatedCheckpointMessages(t *testing.T) {
 	go client.Start(ctx)
 
 	response, err := client.GetAggregatedCheckpointMessages(0, 0)
-	time.Sleep(200 * time.Millisecond)
 
 	assert.NoError(t, err)
-	assert.Equal(t, expected, *response)
+	assert.Equal(t, expected, response)
+
+	client.Close()
+}
+
+func TestGetAggregatedCheckpointMessagesRetry(t *testing.T) {
+	ctx := context.Background()
+	logger, _ := logging.NewZapLogger(logging.Development)
+	listener := NoopListener()
+
+	expected := messages.CheckpointMessages{
+		StateRootUpdateMessages: []messages.StateRootUpdateMessage{{BlockHeight: 100}},
+	}
+
+	rpcFailCount := 0
+	rpcClient := MockRpcClient{
+		call: func(serviceMethod string, args any, reply any) error {
+			if rpcFailCount < 2 {
+				rpcFailCount++
+				return assert.AnError
+			}
+
+			switch v := reply.(type) {
+			case *messages.CheckpointMessages:
+				*v = expected
+			}
+			return nil
+		},
+	}
+
+	client := operator.NewAggregatorRpcClient(listener, &rpcClient, operator.AlwaysRetry, logger)
+	go client.Start(ctx)
+
+	response, err := client.GetAggregatedCheckpointMessages(0, 0)
+
+	assert.NoError(t, err)
+	assert.Equal(t, expected, response)
+	assert.Equal(t, 2, rpcFailCount)
 
 	client.Close()
 }

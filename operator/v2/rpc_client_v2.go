@@ -187,21 +187,26 @@ func (a *AggregatorRpcClient) SendSignedOperatorSetUpdateToAggregator(message *m
 	}
 }
 
-func (a *AggregatorRpcClient) GetAggregatedCheckpointMessages(fromTimestamp, toTimestamp uint64) (*messages.CheckpointMessages, error) {
+// Blocking operation since we want to wait for the return value(s).
+func (a *AggregatorRpcClient) GetAggregatedCheckpointMessages(fromTimestamp, toTimestamp uint64) (messages.CheckpointMessages, error) {
 	type Args struct {
 		FromTimestamp, ToTimestamp uint64
 	}
 
 	var checkpointMessages messages.CheckpointMessages
 
-	a.actionCh <- action{
+	action := action{
 		submittedAt: time.Now(),
 		run: func() error {
 			return a.rpcClient.Call("Aggregator.GetAggregatedCheckpointMessages", &Args{fromTimestamp, toTimestamp}, &checkpointMessages)
 		},
 	}
+	err := action.run()
 
-	// TODO: This is a terrible design. We're returning an initially nil pointer that at some point in the future might be fullfiled.
-	// This is essentially a `Promise` without the proper semantics (ex. wait for completion, error handling, etc)
-	return &checkpointMessages, nil
+	for err != nil && a.shouldRetry(action, err) {
+		action.retryCount++
+		err = action.run()
+	}
+
+	return checkpointMessages, err
 }
