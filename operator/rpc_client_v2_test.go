@@ -88,7 +88,7 @@ func alwaysRetryLater(_ action, _ error) bool {
 	return true
 }
 
-func retryIfRecentEnough(ttl time.Duration) RetryLaterPredicate {
+func retryLaterIfRecentEnough(ttl time.Duration) RetryLaterPredicate {
 	return func(action action, err error) bool {
 		return time.Since(action.submittedAt) < ttl
 	}
@@ -172,6 +172,7 @@ func (self *AggRpcClient) Close() {
 
 func (self *AggRpcClient) SendProcessSignedCheckpointTaskResponse(message *messages.SignedCheckpointTaskResponse) {
 	self.actionCh <- action{
+		submittedAt: time.Now(),
 		run: func() error {
 			var ignore bool
 			return self.rpcClient.Call("Aggregator.ProcessSignedCheckpointTaskResponse", message, &ignore)
@@ -181,6 +182,7 @@ func (self *AggRpcClient) SendProcessSignedCheckpointTaskResponse(message *messa
 
 func (self *AggRpcClient) SendSignedStateRootUpdateMessage(message *messages.SignedStateRootUpdateMessage) {
 	self.actionCh <- action{
+		submittedAt: time.Now(),
 		run: func() error {
 			var ignore bool
 			return self.rpcClient.Call("Aggregator.ProcessSignedStateRootUpdateMessage", message, &ignore)
@@ -190,6 +192,7 @@ func (self *AggRpcClient) SendSignedStateRootUpdateMessage(message *messages.Sig
 
 func (self *AggRpcClient) SendSignedOperatorSetUpdateMessage(message *messages.SignedOperatorSetUpdateMessage) {
 	self.actionCh <- action{
+		submittedAt: time.Now(),
 		run: func() error {
 			var ignore bool
 			return self.rpcClient.Call("Aggregator.ProcessSignedOperatorSetUpdateMessage", message, &ignore)
@@ -327,4 +330,31 @@ func TestRetryLater(t *testing.T) {
 
 	assert.Equal(t, 2, rpcFailCount)
 	assert.True(t, rpcSuccess)
+}
+
+func TestRetryLaterIfRecentEnough(t *testing.T) {
+	ctx := context.Background()
+	logger, _ := logging.NewZapLogger(logging.Development)
+	listener := NoopListener()
+
+	rpcFailCount := 0
+
+	rpcClient := MockRpcClient{
+		call: func(method string, args interface{}, reply *bool) error {
+			time.Sleep(100 * time.Millisecond)
+
+			rpcFailCount++
+			return assert.AnError
+		},
+	}
+
+	client := NewAggRpcClient(listener, &rpcClient, logger)
+	go client.Start(ctx, noRetry, retryLaterIfRecentEnough(500*time.Millisecond))
+
+	client.SendSignedStateRootUpdateMessage(&messages.SignedStateRootUpdateMessage{})
+
+	time.Sleep(500 * time.Millisecond)
+	client.Close()
+
+	assert.Equal(t, 5, rpcFailCount)
 }
