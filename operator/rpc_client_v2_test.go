@@ -287,6 +287,31 @@ func TestUnboundedRetry(t *testing.T) {
 	assert.True(t, rpcSuccess)
 }
 
+func TestRetryAtMost(t *testing.T) {
+	ctx := context.Background()
+	logger, _ := logging.NewZapLogger(logging.Development)
+	listener := NoopListener()
+
+	rpcFailCount := 0
+
+	rpcClient := MockRpcClient{
+		call: func(method string, args interface{}, reply *bool) error {
+			rpcFailCount++
+			return assert.AnError
+		},
+	}
+
+	client := NewAggRpcClient(listener, &rpcClient, logger)
+	go client.Start(ctx, retryAtMost(4))
+
+	client.SendSignedStateRootUpdateMessage(&messages.SignedStateRootUpdateMessage{})
+
+	time.Sleep(500 * time.Millisecond)
+	client.Close()
+
+	assert.Equal(t, 5, rpcFailCount) // 1 run, 4 retries
+}
+
 func TestRetryLaterIfRecentEnough(t *testing.T) {
 	ctx := context.Background()
 	logger, _ := logging.NewZapLogger(logging.Development)
