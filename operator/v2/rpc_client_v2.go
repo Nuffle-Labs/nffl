@@ -46,7 +46,7 @@ type action struct {
 	retryCount  int
 }
 
-type AggRpcClient struct {
+type AggregatorRpcClient struct {
 	listener    Listener
 	rpcClient   RpcClient
 	shouldRetry RetryPredicate
@@ -57,8 +57,8 @@ type AggRpcClient struct {
 	closeCh chan struct{}
 }
 
-func NewAggRpcClient(listener Listener, rpcClient RpcClient, retryPredicate RetryPredicate, logger logging.Logger) AggRpcClient {
-	return AggRpcClient{
+func NewAggregatorRpcClient(listener Listener, rpcClient RpcClient, retryPredicate RetryPredicate, logger logging.Logger) AggregatorRpcClient {
+	return AggregatorRpcClient{
 		listener:    listener,
 		rpcClient:   rpcClient,
 		shouldRetry: retryPredicate,
@@ -70,7 +70,7 @@ func NewAggRpcClient(listener Listener, rpcClient RpcClient, retryPredicate Retr
 	}
 }
 
-func (self *AggRpcClient) Start(ctx context.Context) {
+func (self *AggregatorRpcClient) Start(ctx context.Context) {
 	defer func() {
 		self.closeCh <- struct{}{}
 	}()
@@ -108,7 +108,7 @@ func (self *AggRpcClient) Start(ctx context.Context) {
 	}
 }
 
-func (self *AggRpcClient) Close() {
+func (self *AggregatorRpcClient) Close() {
 	self.once.Do(func() {
 		self.logger.Debug("AggRpcClient: close")
 
@@ -120,7 +120,7 @@ func (self *AggRpcClient) Close() {
 	})
 }
 
-func (self *AggRpcClient) SendProcessSignedCheckpointTaskResponse(message *messages.SignedCheckpointTaskResponse) {
+func (self *AggregatorRpcClient) SendProcessSignedCheckpointTaskResponse(message *messages.SignedCheckpointTaskResponse) {
 	self.actionCh <- action{
 		submittedAt: time.Now(),
 		run: func() error {
@@ -130,7 +130,7 @@ func (self *AggRpcClient) SendProcessSignedCheckpointTaskResponse(message *messa
 	}
 }
 
-func (self *AggRpcClient) SendSignedStateRootUpdateMessage(message *messages.SignedStateRootUpdateMessage) {
+func (self *AggregatorRpcClient) SendSignedStateRootUpdateMessage(message *messages.SignedStateRootUpdateMessage) {
 	self.actionCh <- action{
 		submittedAt: time.Now(),
 		run: func() error {
@@ -140,7 +140,7 @@ func (self *AggRpcClient) SendSignedStateRootUpdateMessage(message *messages.Sig
 	}
 }
 
-func (self *AggRpcClient) SendSignedOperatorSetUpdateMessage(message *messages.SignedOperatorSetUpdateMessage) {
+func (self *AggregatorRpcClient) SendSignedOperatorSetUpdateMessage(message *messages.SignedOperatorSetUpdateMessage) {
 	self.actionCh <- action{
 		submittedAt: time.Now(),
 		run: func() error {

@@ -69,7 +69,7 @@ func TestSendSuccessfulMessages(t *testing.T) {
 		},
 	}
 
-	client := operator.NewAggRpcClient(&listener, &rpcClient, operator.NeverRetry, logger)
+	client := operator.NewAggregatorRpcClient(&listener, &rpcClient, operator.NeverRetry, logger)
 	go client.Start(ctx)
 
 	client.SendSignedStateRootUpdateMessage(&messages.SignedStateRootUpdateMessage{})
@@ -90,7 +90,7 @@ func TestCloseWithContext(t *testing.T) {
 	listener := NoopListener()
 	rpcClient := NoopRpcClient()
 
-	client := operator.NewAggRpcClient(listener, rpcClient, operator.NeverRetry, logger)
+	client := operator.NewAggregatorRpcClient(listener, rpcClient, operator.NeverRetry, logger)
 	go client.Start(ctx)
 
 	time.Sleep(1 * time.Second)
@@ -102,7 +102,7 @@ func TestMultipleConcurrentClose(t *testing.T) {
 	listener := NoopListener()
 	rpcClient := NoopRpcClient()
 
-	client := operator.NewAggRpcClient(listener, rpcClient, operator.NeverRetry, logger)
+	client := operator.NewAggregatorRpcClient(listener, rpcClient, operator.NeverRetry, logger)
 	go client.Start(ctx)
 
 	wg := sync.WaitGroup{}
@@ -135,7 +135,7 @@ func TestUnboundedRetry(t *testing.T) {
 		},
 	}
 
-	client := operator.NewAggRpcClient(listener, &rpcClient, operator.AlwaysRetry, logger)
+	client := operator.NewAggregatorRpcClient(listener, &rpcClient, operator.AlwaysRetry, logger)
 	go client.Start(ctx)
 
 	client.SendSignedStateRootUpdateMessage(&messages.SignedStateRootUpdateMessage{})
@@ -160,7 +160,7 @@ func TestRetryAtMost(t *testing.T) {
 		},
 	}
 
-	client := operator.NewAggRpcClient(listener, &rpcClient, operator.RetryAtMost(4), logger)
+	client := operator.NewAggregatorRpcClient(listener, &rpcClient, operator.RetryAtMost(4), logger)
 	go client.Start(ctx)
 
 	client.SendSignedStateRootUpdateMessage(&messages.SignedStateRootUpdateMessage{})
@@ -186,7 +186,7 @@ func TestRetryLaterIfRecentEnough(t *testing.T) {
 		},
 	}
 
-	client := operator.NewAggRpcClient(listener, &rpcClient, operator.RetryIfRecentEnough(500*time.Millisecond), logger)
+	client := operator.NewAggregatorRpcClient(listener, &rpcClient, operator.RetryIfRecentEnough(500*time.Millisecond), logger)
 	go client.Start(ctx)
 
 	client.SendSignedStateRootUpdateMessage(&messages.SignedStateRootUpdateMessage{})
