@@ -78,14 +78,20 @@ func retryNTimes(logger logging.Logger, times int) RetryStrategy {
 	}
 }
 
-type RetryLaterPredicate func(err error) bool
+type RetryLaterPredicate func(action action, err error) bool
 
-func neverRetryLater(_ error) bool {
+func neverRetryLater(_ action, _ error) bool {
 	return false
 }
 
-func alwaysRetryLater(_ error) bool {
+func alwaysRetryLater(_ action, _ error) bool {
 	return true
+}
+
+func retryIfRecentEnough(ttl time.Duration) RetryLaterPredicate {
+	return func(action action, err error) bool {
+		return time.Since(action.submittedAt) < ttl
+	}
 }
 
 type action struct {
@@ -138,7 +144,7 @@ func (self *AggRpcClient) Start(ctx context.Context, retry RetryStrategy, retryL
 				self.logger.Error("AggRpcClient: action failed after retrying", "err", err)
 				self.listener.IncError()
 
-				if retryLater(err) {
+				if retryLater(action, err) {
 					self.logger.Debug("AggRpcClient: retrying later")
 					self.actionCh <- action
 				} else {
