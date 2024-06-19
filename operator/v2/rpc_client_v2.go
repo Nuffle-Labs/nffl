@@ -83,6 +83,13 @@ type action struct {
 	retryCount  int
 }
 
+type AggregatorRpcClienter interface {
+	SendSignedCheckpointTaskResponseToAggregator(signedCheckpointTaskResponse *messages.SignedCheckpointTaskResponse)
+	SendSignedStateRootUpdateToAggregator(signedStateRootUpdateMessage *messages.SignedStateRootUpdateMessage)
+	SendSignedOperatorSetUpdateToAggregator(signedOperatorSetUpdateMessage *messages.SignedOperatorSetUpdateMessage)
+	GetAggregatedCheckpointMessages(fromTimestamp, toTimestamp uint64) (*messages.CheckpointMessages, error)
+}
+
 type AggregatorRpcClient struct {
 	listener    Listener
 	rpcClient   RpcClient
@@ -93,6 +100,8 @@ type AggregatorRpcClient struct {
 	once    sync.Once
 	closeCh chan struct{}
 }
+
+var _ AggregatorRpcClienter = (*AggregatorRpcClient)(nil)
 
 func NewAggregatorRpcClient(listener Listener, rpcClient RpcClient, retryPredicate RetryPredicate, logger logging.Logger) AggregatorRpcClient {
 	return AggregatorRpcClient{
@@ -157,7 +166,7 @@ func (a *AggregatorRpcClient) Close() {
 	})
 }
 
-func (a *AggregatorRpcClient) SendProcessSignedCheckpointTaskResponse(message *messages.SignedCheckpointTaskResponse) {
+func (a *AggregatorRpcClient) SendSignedCheckpointTaskResponseToAggregator(message *messages.SignedCheckpointTaskResponse) {
 	a.actionCh <- action{
 		submittedAt: time.Now(),
 		run: func() error {
@@ -167,7 +176,7 @@ func (a *AggregatorRpcClient) SendProcessSignedCheckpointTaskResponse(message *m
 	}
 }
 
-func (a *AggregatorRpcClient) SendSignedStateRootUpdateMessage(message *messages.SignedStateRootUpdateMessage) {
+func (a *AggregatorRpcClient) SendSignedStateRootUpdateToAggregator(message *messages.SignedStateRootUpdateMessage) {
 	a.actionCh <- action{
 		submittedAt: time.Now(),
 		run: func() error {
@@ -177,7 +186,7 @@ func (a *AggregatorRpcClient) SendSignedStateRootUpdateMessage(message *messages
 	}
 }
 
-func (a *AggregatorRpcClient) SendSignedOperatorSetUpdateMessage(message *messages.SignedOperatorSetUpdateMessage) {
+func (a *AggregatorRpcClient) SendSignedOperatorSetUpdateToAggregator(message *messages.SignedOperatorSetUpdateMessage) {
 	a.actionCh <- action{
 		submittedAt: time.Now(),
 		run: func() error {
@@ -185,4 +194,23 @@ func (a *AggregatorRpcClient) SendSignedOperatorSetUpdateMessage(message *messag
 			return a.rpcClient.Call("Aggregator.ProcessSignedOperatorSetUpdateMessage", message, &ignore)
 		},
 	}
+}
+
+func (a *AggregatorRpcClient) GetAggregatedCheckpointMessages(fromTimestamp, toTimestamp uint64) (*messages.CheckpointMessages, error) {
+	type Args struct {
+		FromTimestamp, ToTimestamp uint64
+	}
+
+	var checkpointMessages messages.CheckpointMessages
+
+	a.actionCh <- action{
+		submittedAt: time.Now(),
+		run: func() error {
+			return a.rpcClient.Call("Aggregator.GetAggregatedCheckpointMessages", &Args{fromTimestamp, toTimestamp}, &checkpointMessages)
+		},
+	}
+
+	// TODO: This is a terrible design. We're returning an initially nil pointer that at some point in the future might be fullfiled.
+	// This is essentially a `Promise` without the proper semantics (ex. wait for completion, error handling, etc)
+	return &checkpointMessages, nil
 }
