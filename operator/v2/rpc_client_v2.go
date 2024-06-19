@@ -2,6 +2,7 @@ package operator2
 
 import (
 	"context"
+	"net/rpc"
 	"sync"
 	"time"
 
@@ -10,8 +11,10 @@ import (
 )
 
 type RpcClient interface {
-	Call(method string, args interface{}, reply *bool) error
+	Call(serviceMethod string, args any, reply any) error
 }
+
+var _ RpcClient = (*rpc.Client)(nil)
 
 type Listener interface {
 	IncError()

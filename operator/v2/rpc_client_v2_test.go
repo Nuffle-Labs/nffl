@@ -15,16 +15,16 @@ import (
 var _ = operator.RpcClient(&MockRpcClient{})
 
 type MockRpcClient struct {
-	call func(method string, args interface{}, reply *bool) error
+	call func(serviceMethod string, args any, reply any) error
 }
 
-func (self *MockRpcClient) Call(method string, args interface{}, reply *bool) error {
-	return self.call(method, args, reply)
+func (self *MockRpcClient) Call(serviceMethod string, args any, reply any) error {
+	return self.call(serviceMethod, args, reply)
 }
 
 func NoopRpcClient() *MockRpcClient {
 	return &MockRpcClient{
-		call: func(method string, args interface{}, reply *bool) error { return nil },
+		call: func(serviceMethod string, args any, reply any) error { return nil },
 	}
 }
 
@@ -62,8 +62,8 @@ func TestSendSuccessfulMessages(t *testing.T) {
 
 	rpcClientCallCount := 0
 	rpcClient := MockRpcClient{
-		call: func(method string, args interface{}, reply *bool) error {
-			logger.Debug("MockRpcClient.Call", "method", method, "args", args)
+		call: func(serviceMethod string, args any, reply any) error {
+			logger.Debug("MockRpcClient.Call", "method", serviceMethod, "args", args)
 			rpcClientCallCount++
 			return nil
 		},
@@ -124,7 +124,7 @@ func TestUnboundedRetry(t *testing.T) {
 	rpcSuccess := false
 	rpcFailCount := 0
 	rpcClient := MockRpcClient{
-		call: func(method string, args interface{}, reply *bool) error {
+		call: func(serviceMethod string, args any, reply any) error {
 			if rpcFailCount < 2 {
 				rpcFailCount++
 				return assert.AnError
@@ -154,7 +154,7 @@ func TestRetryAtMost(t *testing.T) {
 
 	rpcFailCount := 0
 	rpcClient := MockRpcClient{
-		call: func(method string, args interface{}, reply *bool) error {
+		call: func(serviceMethod string, args any, reply any) error {
 			rpcFailCount++
 			return assert.AnError
 		},
@@ -178,7 +178,7 @@ func TestRetryLaterIfRecentEnough(t *testing.T) {
 
 	rpcFailCount := 0
 	rpcClient := MockRpcClient{
-		call: func(method string, args interface{}, reply *bool) error {
+		call: func(serviceMethod string, args any, reply any) error {
 			time.Sleep(100 * time.Millisecond)
 
 			rpcFailCount++
