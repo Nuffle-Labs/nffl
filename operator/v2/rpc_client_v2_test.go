@@ -196,3 +196,34 @@ func TestRetryLaterIfRecentEnough(t *testing.T) {
 
 	assert.Equal(t, 5, rpcFailCount)
 }
+
+func TestGetAggregatedCheckpointMessages(t *testing.T) {
+	ctx := context.Background()
+	logger, _ := logging.NewZapLogger(logging.Development)
+	listener := NoopListener()
+
+	expected := messages.CheckpointMessages{
+		StateRootUpdateMessages: []messages.StateRootUpdateMessage{{BlockHeight: 100}},
+	}
+
+	rpcClient := MockRpcClient{
+		call: func(serviceMethod string, args any, reply any) error {
+			switch v := reply.(type) {
+			case *messages.CheckpointMessages:
+				*v = expected
+			}
+			return nil
+		},
+	}
+
+	client := operator.NewAggregatorRpcClient(listener, &rpcClient, operator.NeverRetry, logger)
+	go client.Start(ctx)
+
+	response, err := client.GetAggregatedCheckpointMessages(0, 0)
+	time.Sleep(200 * time.Millisecond)
+
+	assert.NoError(t, err)
+	assert.Equal(t, expected, *response)
+
+	client.Close()
+}
