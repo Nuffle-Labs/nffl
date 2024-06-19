@@ -2,12 +2,15 @@ package operator2
 
 import (
 	"context"
+	"errors"
 	"net/rpc"
 	"sync"
 	"time"
 
 	"github.com/Layr-Labs/eigensdk-go/logging"
+	eigentypes "github.com/Layr-Labs/eigensdk-go/types"
 	"github.com/NethermindEth/near-sffl/core/types/messages"
+	"github.com/ethereum/go-ethereum/common"
 )
 
 type RpcClient interface {
@@ -15,6 +18,37 @@ type RpcClient interface {
 }
 
 var _ RpcClient = (*rpc.Client)(nil)
+
+func NewHTTPAggregatorRpcClient(aggregatorIpPortAddr string, operatorId eigentypes.OperatorId, expectedRegistryCoordinatorAddress common.Address, logger logging.Logger) (*rpc.Client, error) {
+	client, err := rpc.DialHTTP("tcp", aggregatorIpPortAddr)
+	if err != nil {
+		logger.Error("Error dialing aggregator rpc client", "err", err)
+		return nil, err
+	}
+
+	var aggregatorRegistryCoordinatorAddress string
+	err = client.Call("Aggregator.GetRegistryCoordinatorAddress", struct{}{}, &aggregatorRegistryCoordinatorAddress)
+	if err != nil {
+		logger.Error("Received error when getting registry coordinator address", "err", err)
+		return nil, err
+	}
+
+	logger.Debug("Notifying aggregator of initialization")
+
+	var reply bool
+	err = client.Call("Aggregator.NotifyOperatorInitialization", operatorId, &reply)
+	if err != nil {
+		logger.Error("Error notifying aggregator of initialization", "err", err)
+		return nil, err
+	}
+
+	if common.HexToAddress(aggregatorRegistryCoordinatorAddress).Cmp(expectedRegistryCoordinatorAddress) != 0 {
+		logger.Fatal("Registry coordinator address from aggregator does not match the one in the config", "aggregator", aggregatorRegistryCoordinatorAddress, "config", expectedRegistryCoordinatorAddress.String())
+		return nil, errors.New("mismatching registry coordinator address from aggregator")
+	}
+
+	return client, nil
+}
 
 type Listener interface {
 	IncError()
