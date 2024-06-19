@@ -70,82 +70,82 @@ func NewAggregatorRpcClient(listener Listener, rpcClient RpcClient, retryPredica
 	}
 }
 
-func (self *AggregatorRpcClient) Start(ctx context.Context) {
+func (a *AggregatorRpcClient) Start(ctx context.Context) {
 	defer func() {
-		self.closeCh <- struct{}{}
+		a.closeCh <- struct{}{}
 	}()
 
 	for {
 		select {
 		case <-ctx.Done():
-			self.logger.Debug("AggRpcClient: context done")
+			a.logger.Debug("AggRpcClient: context done")
 			return
-		case <-self.closeCh:
-			self.logger.Debug("AggRpcClient: close message received")
+		case <-a.closeCh:
+			a.logger.Debug("AggRpcClient: close message received")
 			return
-		case action, ok := <-self.actionCh:
+		case action, ok := <-a.actionCh:
 			if !ok {
 				continue
 			}
-			self.logger.Debug("AggRpcClient: action message received")
+			a.logger.Debug("AggRpcClient: action message received")
 			err := action.run()
 			if err != nil {
-				self.logger.Error("AggRpcClient: action failed after retrying", "err", err)
-				self.listener.IncError()
+				a.logger.Error("AggRpcClient: action failed after retrying", "err", err)
+				a.listener.IncError()
 
-				if self.shouldRetry(action, err) {
-					self.logger.Debug("AggRpcClient: retrying later")
+				if a.shouldRetry(action, err) {
+					a.logger.Debug("AggRpcClient: retrying later")
 					action.retryCount++
-					self.actionCh <- action
+					a.actionCh <- action
 				} else {
-					self.logger.Debug("AggRpcClient: not retrying later")
+					a.logger.Debug("AggRpcClient: not retrying later")
 				}
 			} else {
-				self.logger.Debug("AggRpcClient: action executed successfully")
-				self.listener.IncSuccess()
+				a.logger.Debug("AggRpcClient: action executed successfully")
+				a.listener.IncSuccess()
 			}
 		}
 	}
 }
 
-func (self *AggregatorRpcClient) Close() {
-	self.once.Do(func() {
-		self.logger.Debug("AggRpcClient: close")
+func (a *AggregatorRpcClient) Close() {
+	a.once.Do(func() {
+		a.logger.Debug("AggRpcClient: close")
 
-		close(self.actionCh)
-		self.closeCh <- struct{}{}
+		close(a.actionCh)
+		a.closeCh <- struct{}{}
 
-		<-self.closeCh
-		close(self.closeCh)
+		<-a.closeCh
+		close(a.closeCh)
 	})
 }
 
-func (self *AggregatorRpcClient) SendProcessSignedCheckpointTaskResponse(message *messages.SignedCheckpointTaskResponse) {
-	self.actionCh <- action{
+func (a *AggregatorRpcClient) SendProcessSignedCheckpointTaskResponse(message *messages.SignedCheckpointTaskResponse) {
+	a.actionCh <- action{
 		submittedAt: time.Now(),
 		run: func() error {
 			var ignore bool
-			return self.rpcClient.Call("Aggregator.ProcessSignedCheckpointTaskResponse", message, &ignore)
+			return a.rpcClient.Call("Aggregator.ProcessSignedCheckpointTaskResponse", message, &ignore)
 		},
 	}
 }
 
-func (self *AggregatorRpcClient) SendSignedStateRootUpdateMessage(message *messages.SignedStateRootUpdateMessage) {
-	self.actionCh <- action{
+func (a *AggregatorRpcClient) SendSignedStateRootUpdateMessage(message *messages.SignedStateRootUpdateMessage) {
+	a.actionCh <- action{
 		submittedAt: time.Now(),
 		run: func() error {
 			var ignore bool
-			return self.rpcClient.Call("Aggregator.ProcessSignedStateRootUpdateMessage", message, &ignore)
+			return a.rpcClient.Call("Aggregator.ProcessSignedStateRootUpdateMessage", message, &ignore)
 		},
 	}
 }
 
-func (self *AggregatorRpcClient) SendSignedOperatorSetUpdateMessage(message *messages.SignedOperatorSetUpdateMessage) {
-	self.actionCh <- action{
+func (a *AggregatorRpcClient) SendSignedOperatorSetUpdateMessage(message *messages.SignedOperatorSetUpdateMessage) {
+	a.actionCh <- action{
 		submittedAt: time.Now(),
 		run: func() error {
 			var ignore bool
-			return self.rpcClient.Call("Aggregator.ProcessSignedOperatorSetUpdateMessage", message, &ignore)
+			return a.rpcClient.Call("Aggregator.ProcessSignedOperatorSetUpdateMessage", message, &ignore)
 		},
 	}
 }
