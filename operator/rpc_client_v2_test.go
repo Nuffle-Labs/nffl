@@ -2,7 +2,6 @@ package operator
 
 import (
 	"context"
-	"fmt"
 	"sync"
 	"testing"
 	"time"
@@ -59,44 +58,32 @@ func NoopListener() *MockListener {
 	}
 }
 
-type RetryStrategy func(action func() error) error
+type RetryPredicate func(action action, err error) bool
 
-func noRetry(action func() error) error {
-	return action()
-}
-
-func retryNTimes(logger logging.Logger, times int) RetryStrategy {
-	return func(action func() error) error {
-		for i := 0; i < times; i++ {
-			err := action()
-			if err == nil {
-				return nil
-			}
-			logger.Error("Error in action", err)
-		}
-		return fmt.Errorf("Failed after %d retries", times)
-	}
-}
-
-type RetryLaterPredicate func(action action, err error) bool
-
-func neverRetryLater(_ action, _ error) bool {
+func neverRetry(_ action, _ error) bool {
 	return false
 }
 
-func alwaysRetryLater(_ action, _ error) bool {
+func alwaysRetry(_ action, _ error) bool {
 	return true
 }
 
-func retryLaterIfRecentEnough(ttl time.Duration) RetryLaterPredicate {
+func retryIfRecentEnough(ttl time.Duration) RetryPredicate {
 	return func(action action, err error) bool {
 		return time.Since(action.submittedAt) < ttl
+	}
+}
+
+func retryAtMost(retries int) RetryPredicate {
+	return func(action action, err error) bool {
+		return action.retryCount < retries
 	}
 }
 
 type action struct {
 	run         func() error
 	submittedAt time.Time
+	retryCount  int
 }
 
 type AggRpcClient struct {
@@ -121,7 +108,7 @@ func NewAggRpcClient(listener Listener, rpcClient RpcClient, logger logging.Logg
 	}
 }
 
-func (self *AggRpcClient) Start(ctx context.Context, retry RetryStrategy, retryLater RetryLaterPredicate) {
+func (self *AggRpcClient) Start(ctx context.Context, retryLater RetryPredicate) {
 	defer func() {
 		self.closeCh <- struct{}{}
 	}()
@@ -139,13 +126,14 @@ func (self *AggRpcClient) Start(ctx context.Context, retry RetryStrategy, retryL
 				continue
 			}
 			self.logger.Debug("AggRpcClient: action message received")
-			err := retry(action.run)
+			err := action.run()
 			if err != nil {
 				self.logger.Error("AggRpcClient: action failed after retrying", "err", err)
 				self.listener.IncError()
 
 				if retryLater(action, err) {
 					self.logger.Debug("AggRpcClient: retrying later")
+					action.retryCount++
 					self.actionCh <- action
 				} else {
 					self.logger.Debug("AggRpcClient: not retrying later")
@@ -221,7 +209,7 @@ func TestSendSuccessfulMessages(t *testing.T) {
 	}
 
 	client := NewAggRpcClient(&listener, &rpcClient, logger)
-	go client.Start(ctx, noRetry, neverRetryLater)
+	go client.Start(ctx, neverRetry)
 
 	client.SendSignedStateRootUpdateMessage(&messages.SignedStateRootUpdateMessage{})
 	client.SendSignedOperatorSetUpdateMessage(&messages.SignedOperatorSetUpdateMessage{})
@@ -242,7 +230,7 @@ func TestCloseWithContext(t *testing.T) {
 	rpcClient := NoopRpcClient()
 
 	client := NewAggRpcClient(listener, rpcClient, logger)
-	go client.Start(ctx, noRetry, neverRetryLater)
+	go client.Start(ctx, neverRetry)
 
 	time.Sleep(1 * time.Second)
 }
@@ -254,7 +242,7 @@ func TestMultipleConcurrentClose(t *testing.T) {
 	rpcClient := NoopRpcClient()
 
 	client := NewAggRpcClient(listener, rpcClient, logger)
-	go client.Start(ctx, noRetry, neverRetryLater)
+	go client.Start(ctx, neverRetry)
 
 	wg := sync.WaitGroup{}
 	for i := 0; i < 10; i++ {
@@ -267,40 +255,7 @@ func TestMultipleConcurrentClose(t *testing.T) {
 	wg.Wait()
 }
 
-func TestRetryNTimes(t *testing.T) {
-	ctx := context.Background()
-	logger, _ := logging.NewZapLogger(logging.Development)
-	listener := NoopListener()
-
-	rpcFailCount := 0
-	rpcSuccess := false
-
-	rpcClient := MockRpcClient{
-		call: func(method string, args interface{}, reply *bool) error {
-			if rpcFailCount < 2 {
-				rpcFailCount++
-				return assert.AnError
-			}
-
-			rpcSuccess = true
-			return nil
-		},
-	}
-	retryStrategy := retryNTimes(logger, 3)
-
-	client := NewAggRpcClient(listener, &rpcClient, logger)
-	go client.Start(ctx, retryStrategy, neverRetryLater)
-
-	client.SendSignedStateRootUpdateMessage(&messages.SignedStateRootUpdateMessage{})
-
-	time.Sleep(500 * time.Millisecond)
-	client.Close()
-
-	assert.Equal(t, 2, rpcFailCount)
-	assert.True(t, rpcSuccess)
-}
-
-func TestRetryLater(t *testing.T) {
+func TestUnboundedRetry(t *testing.T) {
 	ctx := context.Background()
 	logger, _ := logging.NewZapLogger(logging.Development)
 	listener := NoopListener()
@@ -321,7 +276,7 @@ func TestRetryLater(t *testing.T) {
 	}
 
 	client := NewAggRpcClient(listener, &rpcClient, logger)
-	go client.Start(ctx, noRetry, alwaysRetryLater)
+	go client.Start(ctx, alwaysRetry)
 
 	client.SendSignedStateRootUpdateMessage(&messages.SignedStateRootUpdateMessage{})
 
@@ -349,7 +304,7 @@ func TestRetryLaterIfRecentEnough(t *testing.T) {
 	}
 
 	client := NewAggRpcClient(listener, &rpcClient, logger)
-	go client.Start(ctx, noRetry, retryLaterIfRecentEnough(500*time.Millisecond))
+	go client.Start(ctx, retryIfRecentEnough(500*time.Millisecond))
 
 	client.SendSignedStateRootUpdateMessage(&messages.SignedStateRootUpdateMessage{})
 
