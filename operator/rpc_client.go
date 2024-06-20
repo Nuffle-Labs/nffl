@@ -2,76 +2,251 @@ package operator
 
 import (
 	"errors"
-	"fmt"
-	"net"
 	"net/rpc"
-	"sync"
 	"time"
 
 	"github.com/Layr-Labs/eigensdk-go/logging"
 	eigentypes "github.com/Layr-Labs/eigensdk-go/types"
-	"github.com/ethereum/go-ethereum/common"
-	"github.com/prometheus/client_golang/prometheus"
-
 	"github.com/NethermindEth/near-sffl/core"
 	"github.com/NethermindEth/near-sffl/core/types/messages"
+	"github.com/ethereum/go-ethereum/common"
+	"github.com/prometheus/client_golang/prometheus"
 )
 
-const (
-	ResendInterval = 2 * time.Second
-	MaxRetries     = 10
-)
+type RpcClient interface {
+	Call(serviceMethod string, args any, reply any) error
+	// TODO: Do we also want a `Close` method?
+}
+
+var _ RpcClient = (*rpc.Client)(nil)
+
+func NewHTTPAggregatorRpcClient(aggregatorIpPortAddr string, operatorId eigentypes.OperatorId, expectedRegistryCoordinatorAddress common.Address, logger logging.Logger) (*rpc.Client, error) {
+	client, err := rpc.DialHTTP("tcp", aggregatorIpPortAddr)
+	if err != nil {
+		logger.Error("Error dialing aggregator rpc client", "err", err)
+		return nil, err
+	}
+
+	var aggregatorRegistryCoordinatorAddress string
+	err = client.Call("Aggregator.GetRegistryCoordinatorAddress", struct{}{}, &aggregatorRegistryCoordinatorAddress)
+	if err != nil {
+		logger.Error("Received error when getting registry coordinator address", "err", err)
+		return nil, err
+	}
+
+	logger.Debug("Notifying aggregator of initialization")
+
+	var reply bool
+	err = client.Call("Aggregator.NotifyOperatorInitialization", operatorId, &reply)
+	if err != nil {
+		logger.Error("Error notifying aggregator of initialization", "err", err)
+		return nil, err
+	}
+
+	if common.HexToAddress(aggregatorRegistryCoordinatorAddress).Cmp(expectedRegistryCoordinatorAddress) != 0 {
+		logger.Fatal("Registry coordinator address from aggregator does not match the one in the config", "aggregator", aggregatorRegistryCoordinatorAddress, "config", expectedRegistryCoordinatorAddress.String())
+		return nil, errors.New("mismatching registry coordinator address from aggregator")
+	}
+
+	return client, nil
+}
+
+type RetryStrategy func(submittedAt time.Time, err error) bool
+
+func NeverRetry(_ time.Time, _ error) bool {
+	return false
+}
+
+func AlwaysRetry(_ time.Time, _ error) bool {
+	return true
+}
+
+func RetryWithDelay(delay time.Duration) RetryStrategy {
+	return func(submittedAt time.Time, err error) bool {
+		time.Sleep(delay)
+		return true
+	}
+}
+
+func RetryIfRecentEnough(ttl time.Duration) RetryStrategy {
+	return func(submittedAt time.Time, err error) bool {
+		return time.Since(submittedAt) < ttl
+	}
+}
+
+func RetryAtMost(retries int) RetryStrategy {
+	retryCount := 0
+	return func(_ time.Time, err error) bool {
+		result := retryCount < retries
+		retryCount++
+		return result
+	}
+}
+
+func RetryAnd(s1 RetryStrategy, s2 RetryStrategy) RetryStrategy {
+	return func(submittedAt time.Time, err error) bool {
+		return s1(submittedAt, err) && s2(submittedAt, err)
+	}
+}
+
+// By defaul, retry with a delay of 2 seconds between calls,
+// at most 10 times, and only if the error is recent enough (24 hours)
+// TODO: Discuss the "recent enough" part
+var DefaultAggregatorRpcRetryStrategy RetryStrategy = RetryAnd(
+	RetryWithDelay(2*time.Second), RetryAnd(
+		RetryAtMost(10),
+		RetryIfRecentEnough(24*time.Hour)))
 
 type AggregatorRpcClienter interface {
 	core.Metricable
 
-	SendSignedCheckpointTaskResponseToAggregator(signedCheckpointTaskResponse *messages.SignedCheckpointTaskResponse)
-	SendSignedStateRootUpdateToAggregator(signedStateRootUpdateMessage *messages.SignedStateRootUpdateMessage)
-	SendSignedOperatorSetUpdateToAggregator(signedOperatorSetUpdateMessage *messages.SignedOperatorSetUpdateMessage)
+	SendSignedCheckpointTaskResponseToAggregator(signedCheckpointTaskResponse *messages.SignedCheckpointTaskResponse) error
+	SendSignedStateRootUpdateToAggregator(signedStateRootUpdateMessage *messages.SignedStateRootUpdateMessage) error
+	SendSignedOperatorSetUpdateToAggregator(signedOperatorSetUpdateMessage *messages.SignedOperatorSetUpdateMessage) error
 	GetAggregatedCheckpointMessages(fromTimestamp, toTimestamp uint64) (*messages.CheckpointMessages, error)
 }
 
-type unsentRpcMessage struct {
-	Message interface{}
-	Retries int
-}
-
 type AggregatorRpcClient struct {
-	rpcClientLock              sync.RWMutex
-	rpcClient                  *rpc.Client
-	aggregatorIpPortAddr       string
-	registryCoordinatorAddress common.Address
-
-	operatorId          eigentypes.OperatorId
-	notifiedInitialized bool
-
-	unsentMessagesLock sync.Mutex
-	unsentMessages     []unsentRpcMessage
-	resendTicker       *time.Ticker
-
-	logger   logging.Logger
-	listener RpcClientEventListener
+	rpcClient   RpcClient
+	shouldRetry RetryStrategy
+	listener    RpcClientEventListener
+	logger      logging.Logger
 }
 
-var _ core.Metricable = (*AggregatorRpcClient)(nil)
+var _ AggregatorRpcClienter = (*AggregatorRpcClient)(nil)
 
-func NewAggregatorRpcClient(aggregatorIpPortAddr string, operatorId eigentypes.OperatorId, registryCoordinatorAddress common.Address, logger logging.Logger) (*AggregatorRpcClient, error) {
-	resendTicker := time.NewTicker(ResendInterval)
+func NewAggregatorRpcClient(rpcClient RpcClient, retryStrategy RetryStrategy, logger logging.Logger) AggregatorRpcClient {
+	return AggregatorRpcClient{
+		rpcClient:   rpcClient,
+		shouldRetry: retryStrategy,
+		listener:    &SelectiveRpcClientListener{},
+		logger:      logger,
+	}
+}
 
-	client := &AggregatorRpcClient{
-		// set to nil so that we can create an rpc client even if the aggregator is not running
-		rpcClient:                  nil,
-		logger:                     logger,
-		aggregatorIpPortAddr:       aggregatorIpPortAddr,
-		registryCoordinatorAddress: registryCoordinatorAddress,
-		unsentMessages:             make([]unsentRpcMessage, 0),
-		resendTicker:               resendTicker,
-		listener:                   &SelectiveRpcClientListener{},
-		operatorId:                 operatorId,
+func (a *AggregatorRpcClient) SendSignedCheckpointTaskResponseToAggregator(signedCheckpointTaskResponse *messages.SignedCheckpointTaskResponse) error {
+	a.logger.Info("Sending signed task response header to aggregator", "signedCheckpointTaskResponse", signedCheckpointTaskResponse)
+
+	submittedAt := time.Now()
+	var reply bool
+	action := func() error {
+		err := a.rpcClient.Call("Aggregator.ProcessSignedCheckpointTaskResponse", signedCheckpointTaskResponse, &reply)
+		if err != nil {
+			a.logger.Error("Received error from aggregator", "err", err)
+		}
+		return err
 	}
 
-	go client.onTick()
-	return client, nil
+	retried := false
+	err := action()
+	for err != nil && a.shouldRetry(submittedAt, err) {
+		a.listener.IncErroredCheckpointSubmissions(retried)
+		err = action()
+		retried = true
+	}
+
+	if err != nil {
+		a.logger.Error("Dropping message after error", "err", err)
+		return err
+	}
+
+	a.logger.Info("Signed task response header accepted by aggregator", "reply", reply)
+	a.listener.IncCheckpointTaskResponseSubmissions(retried)
+	a.listener.ObserveLastCheckpointIdResponded(signedCheckpointTaskResponse.TaskResponse.ReferenceTaskIndex)
+	a.listener.OnMessagesReceived()
+
+	return nil
+}
+
+func (a *AggregatorRpcClient) SendSignedStateRootUpdateToAggregator(signedStateRootUpdateMessage *messages.SignedStateRootUpdateMessage) error {
+	a.logger.Info("Sending signed state root update message to aggregator", "signedStateRootUpdateMessage", signedStateRootUpdateMessage)
+
+	submittedAt := time.Now()
+	var reply bool
+	action := func() error {
+		err := a.rpcClient.Call("Aggregator.ProcessSignedStateRootUpdateMessage", signedStateRootUpdateMessage, &reply)
+		if err != nil {
+			a.logger.Error("Received error from aggregator", "err", err)
+		}
+		return err
+	}
+
+	retried := false
+	err := action()
+	for err != nil && a.shouldRetry(submittedAt, err) {
+		a.listener.IncErroredStateRootUpdateSubmissions(signedStateRootUpdateMessage.Message.RollupId, retried)
+		err = action()
+		retried = true
+	}
+
+	if err != nil {
+		a.logger.Error("Dropping message after error", "err", err)
+		return err
+	}
+
+	a.logger.Info("Signed state root update message accepted by aggregator", "reply", reply)
+	a.listener.IncStateRootUpdateSubmissions(signedStateRootUpdateMessage.Message.RollupId, retried)
+	a.listener.OnMessagesReceived()
+
+	return nil
+}
+
+func (a *AggregatorRpcClient) SendSignedOperatorSetUpdateToAggregator(signedOperatorSetUpdateMessage *messages.SignedOperatorSetUpdateMessage) error {
+	a.logger.Info("Sending operator set update message to aggregator", "signedOperatorSetUpdateMessage", signedOperatorSetUpdateMessage)
+
+	submittedAt := time.Now()
+	var reply bool
+	action := func() error {
+		err := a.rpcClient.Call("Aggregator.ProcessSignedOperatorSetUpdateMessage", signedOperatorSetUpdateMessage, &reply)
+		if err != nil {
+			a.logger.Error("Received error from aggregator", "err", err)
+		}
+		return err
+	}
+
+	retried := false
+	err := action()
+	for err != nil && a.shouldRetry(submittedAt, err) {
+		a.listener.IncErroredOperatorSetUpdateSubmissions(retried)
+		err = action()
+		retried = true
+	}
+
+	if err != nil {
+		a.logger.Error("Dropping message after error", "err", err)
+		return err
+	}
+
+	a.logger.Info("Signed operator set update message accepted by aggregator", "reply", reply)
+	a.listener.IncOperatorSetUpdateUpdateSubmissions(retried)
+	a.listener.ObserveLastOperatorSetUpdateIdResponded(signedOperatorSetUpdateMessage.Message.Id)
+	a.listener.OnMessagesReceived()
+	return nil
+}
+
+func (a *AggregatorRpcClient) GetAggregatedCheckpointMessages(fromTimestamp, toTimestamp uint64) (*messages.CheckpointMessages, error) {
+	a.logger.Info("Getting checkpoint messages from aggregator", "fromTimestamp", fromTimestamp, "toTimestamp", toTimestamp)
+
+	type Args struct {
+		FromTimestamp, ToTimestamp uint64
+	}
+
+	submittedAt := time.Now()
+	var checkpointMessages messages.CheckpointMessages
+	action := func() error {
+		err := a.rpcClient.Call("Aggregator.GetAggregatedCheckpointMessages", &Args{fromTimestamp, toTimestamp}, &checkpointMessages)
+		if err != nil {
+			a.logger.Error("Received error from aggregator", "err", err)
+		}
+		return err
+	}
+
+	err := action()
+	for err != nil && a.shouldRetry(submittedAt, err) {
+		err = action()
+	}
+
+	return &checkpointMessages, err
 }
 
 func (c *AggregatorRpcClient) EnableMetrics(registry *prometheus.Registry) error {
@@ -82,341 +257,4 @@ func (c *AggregatorRpcClient) EnableMetrics(registry *prometheus.Registry) error
 
 	c.listener = listener
 	return nil
-}
-
-func (c *AggregatorRpcClient) dialAggregatorRpcClient() error {
-	c.rpcClientLock.Lock()
-	defer c.rpcClientLock.Unlock()
-
-	if c.rpcClient != nil {
-		return nil
-	}
-
-	c.logger.Info("rpc client is nil. Dialing aggregator rpc client")
-
-	client, err := rpc.DialHTTP("tcp", c.aggregatorIpPortAddr)
-	if err != nil {
-		c.logger.Error("Error dialing aggregator rpc client", "err", err)
-		return err
-	}
-
-	var aggregatorRegistryCoordinatorAddress string
-	err = client.Call("Aggregator.GetRegistryCoordinatorAddress", struct{}{}, &aggregatorRegistryCoordinatorAddress)
-	if err != nil {
-		c.logger.Info("Received error when getting registry coordinator address", "err", err)
-		return err
-	}
-
-	if !c.notifiedInitialized {
-		c.logger.Info("Notifying aggregator of initialization")
-
-		var reply bool
-		err := client.Call("Aggregator.NotifyOperatorInitialization", c.operatorId, &reply)
-		if err != nil {
-			c.logger.Error("Error notifying aggregator of initialization", "err", err)
-			return err
-		}
-
-		c.notifiedInitialized = true
-	}
-
-	if common.HexToAddress(aggregatorRegistryCoordinatorAddress).Cmp(c.registryCoordinatorAddress) != 0 {
-		c.logger.Fatal("Registry coordinator address from aggregator does not match the one in the config", "aggregator", aggregatorRegistryCoordinatorAddress, "config", c.registryCoordinatorAddress.String())
-		return errors.New("mismatching registry coordinator address from aggregator")
-	}
-
-	c.rpcClient = client
-
-	return nil
-}
-
-func (c *AggregatorRpcClient) InitializeClientIfNotExist() error {
-	c.rpcClientLock.RLock()
-	if c.rpcClient != nil {
-		c.rpcClientLock.RUnlock()
-		return nil
-	}
-	c.rpcClientLock.RUnlock()
-
-	return c.dialAggregatorRpcClient()
-}
-
-func isShutdownOrNetworkError(err error) bool {
-	if err == rpc.ErrShutdown {
-		return true
-	}
-
-	if _, ok := err.(*net.OpError); ok {
-		return true
-	}
-
-	return false
-}
-
-func (c *AggregatorRpcClient) handleRpcError(err error) {
-	if isShutdownOrNetworkError(err) {
-		go c.handleRpcShutdown()
-	}
-}
-
-func (c *AggregatorRpcClient) handleRpcShutdown() {
-	c.rpcClientLock.Lock()
-	defer c.rpcClientLock.Unlock()
-
-	if c.rpcClient != nil {
-		c.logger.Info("Closing RPC client due to shutdown")
-
-		err := c.rpcClient.Close()
-		if err != nil {
-			c.logger.Error("Error closing RPC client", "err", err)
-		}
-
-		c.rpcClient = nil
-	}
-}
-
-func (c *AggregatorRpcClient) onTick() {
-	for {
-		<-c.resendTicker.C
-
-		err := c.InitializeClientIfNotExist()
-		if err != nil {
-			c.logger.Error("Error initializing client", "err", err)
-			continue
-		}
-
-		c.unsentMessagesLock.Lock()
-		if len(c.unsentMessages) == 0 {
-			c.unsentMessagesLock.Unlock()
-			continue
-		}
-		c.unsentMessagesLock.Unlock()
-
-		c.tryResendFromDeque()
-	}
-}
-
-// Expected to be called with initialized client.
-func (c *AggregatorRpcClient) tryResendFromDeque() {
-	c.rpcClientLock.RLock()
-	defer c.rpcClientLock.RUnlock()
-
-	c.unsentMessagesLock.Lock()
-	defer c.unsentMessagesLock.Unlock()
-
-	if len(c.unsentMessages) != 0 {
-		c.logger.Info("Resending messages from queue")
-	}
-
-	errorPos := 0
-	for i := 0; i < len(c.unsentMessages); i++ {
-		entry := c.unsentMessages[i]
-		message := entry.Message
-
-		// Assumes client exists
-		var err error
-		var reply bool
-
-		switch message := message.(type) {
-		case *messages.SignedCheckpointTaskResponse:
-			err = c.rpcClient.Call("Aggregator.ProcessSignedCheckpointTaskResponse", message, &reply)
-			if err != nil {
-				c.listener.IncErroredCheckpointSubmissions(true)
-			} else {
-				c.listener.IncCheckpointTaskResponseSubmissions(true)
-				c.listener.ObserveLastCheckpointIdResponded(message.TaskResponse.ReferenceTaskIndex)
-			}
-
-		case *messages.SignedStateRootUpdateMessage:
-			err = c.rpcClient.Call("Aggregator.ProcessSignedStateRootUpdateMessage", message, &reply)
-			if err != nil {
-				c.listener.IncErroredStateRootUpdateSubmissions(message.Message.RollupId, true)
-			} else {
-				c.listener.IncStateRootUpdateSubmissions(message.Message.RollupId, true)
-			}
-
-		case *messages.SignedOperatorSetUpdateMessage:
-			err = c.rpcClient.Call("Aggregator.ProcessSignedOperatorSetUpdateMessage", message, &reply)
-			if err != nil {
-				c.listener.IncErroredOperatorSetUpdateSubmissions(true)
-			} else {
-				c.listener.IncOperatorSetUpdateUpdateSubmissions(true)
-				c.listener.ObserveLastOperatorSetUpdateIdResponded(message.Message.Id)
-			}
-
-		default:
-			panic("unreachable")
-		}
-
-		if err != nil {
-			c.logger.Error("Couldn't resend message", "err", err)
-
-			if isShutdownOrNetworkError(err) {
-				c.logger.Error("Couldn't resend message due to shutdown or network error")
-
-				if errorPos == 0 {
-					c.unsentMessages = c.unsentMessages[i:]
-					return
-				}
-
-				for j := i; j < len(c.unsentMessages); j++ {
-					rpcMessage := c.unsentMessages[j]
-					c.unsentMessages[errorPos] = rpcMessage
-					errorPos++
-				}
-
-				break
-			}
-
-			entry.Retries++
-			if entry.Retries >= MaxRetries {
-				c.logger.Error("Max retries reached, dropping message", "message", fmt.Sprintf("%#v", message))
-				continue
-			}
-
-			c.unsentMessages[errorPos] = entry
-			errorPos++
-		}
-	}
-
-	c.unsentMessages = c.unsentMessages[:errorPos]
-	c.listener.ObserveResendQueueSize(len(c.unsentMessages))
-}
-
-func (c *AggregatorRpcClient) sendOperatorMessage(sendCb func() error, message interface{}) {
-	c.rpcClientLock.RLock()
-	defer c.rpcClientLock.RUnlock()
-
-	appendProtected := func() {
-		c.unsentMessagesLock.Lock()
-		defer c.unsentMessagesLock.Unlock()
-
-		c.unsentMessages = append(c.unsentMessages, unsentRpcMessage{Message: message})
-		c.listener.ObserveResendQueueSize(len(c.unsentMessages))
-	}
-
-	if c.rpcClient == nil {
-		appendProtected()
-		return
-	}
-
-	c.logger.Info("Sending request to aggregator")
-	err := sendCb()
-	if err != nil {
-		c.handleRpcError(err)
-		appendProtected()
-		return
-	}
-}
-
-func (c *AggregatorRpcClient) sendRequest(sendCb func() error) error {
-	c.rpcClientLock.RLock()
-	defer c.rpcClientLock.RUnlock()
-
-	if c.rpcClient == nil {
-		return errors.New("rpc client is nil")
-	}
-
-	c.logger.Info("Sending request to aggregator")
-
-	err := sendCb()
-	if err != nil {
-		c.handleRpcError(err)
-		return err
-	}
-
-	c.logger.Info("Request successfully sent to aggregator")
-
-	return nil
-}
-
-func (c *AggregatorRpcClient) SendSignedCheckpointTaskResponseToAggregator(signedCheckpointTaskResponse *messages.SignedCheckpointTaskResponse) {
-	c.logger.Info("Sending signed task response header to aggregator", "signedCheckpointTaskResponse", fmt.Sprintf("%#v", signedCheckpointTaskResponse))
-
-	c.sendOperatorMessage(func() error {
-		var reply bool
-		err := c.rpcClient.Call("Aggregator.ProcessSignedCheckpointTaskResponse", signedCheckpointTaskResponse, &reply)
-		if err != nil {
-			c.listener.IncErroredCheckpointSubmissions(false)
-
-			c.logger.Info("Received error from aggregator", "err", err)
-			return err
-		}
-
-		c.listener.IncCheckpointTaskResponseSubmissions(false)
-		c.listener.ObserveLastCheckpointIdResponded(signedCheckpointTaskResponse.TaskResponse.ReferenceTaskIndex)
-
-		c.logger.Info("Signed task response header accepted by aggregator.", "reply", reply)
-		c.listener.OnMessagesReceived()
-		return nil
-	}, signedCheckpointTaskResponse)
-}
-
-func (c *AggregatorRpcClient) SendSignedStateRootUpdateToAggregator(signedStateRootUpdateMessage *messages.SignedStateRootUpdateMessage) {
-	c.logger.Info("Sending signed state root update message to aggregator", "signedStateRootUpdateMessage", fmt.Sprintf("%#v", signedStateRootUpdateMessage))
-
-	c.sendOperatorMessage(func() error {
-		var reply bool
-		err := c.rpcClient.Call("Aggregator.ProcessSignedStateRootUpdateMessage", signedStateRootUpdateMessage, &reply)
-		if err != nil {
-			c.listener.IncErroredStateRootUpdateSubmissions(signedStateRootUpdateMessage.Message.RollupId, false)
-
-			c.logger.Info("Received error from aggregator", "err", err)
-			return err
-		}
-
-		c.listener.IncStateRootUpdateSubmissions(signedStateRootUpdateMessage.Message.RollupId, false)
-
-		c.logger.Info("Signed state root update message accepted by aggregator.", "reply", reply)
-		c.listener.OnMessagesReceived()
-		return nil
-	}, signedStateRootUpdateMessage)
-}
-
-func (c *AggregatorRpcClient) SendSignedOperatorSetUpdateToAggregator(signedOperatorSetUpdateMessage *messages.SignedOperatorSetUpdateMessage) {
-	c.logger.Info("Sending operator set update message to aggregator", "signedOperatorSetUpdateMessage", fmt.Sprintf("%#v", signedOperatorSetUpdateMessage))
-
-	c.sendOperatorMessage(func() error {
-		var reply bool
-		err := c.rpcClient.Call("Aggregator.ProcessSignedOperatorSetUpdateMessage", signedOperatorSetUpdateMessage, &reply)
-		if err != nil {
-			c.listener.IncErroredOperatorSetUpdateSubmissions(false)
-
-			c.logger.Info("Received error from aggregator", "err", err)
-			return err
-		}
-
-		c.listener.IncOperatorSetUpdateUpdateSubmissions(false)
-		c.listener.ObserveLastOperatorSetUpdateIdResponded(signedOperatorSetUpdateMessage.Message.Id)
-
-		c.logger.Info("Signed operator set update message accepted by aggregator.", "reply", reply)
-		c.listener.OnMessagesReceived()
-		return nil
-	}, signedOperatorSetUpdateMessage)
-}
-
-func (c *AggregatorRpcClient) GetAggregatedCheckpointMessages(fromTimestamp, toTimestamp uint64) (*messages.CheckpointMessages, error) {
-	c.logger.Info("Getting checkpoint messages from aggregator")
-
-	var checkpointMessages messages.CheckpointMessages
-
-	type Args struct {
-		FromTimestamp, ToTimestamp uint64
-	}
-
-	err := c.sendRequest(func() error {
-		err := c.rpcClient.Call("Aggregator.GetAggregatedCheckpointMessages", &Args{fromTimestamp, toTimestamp}, &checkpointMessages)
-		if err != nil {
-			c.logger.Info("Received error from aggregator", "err", err)
-			return err
-		}
-
-		c.logger.Info("Checkpoint messages fetched from aggregator")
-		return nil
-	})
-	if err != nil {
-		return nil, err
-	}
-
-	return &checkpointMessages, nil
 }

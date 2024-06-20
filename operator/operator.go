@@ -173,11 +173,13 @@ func NewOperatorFromConfig(c optypes.NodeConfig) (*Operator, error) {
 		return nil, err
 	}
 
-	aggregatorRpcClient, err := NewAggregatorRpcClient(c.AggregatorServerIpPortAddress, operatorId, registryCoordinatorAddress, logger)
+	// TODO: We never close `httpRpcClient`
+	httpRpcClient, err := NewHTTPAggregatorRpcClient(c.AggregatorServerIpPortAddress, operatorId, registryCoordinatorAddress, logger)
 	if err != nil {
-		logger.Error("Cannot create AggregatorRpcClient. Is aggregator running?", "err", err)
+		logger.Error("Cannot create HTTPAggregatorRpcClient. Is aggregator running?", "err", err)
 		return nil, err
 	}
+	aggregatorRpcClient := NewAggregatorRpcClient(httpRpcClient, DefaultAggregatorRpcRetryStrategy, logger)
 
 	avsManager, err := NewAvsManager(&c, ethHttpClient, ethWsClient, elChainReader, elChainWriter, txMgr, logger)
 	if err != nil {
@@ -219,7 +221,7 @@ func NewOperatorFromConfig(c optypes.NodeConfig) (*Operator, error) {
 		blsKeypair:                 blsKeyPair,
 		operatorAddr:               common.HexToAddress(c.OperatorAddress),
 		aggregatorServerIpPortAddr: c.AggregatorServerIpPortAddress,
-		aggregatorRpcClient:        aggregatorRpcClient,
+		aggregatorRpcClient:        &aggregatorRpcClient,
 		registryCoordinatorAddr:    registryCoordinatorAddress,
 		operatorId:                 operatorId,
 		taskResponseWait:           time.Duration(c.TaskResponseWaitMs) * time.Millisecond,

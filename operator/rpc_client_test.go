@@ -1,4 +1,4 @@
-package operator2_test
+package operator_test
 
 import (
 	"sync"
@@ -7,7 +7,7 @@ import (
 
 	"github.com/Layr-Labs/eigensdk-go/logging"
 	"github.com/NethermindEth/near-sffl/core/types/messages"
-	operator "github.com/NethermindEth/near-sffl/operator/v2"
+	"github.com/NethermindEth/near-sffl/operator"
 	"github.com/stretchr/testify/assert"
 )
 
@@ -178,7 +178,7 @@ func TestGetAggregatedCheckpointMessages(t *testing.T) {
 	response, err := client.GetAggregatedCheckpointMessages(0, 0)
 
 	assert.NoError(t, err)
-	assert.Equal(t, expected, response)
+	assert.Equal(t, expected, *response)
 }
 
 func TestGetAggregatedCheckpointMessagesRetry(t *testing.T) {
@@ -209,6 +209,6 @@ func TestGetAggregatedCheckpointMessagesRetry(t *testing.T) {
 	response, err := client.GetAggregatedCheckpointMessages(0, 0)
 
 	assert.NoError(t, err)
-	assert.Equal(t, expected, response)
+	assert.Equal(t, expected, *response)
 	assert.Equal(t, 2, rpcFailCount)
 }

@@ -5,6 +5,7 @@
 //
 //	mockgen -destination=./mocks/rpc_client.go -package=mocks github.com/NethermindEth/near-sffl/operator AggregatorRpcClienter
 //
+
 // Package mocks is a generated GoMock package.
 package mocks
 
@@ -69,9 +70,11 @@ func (mr *MockAggregatorRpcClienterMockRecorder) GetAggregatedCheckpointMessages
 }
 
 // SendSignedCheckpointTaskResponseToAggregator mocks base method.
-func (m *MockAggregatorRpcClienter) SendSignedCheckpointTaskResponseToAggregator(arg0 *messages.SignedCheckpointTaskResponse) {
+func (m *MockAggregatorRpcClienter) SendSignedCheckpointTaskResponseToAggregator(arg0 *messages.SignedCheckpointTaskResponse) error {
 	m.ctrl.T.Helper()
-	m.ctrl.Call(m, "SendSignedCheckpointTaskResponseToAggregator", arg0)
+	ret := m.ctrl.Call(m, "SendSignedCheckpointTaskResponseToAggregator", arg0)
+	ret0, _ := ret[0].(error)
+	return ret0
 }
 
 // SendSignedCheckpointTaskResponseToAggregator indicates an expected call of SendSignedCheckpointTaskResponseToAggregator.
@@ -81,9 +84,11 @@ func (mr *MockAggregatorRpcClienterMockRecorder) SendSignedCheckpointTaskRespons
 }
 
 // SendSignedOperatorSetUpdateToAggregator mocks base method.
-func (m *MockAggregatorRpcClienter) SendSignedOperatorSetUpdateToAggregator(arg0 *messages.SignedOperatorSetUpdateMessage) {
+func (m *MockAggregatorRpcClienter) SendSignedOperatorSetUpdateToAggregator(arg0 *messages.SignedOperatorSetUpdateMessage) error {
 	m.ctrl.T.Helper()
-	m.ctrl.Call(m, "SendSignedOperatorSetUpdateToAggregator", arg0)
+	ret := m.ctrl.Call(m, "SendSignedOperatorSetUpdateToAggregator", arg0)
+	ret0, _ := ret[0].(error)
+	return ret0
 }
 
 // SendSignedOperatorSetUpdateToAggregator indicates an expected call of SendSignedOperatorSetUpdateToAggregator.
@@ -93,9 +98,11 @@ func (mr *MockAggregatorRpcClienterMockRecorder) SendSignedOperatorSetUpdateToAg
 }
 
 // SendSignedStateRootUpdateToAggregator mocks base method.
-func (m *MockAggregatorRpcClienter) SendSignedStateRootUpdateToAggregator(arg0 *messages.SignedStateRootUpdateMessage) {
+func (m *MockAggregatorRpcClienter) SendSignedStateRootUpdateToAggregator(arg0 *messages.SignedStateRootUpdateMessage) error {
 	m.ctrl.T.Helper()
-	m.ctrl.Call(m, "SendSignedStateRootUpdateToAggregator", arg0)
+	ret := m.ctrl.Call(m, "SendSignedStateRootUpdateToAggregator", arg0)
+	ret0, _ := ret[0].(error)
+	return ret0
 }
 
 // SendSignedStateRootUpdateToAggregator indicates an expected call of SendSignedStateRootUpdateToAggregator.
