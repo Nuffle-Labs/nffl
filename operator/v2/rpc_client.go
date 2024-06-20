@@ -61,10 +61,10 @@ func AlwaysRetry(_ time.Time, _ error) bool {
 	return true
 }
 
-func RetryWithDelay(delay time.Duration, inner RetryStrategy) RetryStrategy {
+func RetryWithDelay(delay time.Duration) RetryStrategy {
 	return func(submittedAt time.Time, err error) bool {
 		time.Sleep(delay)
-		return inner(submittedAt, err)
+		return true
 	}
 }
 
@@ -80,6 +80,12 @@ func RetryAtMost(retries int) RetryStrategy {
 		result := retryCount < retries
 		retryCount++
 		return result
+	}
+}
+
+func RetryAnd(s1 RetryStrategy, s2 RetryStrategy) RetryStrategy {
+	return func(submittedAt time.Time, err error) bool {
+		return s1(submittedAt, err) && s2(submittedAt, err)
 	}
 }
 

@@ -105,7 +105,8 @@ func TestUnboundedRetry_Delayed(t *testing.T) {
 		},
 	}
 
-	client := operator.NewAggregatorRpcClient(&rpcClient, operator.RetryWithDelay(100*time.Millisecond, operator.AlwaysRetry), logger)
+	strategy := operator.RetryAnd(operator.RetryWithDelay(100*time.Millisecond), operator.AlwaysRetry)
+	client := operator.NewAggregatorRpcClient(&rpcClient, strategy, logger)
 
 	startedAt := time.Now()
 	client.SendSignedStateRootUpdateToAggregator(&messages.SignedStateRootUpdateMessage{})
