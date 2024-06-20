@@ -1,7 +1,6 @@
 package operator2_test
 
 import (
-	"context"
 	"sync"
 	"testing"
 	"time"
@@ -15,10 +14,14 @@ import (
 var _ = operator.RpcClient(&MockRpcClient{})
 
 type MockRpcClient struct {
+	lock sync.Mutex
 	call func(serviceMethod string, args any, reply any) error
 }
 
 func (self *MockRpcClient) Call(serviceMethod string, args any, reply any) error {
+	self.lock.Lock()
+	defer self.lock.Unlock()
+
 	return self.call(serviceMethod, args, reply)
 }
 
@@ -28,98 +31,40 @@ func NoopRpcClient() *MockRpcClient {
 	}
 }
 
-type MockListener struct {
-	incError   func()
-	incSuccess func()
-}
-
-var _ = operator.Listener(&MockListener{})
-
-func (self *MockListener) IncError() {
-	self.incError()
-}
-
-func (self *MockListener) IncSuccess() {
-	self.incSuccess()
-}
-
-func NoopListener() *MockListener {
-	return &MockListener{
-		incError:   func() {},
-		incSuccess: func() {},
-	}
-}
-
 func TestSendSuccessfulMessages(t *testing.T) {
-	ctx := context.Background()
 	logger, _ := logging.NewZapLogger(logging.Development)
-
-	successCount := 0
-	listener := MockListener{
-		incSuccess: func() { logger.Debug("IncSuccess"); successCount++ },
-		incError:   func() { logger.Debug("IncError") },
-	}
 
 	rpcClientCallCount := 0
 	rpcClient := MockRpcClient{
 		call: func(serviceMethod string, args any, reply any) error {
 			logger.Debug("MockRpcClient.Call", "method", serviceMethod, "args", args)
 			rpcClientCallCount++
+
 			return nil
 		},
 	}
 
-	client := operator.NewAggregatorRpcClient(&listener, &rpcClient, operator.NeverRetry, logger)
-	go client.Start(ctx)
+	client := operator.NewAggregatorRpcClient(&rpcClient, operator.NeverRetry, logger)
 
-	client.SendSignedStateRootUpdateToAggregator(&messages.SignedStateRootUpdateMessage{})
-	client.SendSignedOperatorSetUpdateToAggregator(&messages.SignedOperatorSetUpdateMessage{})
+	wg := sync.WaitGroup{}
+	wg.Add(2)
+	go func() {
+		defer wg.Done()
+		client.SendSignedStateRootUpdateToAggregator(&messages.SignedStateRootUpdateMessage{})
+	}()
 
-	time.Sleep(500 * time.Millisecond)
-	client.Close()
+	go func() {
+		defer wg.Done()
+		client.SendSignedOperatorSetUpdateToAggregator(&messages.SignedOperatorSetUpdateMessage{})
+	}()
 
-	assert.Equal(t, 2, successCount)
+	wg.Wait()
+
 	assert.Equal(t, 2, rpcClientCallCount)
 }
 
-func TestCloseWithContext(t *testing.T) {
-	ctx, cancel := context.WithTimeout(context.Background(), 1*time.Second)
-	defer cancel()
-
-	logger, _ := logging.NewZapLogger(logging.Development)
-	listener := NoopListener()
-	rpcClient := NoopRpcClient()
-
-	client := operator.NewAggregatorRpcClient(listener, rpcClient, operator.NeverRetry, logger)
-	go client.Start(ctx)
-
-	time.Sleep(1 * time.Second)
-}
-
-func TestMultipleConcurrentClose(t *testing.T) {
-	ctx := context.Background()
-	logger, _ := logging.NewZapLogger(logging.Development)
-	listener := NoopListener()
-	rpcClient := NoopRpcClient()
-
-	client := operator.NewAggregatorRpcClient(listener, rpcClient, operator.NeverRetry, logger)
-	go client.Start(ctx)
-
-	wg := sync.WaitGroup{}
-	for i := 0; i < 10; i++ {
-		wg.Add(1)
-		go func() {
-			defer wg.Done()
-			client.Close()
-		}()
-	}
-	wg.Wait()
-}
-
 func TestUnboundedRetry(t *testing.T) {
-	ctx := context.Background()
 	logger, _ := logging.NewZapLogger(logging.Development)
-	listener := NoopListener()
 
 	rpcSuccess := false
 	rpcFailCount := 0
@@ -135,22 +80,16 @@ func TestUnboundedRetry(t *testing.T) {
 		},
 	}
 
-	client := operator.NewAggregatorRpcClient(listener, &rpcClient, operator.AlwaysRetry, logger)
-	go client.Start(ctx)
+	client := operator.NewAggregatorRpcClient(&rpcClient, operator.AlwaysRetry, logger)
 
 	client.SendSignedStateRootUpdateToAggregator(&messages.SignedStateRootUpdateMessage{})
-
-	time.Sleep(500 * time.Millisecond)
-	client.Close()
 
 	assert.Equal(t, 2, rpcFailCount)
 	assert.True(t, rpcSuccess)
 }
 
 func TestRetryAtMost(t *testing.T) {
-	ctx := context.Background()
 	logger, _ := logging.NewZapLogger(logging.Development)
-	listener := NoopListener()
 
 	rpcFailCount := 0
 	rpcClient := MockRpcClient{
@@ -160,21 +99,15 @@ func TestRetryAtMost(t *testing.T) {
 		},
 	}
 
-	client := operator.NewAggregatorRpcClient(listener, &rpcClient, operator.RetryAtMost(4), logger)
-	go client.Start(ctx)
+	client := operator.NewAggregatorRpcClient(&rpcClient, operator.RetryAtMost(4), logger)
 
 	client.SendSignedStateRootUpdateToAggregator(&messages.SignedStateRootUpdateMessage{})
-
-	time.Sleep(500 * time.Millisecond)
-	client.Close()
 
 	assert.Equal(t, 5, rpcFailCount) // 1 run, 4 retries
 }
 
 func TestRetryLaterIfRecentEnough(t *testing.T) {
-	ctx := context.Background()
 	logger, _ := logging.NewZapLogger(logging.Development)
-	listener := NoopListener()
 
 	rpcFailCount := 0
 	rpcClient := MockRpcClient{
@@ -186,21 +119,15 @@ func TestRetryLaterIfRecentEnough(t *testing.T) {
 		},
 	}
 
-	client := operator.NewAggregatorRpcClient(listener, &rpcClient, operator.RetryIfRecentEnough(500*time.Millisecond), logger)
-	go client.Start(ctx)
+	client := operator.NewAggregatorRpcClient(&rpcClient, operator.RetryIfRecentEnough(500*time.Millisecond), logger)
 
 	client.SendSignedCheckpointTaskResponseToAggregator(&messages.SignedCheckpointTaskResponse{})
-
-	time.Sleep(500 * time.Millisecond)
-	client.Close()
 
 	assert.Equal(t, 5, rpcFailCount)
 }
 
 func TestGetAggregatedCheckpointMessages(t *testing.T) {
-	ctx := context.Background()
 	logger, _ := logging.NewZapLogger(logging.Development)
-	listener := NoopListener()
 
 	expected := messages.CheckpointMessages{
 		StateRootUpdateMessages: []messages.StateRootUpdateMessage{{BlockHeight: 100}},
@@ -216,21 +143,16 @@ func TestGetAggregatedCheckpointMessages(t *testing.T) {
 		},
 	}
 
-	client := operator.NewAggregatorRpcClient(listener, &rpcClient, operator.NeverRetry, logger)
-	go client.Start(ctx)
+	client := operator.NewAggregatorRpcClient(&rpcClient, operator.NeverRetry, logger)
 
 	response, err := client.GetAggregatedCheckpointMessages(0, 0)
 
 	assert.NoError(t, err)
 	assert.Equal(t, expected, response)
-
-	client.Close()
 }
 
 func TestGetAggregatedCheckpointMessagesRetry(t *testing.T) {
-	ctx := context.Background()
 	logger, _ := logging.NewZapLogger(logging.Development)
-	listener := NoopListener()
 
 	expected := messages.CheckpointMessages{
 		StateRootUpdateMessages: []messages.StateRootUpdateMessage{{BlockHeight: 100}},
@@ -252,14 +174,11 @@ func TestGetAggregatedCheckpointMessagesRetry(t *testing.T) {
 		},
 	}
 
-	client := operator.NewAggregatorRpcClient(listener, &rpcClient, operator.AlwaysRetry, logger)
-	go client.Start(ctx)
+	client := operator.NewAggregatorRpcClient(&rpcClient, operator.AlwaysRetry, logger)
 
 	response, err := client.GetAggregatedCheckpointMessages(0, 0)
 
 	assert.NoError(t, err)
 	assert.Equal(t, expected, response)
 	assert.Equal(t, 2, rpcFailCount)
-
-	client.Close()
 }
