@@ -88,6 +88,35 @@ func TestUnboundedRetry(t *testing.T) {
 	assert.True(t, rpcSuccess)
 }
 
+func TestUnboundedRetry_Delayed(t *testing.T) {
+	logger, _ := logging.NewZapLogger(logging.Development)
+
+	rpcSuccess := false
+	rpcFailCount := 0
+	rpcClient := MockRpcClient{
+		call: func(serviceMethod string, args any, reply any) error {
+			if rpcFailCount < 2 {
+				rpcFailCount++
+				return assert.AnError
+			}
+
+			rpcSuccess = true
+			return nil
+		},
+	}
+
+	client := operator.NewAggregatorRpcClient(&rpcClient, operator.RetryWithDelay(100*time.Millisecond, operator.AlwaysRetry), logger)
+
+	startedAt := time.Now()
+	client.SendSignedStateRootUpdateToAggregator(&messages.SignedStateRootUpdateMessage{})
+	execTime := time.Since(startedAt)
+
+	assert.True(t, execTime > 180*time.Millisecond)
+	assert.True(t, execTime < 220*time.Millisecond)
+	assert.Equal(t, 2, rpcFailCount)
+	assert.True(t, rpcSuccess)
+}
+
 func TestRetryAtMost(t *testing.T) {
 	logger, _ := logging.NewZapLogger(logging.Development)
 

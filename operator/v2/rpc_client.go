@@ -61,6 +61,13 @@ func AlwaysRetry(_ time.Time, _ error) bool {
 	return true
 }
 
+func RetryWithDelay(delay time.Duration, inner RetryStrategy) RetryStrategy {
+	return func(submittedAt time.Time, err error) bool {
+		time.Sleep(delay)
+		return inner(submittedAt, err)
+	}
+}
+
 func RetryIfRecentEnough(ttl time.Duration) RetryStrategy {
 	return func(submittedAt time.Time, err error) bool {
 		return time.Since(submittedAt) < ttl
@@ -116,15 +123,16 @@ func (a *AggregatorRpcClient) SendSignedCheckpointTaskResponseToAggregator(signe
 	}
 
 	if err != nil {
-		a.logger.Info("Signed task response header accepted by aggregator", "reply", reply)
-		a.listener.IncCheckpointTaskResponseSubmissions(retried)
-		a.listener.ObserveLastCheckpointIdResponded(signedCheckpointTaskResponse.TaskResponse.ReferenceTaskIndex)
-		a.listener.OnMessagesReceived()
-	} else {
 		a.logger.Error("Dropping message after error", "err", err)
+		return err
 	}
 
-	return err
+	a.logger.Info("Signed task response header accepted by aggregator", "reply", reply)
+	a.listener.IncCheckpointTaskResponseSubmissions(retried)
+	a.listener.ObserveLastCheckpointIdResponded(signedCheckpointTaskResponse.TaskResponse.ReferenceTaskIndex)
+	a.listener.OnMessagesReceived()
+
+	return nil
 }
 
 func (a *AggregatorRpcClient) SendSignedStateRootUpdateToAggregator(signedStateRootUpdateMessage *messages.SignedStateRootUpdateMessage) error {
@@ -149,14 +157,15 @@ func (a *AggregatorRpcClient) SendSignedStateRootUpdateToAggregator(signedStateR
 	}
 
 	if err != nil {
-		a.logger.Info("Signed state root update message accepted by aggregator", "reply", reply)
-		a.listener.IncStateRootUpdateSubmissions(signedStateRootUpdateMessage.Message.RollupId, retried)
-		a.listener.OnMessagesReceived()
-	} else {
 		a.logger.Error("Dropping message after error", "err", err)
+		return err
 	}
 
-	return err
+	a.logger.Info("Signed state root update message accepted by aggregator", "reply", reply)
+	a.listener.IncStateRootUpdateSubmissions(signedStateRootUpdateMessage.Message.RollupId, retried)
+	a.listener.OnMessagesReceived()
+
+	return nil
 }
 
 func (a *AggregatorRpcClient) SendSignedOperatorSetUpdateToAggregator(signedOperatorSetUpdateMessage *messages.SignedOperatorSetUpdateMessage) error {
@@ -181,15 +190,15 @@ func (a *AggregatorRpcClient) SendSignedOperatorSetUpdateToAggregator(signedOper
 	}
 
 	if err != nil {
-		a.logger.Info("Signed operator set update message accepted by aggregator", "reply", reply)
-		a.listener.IncOperatorSetUpdateUpdateSubmissions(retried)
-		a.listener.ObserveLastOperatorSetUpdateIdResponded(signedOperatorSetUpdateMessage.Message.Id)
-		a.listener.OnMessagesReceived()
-	} else {
 		a.logger.Error("Dropping message after error", "err", err)
+		return err
 	}
 
-	return err
+	a.logger.Info("Signed operator set update message accepted by aggregator", "reply", reply)
+	a.listener.IncOperatorSetUpdateUpdateSubmissions(retried)
+	a.listener.ObserveLastOperatorSetUpdateIdResponded(signedOperatorSetUpdateMessage.Message.Id)
+	a.listener.OnMessagesReceived()
+	return nil
 }
 
 func (a *AggregatorRpcClient) GetAggregatedCheckpointMessages(fromTimestamp, toTimestamp uint64) (messages.CheckpointMessages, error) {
