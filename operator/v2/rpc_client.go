@@ -127,16 +127,33 @@ func (a *AggregatorRpcClient) SendSignedCheckpointTaskResponseToAggregator(signe
 	return err
 }
 
-func (a *AggregatorRpcClient) SendSignedStateRootUpdateToAggregator(message *messages.SignedStateRootUpdateMessage) error {
+func (a *AggregatorRpcClient) SendSignedStateRootUpdateToAggregator(signedStateRootUpdateMessage *messages.SignedStateRootUpdateMessage) error {
+	a.logger.Info("Sending signed state root update message to aggregator", "signedStateRootUpdateMessage", signedStateRootUpdateMessage)
+
 	submittedAt := time.Now()
-	var ignore bool
+	var reply bool
 	action := func() error {
-		return a.rpcClient.Call("Aggregator.ProcessSignedStateRootUpdateMessage", message, &ignore)
+		err := a.rpcClient.Call("Aggregator.ProcessSignedStateRootUpdateMessage", signedStateRootUpdateMessage, &reply)
+		if err != nil {
+			a.logger.Error("Received error from aggregator", "err", err)
+		}
+		return err
 	}
 
+	retried := false
 	err := action()
 	for err != nil && a.shouldRetry(submittedAt, err) {
+		a.listener.IncErroredStateRootUpdateSubmissions(signedStateRootUpdateMessage.Message.RollupId, retried)
 		err = action()
+		retried = true
+	}
+
+	if err != nil {
+		a.logger.Info("Signed state root update message accepted by aggregator", "reply", reply)
+		a.listener.IncStateRootUpdateSubmissions(signedStateRootUpdateMessage.Message.RollupId, retried)
+		a.listener.OnMessagesReceived()
+	} else {
+		a.logger.Error("Dropping message after error", "err", err)
 	}
 
 	return err
