@@ -69,12 +69,12 @@ posted blocks with their own full nodes' data and agree on the network state.
 The role of posting block data to NEAR DA is separated from the rollup
 sequencer, into a _Relayer_ role. This Relayer constantly posts block data to
 NEAR DA, providing a fast and public ledger to the current network state.
-The seperation of the Relayer allows for participating rollups to use the
+The separation of the Relayer allows for participating rollups to use the
 fast finality layer without any modifications to their sequencer implementation.
 
 Since the AVS nodes compare the data posted by the Relayer with their local
-full nodes, that even if the _Relayer_ acts maliciously, this doesn't mean the
-AVS will necessarily agree with it.
+full nodes, this doesn't mean the AVS will necessarily agree with it even if 
+the _Relayer_ acts maliciously
 
 There's an example Relayer implementation, but it should slightly change
 depending on the specific network and stack, as it should ideally be operated
@@ -86,19 +86,19 @@ SFFL nodes attest to the state root of rollup after executing the block. The
 individual signatures are aggregated off-chain and submitted to Ethereum and
 participating rollups.
 
-An SFFL Operator, runs a full node for each of the participant networks
+An SFFL Operator runs a full node for each of the participant networks
 (including Ethereum), as well as a NEAR full node and a NEAR DA indexer. The
 simplified flow can be described through the following:
 
 1. The indexer captures a block posted to NEAR DA for one of the networks and
    sends it to the operator node.
 1. The operator node retrieves and parses the block.
-1. The operator node checks the block is the same as the one in their
+1. The operator node checks if the block is the same as the one in their
    self-hosted network full node.
    1. If the blocks do not match, then the block posted by the Relayer are
       wrong and the SFFL nodes do not sign any state root.
 1. The operator node, through their BLS keypair, signs a message attesting
-   that for the network in question in that block height, the state root is the
+   that, for the network in question in that block height, the state root is the
    one that was fetched.
 1. The operator sends the signed message to the Aggregator.
 
@@ -169,7 +169,7 @@ For more details on checkpoints, refer to
 
 ### User Flow
 
-Finally - how can SFFL be used by a user or protocol? The integration is
+Finally, how can SFFL be used by a user or protocol? The integration is
 actually quite simple. Let's follow the HelloProtocol example: consider a user
 had sent a "hello!" message on Network #2 to Network #1, recording it on
 Network #2's state.
@@ -192,8 +192,8 @@ This data is then relayed by the HelloProtocol contract to the SFFL Registry
 contract, which validates the attestation and checks the storage proof - and
 there is our "hello!"!
 
-In easier terms, in UX terms, all of the parts of this integration that, to
-the user, may seem strange, can be simply abstracted from them. In
+In easier and UX terms, all of the parts of this integration, that
+may seem strange to the user, can be simply abstracted from them. In
 implementation terms, it's a matter of fetching the attestation and the proof,
 as well as linking the protocol's contracts to SFFL's and relaying the fetched
 data.
