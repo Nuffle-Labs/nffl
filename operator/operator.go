@@ -179,7 +179,7 @@ func NewOperatorFromConfig(c optypes.NodeConfig) (*Operator, error) {
 		logger.Error("Cannot create HTTPAggregatorRpcClient. Is aggregator running?", "err", err)
 		return nil, err
 	}
-	aggregatorRpcClient := NewAggregatorRpcClient(httpRpcClient, DefaultAggregatorRpcRetryStrategy, logger)
+	aggregatorRpcClient := NewAggregatorRpcClient(httpRpcClient, DefaultAggregatorRpcRetry, logger)
 
 	avsManager, err := NewAvsManager(&c, ethHttpClient, ethWsClient, elChainReader, elChainWriter, txMgr, logger)
 	if err != nil {

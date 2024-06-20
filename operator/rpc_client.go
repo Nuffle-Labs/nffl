@@ -89,13 +89,17 @@ func RetryAnd(s1 RetryStrategy, s2 RetryStrategy) RetryStrategy {
 	}
 }
 
+type RetryFactory = func() RetryStrategy
+
 // By defaul, retry with a delay of 2 seconds between calls,
 // at most 10 times, and only if the error is recent enough (24 hours)
 // TODO: Discuss the "recent enough" part
-var DefaultAggregatorRpcRetryStrategy RetryStrategy = RetryAnd(
-	RetryWithDelay(2*time.Second), RetryAnd(
-		RetryAtMost(10),
-		RetryIfRecentEnough(24*time.Hour)))
+func DefaultAggregatorRpcRetry() RetryStrategy {
+	return RetryAnd(
+		RetryWithDelay(2*time.Second), RetryAnd(
+			RetryAtMost(10),
+			RetryIfRecentEnough(24*time.Hour)))
+}
 
 type AggregatorRpcClienter interface {
 	core.Metricable
@@ -107,20 +111,20 @@ type AggregatorRpcClienter interface {
 }
 
 type AggregatorRpcClient struct {
-	rpcClient   RpcClient
-	shouldRetry RetryStrategy
-	listener    RpcClientEventListener
-	logger      logging.Logger
+	rpcClient        RpcClient
+	newRetryStrategy RetryFactory
+	listener         RpcClientEventListener
+	logger           logging.Logger
 }
 
 var _ AggregatorRpcClienter = (*AggregatorRpcClient)(nil)
 
-func NewAggregatorRpcClient(rpcClient RpcClient, retryStrategy RetryStrategy, logger logging.Logger) AggregatorRpcClient {
+func NewAggregatorRpcClient(rpcClient RpcClient, retryFactory RetryFactory, logger logging.Logger) AggregatorRpcClient {
 	return AggregatorRpcClient{
-		rpcClient:   rpcClient,
-		shouldRetry: retryStrategy,
-		listener:    &SelectiveRpcClientListener{},
-		logger:      logger,
+		rpcClient:        rpcClient,
+		newRetryStrategy: retryFactory,
+		listener:         &SelectiveRpcClientListener{},
+		logger:           logger,
 	}
 }
 
@@ -138,8 +142,9 @@ func (a *AggregatorRpcClient) SendSignedCheckpointTaskResponseToAggregator(signe
 	}
 
 	retried := false
+	shouldRetry := a.newRetryStrategy()
 	err := action()
-	for err != nil && a.shouldRetry(submittedAt, err) {
+	for err != nil && shouldRetry(submittedAt, err) {
 		a.listener.IncErroredCheckpointSubmissions(retried)
 		err = action()
 		retried = true
@@ -172,8 +177,9 @@ func (a *AggregatorRpcClient) SendSignedStateRootUpdateToAggregator(signedStateR
 	}
 
 	retried := false
+	shouldRetry := a.newRetryStrategy()
 	err := action()
-	for err != nil && a.shouldRetry(submittedAt, err) {
+	for err != nil && shouldRetry(submittedAt, err) {
 		a.listener.IncErroredStateRootUpdateSubmissions(signedStateRootUpdateMessage.Message.RollupId, retried)
 		err = action()
 		retried = true
@@ -205,8 +211,9 @@ func (a *AggregatorRpcClient) SendSignedOperatorSetUpdateToAggregator(signedOper
 	}
 
 	retried := false
+	shouldRetry := a.newRetryStrategy()
 	err := action()
-	for err != nil && a.shouldRetry(submittedAt, err) {
+	for err != nil && shouldRetry(submittedAt, err) {
 		a.listener.IncErroredOperatorSetUpdateSubmissions(retried)
 		err = action()
 		retried = true
@@ -241,8 +248,9 @@ func (a *AggregatorRpcClient) GetAggregatedCheckpointMessages(fromTimestamp, toT
 		return err
 	}
 
+	shouldRetry := a.newRetryStrategy()
 	err := action()
-	for err != nil && a.shouldRetry(submittedAt, err) {
+	for err != nil && shouldRetry(submittedAt, err) {
 		err = action()
 	}
 

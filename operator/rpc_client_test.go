@@ -44,7 +44,7 @@ func TestSendSuccessfulMessages(t *testing.T) {
 		},
 	}
 
-	client := operator.NewAggregatorRpcClient(&rpcClient, operator.NeverRetry, logger)
+	client := operator.NewAggregatorRpcClient(&rpcClient, func() operator.RetryStrategy { return operator.NeverRetry }, logger)
 
 	wg := sync.WaitGroup{}
 	wg.Add(2)
@@ -80,7 +80,7 @@ func TestUnboundedRetry(t *testing.T) {
 		},
 	}
 
-	client := operator.NewAggregatorRpcClient(&rpcClient, operator.AlwaysRetry, logger)
+	client := operator.NewAggregatorRpcClient(&rpcClient, func() operator.RetryStrategy { return operator.AlwaysRetry }, logger)
 
 	client.SendSignedStateRootUpdateToAggregator(&messages.SignedStateRootUpdateMessage{})
 
@@ -105,8 +105,10 @@ func TestUnboundedRetry_Delayed(t *testing.T) {
 		},
 	}
 
-	strategy := operator.RetryAnd(operator.RetryWithDelay(100*time.Millisecond), operator.AlwaysRetry)
-	client := operator.NewAggregatorRpcClient(&rpcClient, strategy, logger)
+	retryFactory := func() operator.RetryStrategy {
+		return operator.RetryAnd(operator.RetryWithDelay(100*time.Millisecond), operator.AlwaysRetry)
+	}
+	client := operator.NewAggregatorRpcClient(&rpcClient, retryFactory, logger)
 
 	startedAt := time.Now()
 	client.SendSignedCheckpointTaskResponseToAggregator(&messages.SignedCheckpointTaskResponse{})
@@ -129,11 +131,43 @@ func TestRetryAtMost(t *testing.T) {
 		},
 	}
 
-	client := operator.NewAggregatorRpcClient(&rpcClient, operator.RetryAtMost(4), logger)
+	client := operator.NewAggregatorRpcClient(&rpcClient, func() operator.RetryStrategy { return operator.RetryAtMost(4) }, logger)
 
 	client.SendSignedOperatorSetUpdateToAggregator(&messages.SignedOperatorSetUpdateMessage{})
 
 	assert.Equal(t, 5, rpcFailCount) // 1 run, 4 retries
+}
+
+func TestRetryAtMost_Concurrent(t *testing.T) {
+	logger, _ := logging.NewZapLogger(logging.Development)
+
+	rpcFailCount := 0
+	rpcClient := MockRpcClient{
+		call: func(serviceMethod string, args any, reply any) error {
+			rpcFailCount++
+			return assert.AnError
+		},
+	}
+
+	client := operator.NewAggregatorRpcClient(&rpcClient, func() operator.RetryStrategy { return operator.RetryAtMost(4) }, logger)
+
+	wg := sync.WaitGroup{}
+	wg.Add(3)
+	go func() {
+		defer wg.Done()
+		client.SendSignedCheckpointTaskResponseToAggregator(&messages.SignedCheckpointTaskResponse{})
+	}()
+	go func() {
+		defer wg.Done()
+		client.SendSignedStateRootUpdateToAggregator(&messages.SignedStateRootUpdateMessage{})
+	}()
+	go func() {
+		defer wg.Done()
+		client.SendSignedOperatorSetUpdateToAggregator(&messages.SignedOperatorSetUpdateMessage{})
+	}()
+	wg.Wait()
+
+	assert.Equal(t, 15, rpcFailCount) // 1 run, 4 retries for each of the 3 calls = 15 calls in total
 }
 
 func TestRetryLaterIfRecentEnough(t *testing.T) {
@@ -149,7 +183,7 @@ func TestRetryLaterIfRecentEnough(t *testing.T) {
 		},
 	}
 
-	client := operator.NewAggregatorRpcClient(&rpcClient, operator.RetryIfRecentEnough(500*time.Millisecond), logger)
+	client := operator.NewAggregatorRpcClient(&rpcClient, func() operator.RetryStrategy { return operator.RetryIfRecentEnough(500 * time.Millisecond) }, logger)
 
 	client.SendSignedStateRootUpdateToAggregator(&messages.SignedStateRootUpdateMessage{})
 
@@ -173,7 +207,7 @@ func TestGetAggregatedCheckpointMessages(t *testing.T) {
 		},
 	}
 
-	client := operator.NewAggregatorRpcClient(&rpcClient, operator.NeverRetry, logger)
+	client := operator.NewAggregatorRpcClient(&rpcClient, func() operator.RetryStrategy { return operator.NeverRetry }, logger)
 
 	response, err := client.GetAggregatedCheckpointMessages(0, 0)
 
@@ -204,7 +238,7 @@ func TestGetAggregatedCheckpointMessagesRetry(t *testing.T) {
 		},
 	}
 
-	client := operator.NewAggregatorRpcClient(&rpcClient, operator.AlwaysRetry, logger)
+	client := operator.NewAggregatorRpcClient(&rpcClient, func() operator.RetryStrategy { return operator.AlwaysRetry }, logger)
 
 	response, err := client.GetAggregatedCheckpointMessages(0, 0)
 
