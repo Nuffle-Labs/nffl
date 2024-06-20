@@ -91,7 +91,7 @@ func RetryAnd(s1 RetryStrategy, s2 RetryStrategy) RetryStrategy {
 
 type RetryFactory = func() RetryStrategy
 
-// By defaul, retry with a delay of 2 seconds between calls,
+// By default, retry with a delay of 2 seconds between calls,
 // at most 10 times, and only if the error is recent enough (24 hours)
 // TODO: Discuss the "recent enough" part
 func DefaultAggregatorRpcRetry() RetryStrategy {
