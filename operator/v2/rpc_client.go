@@ -159,16 +159,34 @@ func (a *AggregatorRpcClient) SendSignedStateRootUpdateToAggregator(signedStateR
 	return err
 }
 
-func (a *AggregatorRpcClient) SendSignedOperatorSetUpdateToAggregator(message *messages.SignedOperatorSetUpdateMessage) error {
+func (a *AggregatorRpcClient) SendSignedOperatorSetUpdateToAggregator(signedOperatorSetUpdateMessage *messages.SignedOperatorSetUpdateMessage) error {
+	a.logger.Info("Sending operator set update message to aggregator", "signedOperatorSetUpdateMessage", signedOperatorSetUpdateMessage)
+
 	submittedAt := time.Now()
-	var ignore bool
+	var reply bool
 	action := func() error {
-		return a.rpcClient.Call("Aggregator.ProcessSignedOperatorSetUpdateMessage", message, &ignore)
+		err := a.rpcClient.Call("Aggregator.ProcessSignedOperatorSetUpdateMessage", signedOperatorSetUpdateMessage, &reply)
+		if err != nil {
+			a.logger.Error("Received error from aggregator", "err", err)
+		}
+		return err
 	}
 
+	retried := false
 	err := action()
 	for err != nil && a.shouldRetry(submittedAt, err) {
+		a.listener.IncErroredOperatorSetUpdateSubmissions(retried)
 		err = action()
+		retried = true
+	}
+
+	if err != nil {
+		a.logger.Info("Signed operator set update message accepted by aggregator", "reply", reply)
+		a.listener.IncOperatorSetUpdateUpdateSubmissions(retried)
+		a.listener.ObserveLastOperatorSetUpdateIdResponded(signedOperatorSetUpdateMessage.Message.Id)
+		a.listener.OnMessagesReceived()
+	} else {
+		a.logger.Error("Dropping message after error", "err", err)
 	}
 
 	return err
