@@ -94,16 +94,34 @@ func NewAggregatorRpcClient(rpcClient RpcClient, retryPredicate RetryStrategy, l
 	}
 }
 
-func (a *AggregatorRpcClient) SendSignedCheckpointTaskResponseToAggregator(message *messages.SignedCheckpointTaskResponse) error {
+func (a *AggregatorRpcClient) SendSignedCheckpointTaskResponseToAggregator(signedCheckpointTaskResponse *messages.SignedCheckpointTaskResponse) error {
+	a.logger.Info("Sending signed task response header to aggregator", "signedCheckpointTaskResponse", signedCheckpointTaskResponse)
+
 	submittedAt := time.Now()
-	var ignore bool
+	var reply bool
 	action := func() error {
-		return a.rpcClient.Call("Aggregator.ProcessSignedCheckpointTaskResponse", message, &ignore)
+		err := a.rpcClient.Call("Aggregator.ProcessSignedCheckpointTaskResponse", signedCheckpointTaskResponse, &reply)
+		if err != nil {
+			a.logger.Error("Received error from aggregator", "err", err)
+		}
+		return err
 	}
 
+	retried := false
 	err := action()
 	for err != nil && a.shouldRetry(submittedAt, err) {
+		a.listener.IncErroredCheckpointSubmissions(retried)
 		err = action()
+		retried = true
+	}
+
+	if err != nil {
+		a.logger.Info("Signed task response header accepted by aggregator", "reply", reply)
+		a.listener.IncCheckpointTaskResponseSubmissions(retried)
+		a.listener.ObserveLastCheckpointIdResponded(signedCheckpointTaskResponse.TaskResponse.ReferenceTaskIndex)
+		a.listener.OnMessagesReceived()
+	} else {
+		a.logger.Error("Dropping message after error", "err", err)
 	}
 
 	return err
