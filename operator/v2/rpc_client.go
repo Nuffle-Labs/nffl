@@ -7,8 +7,11 @@ import (
 
 	"github.com/Layr-Labs/eigensdk-go/logging"
 	eigentypes "github.com/Layr-Labs/eigensdk-go/types"
+	"github.com/NethermindEth/near-sffl/core"
 	"github.com/NethermindEth/near-sffl/core/types/messages"
+	v1 "github.com/NethermindEth/near-sffl/operator"
 	"github.com/ethereum/go-ethereum/common"
+	"github.com/prometheus/client_golang/prometheus"
 )
 
 type RpcClient interface {
@@ -76,13 +79,17 @@ func RetryAtMost(retries int) RetryStrategy {
 type AggregatorRpcClient struct {
 	rpcClient   RpcClient
 	shouldRetry RetryStrategy
+	listener    v1.RpcClientEventListener
 	logger      logging.Logger
 }
+
+var _ core.Metricable = (*AggregatorRpcClient)(nil)
 
 func NewAggregatorRpcClient(rpcClient RpcClient, retryPredicate RetryStrategy, logger logging.Logger) AggregatorRpcClient {
 	return AggregatorRpcClient{
 		rpcClient:   rpcClient,
 		shouldRetry: retryPredicate,
+		listener:    &v1.SelectiveRpcClientListener{},
 		logger:      logger,
 	}
 }
@@ -149,4 +156,14 @@ func (a *AggregatorRpcClient) GetAggregatedCheckpointMessages(fromTimestamp, toT
 	}
 
 	return checkpointMessages, err
+}
+
+func (c *AggregatorRpcClient) EnableMetrics(registry *prometheus.Registry) error {
+	listener, err := v1.MakeRpcClientMetrics(registry)
+	if err != nil {
+		return err
+	}
+
+	c.listener = listener
+	return nil
 }
