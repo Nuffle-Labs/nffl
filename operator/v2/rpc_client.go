@@ -193,6 +193,8 @@ func (a *AggregatorRpcClient) SendSignedOperatorSetUpdateToAggregator(signedOper
 }
 
 func (a *AggregatorRpcClient) GetAggregatedCheckpointMessages(fromTimestamp, toTimestamp uint64) (messages.CheckpointMessages, error) {
+	a.logger.Info("Getting checkpoint messages from aggregator", "fromTimestamp", fromTimestamp, "toTimestamp", toTimestamp)
+
 	type Args struct {
 		FromTimestamp, ToTimestamp uint64
 	}
@@ -200,7 +202,11 @@ func (a *AggregatorRpcClient) GetAggregatedCheckpointMessages(fromTimestamp, toT
 	submittedAt := time.Now()
 	var checkpointMessages messages.CheckpointMessages
 	action := func() error {
-		return a.rpcClient.Call("Aggregator.GetAggregatedCheckpointMessages", &Args{fromTimestamp, toTimestamp}, &checkpointMessages)
+		err := a.rpcClient.Call("Aggregator.GetAggregatedCheckpointMessages", &Args{fromTimestamp, toTimestamp}, &checkpointMessages)
+		if err != nil {
+			a.logger.Error("Received error from aggregator", "err", err)
+		}
+		return err
 	}
 
 	err := action()
