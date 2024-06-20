@@ -212,13 +212,13 @@ func setupTestEnv(t *testing.T, ctx context.Context) *testEnv {
 		t.Fatalf("Failed to create logger: %s", err.Error())
 	}
 
-	nodeConfig, _, _ := genOperatorConfig(t, ctx, "3", mainnetAnvil, rollupAnvils, rabbitMq)
-
 	addresses, registryRollups, registryRollupAuths, _ := deployRegistryRollups(t, rollupAnvils)
-	operator := startOperator(t, ctx, nodeConfig)
 
 	config := buildConfig(t, sfflDeploymentRaw, addresses, rollupAnvils, configRaw)
 	aggregator := startAggregator(t, ctx, config, logger)
+
+	nodeConfig, _, _ := genOperatorConfig(t, ctx, "3", mainnetAnvil, rollupAnvils, rabbitMq)
+	operator := startOperator(t, ctx, nodeConfig)
 
 	avsReader, err := chainio.BuildAvsReader(common.HexToAddress(sfflDeploymentRaw.Addresses.RegistryCoordinatorAddr), common.HexToAddress(sfflDeploymentRaw.Addresses.OperatorStateRetrieverAddr), mainnetAnvil.HttpClient, logger)
 	if err != nil {
