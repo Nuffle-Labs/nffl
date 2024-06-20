@@ -92,10 +92,10 @@ type AggregatorRpcClient struct {
 
 var _ core.Metricable = (*AggregatorRpcClient)(nil)
 
-func NewAggregatorRpcClient(rpcClient RpcClient, retryPredicate RetryStrategy, logger logging.Logger) AggregatorRpcClient {
+func NewAggregatorRpcClient(rpcClient RpcClient, retryStrategy RetryStrategy, logger logging.Logger) AggregatorRpcClient {
 	return AggregatorRpcClient{
 		rpcClient:   rpcClient,
-		shouldRetry: retryPredicate,
+		shouldRetry: retryStrategy,
 		listener:    &v1.SelectiveRpcClientListener{},
 		logger:      logger,
 	}
