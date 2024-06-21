@@ -121,6 +121,9 @@ tests-unit: ## runs all unit tests
 tests-contract: ## runs all forge tests
 	cd contracts/evm && forge test
 
+near-da-rpc-sys:
+	docker build --file ./relayer/libs/Dockerfile --output ./relayer/libs .
+
 # TODO: Currently we cannot use the race detector with `integration_test.go`
 tests-integration: ## runs all integration tests
 	go test ./tests/integration/integration_test.go -v -count=1
