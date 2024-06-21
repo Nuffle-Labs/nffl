@@ -123,7 +123,14 @@ tests-contract: ## runs all forge tests
 	cd contracts/evm && forge test
 
 near-da-rpc-sys:
-	docker build --file ./relayer/libs/Dockerfile --output ./relayer/libs .
+	cd relayer/libs && \
+	git clone https://github.com/taco-paco/rollup-data-availability.git && \
+	cd rollup-data-availability && \
+	git checkout c9ec12924b27e37b8c40e7ab1a051a64b363cfd6 && \
+	make da-rpc-sys && \
+	cd .. && \
+	cp rollup-data-availability/gopkg/da-rpc/lib/* . && \
+	rm rollup-data-availability -rf
 
 # TODO: Currently we cannot use the race detector with `integration_test.go`
 tests-integration: ## runs all integration tests

@@ -86,11 +86,19 @@ make start-indexer
 make setup-near-da
 ```
 
-Lastly, start the operator and the relayer:
+Then, start the operator:
 
 ```bash
 make start-operator
 ```
+
+Lastly, start the relayer. For this, certain native dependencies are required which need to be built at least once:
+
+```bash
+make near-da-rpc-sys
+```
+
+Once the dependencies are built, start the relayer
 
 ```bash
 make start-test-relayer
