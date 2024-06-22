@@ -5,8 +5,6 @@ resolver = "2"
 members = [
     "indexer",
     "contracts/evm/test/ffi/bls-utils",
-    "contracts/near/sffl-agreement-registry",
-    "contracts/near/sffl-agreement-registry/sandbox-rs"
 ]
 
 [workspace.package]
