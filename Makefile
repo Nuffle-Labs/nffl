@@ -125,3 +125,7 @@ tests-integration: ## runs all integration tests
 	go test ./tests/integration/integration_test.go -v -count=1
 	go test ./tests/integration/registration_test.go -v -count=1
 
+## runs slither for solidity files
+## You can install Slither by following the guide at https://github.com/crytic/slither/tree/master?tab=readme-ov-file#how-to-install
+slither:
+	cd contracts/evm && slither .
