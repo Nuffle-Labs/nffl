@@ -4,7 +4,7 @@ sidebar_position: 1
 
 # Registration
 
-Here we'll go step-by-step on how to opt-in into NEAR SFFL. It's a quick and
+Here we'll go step-by-step on how to opt-in into NEAR NFFL. It's a quick and
 easy process that will allow you to start contributing to the network once the
 testnet starts functioning.
 
@@ -20,7 +20,7 @@ the operator in the future, you can follow the hardware requirements on
 :::note
 
 At this initial testnet stage, operators need to be whitelisted. If you are
-interested and have not already been whitelisted, please contact the SFFL
+interested and have not already been whitelisted, please contact the NFFL
 team!
 
 :::
@@ -33,9 +33,9 @@ Complete the EigenLayer CLI installation and registration [here](https://docs.ei
 
 Install [Docker Engine on Linux](https://docs.docker.com/engine/install/ubuntu/).
 
-### Step 3: Prepare Local SFFL files
+### Step 3: Prepare Local NFFL files
 
-Clone the SFFL repository and execute the following.
+Clone the NFFL repository and execute the following.
 
 ```bash
 git clone https://github.com/NethermindEth/near-sffl.git
@@ -91,4 +91,4 @@ other important fields.
 
 Now, simply run `./register.sh`! This will fetch our latest operator plugin
 container and run it with the `--operation-type opt-in` flag. It will
-opt-in your operator into SFFL.
+opt-in your operator into NFFL.
