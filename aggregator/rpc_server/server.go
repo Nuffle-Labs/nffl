@@ -3,11 +3,12 @@ package rpc_server
 import (
 	"errors"
 	"fmt"
-	"github.com/NethermindEth/near-sffl/core"
-	"github.com/prometheus/client_golang/prometheus"
 	"net/http"
 	"net/rpc"
 	"strings"
+
+	"github.com/NethermindEth/near-sffl/core"
+	"github.com/prometheus/client_golang/prometheus"
 
 	"github.com/Layr-Labs/eigensdk-go/logging"
 	eigentypes "github.com/Layr-Labs/eigensdk-go/types"

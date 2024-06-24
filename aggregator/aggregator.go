@@ -138,12 +138,13 @@ var _ RpcAggregatorer = (*Aggregator)(nil)
 var _ RestAggregatorer = (*Aggregator)(nil)
 
 // NewAggregator creates a new Aggregator with the provided config.
-// TODO: Remove this context once OperatorPubkeysServiceInMemory's API is
-// changed and we can gracefully exit otherwise
-func NewAggregator(ctx context.Context, config *config.Config, logger logging.Logger) (*Aggregator, error) {
-	// TODO: Pass the registry as a parameter (see https://github.com/NethermindEth/near-sffl/pull/211#pullrequestreview-2101946551)
-	registry := prometheus.NewRegistry()
-
+func NewAggregator(
+	// TODO: Remove `ctx` once OperatorsInfoServiceInMemory's API is changed and we can gracefully exit otherwise
+	ctx context.Context,
+	config *config.Config,
+	registry *prometheus.Registry,
+	logger logging.Logger,
+) (*Aggregator, error) {
 	ethHttpClient, err := core.CreateEthClientWithCollector(AggregatorNamespace, config.EthHttpRpcUrl, config.EnableMetrics, registry, logger)
 	if err != nil {
 		logger.Error("Cannot create http ethclient", "err", err)
@@ -613,11 +614,6 @@ func (agg *Aggregator) ProcessSignedOperatorSetUpdateMessage(signedOperatorSetUp
 	)
 
 	return err
-}
-
-// May return nil
-func (agg *Aggregator) GetRegistry() *prometheus.Registry {
-	return agg.registry
 }
 
 func (agg *Aggregator) GetAggregatedCheckpointMessages(fromTimestamp, toTimestamp uint64) (*messages.CheckpointMessages, error) {
