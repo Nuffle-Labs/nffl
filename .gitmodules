@@ -4,3 +4,6 @@
 [submodule "contracts/evm/lib/eigenlayer-middleware"]
 	path = contracts/evm/lib/eigenlayer-middleware
 	url = https://github.com/Layr-Labs/eigenlayer-middleware
+[submodule "submodules/rollup-data-availability"]
+	path = submodules/rollup-data-availability
+	url = https://github.com/taco-paco/rollup-data-availability.git
