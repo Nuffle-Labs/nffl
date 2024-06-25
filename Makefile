@@ -128,7 +128,9 @@ near-da-rpc-sys:
 	cd rollup-data-availability && \
 	git checkout c9ec12924b27e37b8c40e7ab1a051a64b363cfd6 && \
 	make da-rpc-sys && \
-	cp gopkg/da-rpc/lib/* ../relayer/libs
+	cp gopkg/da-rpc/lib/* ../relayer/libs && \
+	cd .. && \
+	rm -rf rollup-data-availability
 
 # TODO: Currently we cannot use the race detector with `integration_test.go`
 tests-integration: ## runs all integration tests
