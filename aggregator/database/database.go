@@ -63,11 +63,14 @@ func NewDatabase(dbPath string) (*Database, error) {
 		return nil, err
 	}
 
-	db.AutoMigrate(
+	err = db.AutoMigrate(
 		&models.MessageBlsAggregation{},
 		&models.StateRootUpdateMessage{},
 		&models.OperatorSetUpdateMessage{},
 	)
+	if err != nil {
+		return nil, err
+	}
 
 	underlyingDb, err := db.DB()
 	if err != nil {
@@ -261,6 +264,10 @@ func (d *Database) FetchOperatorSetUpdateAggregation(id uint64) (*messages.Messa
 func (d *Database) FetchCheckpointMessages(fromTimestamp uint64, toTimestamp uint64) (*messages.CheckpointMessages, error) {
 	if fromTimestamp > math.MaxInt64 || toTimestamp > math.MaxInt64 {
 		return nil, errors.New("timestamp does not fit in int64")
+	}
+
+	if (toTimestamp < fromTimestamp) {
+		return nil, errors.New("toTimestamp is less than fromTimestamp")
 	}
 
 	start := time.Now()

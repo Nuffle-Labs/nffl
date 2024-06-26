@@ -45,7 +45,7 @@ func TestProcessSignedCheckpointTaskResponse(t *testing.T) {
 	// see https://hynek.me/articles/what-to-mock-in-5-mins/
 	mockBlsAggServ.EXPECT().ProcessNewSignature(context.Background(), TASK_INDEX, signedCheckpointTaskResponseDigest,
 		&signedCheckpointTaskResponse.BlsSignature, signedCheckpointTaskResponse.OperatorId)
-	err = aggregator.ProcessSignedCheckpointTaskResponse(signedCheckpointTaskResponse, nil)
+	err = aggregator.ProcessSignedCheckpointTaskResponse(signedCheckpointTaskResponse)
 	assert.Nil(t, err)
 }
 
@@ -73,7 +73,7 @@ func TestProcessSignedStateRootUpdateMessage(t *testing.T) {
 	mockMessageBlsAggServ.EXPECT().ProcessNewSignature(context.Background(), messageDigest,
 		&signedMessage.BlsSignature, signedMessage.OperatorId)
 	mockMessageBlsAggServ.EXPECT().InitializeMessageIfNotExists(messageDigest, coretypes.QUORUM_NUMBERS, []eigentypes.QuorumThresholdPercentage{types.MESSAGE_AGGREGATION_QUORUM_THRESHOLD}, types.MESSAGE_TTL, types.MESSAGE_BLS_AGGREGATION_TIMEOUT, uint64(0))
-	err = aggregator.ProcessSignedStateRootUpdateMessage(signedMessage, nil)
+	err = aggregator.ProcessSignedStateRootUpdateMessage(signedMessage)
 	assert.Nil(t, err)
 }
 
@@ -102,7 +102,7 @@ func TestProcessOperatorSetUpdateMessage(t *testing.T) {
 	mockMessageBlsAggServ.EXPECT().ProcessNewSignature(context.Background(), messageDigest,
 		&signedMessage.BlsSignature, signedMessage.OperatorId)
 	mockMessageBlsAggServ.EXPECT().InitializeMessageIfNotExists(messageDigest, coretypes.QUORUM_NUMBERS, []eigentypes.QuorumThresholdPercentage{types.MESSAGE_AGGREGATION_QUORUM_THRESHOLD}, types.MESSAGE_TTL, types.MESSAGE_BLS_AGGREGATION_TIMEOUT, uint64(9))
-	err = aggregator.ProcessSignedOperatorSetUpdateMessage(signedMessage, nil)
+	err = aggregator.ProcessSignedOperatorSetUpdateMessage(signedMessage)
 	assert.Nil(t, err)
 }
 
@@ -114,9 +114,8 @@ func TestGetAggregatedCheckpointMessages(t *testing.T) {
 	assert.Nil(t, err)
 
 	var checkpointMessages messages.CheckpointMessages
-
 	mockDb.EXPECT().FetchCheckpointMessages(uint64(1), uint64(2)).Return(&checkpointMessages, nil)
-	err = aggregator.GetAggregatedCheckpointMessages(&GetAggregatedCheckpointMessagesArgs{uint64(1), uint64(2)}, &checkpointMessages)
+	_, err = aggregator.GetAggregatedCheckpointMessages(uint64(1), uint64(2))
 	assert.Nil(t, err)
 }
 
