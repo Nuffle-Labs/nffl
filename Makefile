@@ -119,12 +119,17 @@ tests-unit: ## runs all unit tests
 	go tool cover -html=coverage.out -o coverage.html
 
 tests-contract: ## runs all forge tests
-	cd contracts/evm && forge test
+	cd contracts/evm && forge test --ffi
 
 # TODO: Currently we cannot use the race detector with `integration_test.go`
 tests-integration: ## runs all integration tests
 	go test ./tests/integration/integration_test.go -v -count=1
 	go test ./tests/integration/registration_test.go -v -race -count=1
+
+## runs slither for solidity files
+## You can install Slither by following the guide at https://github.com/crytic/slither/tree/master?tab=readme-ov-file#how-to-install
+slither:
+	cd contracts/evm && slither .
 
 ## runs linter on all files
 ## TODO: For now, only Go files are linted
