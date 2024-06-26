@@ -25,6 +25,7 @@ import (
 	"github.com/ethereum/go-ethereum/accounts/abi/bind"
 	"github.com/ethereum/go-ethereum/common"
 	"github.com/ethereum/go-ethereum/crypto"
+	"github.com/prometheus/client_golang/prometheus"
 	"github.com/stretchr/testify/assert"
 	"github.com/testcontainers/testcontainers-go"
 	"github.com/testcontainers/testcontainers-go/modules/rabbitmq"
@@ -292,15 +293,18 @@ func startOperator(t *testing.T, ctx context.Context, nodeConfig optypes.NodeCon
 func startAggregator(t *testing.T, ctx context.Context, config *config.Config, logger sdklogging.Logger) *aggregator.Aggregator {
 	t.Log("starting aggregator for integration tests")
 
-	agg, err := aggregator.NewAggregator(ctx, config, logger)
+	var optRegistry *prometheus.Registry
+	if config.EnableMetrics {
+		optRegistry = prometheus.NewRegistry()
+	}
+	agg, err := aggregator.NewAggregator(ctx, config, nil, logger)
 	if err != nil {
 		t.Fatalf("Failed to create aggregator: %s", err.Error())
 	}
 
-	registry := agg.GetRegistry()
 	rpcServer := rpcserver.NewRpcServer(config.AggregatorServerIpPortAddr, agg, logger)
-	if registry != nil {
-		err = rpcServer.EnableMetrics(registry)
+	if optRegistry != nil {
+		err = rpcServer.EnableMetrics(optRegistry)
 		if err != nil {
 			t.Fatalf("Failed to create metrics for rpc server: %s", err.Error())
 		}
@@ -308,8 +312,8 @@ func startAggregator(t *testing.T, ctx context.Context, config *config.Config, l
 	go rpcServer.Start()
 
 	restServer := restserver.NewRestServer(config.AggregatorRestServerIpPortAddr, agg, logger)
-	if registry != nil {
-		err = restServer.EnableMetrics(registry)
+	if optRegistry != nil {
+		err = restServer.EnableMetrics(optRegistry)
 		if err != nil {
 			t.Fatalf("Failed to create metrics for rest server: %s", err.Error())
 		}
