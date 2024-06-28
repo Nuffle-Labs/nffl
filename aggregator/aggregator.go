@@ -413,7 +413,7 @@ func (agg *Aggregator) sendNewCheckpointTask() {
 	agg.tasksLock.Unlock()
 
 	quorumThresholds := make([]eigentypes.QuorumThresholdPercentage, len(newTask.QuorumNumbers))
-	for i, _ := range newTask.QuorumNumbers {
+	for i := range newTask.QuorumNumbers {
 		quorumThresholds[i] = types.TASK_AGGREGATION_QUORUM_THRESHOLD
 	}
 	// TODO(samlaf): we use seconds for now, but we should ideally pass a blocknumber to the blsAggregationService
