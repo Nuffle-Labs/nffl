@@ -344,7 +344,7 @@ func (agg *Aggregator) sendAggregatedResponseToContract(blsAggServiceResp types.
 	taskResponse := agg.taskResponses[blsAggServiceResp.TaskIndex][blsAggServiceResp.TaskResponseDigest]
 	agg.taskResponsesLock.RUnlock()
 
-	aggregation, err := types.NewMessageBlsAggregationFromTaskServiceResponse(uint64(task.TaskCreatedBlock), blsAggServiceResp)
+	aggregation, err := types.NewMessageBlsAggregationFromServiceResponse(uint64(task.TaskCreatedBlock), blsAggServiceResp)
 	if err != nil {
 		agg.logger.Error("Aggregator failed to format aggregation", "err", err)
 		return

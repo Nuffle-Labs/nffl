@@ -14,7 +14,6 @@ import (
 	"github.com/Layr-Labs/eigensdk-go/crypto/bls"
 	"github.com/Layr-Labs/eigensdk-go/logging"
 	"github.com/Layr-Labs/eigensdk-go/services/avsregistry"
-	blsagg "github.com/Layr-Labs/eigensdk-go/services/bls_aggregation"
 	eigentypes "github.com/Layr-Labs/eigensdk-go/types"
 	"github.com/ethereum/go-ethereum/accounts/abi/bind"
 
@@ -428,18 +427,20 @@ func (mbas *MessageBlsAggregatorService) getMessageBlsAggregationResponse(messag
 		}
 	}
 
-	aggregation, err := messages.NewMessageBlsAggregationFromServiceResponse(
+	aggregation, err := types.NewMessageBlsAggregationFromServiceResponse(
 		validationInfo.ethBlockNumber,
-		blsagg.BlsAggregationServiceResponse{
-			TaskResponseDigest:           messageDigest,
-			NonSignersPubkeysG1:          getG1PubkeysOfNonSigners(digestAggregatedOperators.signersOperatorIdsSet, validationInfo.operatorsAvsStateDict),
-			QuorumApksG1:                 validationInfo.quorumApksG1,
-			SignersApkG2:                 digestAggregatedOperators.signersApkG2,
-			SignersAggSigG1:              digestAggregatedOperators.signersAggSigG1,
-			NonSignerQuorumBitmapIndices: indices.NonSignerQuorumBitmapIndices,
-			QuorumApkIndices:             indices.QuorumApkIndices,
-			TotalStakeIndices:            indices.TotalStakeIndices,
-			NonSignerStakeIndices:        indices.NonSignerStakeIndices,
+		types.TaskBlsAggregationServiceResponse{
+			TaskResponseDigest: messageDigest,
+			TaskBlsAggregation: messages.TaskBlsAggregation{
+				NonSignersPubkeysG1:          getG1PubkeysOfNonSigners(digestAggregatedOperators.signersOperatorIdsSet, validationInfo.operatorsAvsStateDict),
+				QuorumApksG1:                 validationInfo.quorumApksG1,
+				SignersApkG2:                 digestAggregatedOperators.signersApkG2,
+				SignersAggSigG1:              digestAggregatedOperators.signersAggSigG1,
+				NonSignerQuorumBitmapIndices: indices.NonSignerQuorumBitmapIndices,
+				QuorumApkIndices:             indices.QuorumApkIndices,
+				TotalStakeIndices:            indices.TotalStakeIndices,
+				NonSignerStakeIndices:        indices.NonSignerStakeIndices,
+			},
 		},
 	)
 	if err != nil {

@@ -67,8 +67,7 @@ type GetCheckpointMessagesResponse struct {
 	CheckpointMessages messages.CheckpointMessages
 }
 
-// TODO: Deduplicate from `messages.NewMessageBlsAggregationFromServiceResponse`
-func NewMessageBlsAggregationFromTaskServiceResponse(ethBlockNumber uint64, resp TaskBlsAggregationServiceResponse) (messages.MessageBlsAggregation, error) {
+func NewMessageBlsAggregationFromServiceResponse(ethBlockNumber uint64, resp TaskBlsAggregationServiceResponse) (messages.MessageBlsAggregation, error) {
 	nonSignersPubkeyHashes := make([][32]byte, 0, len(resp.NonSignersPubkeysG1))
 	for _, pubkey := range resp.NonSignersPubkeysG1 {
 		hash, err := core.HashBNG1Point(core.ConvertToBN254G1Point(pubkey))
