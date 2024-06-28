@@ -13,6 +13,17 @@ import (
 	coretypes "github.com/NethermindEth/near-sffl/core/types"
 )
 
+type TaskBlsAggregation struct {
+	NonSignersPubkeysG1          []*bls.G1Point
+	QuorumApksG1                 []*bls.G1Point
+	SignersApkG2                 *bls.G2Point
+	SignersAggSigG1              *bls.Signature
+	NonSignerQuorumBitmapIndices []uint32
+	QuorumApkIndices             []uint32
+	TotalStakeIndices            []uint32
+	NonSignerStakeIndices        [][]uint32
+}
+
 type MessageBlsAggregation struct {
 	EthBlockNumber               coretypes.BlockNumber
 	MessageDigest                coretypes.MessageDigest
