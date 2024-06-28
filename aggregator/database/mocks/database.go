@@ -5,6 +5,7 @@
 //
 //	mockgen -destination=./mocks/database.go -package=mocks github.com/NethermindEth/near-sffl/aggregator/database Databaser
 //
+
 // Package mocks is a generated GoMock package.
 package mocks
 
