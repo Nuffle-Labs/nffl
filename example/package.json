@@ -4,7 +4,8 @@
   "main": "index.js",
   "license": "MIT",
   "scripts": {
-    "set:update": "node scripts/updateOperatorSet.js"
+    "set:update": "node scripts/updateOperatorSet.js",
+    "state:update": "node scripts/updateStateRoot.js"
   },
   "dependencies": {
     "bignumber.js": "^9.1.2",
