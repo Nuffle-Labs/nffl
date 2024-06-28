@@ -1,0 +1,14 @@
+{
+  "name": "nffl-demo",
+  "version": "1.0.0",
+  "main": "index.js",
+  "license": "MIT",
+  "scripts": {
+    "set:update": "node scripts/updateOperatorSet.js"
+  },
+  "dependencies": {
+    "bignumber.js": "^9.1.2",
+    "ether": "^0.0.9",
+    "ethers": "^6.13.1"
+  }
+}
