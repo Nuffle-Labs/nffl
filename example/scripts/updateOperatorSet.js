@@ -23,7 +23,7 @@ async function updateOperatorSet() {
     console.log(`${config.aggregator}/aggregation/operator-set-update?id=${nextOperatorUpdateId}`);
     const response = await fetch(`${config.aggregator}/aggregation/operator-set-update?id=${nextOperatorUpdateId}`);
     if (!response.ok) {
-      throw new Error(`HTTP error! status: ${response.status}`);
+        throw new Error(`HTTP error! status: ${response.status}`);
     }
     const respText = await response.text();
     text = respText.replace(/"Weight":\s*(\d+)/g, '"Weight": "$1"');

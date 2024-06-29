@@ -7,6 +7,7 @@ const { hashG1Point } = require('./src/hashG1Point');
 /*
  * Updates the state root on Arbitrum to the Optimism block state.
 */
+const blockHeight = 13905480;
 async function updateStateRoot() {
     // Init provider
     const arbProvider = new ethers.JsonRpcProvider(config.arbRpcUrl, config.arbNetworkId);
@@ -17,11 +18,10 @@ async function updateStateRoot() {
     // Get RegistryRollup contract
     const registryRollup = new ethers.Contract(arbContracts.addresses.sfflRegistryRollup, NFFLRegistryRollupABI, account);
     // Fetch data
-    const blockHeight = 13905480;
     console.log(`${config.aggregator}/aggregation/state-root-update?rollupId=11155420&blockHeight=${blockHeight}`);
     const response = await fetch(`${config.aggregator}/aggregation/state-root-update?rollupId=11155420&blockHeight=${blockHeight}`);
     if (!response.ok) {
-      throw new Error(`HTTP error! status: ${response.status}`);
+        throw new Error(`HTTP error! status: ${response.status}`);
     }
     const data = await response.json();
     // Build message

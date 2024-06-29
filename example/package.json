@@ -5,7 +5,8 @@
   "license": "MIT",
   "scripts": {
     "set:update": "node scripts/updateOperatorSet.js",
-    "state:update": "node scripts/updateStateRoot.js"
+    "state:update": "node scripts/updateStateRoot.js",
+    "get": "node scripts/getStorageValue.js"
   },
   "dependencies": {
     "bignumber.js": "^9.1.2",
