@@ -2,6 +2,7 @@ const { ethers } = require('ethers');
 const {NFFLRegistryRollupABI} = require('./abi/NFFLRegistryRollup');
 const {arbContracts} = require('./contracts');
 const config = require('./config.json');
+const RLP = require('rlp');
 
 /*
  * Gets sttorage slot from Optimism.
@@ -10,28 +11,6 @@ const contractAddress = '0xB90101779CC5EB84162f72A80e44307752b778b6';
 const storageKey = '0x0000000000000000000000000000000000000000000000000000000000000000';
 const blockNumber = '0xd42e48';//'13905480';
 
-const rlpAddress = '0x7922049B78c4A36341d10636d3c486904d6a0bEd';
-const rlpABI = [
-    {
-        "inputs": [
-          {
-            "internalType": "bytes[]",
-            "name": "value",
-            "type": "bytes[]"
-          }
-        ],
-        "name": "getRLPValue",
-        "outputs": [
-          {
-            "internalType": "bytes",
-            "name": "",
-            "type": "bytes"
-          }
-        ],
-        "stateMutability": "pure",
-        "type": "function"
-    }
-]
 async function getStorageValue() {
     //
     // Get proof on Optimisp
@@ -45,10 +24,9 @@ async function getStorageValue() {
     ];
     // Send the RPC request
     const proof = await opProvider.send("eth_getProof", params);
-    // Convert proof to RLP
-    const rlpContract = new ethers.Contract(rlpAddress, rlpABI, opProvider);
-    const rlpStorageProof = await rlpContract.getRLPValue(proof.storageProof[0].proof);
-    const rlpAccountProof = await rlpContract.getRLPValue(proof.accountProof);
+    // Encode proof to RLP
+    const rlpStorageProof = RLP.encode(proof.storageProof[0].proof);
+    const rlpAccountProof = RLP.encode(proof.accountProof);
     
     //
     // Prove on Arbitrum
