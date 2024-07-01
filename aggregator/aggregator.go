@@ -556,6 +556,13 @@ func (agg *Aggregator) ProcessSignedStateRootUpdateMessage(signedStateRootUpdate
 		return DigestError
 	}
 
+	timestamp := signedStateRootUpdateMessage.Message.Timestamp
+	err = agg.validateMessageTimestamp(context.Background(), timestamp)
+	if err != nil {
+		agg.logger.Error("Failed to validate message timestamp", "err", err, "timestamp", timestamp)
+		return err
+	}
+
 	err = agg.stateRootUpdateBlsAggregationService.InitializeMessageIfNotExists(
 		messageDigest,
 		coretypes.QUORUM_NUMBERS,
@@ -584,6 +591,13 @@ func (agg *Aggregator) ProcessSignedOperatorSetUpdateMessage(signedOperatorSetUp
 	if err != nil {
 		agg.logger.Error("Failed to get message digest", "err", err)
 		return DigestError
+	}
+
+	timestamp := signedOperatorSetUpdateMessage.Message.Timestamp
+	err = agg.validateMessageTimestamp(context.Background(), timestamp)
+	if err != nil {
+		agg.logger.Error("Failed to validate message timestamp", "err", err, "timestamp", timestamp)
+		return err
 	}
 
 	blockNumber, err := agg.avsReader.GetOperatorSetUpdateBlock(context.Background(), signedOperatorSetUpdateMessage.Message.Id)
@@ -674,4 +688,22 @@ func (agg *Aggregator) GetCheckpointMessages(fromTimestamp, toTimestamp uint64) 
 	return &types.GetCheckpointMessagesResponse{
 		CheckpointMessages: *checkpointMessages,
 	}, nil
+}
+
+func (agg *Aggregator) validateMessageTimestamp(ctx context.Context, messageTimestamp uint64) error {
+	currentBlockNumber, err := agg.httpClient.BlockNumber(ctx)
+	if err != nil {
+		return err
+	}
+
+	currentBlock, err := agg.httpClient.BlockByNumber(ctx, big.NewInt(0).SetUint64(currentBlockNumber))
+	if err != nil {
+		return err
+	}
+
+	if messageTimestamp < (currentBlock.Time() - uint64(types.MESSAGE_BLS_AGGREGATION_TIMEOUT.Seconds()) - uint64(types.MESSAGE_TTL.Seconds())) {
+		return MessageExpiredError
+	}
+
+	return nil
 }

@@ -149,6 +149,56 @@ func TestHandleOperatorSetUpdateAggregationReachedQuorum(t *testing.T) {
 	assert.NotContains(t, aggregator.operatorSetUpdates, msgDigest)
 }
 
+func TestExpiredStateRootUpdateMessage(t *testing.T) {
+	mockCtrl := gomock.NewController(t)
+	defer mockCtrl.Finish()
+
+	aggregator, _, _, _, _, _, _, _, mockClient, err := createMockAggregator(mockCtrl, MOCK_OPERATOR_PUBKEY_DICT)
+	assert.NoError(t, err)
+
+	var BLOCK_NUMBER = uint32(100)
+	var BLOCK_TIME = uint64(5000)
+	var MESSAGE_TIME = BLOCK_TIME - 60 - 30 - 1 // 60 seconds for message TTL, 30 seconds of aggregation timeout and 1 second to be out of range
+
+	mockClient.EXPECT().BlockNumber(context.Background()).Return(uint64(BLOCK_NUMBER), nil)
+	mockClient.EXPECT().BlockByNumber(context.Background(), big.NewInt(int64(BLOCK_NUMBER))).Return(
+		gethtypes.NewBlockWithHeader(&gethtypes.Header{Time: BLOCK_TIME}),
+		nil,
+	)
+
+	err = aggregator.ProcessSignedStateRootUpdateMessage(&messages.SignedStateRootUpdateMessage{
+		Message: messages.StateRootUpdateMessage{
+			Timestamp: MESSAGE_TIME,
+		},
+	})
+	assert.Equal(t, MessageExpiredError, err)
+}
+
+func TestExpiredOperatorSetUpdate(t *testing.T) {
+	mockCtrl := gomock.NewController(t)
+	defer mockCtrl.Finish()
+
+	aggregator, _, _, _, _, _, _, _, mockClient, err := createMockAggregator(mockCtrl, MOCK_OPERATOR_PUBKEY_DICT)
+	assert.NoError(t, err)
+
+	var BLOCK_NUMBER = uint32(200)
+	var BLOCK_TIME = uint64(8000)
+	var MESSAGE_TIME = BLOCK_TIME - 60 - 30 - 1 // 60 seconds for message TTL, 30 seconds of aggregation timeout and 1 second to be out of range
+
+	mockClient.EXPECT().BlockNumber(context.Background()).Return(uint64(BLOCK_NUMBER), nil)
+	mockClient.EXPECT().BlockByNumber(context.Background(), big.NewInt(int64(BLOCK_NUMBER))).Return(
+		gethtypes.NewBlockWithHeader(&gethtypes.Header{Time: BLOCK_TIME}),
+		nil,
+	)
+
+	err = aggregator.ProcessSignedOperatorSetUpdateMessage(&messages.SignedOperatorSetUpdateMessage{
+		Message: messages.OperatorSetUpdateMessage{
+			Timestamp: MESSAGE_TIME,
+		},
+	})
+	assert.Equal(t, MessageExpiredError, err)
+}
+
 func createMockAggregator(
 	mockCtrl *gomock.Controller, operatorPubkeyDict map[eigentypes.OperatorId]types.OperatorInfo,
 ) (*Aggregator, *chainiomocks.MockAvsReaderer, *chainiomocks.MockAvsWriterer, *blsaggservmock.MockBlsAggregationService, *aggmocks.MockMessageBlsAggregationService, *aggmocks.MockMessageBlsAggregationService, *dbmocks.MockDatabaser, *aggmocks.MockRollupBroadcasterer, *safeclientmocks.MockSafeClient, error) {
