@@ -472,7 +472,7 @@ func (mbas *MessageBlsAggregatorService) verifySignature(
 ) error {
 	_, ok := operatorsAvsStateDict[signedMessageDigest.OperatorId]
 	if !ok {
-		mbas.logger.Warn("Operator not found. Skipping message", "operator", fmt.Sprintf("%#v", signedMessageDigest.OperatorId))
+		mbas.logger.Warn("Operator not found. Skipping message", "operator", signedMessageDigest.OperatorId)
 		return OperatorNotPartOfMessageQuorumErrorFn(signedMessageDigest.OperatorId, signedMessageDigest.MessageDigest)
 	}
 
