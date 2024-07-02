@@ -1,6 +1,8 @@
 package messages
 
 import (
+	"errors"
+
 	"github.com/Layr-Labs/eigensdk-go/crypto/bls"
 	eigentypes "github.com/Layr-Labs/eigensdk-go/types"
 	"github.com/ethereum/go-ethereum/accounts/abi"
@@ -21,6 +23,18 @@ type SignedCheckpointTaskResponse struct {
 	TaskResponse CheckpointTaskResponse
 	BlsSignature bls.Signature
 	OperatorId   eigentypes.OperatorId
+}
+
+func (s *SignedCheckpointTaskResponse) IsValid() error {
+	if s == nil {
+		return errors.New("SignedCheckpointTaskResponse is nil")
+	}
+
+	if s.BlsSignature.G1Point == nil {
+		return errors.New("BlsSignature.G1Point is nil")
+	}
+
+	return nil
 }
 
 type CheckpointMessages struct {

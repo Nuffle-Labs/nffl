@@ -92,11 +92,16 @@ func mapErrors(err error) error {
 // reply doesn't need to be checked. If there are no errors, the task response is accepted
 // rpc framework forces a reply type to exist, so we put bool as a placeholder
 func (s *RpcServer) ProcessSignedCheckpointTaskResponse(signedCheckpointTaskResponse *messages.SignedCheckpointTaskResponse, reply *bool) error {
+	err := signedCheckpointTaskResponse.IsValid()
+	if err != nil {
+		return err
+	}
+
 	s.logger.Info("Received signed task response", "response", signedCheckpointTaskResponse)
 	s.listener.IncTotalSignedCheckpointTaskResponse()
 	s.listener.ObserveLastMessageReceivedTime(signedCheckpointTaskResponse.OperatorId, CheckpointTaskResponseLabel)
 
-	err := s.app.ProcessSignedCheckpointTaskResponse(signedCheckpointTaskResponse)
+	err = s.app.ProcessSignedCheckpointTaskResponse(signedCheckpointTaskResponse)
 	if err != nil {
 		s.listener.IncSignedCheckpointTaskResponse(
 			signedCheckpointTaskResponse.OperatorId,
