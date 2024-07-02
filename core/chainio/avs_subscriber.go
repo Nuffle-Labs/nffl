@@ -40,7 +40,7 @@ func BuildAvsSubscriber(registryCoordinatorAddr, blsOperatorStateRetrieverAddr g
 		return nil, err
 	}
 
-	avsRegistrySubscriber, err := avsregistry.NewAvsRegistryChainSubscriber(avsContractBindings.BlsApkRegistry, logger)
+	avsRegistrySubscriber, err := avsregistry.NewAvsRegistryChainSubscriber(logger, avsContractBindings.RegistryCoordinator, avsContractBindings.BlsApkRegistry)
 	if err != nil {
 		logger.Error("Failed to create chain registry subscriber", "err", err)
 		return nil, err

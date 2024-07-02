@@ -180,8 +180,6 @@ func createMockAggregator(
 		rollupBroadcaster:                      mockRollupBroadcaster,
 		httpClient:                             mockClient,
 		wsClient:                               mockClient,
-		rpcListener:                            &SelectiveRpcListener{},
-		restListener:                           &SelectiveRestListener{},
 		aggregatorListener:                     &SelectiveAggregatorListener{},
 	}
 	return aggregator, mockAvsReader, mockAvsWriter, mockTaskBlsAggregationService, mockStateRootUpdateBlsAggregationService, mockOperatorSetUpdateBlsAggregationService, mockOperatorRegistrationsService, mockMsgDb, mockRollupBroadcaster, mockClient, nil

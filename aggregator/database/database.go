@@ -1,6 +1,7 @@
 package database
 
 import (
+	"context"
 	"errors"
 	"log"
 	"math"
@@ -62,11 +63,21 @@ func NewDatabase(dbPath string) (*Database, error) {
 		return nil, err
 	}
 
-	db.AutoMigrate(
+	err = db.AutoMigrate(
 		&models.MessageBlsAggregation{},
 		&models.StateRootUpdateMessage{},
 		&models.OperatorSetUpdateMessage{},
 	)
+	if err != nil {
+		return nil, err
+	}
+
+	underlyingDb, err := db.DB()
+	if err != nil {
+		return nil, err
+	}
+
+	underlyingDb.SetMaxOpenConns(1)
 
 	return &Database{
 		db:       db,
@@ -255,6 +266,10 @@ func (d *Database) FetchCheckpointMessages(fromTimestamp uint64, toTimestamp uin
 		return nil, errors.New("timestamp does not fit in int64")
 	}
 
+	if (toTimestamp < fromTimestamp) {
+		return nil, errors.New("toTimestamp is less than fromTimestamp")
+	}
+
 	start := time.Now()
 	defer func() { d.listener.OnFetch(time.Since(start)) }()
 
@@ -288,6 +303,10 @@ func (d *Database) FetchCheckpointMessages(fromTimestamp uint64, toTimestamp uin
 	operatorSetUpdateMessageAggregations := make([]messages.MessageBlsAggregation, 0, len(operatorSetUpdates))
 
 	for _, stateRootUpdate := range stateRootUpdates {
+		if stateRootUpdate.Aggregation == nil {
+			d.db.Logger.Warn(context.Background(), "Aggregation is nil for stateRootUpdate: %v", stateRootUpdate)
+			continue
+		}
 		agg := stateRootUpdate.Aggregation
 
 		stateRootUpdateMessages = append(stateRootUpdateMessages, stateRootUpdate.ToMessage())
@@ -295,6 +314,10 @@ func (d *Database) FetchCheckpointMessages(fromTimestamp uint64, toTimestamp uin
 	}
 
 	for _, operatorSetUpdate := range operatorSetUpdates {
+		if operatorSetUpdate.Aggregation == nil {
+			d.db.Logger.Warn(context.Background(), "Aggregation is nil for operatorSetUpdate: %v", operatorSetUpdate)
+			continue
+		}
 		agg := operatorSetUpdate.Aggregation
 
 		operatorSetUpdateMessages = append(operatorSetUpdateMessages, operatorSetUpdate.ToMessage())

@@ -236,7 +236,10 @@ func StartAnvilTestContainer(t *testing.T, ctx context.Context, name, exposedPor
 	}
 
 	if isMainnet {
-		anvil.Mine(big.NewInt(100), big.NewInt(1))
+		err := anvil.Mine(big.NewInt(100), big.NewInt(1))
+		if err != nil {
+			t.Fatalf("Anvil failed to Mine: %s", err.Error())
+		}
 	}
 
 	return anvil

@@ -25,12 +25,15 @@ import (
 	"github.com/ethereum/go-ethereum/accounts/abi/bind"
 	"github.com/ethereum/go-ethereum/common"
 	"github.com/ethereum/go-ethereum/crypto"
+	"github.com/prometheus/client_golang/prometheus"
 	"github.com/stretchr/testify/assert"
 	"github.com/testcontainers/testcontainers-go"
 	"github.com/testcontainers/testcontainers-go/modules/rabbitmq"
 	"github.com/testcontainers/testcontainers-go/wait"
 
 	"github.com/NethermindEth/near-sffl/aggregator"
+	restserver "github.com/NethermindEth/near-sffl/aggregator/rest_server"
+	rpcserver "github.com/NethermindEth/near-sffl/aggregator/rpc_server"
 	aggtypes "github.com/NethermindEth/near-sffl/aggregator/types"
 	registryrollup "github.com/NethermindEth/near-sffl/contracts/bindings/SFFLRegistryRollup"
 	transparentproxy "github.com/NethermindEth/near-sffl/contracts/bindings/TransparentUpgradeableProxy"
@@ -290,10 +293,32 @@ func startOperator(t *testing.T, ctx context.Context, nodeConfig optypes.NodeCon
 func startAggregator(t *testing.T, ctx context.Context, config *config.Config, logger sdklogging.Logger) *aggregator.Aggregator {
 	t.Log("starting aggregator for integration tests")
 
-	agg, err := aggregator.NewAggregator(ctx, config, logger)
+	var optRegistry *prometheus.Registry
+	if config.EnableMetrics {
+		optRegistry = prometheus.NewRegistry()
+	}
+	agg, err := aggregator.NewAggregator(ctx, config, nil, logger)
 	if err != nil {
 		t.Fatalf("Failed to create aggregator: %s", err.Error())
 	}
+
+	rpcServer := rpcserver.NewRpcServer(config.AggregatorServerIpPortAddr, agg, logger)
+	if optRegistry != nil {
+		err = rpcServer.EnableMetrics(optRegistry)
+		if err != nil {
+			t.Fatalf("Failed to create metrics for rpc server: %s", err.Error())
+		}
+	}
+	go rpcServer.Start()
+
+	restServer := restserver.NewRestServer(config.AggregatorRestServerIpPortAddr, agg, logger)
+	if optRegistry != nil {
+		err = restServer.EnableMetrics(optRegistry)
+		if err != nil {
+			t.Fatalf("Failed to create metrics for rest server: %s", err.Error())
+		}
+	}
+	go restServer.Start()
 
 	go agg.Start(ctx)
 

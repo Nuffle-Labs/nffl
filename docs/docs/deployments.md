@@ -8,7 +8,7 @@ sidebar_position: 5
 
 :::info
 
-While the opt-in process for NEAR SFFL is currently underway - see
+While the opt-in process for NEAR NFFL is currently underway - see
 [Registration](./operator/registration) - the testnet is not completely
 operational just yet.
 

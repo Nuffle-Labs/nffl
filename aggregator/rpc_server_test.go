@@ -46,9 +46,9 @@ func TestProcessSignedCheckpointTaskResponse(t *testing.T) {
 	ctx := context.Background()
 	mockBlsAggServ.EXPECT().ProcessNewSignature(ctx, TASK_INDEX, signedCheckpointTaskResponseDigest,
 		&signedCheckpointTaskResponse.BlsSignature, signedCheckpointTaskResponse.OperatorId)
-	mockOperatorRegistrationsServ.EXPECT().GetOperatorPubkeysById(ctx, signedCheckpointTaskResponse.OperatorId).Return(MOCK_OPERATOR_PUBKEYS, true)
+	mockOperatorRegistrationsServ.EXPECT().GetOperatorInfoById(ctx, signedCheckpointTaskResponse.OperatorId).Return(eigentypes.OperatorInfo{Pubkeys: MOCK_OPERATOR_PUBKEYS}, true)
 
-	err = aggregator.ProcessSignedCheckpointTaskResponse(signedCheckpointTaskResponse, nil)
+	err = aggregator.ProcessSignedCheckpointTaskResponse(signedCheckpointTaskResponse)
 	assert.Nil(t, err)
 }
 
@@ -76,9 +76,9 @@ func TestProcessSignedStateRootUpdateMessage(t *testing.T) {
 	mockMessageBlsAggServ.EXPECT().ProcessNewSignature(context.Background(), messageDigest,
 		&signedMessage.BlsSignature, signedMessage.OperatorId)
 	mockMessageBlsAggServ.EXPECT().InitializeMessageIfNotExists(messageDigest, coretypes.QUORUM_NUMBERS, []eigentypes.QuorumThresholdPercentage{types.MESSAGE_AGGREGATION_QUORUM_THRESHOLD}, types.MESSAGE_TTL, types.MESSAGE_BLS_AGGREGATION_TIMEOUT, uint64(0))
-	mockOperatorRegistrationsServ.EXPECT().GetOperatorPubkeysById(context.Background(), signedMessage.OperatorId).Return(MOCK_OPERATOR_PUBKEYS, true)
+	mockOperatorRegistrationsServ.EXPECT().GetOperatorInfoById(context.Background(), signedMessage.OperatorId).Return(eigentypes.OperatorInfo{Pubkeys: MOCK_OPERATOR_PUBKEYS}, true)
 
-	err = aggregator.ProcessSignedStateRootUpdateMessage(signedMessage, nil)
+	err = aggregator.ProcessSignedStateRootUpdateMessage(signedMessage)
 	assert.Nil(t, err)
 }
 
@@ -102,9 +102,9 @@ func TestProcessInvalidSignedStateRootUpdateMessage(t *testing.T) {
 	assert.Nil(t, err)
 	invalidateSignature(&signedMessage.BlsSignature)
 
-	mockOperatorRegistrationsServ.EXPECT().GetOperatorPubkeysById(context.Background(), signedMessage.OperatorId).Return(MOCK_OPERATOR_PUBKEYS, true)
-	err = aggregator.ProcessSignedStateRootUpdateMessage(signedMessage, nil)
-	assert.Equal(t, err.Error(), "400. Signature verification failed")
+	mockOperatorRegistrationsServ.EXPECT().GetOperatorInfoById(context.Background(), signedMessage.OperatorId).Return(eigentypes.OperatorInfo{Pubkeys: MOCK_OPERATOR_PUBKEYS}, true)
+	err = aggregator.ProcessSignedStateRootUpdateMessage(signedMessage)
+	assert.Equal(t, err.Error(), "Invalid signature")
 }
 
 func TestProcessOperatorSetUpdateMessage(t *testing.T) {
@@ -133,9 +133,9 @@ func TestProcessOperatorSetUpdateMessage(t *testing.T) {
 	mockMessageBlsAggServ.EXPECT().ProcessNewSignature(ctx, messageDigest,
 		&signedMessage.BlsSignature, signedMessage.OperatorId)
 	mockMessageBlsAggServ.EXPECT().InitializeMessageIfNotExists(messageDigest, coretypes.QUORUM_NUMBERS, []eigentypes.QuorumThresholdPercentage{types.MESSAGE_AGGREGATION_QUORUM_THRESHOLD}, types.MESSAGE_TTL, types.MESSAGE_BLS_AGGREGATION_TIMEOUT, uint64(9))
-	mockOperatorRegistrationsServ.EXPECT().GetOperatorPubkeysById(ctx, signedMessage.OperatorId).Return(MOCK_OPERATOR_PUBKEYS, true)
+	mockOperatorRegistrationsServ.EXPECT().GetOperatorInfoById(context.Background(), signedMessage.OperatorId).Return(eigentypes.OperatorInfo{Pubkeys: MOCK_OPERATOR_PUBKEYS}, true)
 
-	err = aggregator.ProcessSignedOperatorSetUpdateMessage(signedMessage, nil)
+	err = aggregator.ProcessSignedOperatorSetUpdateMessage(signedMessage)
 	assert.Nil(t, err)
 }
 
@@ -147,9 +147,8 @@ func TestGetAggregatedCheckpointMessages(t *testing.T) {
 	assert.Nil(t, err)
 
 	var checkpointMessages messages.CheckpointMessages
-
 	mockDb.EXPECT().FetchCheckpointMessages(uint64(1), uint64(2)).Return(&checkpointMessages, nil)
-	err = aggregator.GetAggregatedCheckpointMessages(&GetAggregatedCheckpointMessagesArgs{uint64(1), uint64(2)}, &checkpointMessages)
+	_, err = aggregator.GetAggregatedCheckpointMessages(uint64(1), uint64(2))
 	assert.Nil(t, err)
 }
 

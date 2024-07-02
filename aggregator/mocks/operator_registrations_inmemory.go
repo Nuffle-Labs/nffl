@@ -40,32 +40,32 @@ func (m *MockOperatorRegistrationsService) EXPECT() *MockOperatorRegistrationsSe
 	return m.recorder
 }
 
-// GetOperatorPubkeys mocks base method.
-func (m *MockOperatorRegistrationsService) GetOperatorPubkeys(arg0 context.Context, arg1 common.Address) (types.OperatorPubkeys, bool) {
+// GetOperatorInfo mocks base method.
+func (m *MockOperatorRegistrationsService) GetOperatorInfo(arg0 context.Context, arg1 common.Address) (types.OperatorInfo, bool) {
 	m.ctrl.T.Helper()
-	ret := m.ctrl.Call(m, "GetOperatorPubkeys", arg0, arg1)
-	ret0, _ := ret[0].(types.OperatorPubkeys)
+	ret := m.ctrl.Call(m, "GetOperatorInfo", arg0, arg1)
+	ret0, _ := ret[0].(types.OperatorInfo)
 	ret1, _ := ret[1].(bool)
 	return ret0, ret1
 }
 
-// GetOperatorPubkeys indicates an expected call of GetOperatorPubkeys.
-func (mr *MockOperatorRegistrationsServiceMockRecorder) GetOperatorPubkeys(arg0, arg1 any) *gomock.Call {
+// GetOperatorInfo indicates an expected call of GetOperatorInfo.
+func (mr *MockOperatorRegistrationsServiceMockRecorder) GetOperatorInfo(arg0, arg1 any) *gomock.Call {
 	mr.mock.ctrl.T.Helper()
-	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "GetOperatorPubkeys", reflect.TypeOf((*MockOperatorRegistrationsService)(nil).GetOperatorPubkeys), arg0, arg1)
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "GetOperatorInfo", reflect.TypeOf((*MockOperatorRegistrationsService)(nil).GetOperatorInfo), arg0, arg1)
 }
 
-// GetOperatorPubkeysById mocks base method.
-func (m *MockOperatorRegistrationsService) GetOperatorPubkeysById(arg0 context.Context, arg1 types.Bytes32) (types.OperatorPubkeys, bool) {
+// GetOperatorInfoById mocks base method.
+func (m *MockOperatorRegistrationsService) GetOperatorInfoById(arg0 context.Context, arg1 types.Bytes32) (types.OperatorInfo, bool) {
 	m.ctrl.T.Helper()
-	ret := m.ctrl.Call(m, "GetOperatorPubkeysById", arg0, arg1)
-	ret0, _ := ret[0].(types.OperatorPubkeys)
+	ret := m.ctrl.Call(m, "GetOperatorInfoById", arg0, arg1)
+	ret0, _ := ret[0].(types.OperatorInfo)
 	ret1, _ := ret[1].(bool)
 	return ret0, ret1
 }
 
-// GetOperatorPubkeysById indicates an expected call of GetOperatorPubkeysById.
-func (mr *MockOperatorRegistrationsServiceMockRecorder) GetOperatorPubkeysById(arg0, arg1 any) *gomock.Call {
+// GetOperatorInfoById indicates an expected call of GetOperatorInfoById.
+func (mr *MockOperatorRegistrationsServiceMockRecorder) GetOperatorInfoById(arg0, arg1 any) *gomock.Call {
 	mr.mock.ctrl.T.Helper()
-	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "GetOperatorPubkeysById", reflect.TypeOf((*MockOperatorRegistrationsService)(nil).GetOperatorPubkeysById), arg0, arg1)
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "GetOperatorInfoById", reflect.TypeOf((*MockOperatorRegistrationsService)(nil).GetOperatorInfoById), arg0, arg1)
 }

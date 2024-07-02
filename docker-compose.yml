@@ -35,9 +35,9 @@ services:
     command: --host 0.0.0.0 --port 8545 --chain-id 1 --block-time 5 --load-state /root/.anvil/state.json
     healthcheck:
       test: ["CMD", "nc", "-zv", "0.0.0.0", "8545"]
-      interval: 2s
-      timeout: 30s
-      retries: 15
+      interval: 15s
+      timeout: 10s
+      retries: 5
     networks:
       - near-sffl
 
@@ -69,9 +69,9 @@ services:
     command: --host 0.0.0.0 --port 8546 --chain-id 2 --block-time 5 --load-state /root/.anvil/state.json
     healthcheck:
       test: ["CMD", "nc", "-zv", "0.0.0.0", "8546"]
-      interval: 2s
-      timeout: 30s
-      retries: 15
+      interval: 15s
+      timeout: 10s
+      retries: 5
     networks:
       - near-sffl
 
@@ -219,6 +219,20 @@ services:
     networks:
       - near-sffl
 
+  agreator-health:
+    image: debian:bookworm
+    depends_on:
+      aggregator:
+        condition: service_started
+    command: sh -c "apt update && apt install -y netcat-traditional && sleep infinity"
+    healthcheck:
+      test: ["CMD", "nc", "-zv", "near-sffl-aggregator", "9091"]
+      interval: 15s
+      timeout: 10s
+      retries: 5
+    networks:
+      - near-sffl
+
   operator0:
     image: near-sffl-operator
     container_name: near-sffl-operator0
@@ -249,9 +263,9 @@ services:
     command: sh -c "apt update && apt install -y netcat-traditional && sleep infinity"
     healthcheck:
       test: ["CMD", "nc", "-zv", "near-sffl-operator0", "9090"]
-      interval: 5s
-      timeout: 75s
-      retries: 15
+      interval: 15s
+      timeout: 10s
+      retries: 5
     networks:
       - near-sffl
 
@@ -281,9 +295,9 @@ services:
     command: sh -c "apt update && apt install -y netcat-traditional && sleep infinity"
     healthcheck:
       test: ["CMD", "nc", "-zv", "near-sffl-operator1", "9091"]
-      interval: 5s
-      timeout: 75s
-      retries: 15
+      interval: 15s
+      timeout: 10s
+      retries: 5
     networks:
       - near-sffl
 
