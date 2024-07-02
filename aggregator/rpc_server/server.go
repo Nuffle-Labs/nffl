@@ -92,12 +92,13 @@ func mapErrors(err error) error {
 // reply doesn't need to be checked. If there are no errors, the task response is accepted
 // rpc framework forces a reply type to exist, so we put bool as a placeholder
 func (s *RpcServer) ProcessSignedCheckpointTaskResponse(signedCheckpointTaskResponse *messages.SignedCheckpointTaskResponse, reply *bool) error {
+	s.logger.Info("Received signed task response", "response", signedCheckpointTaskResponse)
+
 	err := signedCheckpointTaskResponse.IsValid()
 	if err != nil {
 		return err
 	}
 
-	s.logger.Info("Received signed task response", "response", signedCheckpointTaskResponse)
 	s.listener.IncTotalSignedCheckpointTaskResponse()
 	s.listener.ObserveLastMessageReceivedTime(signedCheckpointTaskResponse.OperatorId, CheckpointTaskResponseLabel)
 
@@ -117,12 +118,13 @@ func (s *RpcServer) ProcessSignedCheckpointTaskResponse(signedCheckpointTaskResp
 }
 
 func (s *RpcServer) ProcessSignedStateRootUpdateMessage(signedStateRootUpdateMessage *messages.SignedStateRootUpdateMessage, reply *bool) error {
+	s.logger.Info("Received signed state root update message", "updateMessage", signedStateRootUpdateMessage)
+
 	err := signedStateRootUpdateMessage.IsValid()
 	if err != nil {
 		return err
 	}
 
-	s.logger.Info("Received signed state root update message", "updateMessage", signedStateRootUpdateMessage)
 	s.listener.IncTotalSignedCheckpointTaskResponse()
 	s.listener.ObserveLastMessageReceivedTime(signedStateRootUpdateMessage.OperatorId, StateRootUpdateMessageLabel)
 
@@ -140,12 +142,12 @@ func (s *RpcServer) ProcessSignedStateRootUpdateMessage(signedStateRootUpdateMes
 }
 
 func (s *RpcServer) ProcessSignedOperatorSetUpdateMessage(signedOperatorSetUpdateMessage *messages.SignedOperatorSetUpdateMessage, reply *bool) error {
+	s.logger.Info("Received signed operator set update message", "message", signedOperatorSetUpdateMessage)
+
 	err := signedOperatorSetUpdateMessage.IsValid()
 	if err != nil {
 		return err
 	}
-
-	s.logger.Info("Received signed operator set update message", "message", signedOperatorSetUpdateMessage)
 
 	operatorId := signedOperatorSetUpdateMessage.OperatorId
 	s.listener.ObserveLastMessageReceivedTime(operatorId, OperatorSetUpdateMessageLabel)
