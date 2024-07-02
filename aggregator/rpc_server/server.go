@@ -140,13 +140,18 @@ func (s *RpcServer) ProcessSignedStateRootUpdateMessage(signedStateRootUpdateMes
 }
 
 func (s *RpcServer) ProcessSignedOperatorSetUpdateMessage(signedOperatorSetUpdateMessage *messages.SignedOperatorSetUpdateMessage, reply *bool) error {
+	err := signedOperatorSetUpdateMessage.IsValid()
+	if err != nil {
+		return err
+	}
+
 	s.logger.Info("Received signed operator set update message", "message", signedOperatorSetUpdateMessage)
 
 	operatorId := signedOperatorSetUpdateMessage.OperatorId
 	s.listener.ObserveLastMessageReceivedTime(operatorId, OperatorSetUpdateMessageLabel)
 	s.listener.IncTotalSignedOperatorSetUpdateMessage()
 
-	err := s.app.ProcessSignedOperatorSetUpdateMessage(signedOperatorSetUpdateMessage)
+	err = s.app.ProcessSignedOperatorSetUpdateMessage(signedOperatorSetUpdateMessage)
 	s.listener.IncSignedOperatorSetUpdateMessage(operatorId, err != nil)
 	if err != nil {
 		return mapErrors(err)
