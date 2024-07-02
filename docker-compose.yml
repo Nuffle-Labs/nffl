@@ -81,8 +81,6 @@ services:
     depends_on:
       rollup0-anvil:
         condition: service_healthy
-      indexer-setup:
-        condition: service_completed_successfully
     expose:
       - 9091
     volumes:
@@ -125,8 +123,6 @@ services:
     depends_on:
       rollup1-anvil:
         condition: service_healthy
-      indexer-setup:
-        condition: service_completed_successfully
     expose:
       - 9091
     volumes:
@@ -167,34 +163,6 @@ services:
       - "3"
       - --metrics-ip-port-address
       - "0.0.0.0:9090"
-    networks:
-      - near-sffl
-
-  indexer-setup:
-    image: node:16
-    container_name: near-sffl-indexer-setup
-    depends_on:
-      indexer:
-        condition: service_healthy
-    volumes:
-      - ./:/near-sffl/
-      - near_cli_data:/near-cli
-      - near_cli_keys:/root/.near-credentials
-    entrypoint: sh
-    command:
-      - -c
-      - |
-        npm i -g near-cli@3.0.0
-        near create-account da2.test.near --masterAccount test.near
-        near deploy da2.test.near /near-sffl/tests/near/near_da_blob_store.wasm --initFunction new --initArgs {} --masterAccount test.near -f
-        near create-account da3.test.near --masterAccount test.near
-        near deploy da3.test.near /near-sffl/tests/near/near_da_blob_store.wasm --initFunction new --initArgs {} --masterAccount test.near -f
-    environment:
-      - NEAR_ENV=localnet
-      - NEAR_CLI_LOCALNET_NETWORK_ID=localnet
-      - NEAR_HELPER_ACCOUNT=near
-      - NEAR_CLI_LOCALNET_KEY_PATH=/near-cli/validator_key.json
-      - NEAR_NODE_URL=http://near-sffl-indexer:3030
     networks:
       - near-sffl
 
