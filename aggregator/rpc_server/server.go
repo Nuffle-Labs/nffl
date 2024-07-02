@@ -117,6 +117,11 @@ func (s *RpcServer) ProcessSignedCheckpointTaskResponse(signedCheckpointTaskResp
 }
 
 func (s *RpcServer) ProcessSignedStateRootUpdateMessage(signedStateRootUpdateMessage *messages.SignedStateRootUpdateMessage, reply *bool) error {
+	err := signedStateRootUpdateMessage.IsValid()
+	if err != nil {
+		return err
+	}
+
 	s.logger.Info("Received signed state root update message", "updateMessage", signedStateRootUpdateMessage)
 	s.listener.IncTotalSignedCheckpointTaskResponse()
 	s.listener.ObserveLastMessageReceivedTime(signedStateRootUpdateMessage.OperatorId, StateRootUpdateMessageLabel)
@@ -125,7 +130,7 @@ func (s *RpcServer) ProcessSignedStateRootUpdateMessage(signedStateRootUpdateMes
 	operatorId := signedStateRootUpdateMessage.OperatorId
 	rollupId := signedStateRootUpdateMessage.Message.RollupId
 
-	err := s.app.ProcessSignedStateRootUpdateMessage(signedStateRootUpdateMessage)
+	err = s.app.ProcessSignedStateRootUpdateMessage(signedStateRootUpdateMessage)
 	s.listener.IncSignedStateRootUpdateMessage(operatorId, rollupId, err != nil, hasNearDaCommitment)
 	if err != nil {
 		return mapErrors(err)

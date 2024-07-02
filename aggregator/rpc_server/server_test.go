@@ -35,3 +35,28 @@ func TestProcessSignedCheckpointTaskResponse_InvalidParams(t *testing.T) {
 		assert.NotNil(t, err)
 	})
 }
+
+func TestProcessSignedStateRootUpdateMessage_InvalidParams(t *testing.T) {
+	mockCtrl := gomock.NewController(t)
+	defer mockCtrl.Finish()
+
+	agg := mocks.NewMockRpcAggregatorer(mockCtrl)
+	logger, _ := logging.NewZapLogger(logging.Development)
+
+	rpc := NewRpcServer("localhost:8080", agg, logger)
+
+	var ignore bool
+	t.Run("nil message", func(t *testing.T) {
+		err := rpc.ProcessSignedStateRootUpdateMessage(nil, &ignore)
+
+		assert.NotNil(t, err)
+	})
+
+	t.Run("nil signature", func(t *testing.T) {
+		err := rpc.ProcessSignedStateRootUpdateMessage(&messages.SignedStateRootUpdateMessage{
+			BlsSignature: bls.Signature{G1Point: nil},
+		}, &ignore)
+
+		assert.NotNil(t, err)
+	})
+}
