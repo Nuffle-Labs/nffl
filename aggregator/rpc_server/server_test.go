@@ -11,7 +11,7 @@ import (
 	"go.uber.org/mock/gomock"
 )
 
-func TestProcessSignedCheckpointTaskResponse_Invalid_Params(t *testing.T) {
+func TestProcessSignedCheckpointTaskResponse_InvalidParams(t *testing.T) {
 	mockCtrl := gomock.NewController(t)
 	defer mockCtrl.Finish()
 
