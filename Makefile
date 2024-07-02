@@ -104,7 +104,7 @@ start-indexer: ##
 	cargo run -p indexer --release -- --home-dir ~/.near/localnet run --da-contract-ids da.test.near --rollup-ids 2 --rmq-address "amqp://127.0.0.1:5672"
 
 start-test-relayer: ##
-	CGO_LDFLAGS="-L ./relayer/libs" go run relayer/cmd/main.go run-args --rpc-url ws://127.0.0.1:8546 --da-account-id da.test.near --key-path ~/.near-credentials/localnet/da.test.near.json
+	CGO_LDFLAGS="-L ./relayer/libs ${CGO_LDFLAGS}" go run relayer/cmd/main.go run-args --rpc-url ws://127.0.0.1:8546 --da-account-id da.test.near --key-path ~/.near-credentials/localnet/da.test.near.json
 
 run-plugin: ##
 	go run plugin/cmd/main.go --config config-files/operator.anvil.yaml
