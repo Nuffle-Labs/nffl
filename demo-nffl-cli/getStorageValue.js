@@ -1,6 +1,5 @@
 const { ethers } = require('ethers');
 const {NFFLRegistryRollupABI} = require('./abi/NFFLRegistryRollup');
-//const {arbContracts} = require('./contracts');
 const RLP = require('rlp');
 
 /*
@@ -14,7 +13,7 @@ async function getStorageValue(options) {
     const srcProvider = new ethers.JsonRpcProvider(options.srcRpcUrl);
     //chainId
     const { chainId } = await srcProvider.getNetwork();
-    // Prepear params
+    // Prepare params
     const params = [
         options.contractAddress,
         [options.storageKey],
@@ -59,8 +58,8 @@ async function getStorageValue(options) {
     }
 
     // Get storage value
-    const tx = await registryRollup.getStorageValue(message,proofParams);
-    console.log(`Account ${options.contractAddress} storage slot ${options.storageKey} equals to ${tx}`);
+    const storageValue = await registryRollup.getStorageValue(message,proofParams);
+    console.log(`Account ${options.contractAddress} storage slot ${options.storageKey} equals to ${storageValue}`);
 }
 
 module.exports = {getStorageValue}

@@ -2,6 +2,7 @@
 const { ethers } = require('ethers');
 const {NFFLRegistryRollupABI} = require('./abi/NFFLRegistryRollup');
 const { hashG1Point } = require('./src/hashG1Point');
+const { createWallet } = require('./src/createWallet');
 /* 
  * Automatically updates the operator set
 */
@@ -9,7 +10,7 @@ async function updateOperatorSet(options) {
     // Init provider
     const provider = new ethers.JsonRpcProvider(options.rpcUrl);
     // Init wallet
-    const wallet = ethers.Wallet.fromPhrase(options.seedPhrase);
+    const wallet = createWallet(options.envKey);
     const account = wallet.connect(provider);
     console.log('Wallet address:', await account.getAddress());
     // Get next operator update id
@@ -23,12 +24,10 @@ async function updateOperatorSet(options) {
         throw new Error(`HTTP error! status: ${response.status}`);
     }
     const respText = await response.text();
+    // stringifying weight manually to avoid possible overflow issues when parsing
     text = respText.replace(/"Weight":\s*(\d+)/g, '"Weight": "$1"');
-    data = JSON.parse(text);
-    const operators = data.Message.Operators.map(({ Pubkey, Weight }) => ({
-        pubkey: Pubkey,
-        weight: Weight
-    }));
+    const  data = JSON.parse(text);
+    const operators = data.Message.Operators.map(({ Pubkey: pubkey, Weight: weight }) => ({ pubkey, weight }));
     const message = {
         id: data.Message.Id,
         timestamp: data.Message.Timestamp,
@@ -51,7 +50,7 @@ async function updateOperatorSet(options) {
         },
         sigma: data.Aggregation.SignersAggSigG1.g1_point
     }
-    // Call contact
+    // Call contract
     const tx = await registryRollup.updateOperatorSet(message,signatureInfo);
     console.log('transaction:', tx);
     await tx.wait();

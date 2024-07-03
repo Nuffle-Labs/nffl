@@ -27,7 +27,7 @@ demo-nffl-cli updateStateRoot\
  --blockHeight 14095733\
  --nfflRegistryRollup 0x23e252b4Ec7cDd3ED84f039EF53DEa494CE878E0\
  --aggregator http://127.0.0.1:4002\
- --seedPhrase <signer seed phrase>
+ --envKey PRIVATE_KEY
 ```
 
 ### updateOperatorSet
@@ -37,5 +37,5 @@ demo-nffl-cli updateOperatorSet\
  --rpcUrl https://sepolia-rollup.arbitrum.io/rpc\
  --nfflRegistryRollup 0x23e252b4Ec7cDd3ED84f039EF53DEa494CE878E0\
  --aggregator http://127.0.0.1:4002\
- --seedPhrase <signer seed phrase>
+ --envKey PRIVATE_KEY
 ```

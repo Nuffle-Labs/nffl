@@ -1,13 +1,14 @@
 {
+  "private": true,
   "name": "demo-nffl-cli",
-  "version": "1.0.0",
+  "version": "0.0.1",
   "main": "index.js",
   "scripts": {
     "test": "echo \"Error: no test specified\" && exit 1"
   },
   "keywords": [],
-  "author": "",
-  "license": "ISC",
+  "author": "Near.org",
+  "license": "MIT",
   "description": "",
   "dependencies": {
     "bignumber.js": "^9.1.2",

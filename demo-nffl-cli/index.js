@@ -1,7 +1,9 @@
 #!/usr/bin/env node
 
 const { program } = require('commander');
+
 const pkg = require('./package.json');
+
 const {getStorageValue} = require('./getStorageValue');
 const {updateStateRoot} = require('./updateStateRoot');
 const {updateOperatorSet} = require('./updateOperatorSet');
@@ -30,7 +32,7 @@ program
 .requiredOption('--blockHeight <type>', 'blockHeight')
 .requiredOption('--nfflRegistryRollup <type>', 'nfflRegistryRollup contract address on destination chain')
 .requiredOption('--aggregator <type>', 'Aggregator REST API')
-.requiredOption('--seedPhrase <type>', 'Seed phrase for message signing')
+.requiredOption('--envKey <type>', 'Name of the environment variable containing the private key')
 .action(updateStateRoot);
 
 program
@@ -39,7 +41,7 @@ program
 .requiredOption('--rpcUrl <type>', 'RPC URL')
 .requiredOption('--nfflRegistryRollup <type>', 'nfflRegistryRollup contract address on destination chain')
 .requiredOption('--aggregator <type>', 'Aggregator REST API')
-.requiredOption('--seedPhrase <type>', 'Seed phrase for message signing')
+.requiredOption('--envKey <type>', 'Name of the environment variable containing the private key')
 .action(updateOperatorSet);
 
 program.parse(process.argv);

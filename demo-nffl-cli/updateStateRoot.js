@@ -1,6 +1,7 @@
 const { ethers } = require('ethers');
 const {NFFLRegistryRollupABI} = require('./abi/NFFLRegistryRollup');
 const { hashG1Point } = require('./src/hashG1Point');
+const { createWallet } = require('./src/createWallet');
 /*
  * Updates the state root.
 */
@@ -8,7 +9,7 @@ async function updateStateRoot(options) {
     // Init provider
     const provider = new ethers.JsonRpcProvider(options.rpcUrl);
     // Init wallet
-    const wallet = ethers.Wallet.fromPhrase(options.seedPhrase);
+    const wallet = createWallet(options.envKey);
     const account = wallet.connect(provider);
     console.log('Wallet address:', await account.getAddress());
     // Get RegistryRollup contract
