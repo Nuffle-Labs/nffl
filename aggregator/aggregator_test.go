@@ -20,6 +20,7 @@ import (
 	aggmocks "github.com/NethermindEth/near-sffl/aggregator/mocks"
 	"github.com/NethermindEth/near-sffl/aggregator/types"
 	taskmanager "github.com/NethermindEth/near-sffl/contracts/bindings/SFFLTaskManager"
+	"github.com/NethermindEth/near-sffl/core"
 	chainiomocks "github.com/NethermindEth/near-sffl/core/chainio/mocks"
 	safeclientmocks "github.com/NethermindEth/near-sffl/core/safeclient/mocks"
 	coretypes "github.com/NethermindEth/near-sffl/core/types"
@@ -153,24 +154,19 @@ func TestExpiredStateRootUpdateMessage(t *testing.T) {
 	mockCtrl := gomock.NewController(t)
 	defer mockCtrl.Finish()
 
-	aggregator, _, _, _, _, _, _, _, mockClient, err := createMockAggregator(mockCtrl, MOCK_OPERATOR_PUBKEY_DICT)
+	aggregator, _, _, _, _, _, _, _, _, err := createMockAggregator(mockCtrl, MOCK_OPERATOR_PUBKEY_DICT)
 	assert.NoError(t, err)
 
-	var BLOCK_NUMBER = uint32(100)
-	var BLOCK_TIME = uint64(5000)
-	var MESSAGE_TIME = BLOCK_TIME - 60 - 30 - 1 // 60 seconds for message TTL, 30 seconds of aggregation timeout and 1 second to be out of range
-
-	mockClient.EXPECT().BlockNumber(context.Background()).Return(uint64(BLOCK_NUMBER), nil)
-	mockClient.EXPECT().BlockByNumber(context.Background(), big.NewInt(int64(BLOCK_NUMBER))).Return(
-		gethtypes.NewBlockWithHeader(&gethtypes.Header{Time: BLOCK_TIME}),
-		nil,
-	)
+	nowTimestamp := uint64(6000)
+	aggregator.clock = core.Clock{Now: func() time.Time { return time.Unix(int64(nowTimestamp), 0) }}
+	messageTimestamp := nowTimestamp - 60 - 1 // 60 seconds for message submission timeout and 1 second to be out of range
 
 	err = aggregator.ProcessSignedStateRootUpdateMessage(&messages.SignedStateRootUpdateMessage{
 		Message: messages.StateRootUpdateMessage{
-			Timestamp: MESSAGE_TIME,
+			Timestamp: messageTimestamp,
 		},
 	})
+
 	assert.Equal(t, MessageExpiredError, err)
 }
 
@@ -178,24 +174,19 @@ func TestExpiredOperatorSetUpdate(t *testing.T) {
 	mockCtrl := gomock.NewController(t)
 	defer mockCtrl.Finish()
 
-	aggregator, _, _, _, _, _, _, _, mockClient, err := createMockAggregator(mockCtrl, MOCK_OPERATOR_PUBKEY_DICT)
+	aggregator, _, _, _, _, _, _, _, _, err := createMockAggregator(mockCtrl, MOCK_OPERATOR_PUBKEY_DICT)
 	assert.NoError(t, err)
 
-	var BLOCK_NUMBER = uint32(200)
-	var BLOCK_TIME = uint64(8000)
-	var MESSAGE_TIME = BLOCK_TIME - 60 - 30 - 1 // 60 seconds for message TTL, 30 seconds of aggregation timeout and 1 second to be out of range
-
-	mockClient.EXPECT().BlockNumber(context.Background()).Return(uint64(BLOCK_NUMBER), nil)
-	mockClient.EXPECT().BlockByNumber(context.Background(), big.NewInt(int64(BLOCK_NUMBER))).Return(
-		gethtypes.NewBlockWithHeader(&gethtypes.Header{Time: BLOCK_TIME}),
-		nil,
-	)
+	nowTimestamp := uint64(8000)
+	aggregator.clock = core.Clock{Now: func() time.Time { return time.Unix(int64(nowTimestamp), 0) }}
+	messageTimestamp := nowTimestamp - 60 - 1 // 60 seconds for message submission timeout and 1 second to be out of range
 
 	err = aggregator.ProcessSignedOperatorSetUpdateMessage(&messages.SignedOperatorSetUpdateMessage{
 		Message: messages.OperatorSetUpdateMessage{
-			Timestamp: MESSAGE_TIME,
+			Timestamp: messageTimestamp,
 		},
 	})
+
 	assert.Equal(t, MessageExpiredError, err)
 }
 
