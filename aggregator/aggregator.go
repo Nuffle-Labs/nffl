@@ -391,7 +391,7 @@ func (agg *Aggregator) sendNewCheckpointTask() {
 	toTimestamp := block.Time()
 	fromTimestamp := lastCheckpointToTimestamp + 1
 	if lastCheckpointToTimestamp == 0 {
-		fromTimestamp = toTimestamp - uint64(agg.checkpointInterval)
+		fromTimestamp = toTimestamp - uint64(agg.checkpointInterval.Seconds())
 	}
 
 	agg.logger.Info("Aggregator sending new task", "fromTimestamp", fromTimestamp, "toTimestamp", toTimestamp)
