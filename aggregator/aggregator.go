@@ -706,7 +706,10 @@ func (agg *Aggregator) GetCheckpointMessages(fromTimestamp, toTimestamp uint64) 
 
 func (agg *Aggregator) validateMessageTimestamp(messageTimestamp uint64) error {
 	now := agg.clock.Now().Unix()
-	if messageTimestamp < uint64(now)-uint64(types.MESSAGE_SUBMISSION_TIMEOUT.Seconds()) {
+	timeoutInSeconds := types.MESSAGE_SUBMISSION_TIMEOUT.Seconds()
+
+	// Prevent possible underflow (specially in testing)
+	if uint64(now) > uint64(timeoutInSeconds) && messageTimestamp < uint64(now)-uint64(timeoutInSeconds) {
 		return MessageExpiredError
 	}
 
