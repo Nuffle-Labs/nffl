@@ -232,6 +232,7 @@ func NewAggregator(
 		rollupBroadcaster:                      rollupBroadcaster,
 		httpClient:                             ethHttpClient,
 		wsClient:                               ethWsClient,
+		clock:                                  *core.SystemClock,
 		taskBlsAggregationService:              taskBlsAggregationService,
 		stateRootUpdateBlsAggregationService:   stateRootUpdateBlsAggregationService,
 		operatorSetUpdateBlsAggregationService: operatorSetUpdateBlsAggregationService,
