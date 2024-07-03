@@ -407,7 +407,7 @@ func (agg *Aggregator) sendNewCheckpointTask() {
 		fromTimestamp = 0
 	}
 
-	toTimestamp := block.Time()
+	toTimestamp := block.Time() - uint64(types.MESSAGE_SUBMISSION_TIMEOUT)
 
 	agg.logger.Info("Aggregator sending new task", "fromTimestamp", fromTimestamp, "toTimestamp", toTimestamp)
 	// Send checkpoint to the task manager contract
