@@ -100,7 +100,7 @@ func TestProcessInvalidSignedStateRootUpdateMessage(t *testing.T) {
 
 	signedMessage, err := createMockSignedStateRootUpdateMessage(message, *MOCK_OPERATOR_KEYPAIR)
 	assert.Nil(t, err)
-	invalidateSignature(&signedMessage.BlsSignature)
+	signedMessage.BlsSignature = *newInvalidSignature()
 
 	mockOperatorRegistrationsServ.EXPECT().GetOperatorInfoById(context.Background(), signedMessage.OperatorId).Return(eigentypes.OperatorInfo{Pubkeys: MOCK_OPERATOR_PUBKEYS}, true)
 	err = aggregator.ProcessSignedStateRootUpdateMessage(signedMessage)
@@ -208,6 +208,6 @@ func createMockSignedOperatorSetUpdateMessage(mockMessage messages.OperatorSetUp
 	return signedOperatorSetUpdateMessage, nil
 }
 
-func invalidateSignature(signature *bls.Signature) {
-	signature.G1Affine.Neg(signature.G1Affine)
+func newInvalidSignature() *bls.Signature {
+	return bls.NewZeroSignature()
 }
