@@ -1,27 +1,24 @@
 
 const { ethers } = require('ethers');
 const {NFFLRegistryRollupABI} = require('./abi/NFFLRegistryRollup');
-const {arbContracts} = require('./contracts');
-const config = require('./config.json');
-const { secretSeedPhrase } = require('../secret/secret');
 const { hashG1Point } = require('./src/hashG1Point');
 /* 
- * Automatically updates the operator set on Arbitrum.
+ * Automatically updates the operator set
 */
-async function updateOperatorSet() {
+async function updateOperatorSet(options) {
     // Init provider
-    const arbProvider = new ethers.JsonRpcProvider(config.arbRpcUrl, config.arbNetworkId);
+    const provider = new ethers.JsonRpcProvider(options.rpcUrl);
     // Init wallet
-    const wallet = ethers.Wallet.fromPhrase(secretSeedPhrase);
-    const account = wallet.connect(arbProvider);
+    const wallet = ethers.Wallet.fromPhrase(options.seedPhrase);
+    const account = wallet.connect(provider);
     console.log('Wallet address:', await account.getAddress());
     // Get next operator update id
-    const registryRollup = new ethers.Contract(arbContracts.addresses.sfflRegistryRollup, NFFLRegistryRollupABI, account);
+    const registryRollup = new ethers.Contract(options.nfflRegistryRollup, NFFLRegistryRollupABI, account);
     const nextOperatorUpdateId = await registryRollup.nextOperatorUpdateId();
     console.log('nextOperatorUpdateId',nextOperatorUpdateId);
     // Fetch data
-    console.log(`${config.aggregator}/aggregation/operator-set-update?id=${nextOperatorUpdateId}`);
-    const response = await fetch(`${config.aggregator}/aggregation/operator-set-update?id=${nextOperatorUpdateId}`);
+    console.log(`${options.aggregator}/aggregation/operator-set-update?id=${nextOperatorUpdateId}`);
+    const response = await fetch(`${options.aggregator}/aggregation/operator-set-update?id=${nextOperatorUpdateId}`);
     if (!response.ok) {
         throw new Error(`HTTP error! status: ${response.status}`);
     }
@@ -59,12 +56,7 @@ async function updateOperatorSet() {
     console.log('transaction:', tx);
     await tx.wait();
     // Get next operator update id
-    console.log('new nextOperatorUpdateId',await registryRollup.nextOperatorUpdateId());
+    console.log('New nextOperatorUpdateId',await registryRollup.nextOperatorUpdateId());
 }
 
-updateOperatorSet()
-    .then(() => process.exit(0))
-    .catch((error) => {
-        console.error(error);
-        process.exit(1);
-});
+module.exports = {updateOperatorSet}

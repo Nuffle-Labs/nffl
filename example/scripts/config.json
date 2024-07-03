@@ -1,9 +1,0 @@
-{
-   "ethRpcUrl": "https://api.tatum.io/v3/blockchain/node/ethereum-holesky",
-   "ethNetworkId": 17000,
-   "arbRpcUrl": "https://sepolia-rollup.arbitrum.io/rpc",
-   "arbNetworkId": 421614,
-   "opRpcUrl": "https://sepolia.optimism.io",
-   "opNetworkId": 11155420,
-   "aggregator": "http://127.0.0.1:4002"
-}

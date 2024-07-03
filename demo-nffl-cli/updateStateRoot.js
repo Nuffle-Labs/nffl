@@ -1,25 +1,21 @@
 const { ethers } = require('ethers');
 const {NFFLRegistryRollupABI} = require('./abi/NFFLRegistryRollup');
-const {arbContracts} = require('./contracts');
-const config = require('./config.json');
-const { secretSeedPhrase } = require('../secret/secret');
 const { hashG1Point } = require('./src/hashG1Point');
 /*
- * Updates the state root on Arbitrum to the Optimism block state.
+ * Updates the state root.
 */
-const blockHeight = 13905480;
-async function updateStateRoot() {
+async function updateStateRoot(options) {
     // Init provider
-    const arbProvider = new ethers.JsonRpcProvider(config.arbRpcUrl, config.arbNetworkId);
+    const provider = new ethers.JsonRpcProvider(options.rpcUrl);
     // Init wallet
-    const wallet = ethers.Wallet.fromPhrase(secretSeedPhrase);
-    const account = wallet.connect(arbProvider);
+    const wallet = ethers.Wallet.fromPhrase(options.seedPhrase);
+    const account = wallet.connect(provider);
     console.log('Wallet address:', await account.getAddress());
     // Get RegistryRollup contract
-    const registryRollup = new ethers.Contract(arbContracts.addresses.sfflRegistryRollup, NFFLRegistryRollupABI, account);
+    const registryRollup = new ethers.Contract(options.nfflRegistryRollup, NFFLRegistryRollupABI, account);
     // Fetch data
-    console.log(`${config.aggregator}/aggregation/state-root-update?rollupId=11155420&blockHeight=${blockHeight}`);
-    const response = await fetch(`${config.aggregator}/aggregation/state-root-update?rollupId=11155420&blockHeight=${blockHeight}`);
+    console.log(`${options.aggregator}/aggregation/state-root-update?rollupId=${options.rollupId}&blockHeight=${options.blockHeight}`);
+    const response = await fetch(`${options.aggregator}/aggregation/state-root-update?rollupId=${options.rollupId}&blockHeight=${options.blockHeight}`);
     if (!response.ok) {
         throw new Error(`HTTP error! status: ${response.status}`);
     }
@@ -36,14 +32,12 @@ async function updateStateRoot() {
         nearDaCommitment,
         stateRoot
     };
-    console.log(message);
-
     // Sort non-signers keys
     const nonSignerPubkeys = data.Aggregation.NonSignersPubkeysG1;
     nonSignerPubkeys.sort((a, b) => {
         const hashA = hashG1Point(a);
         const hashB = hashG1Point(b);
-        return hashA.comparedTo(hashB); // Compare BigNumber values
+        return hashA.comparedTo(hashB);
     });
     // Create signature info
     const signatureInfo =  {
@@ -54,8 +48,6 @@ async function updateStateRoot() {
         },
         sigma: data.Aggregation.SignersAggSigG1.g1_point
     }
-    console.log(signatureInfo)
-
     // Update state root
     const tx = await registryRollup.updateStateRoot(message,signatureInfo);
     console.log('transaction:', tx);
@@ -63,9 +55,4 @@ async function updateStateRoot() {
     console.log('State root updated');
 }
 
-updateStateRoot()
-    .then(() => process.exit(0))
-    .catch((error) => {
-        console.error(error);
-        process.exit(1);
-});
+module.exports = {updateStateRoot}
