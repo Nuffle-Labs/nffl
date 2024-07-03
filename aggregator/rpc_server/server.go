@@ -166,7 +166,32 @@ type GetAggregatedCheckpointMessagesArgs struct {
 	FromTimestamp, ToTimestamp uint64
 }
 
+const MaxCheckpointRange uint64 = 60 * 60 * 2 // 2 hours
+
+func (args *GetAggregatedCheckpointMessagesArgs) IsValid() error {
+	if args == nil {
+		return errors.New("Args is nil")
+	}
+
+	if args.FromTimestamp > args.ToTimestamp {
+		return errors.New("FromTimestamp is greater than ToTimestamp")
+	}
+
+	if (args.ToTimestamp - args.FromTimestamp) > MaxCheckpointRange {
+		return errors.New("Checkpoint range exceeds 2 hours")
+	}
+
+	return nil
+}
+
 func (s *RpcServer) GetAggregatedCheckpointMessages(args *GetAggregatedCheckpointMessagesArgs, reply *messages.CheckpointMessages) error {
+	s.logger.Info("Fetching aggregated checkpoint messages", "args", args)
+
+	err := args.IsValid()
+	if err != nil {
+		return err
+	}
+
 	result, err := s.app.GetAggregatedCheckpointMessages(args.FromTimestamp, args.ToTimestamp)
 	if err != nil {
 		return mapErrors(err)

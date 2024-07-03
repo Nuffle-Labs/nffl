@@ -108,3 +108,35 @@ func TestProcessSignedOperatorSetUpdateMessage_InvalidParams(t *testing.T) {
 		assert.NotNil(t, err)
 	})
 }
+
+func TestGetAggregatedCheckpointMessages_InvalidParams(t *testing.T) {
+	mockCtrl := gomock.NewController(t)
+	defer mockCtrl.Finish()
+
+	agg := mocks.NewMockRpcAggregatorer(mockCtrl)
+	logger, _ := logging.NewZapLogger(logging.Development)
+
+	rpc := NewRpcServer("localhost:8080", agg, logger)
+
+	var ignore messages.CheckpointMessages
+	t.Run("nil message", func(t *testing.T) {
+		var args *GetAggregatedCheckpointMessagesArgs
+		err := rpc.GetAggregatedCheckpointMessages(args, &ignore)
+
+		assert.NotNil(t, err)
+	})
+
+	t.Run("FromTimestamp greater than ToTimestamp", func(t *testing.T) {
+		args := GetAggregatedCheckpointMessagesArgs{FromTimestamp: 1, ToTimestamp: 0}
+		err := rpc.GetAggregatedCheckpointMessages(&args, &ignore)
+
+		assert.NotNil(t, err)
+	})
+
+	t.Run("Range exceeds limit", func(t *testing.T) {
+		args := GetAggregatedCheckpointMessagesArgs{FromTimestamp: 0, ToTimestamp: MaxCheckpointRange + 1}
+		err := rpc.GetAggregatedCheckpointMessages(&args, &ignore)
+
+		assert.NotNil(t, err)
+	})
+}
