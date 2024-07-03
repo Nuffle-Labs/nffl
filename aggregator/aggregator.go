@@ -138,14 +138,6 @@ var _ core.Metricable = (*Aggregator)(nil)
 var _ RpcAggregatorer = (*Aggregator)(nil)
 var _ RestAggregatorer = (*Aggregator)(nil)
 
-type AggregatorOption func(*Aggregator)
-
-func WithClock(clock core.Clock) AggregatorOption {
-	return func(agg *Aggregator) {
-		agg.clock = clock
-	}
-}
-
 // NewAggregator creates a new Aggregator with the provided config.
 func NewAggregator(
 	// TODO: Remove `ctx` once OperatorsInfoServiceInMemory's API is changed and we can gracefully exit otherwise
@@ -153,7 +145,6 @@ func NewAggregator(
 	config *config.Config,
 	registry *prometheus.Registry,
 	logger logging.Logger,
-	options ...AggregatorOption,
 ) (*Aggregator, error) {
 	ethHttpClient, err := core.CreateEthClientWithCollector(AggregatorNamespace, config.EthHttpRpcUrl, config.EnableMetrics, registry, logger)
 	if err != nil {
@@ -263,10 +254,6 @@ func NewAggregator(
 	}
 
 	agg.aggregatorListener.IncAggregatorInitializations()
-
-	for _, option := range options {
-		option(agg)
-	}
 
 	return agg, nil
 }
