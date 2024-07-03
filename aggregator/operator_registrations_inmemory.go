@@ -25,10 +25,10 @@ type OperatorRegistrationsServiceInMemory struct {
 	queryByAddrC          chan<- queryByAddr
 	queryByIdC            chan<- queryById
 
-	idToAddr      map[types.OperatorId]common.Address
-	addrToId      map[common.Address]types.OperatorId
-	pubkeysByAddr map[common.Address]types.OperatorPubkeys
-	socketsByAddr map[common.Address]types.Socket
+	idToAddr    map[types.OperatorId]common.Address
+	addrToId    map[common.Address]types.OperatorId
+	pubkeysById map[types.OperatorId]types.OperatorPubkeys
+	socketById  map[types.OperatorId]types.Socket
 }
 
 type queryByAddr struct {
@@ -65,8 +65,8 @@ func NewOperatorRegistrationsServiceInMemory(
 		queryByIdC:            queryByIdC,
 		idToAddr:              make(map[types.OperatorId]common.Address),
 		addrToId:              make(map[common.Address]types.OperatorId),
-		pubkeysByAddr:         make(map[common.Address]types.OperatorPubkeys),
-		socketsByAddr:         make(map[common.Address]types.Socket),
+		pubkeysById:           make(map[types.OperatorId]types.OperatorPubkeys),
+		socketById:            make(map[types.OperatorId]types.Socket),
 	}
 	err := ors.asyncInit(ctx, queryByAddrC, queryByIdC)
 	if err != nil {
@@ -140,7 +140,7 @@ func (ors *OperatorRegistrationsServiceInMemory) startServiceInGoroutine(ctx con
 
 				ors.idToAddr[operatorId] = operatorAddr
 				ors.addrToId[operatorAddr] = operatorId
-				ors.pubkeysByAddr[operatorAddr] = pubkeys
+				ors.pubkeysById[operatorId] = pubkeys
 
 				ors.logger.Debug("Added operator info to dict",
 					"service", "OperatorRegistrationsServiceInMemory",
@@ -156,30 +156,28 @@ func (ors *OperatorRegistrationsServiceInMemory) startServiceInGoroutine(ctx con
 				socket := types.Socket(newSocketRegistrationEvent.Socket)
 				ors.logger.Debug("Received new socket registration event", "service", "OperatorRegistrationsServiceInMemory", "operatorId", operatorId, "socket", socket)
 
-				if addr, exists := ors.idToAddr[operatorId]; exists {
-					ors.socketsByAddr[addr] = socket
-				}
+				ors.socketById[operatorId] = socket
 
 			case q := <-queryByAddrC:
-				pubkeys, pubkeysExist := ors.pubkeysByAddr[q.operatorAddr]
-				socket, socketExists := ors.socketsByAddr[q.operatorAddr]
+				operatorId, idExists := ors.addrToId[q.operatorAddr]
+				pubkeys, pubkeysExist := ors.pubkeysById[operatorId]
+				socket, socketExists := ors.socketById[operatorId]
+
+				operatorInfo := types.OperatorInfo{
+					Pubkeys: pubkeys,
+					Socket:  socket,
+				}
+				q.respC <- resp{operatorInfo, idExists && pubkeysExist && socketExists}
+
+			case q := <-queryByIdC:
+				pubkeys, pubkeysExist := ors.pubkeysById[q.operatorId]
+				socket, socketExists := ors.socketById[q.operatorId]
 
 				operatorInfo := types.OperatorInfo{
 					Pubkeys: pubkeys,
 					Socket:  socket,
 				}
 				q.respC <- resp{operatorInfo, pubkeysExist && socketExists}
-
-			case q := <-queryByIdC:
-				addr, exists := ors.idToAddr[q.operatorId]
-				pubkeys, pubkeysExist := ors.pubkeysByAddr[addr]
-				socket, socketExists := ors.socketsByAddr[addr]
-
-				operatorInfo := types.OperatorInfo{
-					Pubkeys: pubkeys,
-					Socket:  socket,
-				}
-				q.respC <- resp{operatorInfo, exists && pubkeysExist && socketExists}
 			}
 		}
 	}()
@@ -204,8 +202,8 @@ func (ors *OperatorRegistrationsServiceInMemory) queryPastRegisteredOperators(ct
 
 		ors.idToAddr[operatorId] = operatorAddr
 		ors.addrToId[operatorAddr] = operatorId
-		ors.pubkeysByAddr[operatorAddr] = operatorPubkeys
-		ors.socketsByAddr[operatorAddr] = socketById[operatorId]
+		ors.pubkeysById[operatorId] = operatorPubkeys
+		ors.socketById[operatorId] = socketById[operatorId]
 	}
 
 	return nil
