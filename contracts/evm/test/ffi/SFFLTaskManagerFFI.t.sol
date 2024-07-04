@@ -20,6 +20,8 @@ contract SFFLTaskManagerTestFFI is TestUtils {
     SFFLTaskManager public taskManager;
 
     uint32 public constant TASK_RESPONSE_WINDOW_BLOCK = 30;
+    bytes32 public constant PROTOCOL_VERSION = keccak256("v0.0.1-test");
+
     address public aggregator;
     address public generator;
     uint32 public thresholdDenominator;
@@ -37,7 +39,7 @@ contract SFFLTaskManagerTestFFI is TestUtils {
         aggregator = addr("aggregator");
         generator = addr("generator");
 
-        address impl = address(new SFFLTaskManager(registryCoordinator, TASK_RESPONSE_WINDOW_BLOCK));
+        address impl = address(new SFFLTaskManager(registryCoordinator, TASK_RESPONSE_WINDOW_BLOCK, PROTOCOL_VERSION));
 
         taskManager = SFFLTaskManager(
             deployProxy(
@@ -74,7 +76,7 @@ contract SFFLTaskManagerTestFFI is TestUtils {
         (
             bytes32 signatoryRecordHash,
             IBLSSignatureChecker.NonSignerStakesAndSignature memory nonSignerStakesAndSignature
-        ) = setUpOperatorsFFI(taskResponse.hash(), task.taskCreatedBlock, seed, 1);
+        ) = setUpOperatorsFFI(taskResponse.hash(PROTOCOL_VERSION), task.taskCreatedBlock, seed, 1);
 
         Checkpoint.TaskResponseMetadata memory taskResponseMetadata = Checkpoint.TaskResponseMetadata({
             taskRespondedBlock: task.taskCreatedBlock + TASK_RESPONSE_WINDOW_BLOCK,
@@ -120,7 +122,7 @@ contract SFFLTaskManagerTestFFI is TestUtils {
         (
             bytes32 signatoryRecordHash,
             IBLSSignatureChecker.NonSignerStakesAndSignature memory nonSignerStakesAndSignature
-        ) = setUpOperatorsFFI(taskResponse.hash(), task.taskCreatedBlock, seed, numNonSigners);
+        ) = setUpOperatorsFFI(taskResponse.hash(PROTOCOL_VERSION), task.taskCreatedBlock, seed, numNonSigners);
 
         Checkpoint.TaskResponseMetadata memory taskResponseMetadata = Checkpoint.TaskResponseMetadata({
             taskRespondedBlock: task.taskCreatedBlock + TASK_RESPONSE_WINDOW_BLOCK,
@@ -158,7 +160,7 @@ contract SFFLTaskManagerTestFFI is TestUtils {
         (
             bytes32 signatoryRecordHash,
             IBLSSignatureChecker.NonSignerStakesAndSignature memory nonSignerStakesAndSignature
-        ) = setUpOperatorsFFI(taskResponse.hash(), task.taskCreatedBlock, 100, 1);
+        ) = setUpOperatorsFFI(taskResponse.hash(PROTOCOL_VERSION), task.taskCreatedBlock, 100, 1);
 
         Checkpoint.TaskResponseMetadata memory taskResponseMetadata = Checkpoint.TaskResponseMetadata({
             taskRespondedBlock: task.taskCreatedBlock + TASK_RESPONSE_WINDOW_BLOCK,
@@ -199,7 +201,7 @@ contract SFFLTaskManagerTestFFI is TestUtils {
         (
             bytes32 signatoryRecordHash,
             IBLSSignatureChecker.NonSignerStakesAndSignature memory nonSignerStakesAndSignature
-        ) = setUpOperatorsFFI(taskResponse.hash(), task.taskCreatedBlock, 100, 2);
+        ) = setUpOperatorsFFI(taskResponse.hash(PROTOCOL_VERSION), task.taskCreatedBlock, 100, 2);
 
         Checkpoint.TaskResponseMetadata memory taskResponseMetadata = Checkpoint.TaskResponseMetadata({
             taskRespondedBlock: task.taskCreatedBlock + TASK_RESPONSE_WINDOW_BLOCK,

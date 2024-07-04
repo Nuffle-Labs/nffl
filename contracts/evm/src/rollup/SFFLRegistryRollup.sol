@@ -37,6 +37,11 @@ contract SFFLRegistryRollup is Initializable, OwnableUpgradeable, Pausable, SFFL
     uint8 public constant PAUSED_UPDATE_STATE_ROOT = 1;
 
     /**
+     * @notice Protocol version
+     */
+    bytes32 public immutable protocolVersion;
+
+    /**
      * @dev Operator set used for agreements
      */
     RollupOperators.OperatorSet internal _operatorSet;
@@ -56,7 +61,9 @@ contract SFFLRegistryRollup is Initializable, OwnableUpgradeable, Pausable, SFFL
         _;
     }
 
-    constructor() {
+    constructor(bytes32 _protocolVersion) {
+        protocolVersion = _protocolVersion;
+
         _disableInitializers();
     }
 
@@ -105,7 +112,7 @@ contract SFFLRegistryRollup is Initializable, OwnableUpgradeable, Pausable, SFFL
         RollupOperators.SignatureInfo calldata signatureInfo
     ) external onlyWhenNotPaused(PAUSED_UPDATE_OPERATOR_SET) {
         require(message.id == nextOperatorUpdateId, "Wrong message ID");
-        require(_operatorSet.verifyCalldata(message.hashCalldata(), signatureInfo), "Quorum not met");
+        require(_operatorSet.verifyCalldata(message.hashCalldata(protocolVersion), signatureInfo), "Quorum not met");
 
         nextOperatorUpdateId = message.id + 1;
 
@@ -122,7 +129,7 @@ contract SFFLRegistryRollup is Initializable, OwnableUpgradeable, Pausable, SFFL
         StateRootUpdate.Message calldata message,
         RollupOperators.SignatureInfo calldata signatureInfo
     ) public onlyWhenNotPaused(PAUSED_UPDATE_STATE_ROOT) {
-        require(_operatorSet.verifyCalldata(message.hashCalldata(), signatureInfo), "Quorum not met");
+        require(_operatorSet.verifyCalldata(message.hashCalldata(protocolVersion), signatureInfo), "Quorum not met");
 
         _pushStateRoot(message.rollupId, message.blockHeight, message.stateRoot);
     }

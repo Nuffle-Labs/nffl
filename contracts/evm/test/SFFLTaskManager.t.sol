@@ -17,8 +17,8 @@ import {OperatorSetUpdate, RollupOperators} from "../src/base/message/OperatorSe
 import {TestUtils} from "./utils/TestUtils.sol";
 
 contract SFFLTaskManagerHarness is SFFLTaskManager {
-    constructor(IRegistryCoordinator registryCoordinator, uint32 taskResponseWindowBlock)
-        SFFLTaskManager(registryCoordinator, taskResponseWindowBlock)
+    constructor(IRegistryCoordinator registryCoordinator, uint32 taskResponseWindowBlock, bytes32 protocolVersion)
+        SFFLTaskManager(registryCoordinator, taskResponseWindowBlock, protocolVersion)
     {}
 
     function setLastCheckpointToTimestamp(uint64 timestamp) public {
@@ -40,6 +40,8 @@ contract SFFLTaskManagerTest is TestUtils {
     address public generator;
     uint32 public thresholdDenominator;
 
+    bytes32 public constant PROTOCOL_VERSION = keccak256("v0.0.1-test");
+
     event CheckpointTaskCreated(uint32 indexed taskIndex, Checkpoint.Task task);
     event CheckpointTaskResponded(
         Checkpoint.TaskResponse taskResponse, Checkpoint.TaskResponseMetadata taskResponseMetadata
@@ -53,7 +55,8 @@ contract SFFLTaskManagerTest is TestUtils {
         aggregator = addr("aggregator");
         generator = addr("generator");
 
-        address impl = address(new SFFLTaskManagerHarness(registryCoordinator, TASK_RESPONSE_WINDOW_BLOCK));
+        address impl =
+            address(new SFFLTaskManagerHarness(registryCoordinator, TASK_RESPONSE_WINDOW_BLOCK, PROTOCOL_VERSION));
 
         taskManager = SFFLTaskManagerHarness(
             deployProxy(
@@ -213,7 +216,9 @@ contract SFFLTaskManagerTest is TestUtils {
         (
             bytes32 signatoryRecordHash,
             IBLSSignatureChecker.NonSignerStakesAndSignature memory nonSignerStakesAndSignature
-        ) = setUpOperators(taskResponse.hash(), task.taskCreatedBlock - 1, task.taskCreatedBlock, 100, 1);
+        ) = setUpOperators(
+            taskResponse.hash(PROTOCOL_VERSION), task.taskCreatedBlock - 1, task.taskCreatedBlock, 100, 1
+        );
 
         Checkpoint.TaskResponseMetadata memory taskResponseMetadata = Checkpoint.TaskResponseMetadata({
             taskRespondedBlock: task.taskCreatedBlock + TASK_RESPONSE_WINDOW_BLOCK,
@@ -282,7 +287,9 @@ contract SFFLTaskManagerTest is TestUtils {
         (
             bytes32 signatoryRecordHash,
             IBLSSignatureChecker.NonSignerStakesAndSignature memory nonSignerStakesAndSignature
-        ) = setUpOperators(taskResponse.hash(), task.taskCreatedBlock - 1, task.taskCreatedBlock, 100, 1);
+        ) = setUpOperators(
+            taskResponse.hash(PROTOCOL_VERSION), task.taskCreatedBlock - 1, task.taskCreatedBlock, 100, 1
+        );
 
         Checkpoint.TaskResponseMetadata memory taskResponseMetadata = Checkpoint.TaskResponseMetadata({
             taskRespondedBlock: task.taskCreatedBlock + TASK_RESPONSE_WINDOW_BLOCK,
@@ -320,7 +327,9 @@ contract SFFLTaskManagerTest is TestUtils {
         (
             bytes32 signatoryRecordHash,
             IBLSSignatureChecker.NonSignerStakesAndSignature memory nonSignerStakesAndSignature
-        ) = setUpOperators(taskResponse.hash(), task.taskCreatedBlock - 1, task.taskCreatedBlock, 100, 1);
+        ) = setUpOperators(
+            taskResponse.hash(PROTOCOL_VERSION), task.taskCreatedBlock - 1, task.taskCreatedBlock, 100, 1
+        );
 
         Checkpoint.TaskResponseMetadata memory taskResponseMetadata = Checkpoint.TaskResponseMetadata({
             taskRespondedBlock: task.taskCreatedBlock + TASK_RESPONSE_WINDOW_BLOCK,
@@ -361,7 +370,9 @@ contract SFFLTaskManagerTest is TestUtils {
         (
             bytes32 signatoryRecordHash,
             IBLSSignatureChecker.NonSignerStakesAndSignature memory nonSignerStakesAndSignature
-        ) = setUpOperators(taskResponse.hash(), task.taskCreatedBlock - 1, task.taskCreatedBlock, 100, 1);
+        ) = setUpOperators(
+            taskResponse.hash(PROTOCOL_VERSION), task.taskCreatedBlock - 1, task.taskCreatedBlock, 100, 1
+        );
 
         Checkpoint.TaskResponseMetadata memory taskResponseMetadata = Checkpoint.TaskResponseMetadata({
             taskRespondedBlock: task.taskCreatedBlock + TASK_RESPONSE_WINDOW_BLOCK + 1,
@@ -399,7 +410,9 @@ contract SFFLTaskManagerTest is TestUtils {
         (
             bytes32 signatoryRecordHash,
             IBLSSignatureChecker.NonSignerStakesAndSignature memory nonSignerStakesAndSignature
-        ) = setUpOperators(taskResponse.hash(), task.taskCreatedBlock - 1, task.taskCreatedBlock, 100, 1);
+        ) = setUpOperators(
+            taskResponse.hash(PROTOCOL_VERSION), task.taskCreatedBlock - 1, task.taskCreatedBlock, 100, 1
+        );
 
         Checkpoint.TaskResponseMetadata memory taskResponseMetadata = Checkpoint.TaskResponseMetadata({
             taskRespondedBlock: task.taskCreatedBlock + TASK_RESPONSE_WINDOW_BLOCK,
@@ -467,7 +480,7 @@ contract SFFLTaskManagerTest is TestUtils {
 
         SparseMerkleTree.Proof memory proof = SparseMerkleTree.Proof({
             key: message.index(),
-            value: message.hash(),
+            value: message.hash(PROTOCOL_VERSION),
             bitMask: 12,
             sideNodes: sideNodes,
             numSideNodes: 13,
@@ -680,7 +693,7 @@ contract SFFLTaskManagerTest is TestUtils {
             sideNodes: sideNodes,
             numSideNodes: 13,
             nonMembershipLeafPath: keccak256(abi.encodePacked(message.index())),
-            nonMembershipLeafValue: message.hash()
+            nonMembershipLeafValue: message.hash(PROTOCOL_VERSION)
         });
 
         Checkpoint.TaskResponse memory taskResponse = Checkpoint.TaskResponse({
@@ -711,7 +724,7 @@ contract SFFLTaskManagerTest is TestUtils {
 
         SparseMerkleTree.Proof memory proof = SparseMerkleTree.Proof({
             key: message.index(),
-            value: message.hash(),
+            value: message.hash(PROTOCOL_VERSION),
             bitMask: 0,
             sideNodes: sideNodes,
             numSideNodes: 9,
@@ -822,7 +835,7 @@ contract SFFLTaskManagerTest is TestUtils {
 
         SparseMerkleTree.Proof memory proof = SparseMerkleTree.Proof({
             key: bytes32(0),
-            value: message.hash(),
+            value: message.hash(PROTOCOL_VERSION),
             bitMask: 30,
             sideNodes: sideNodes,
             numSideNodes: 13,
@@ -849,7 +862,7 @@ contract SFFLTaskManagerTest is TestUtils {
 
         SparseMerkleTree.Proof memory proof = SparseMerkleTree.Proof({
             key: message.index(),
-            value: message.hash(),
+            value: message.hash(PROTOCOL_VERSION),
             bitMask: 30,
             sideNodes: emptySideNodes,
             numSideNodes: 13,
@@ -905,7 +918,7 @@ contract SFFLTaskManagerTest is TestUtils {
             sideNodes: sideNodes,
             numSideNodes: 13,
             nonMembershipLeafPath: keccak256(abi.encodePacked(message.index())),
-            nonMembershipLeafValue: message.hash()
+            nonMembershipLeafValue: message.hash(PROTOCOL_VERSION)
         });
 
         Checkpoint.TaskResponse memory taskResponse = Checkpoint.TaskResponse({

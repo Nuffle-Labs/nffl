@@ -27,6 +27,8 @@ contract SFFLDeployerRollup is Script, Utils {
 
     string public constant SFFL_DEPLOYMENT_FILE = "sffl_rollup_deployment_output";
 
+    bytes32 public constant PROTOCOL_VERSION = keccak256("v0.0.1-devnet");
+
     function run() external {
         address sfflCommunityMultisig = msg.sender;
         address sfflPauser = msg.sender;
@@ -41,7 +43,7 @@ contract SFFLDeployerRollup is Script, Utils {
 
         sfflPauserReg = new PauserRegistry(pausers, sfflCommunityMultisig);
 
-        sfflRegistryRollupImpl = address(new SFFLRegistryRollup());
+        sfflRegistryRollupImpl = address(new SFFLRegistryRollup(PROTOCOL_VERSION));
         sfflRegistryRollupProxy = _deployProxy(
             sfflProxyAdmin,
             sfflRegistryRollupImpl,

@@ -2,6 +2,7 @@
 pragma solidity ^0.8.12;
 
 import {RollupOperators} from "../utils/RollupOperators.sol";
+import {MessageHashing} from "../utils/MessageHashing.sol";
 
 /**
  * @title SFFL operator set update message library
@@ -18,15 +19,15 @@ library OperatorSetUpdate {
         RollupOperators.Operator[] operators;
     }
 
-    bytes32 internal constant OPERATOR_SET_UPDATE_HASH_PREFIX = keccak256("SFFL::OperatorSetUpdateMessage");
+    bytes32 internal constant MESSAGE_NAME = keccak256("OperatorSetUpdateMessage");
 
     /**
      * @notice Hashes an operator set update message
      * @param message Message structured data
      * @return Message hash
      */
-    function hashCalldata(Message calldata message) internal pure returns (bytes32) {
-        return keccak256(abi.encode(OPERATOR_SET_UPDATE_HASH_PREFIX, keccak256(abi.encode(message))));
+    function hashCalldata(Message calldata message, bytes32 protocolVersion) internal pure returns (bytes32) {
+        return MessageHashing.hashMessage(MESSAGE_NAME, protocolVersion, keccak256(abi.encode(message)));
     }
 
     /**
@@ -34,8 +35,8 @@ library OperatorSetUpdate {
      * @param message Message structured data
      * @return Message hash
      */
-    function hash(Message memory message) internal pure returns (bytes32) {
-        return keccak256(abi.encode(OPERATOR_SET_UPDATE_HASH_PREFIX, keccak256(abi.encode(message))));
+    function hash(Message memory message, bytes32 protocolVersion) internal pure returns (bytes32) {
+        return MessageHashing.hashMessage(MESSAGE_NAME, protocolVersion, keccak256(abi.encode(message)));
     }
 
     /**

@@ -22,12 +22,14 @@ contract SFFLRegistryRollupUpgrader is Script, Utils {
 
     string public constant SFFL_DEPLOYMENT_FILE = "sffl_rollup_deployment_output";
 
+    bytes32 public constant PROTOCOL_VERSION = keccak256("v0.0.1-holesky");
+
     function run() external {
         _readSFFLDeployedContracts();
 
         vm.startBroadcast();
 
-        sfflRegistryRollupImpl = address(new SFFLRegistryRollup());
+        sfflRegistryRollupImpl = address(new SFFLRegistryRollup(PROTOCOL_VERSION));
         sfflProxyAdmin.upgrade(sfflRegistryRollupProxy, sfflRegistryRollupImpl);
 
         vm.stopBroadcast();

@@ -59,6 +59,8 @@ contract SFFLServiceManagerTest is TestUtils {
     address public serviceManagerOwner = address(uint160(uint256(keccak256("serviceManagerOwner"))));
 
     uint32 public constant TASK_RESPONSE_WINDOW_BLOCK = 30;
+    bytes32 public constant PROTOCOL_VERSION = keccak256("v0.0.1-test");
+
     address public aggregator;
     address public generator;
     uint256 public thresholdDenominator;
@@ -69,7 +71,7 @@ contract SFFLServiceManagerTest is TestUtils {
         aggregator = addr("aggregator");
         generator = addr("generator");
 
-        address impl = address(new SFFLTaskManager(registryCoordinator, TASK_RESPONSE_WINDOW_BLOCK));
+        address impl = address(new SFFLTaskManager(registryCoordinator, TASK_RESPONSE_WINDOW_BLOCK, PROTOCOL_VERSION));
 
         taskManager = SFFLTaskManager(
             deployProxy(
@@ -122,7 +124,7 @@ contract SFFLServiceManagerTest is TestUtils {
         });
 
         (, IBLSSignatureChecker.NonSignerStakesAndSignature memory nonSignerStakesAndSignature) =
-            setUpOperators(message.hash(), 999, 1000, 100, 1);
+            setUpOperators(message.hash(PROTOCOL_VERSION), 999, 1000, 100, 1);
 
         vm.expectEmit(true, true, false, true);
         emit StateRootUpdated(message.rollupId, message.blockHeight, message.stateRoot);
@@ -146,7 +148,7 @@ contract SFFLServiceManagerTest is TestUtils {
         });
 
         (, IBLSSignatureChecker.NonSignerStakesAndSignature memory nonSignerStakesAndSignature) =
-            setUpOperators(message.hash(), 999, 1000, 100, maxOperatorsToRegister / 2);
+            setUpOperators(message.hash(PROTOCOL_VERSION), 999, 1000, 100, maxOperatorsToRegister / 2);
 
         vm.expectRevert("Quorum not met");
 
@@ -170,7 +172,7 @@ contract SFFLServiceManagerTest is TestUtils {
         });
 
         (, IBLSSignatureChecker.NonSignerStakesAndSignature memory nonSignerStakesAndSignature) =
-            setUpOperators(message.hash(), 999, 1000, 100, 1);
+            setUpOperators(message.hash(PROTOCOL_VERSION), 999, 1000, 100, 1);
 
         vm.expectRevert("Pausable: index is paused");
 

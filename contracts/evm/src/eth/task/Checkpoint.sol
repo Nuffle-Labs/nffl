@@ -1,6 +1,8 @@
 // SPDX-License-Identifier: MIT
 pragma solidity ^0.8.12;
 
+import {MessageHashing} from "../../base/utils/MessageHashing.sol";
+
 /**
  * @title Checkpoint task librrary
  * @notice Represents checkpoint contents and related utilities
@@ -31,7 +33,7 @@ library Checkpoint {
         bytes32 hashOfNonSigners;
     }
 
-    bytes32 internal constant TASK_RESPONSE_HASH_PREFIX = keccak256("SFFL::CheckpointTaskResponse");
+    bytes32 internal constant MESSAGE_NAME = keccak256("CheckpointTaskResponse");
 
     /**
      * @notice Hashes a checkpoint task (submission)
@@ -56,8 +58,8 @@ library Checkpoint {
      * @param taskResponse Checkpoint task response structured data
      * @return Task response hash
      */
-    function hash(TaskResponse memory taskResponse) internal pure returns (bytes32) {
-        return keccak256(abi.encode(TASK_RESPONSE_HASH_PREFIX, keccak256(abi.encode(taskResponse))));
+    function hash(TaskResponse memory taskResponse, bytes32 protocolVersion) internal pure returns (bytes32) {
+        return MessageHashing.hashMessage(MESSAGE_NAME, protocolVersion, keccak256(abi.encode(taskResponse)));
     }
 
     /**
@@ -65,8 +67,12 @@ library Checkpoint {
      * @param taskResponse Checkpoint task response structured data
      * @return Task response hash
      */
-    function hashCalldata(TaskResponse calldata taskResponse) internal pure returns (bytes32) {
-        return keccak256(abi.encode(TASK_RESPONSE_HASH_PREFIX, keccak256(abi.encode(taskResponse))));
+    function hashCalldata(TaskResponse calldata taskResponse, bytes32 protocolVersion)
+        internal
+        pure
+        returns (bytes32)
+    {
+        return MessageHashing.hashMessage(MESSAGE_NAME, protocolVersion, keccak256(abi.encode(taskResponse)));
     }
 
     /**

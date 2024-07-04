@@ -135,14 +135,12 @@ contract SFFLServiceManager is SFFLRegistryBase, ServiceManagerBase, Pausable {
         StateRootUpdate.Message calldata message,
         IBLSSignatureChecker.NonSignerStakesAndSignature calldata nonSignerStakesAndSignature
     ) internal view returns (bool) {
-        (bool success,) = taskManager.checkQuorum(
-            message.hashCalldata(),
+        return taskManager.verifyStateRootUpdate(
+            message,
             hex"00",
             uint32(block.number - 1),
             nonSignerStakesAndSignature,
             2 * taskManager.THRESHOLD_DENOMINATOR() / 3
         );
-
-        return success;
     }
 }

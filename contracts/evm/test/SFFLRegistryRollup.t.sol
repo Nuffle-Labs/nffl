@@ -24,6 +24,7 @@ contract SFFLRegistryRollupTest is TestUtils {
 
     uint128 public constant DEFAULT_WEIGHT = 100;
     uint128 public QUORUM_THRESHOLD = 2 * uint128(100) / 3;
+    bytes32 public constant PROTOCOL_VERSION = keccak256("v0.0.1-test");
 
     event StateRootUpdated(uint32 indexed rollupId, uint64 indexed blockHeight, bytes32 stateRoot);
     event OperatorUpdated(bytes32 indexed pubkeyHash, uint128 weight);
@@ -88,7 +89,7 @@ contract SFFLRegistryRollupTest is TestUtils {
 
         registry = SFFLRegistryRollup(
             deployProxy(
-                address(new SFFLRegistryRollup()),
+                address(new SFFLRegistryRollup(PROTOCOL_VERSION)),
                 addr("proxyAdmin"),
                 abi.encodeWithSelector(
                     registry.initialize.selector, QUORUM_THRESHOLD, addr("owner"), addr("aggregator"), pauserRegistry
@@ -137,7 +138,7 @@ contract SFFLRegistryRollupTest is TestUtils {
                     2630500117064331827715800222355515273572786883080373379723474133051328147838
                 ]
             ),
-            sigma: BN254.hashToG1(message.hash()).scalar_mul(
+            sigma: BN254.hashToG1(message.hash(PROTOCOL_VERSION)).scalar_mul(
                 6305737925830641523797682626723526790077499630761662964405387941160208990354
             )
         });
@@ -191,7 +192,7 @@ contract SFFLRegistryRollupTest is TestUtils {
                     19066719044691333956823624407701006018002836358629451345855468619321548553433
                 ]
             ),
-            sigma: BN254.hashToG1(message.hash()).scalar_mul(
+            sigma: BN254.hashToG1(message.hash(PROTOCOL_VERSION)).scalar_mul(
                 10871270083209376487778842013958292562863808577713565975978123572762179443915
             )
         });
@@ -227,7 +228,7 @@ contract SFFLRegistryRollupTest is TestUtils {
                     19066719044691333956823624407701006018002836358629451345855468619321548553433
                 ]
             ),
-            sigma: BN254.hashToG1(message.hash()).scalar_mul(
+            sigma: BN254.hashToG1(message.hash(PROTOCOL_VERSION)).scalar_mul(
                 10871270083209376487778842013958292562863808577713565975978123572762179443915
             )
         });
@@ -256,7 +257,7 @@ contract SFFLRegistryRollupTest is TestUtils {
                     2630500117064331827715800222355515273572786883080373379723474133051328147838
                 ]
             ),
-            sigma: BN254.hashToG1(message.hash()).scalar_mul(
+            sigma: BN254.hashToG1(message.hash(PROTOCOL_VERSION)).scalar_mul(
                 6305737925830641523797682626723526790077499630761662964405387941160208990354
             )
         });
@@ -291,7 +292,7 @@ contract SFFLRegistryRollupTest is TestUtils {
                     19066719044691333956823624407701006018002836358629451345855468619321548553433
                 ]
             ),
-            sigma: BN254.hashToG1(message.hash()).scalar_mul(
+            sigma: BN254.hashToG1(message.hash(PROTOCOL_VERSION)).scalar_mul(
                 10871270083209376487778842013958292562863808577713565975978123572762179443915
             )
         });
@@ -356,7 +357,7 @@ contract SFFLRegistryRollupTest is TestUtils {
                     2630500117064331827715800222355515273572786883080373379723474133051328147838
                 ]
             ),
-            sigma: BN254.hashToG1(message.hash()).scalar_mul(
+            sigma: BN254.hashToG1(message.hash(PROTOCOL_VERSION)).scalar_mul(
                 6305737925830641523797682626723526790077499630761662964405387941160208990354
             )
         });
@@ -390,7 +391,7 @@ contract SFFLRegistryRollupTest is TestUtils {
                     2630500117064331827715800222355515273572786883080373379723474133051328147838
                 ]
             ),
-            sigma: BN254.hashToG1(message.hash()).scalar_mul(
+            sigma: BN254.hashToG1(message.hash(PROTOCOL_VERSION)).scalar_mul(
                 6305737925830641523797682626723526790077499630761662964405387941160208990354
             )
         });

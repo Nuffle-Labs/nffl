@@ -74,6 +74,11 @@ contract SFFLTaskManager is Initializable, OwnableUpgradeable, Pausable, BLSSign
     address public aggregator;
 
     /**
+     * @notice Messaging protocol version
+     */
+    bytes32 public immutable protocolVersion;
+
+    /**
      * @notice Mapping from task ID to task hash
      */
     mapping(uint32 => bytes32) public allCheckpointTaskHashes;
@@ -123,10 +128,11 @@ contract SFFLTaskManager is Initializable, OwnableUpgradeable, Pausable, BLSSign
         _;
     }
 
-    constructor(IRegistryCoordinator registryCoordinator, uint32 taskResponseWindowBlock)
+    constructor(IRegistryCoordinator registryCoordinator, uint32 taskResponseWindowBlock, bytes32 _protocolVersion)
         BLSSignatureChecker(registryCoordinator)
     {
         TASK_RESPONSE_WINDOW_BLOCK = taskResponseWindowBlock;
+        protocolVersion = _protocolVersion;
 
         _disableInitializers();
     }
@@ -206,7 +212,7 @@ contract SFFLTaskManager is Initializable, OwnableUpgradeable, Pausable, BLSSign
         require(allCheckpointTaskResponses[taskResponse.referenceTaskIndex] == bytes32(0), "Task already responded");
         require(uint32(block.number) <= taskCreatedBlock + TASK_RESPONSE_WINDOW_BLOCK, "Response time exceeded");
 
-        bytes32 messageHash = taskResponse.hashCalldata();
+        bytes32 messageHash = taskResponse.hashCalldata(protocolVersion);
 
         (bool success, bytes32 hashOfNonSigners) =
             checkQuorum(messageHash, quorumNumbers, taskCreatedBlock, nonSignerStakesAndSignature, quorumThreshold);
@@ -290,11 +296,11 @@ contract SFFLTaskManager is Initializable, OwnableUpgradeable, Pausable, BLSSign
         StateRootUpdate.Message calldata message,
         Checkpoint.TaskResponse calldata taskResponse,
         SparseMerkleTree.Proof calldata proof
-    ) public pure returns (bool) {
+    ) public view returns (bool) {
         require(proof.key == message.indexCalldata(), "Wrong message index");
         require(SparseMerkleTree.verifyProof(taskResponse.stateRootUpdatesRoot, proof), "Invalid SMT proof");
 
-        bool isInclusionProof = proof.value == message.hashCalldata();
+        bool isInclusionProof = proof.value == message.hashCalldata(protocolVersion);
 
         return isInclusionProof;
     }
@@ -312,11 +318,11 @@ contract SFFLTaskManager is Initializable, OwnableUpgradeable, Pausable, BLSSign
         OperatorSetUpdate.Message calldata message,
         Checkpoint.TaskResponse calldata taskResponse,
         SparseMerkleTree.Proof calldata proof
-    ) public pure returns (bool) {
+    ) public view returns (bool) {
         require(proof.key == message.indexCalldata(), "Wrong message index");
         require(SparseMerkleTree.verifyProof(taskResponse.operatorSetUpdatesRoot, proof), "Invalid SMT proof");
 
-        bool isInclusionProof = proof.value == message.hashCalldata();
+        bool isInclusionProof = proof.value == message.hashCalldata(protocolVersion);
 
         return isInclusionProof;
     }
@@ -351,6 +357,60 @@ contract SFFLTaskManager is Initializable, OwnableUpgradeable, Pausable, BLSSign
         }
 
         return (true, hashOfNonSigners);
+    }
+
+    /**
+     * @notice Verifies whether the quorum for a state root update message was met
+     * @param message State root update message
+     * @param quorumNumbers Byte array of byte numbers
+     * @param referenceBlockNumber Reference block number for the operator set
+     * @param nonSignerStakesAndSignature Agreement signature info
+     * @param quorumThreshold Necessary quorum, based on THRESHOLD_DENOMINATOR
+     * @return Whether the voting passed quorum or not
+     */
+    function verifyStateRootUpdate(
+        StateRootUpdate.Message calldata message,
+        bytes calldata quorumNumbers,
+        uint32 referenceBlockNumber,
+        NonSignerStakesAndSignature memory nonSignerStakesAndSignature,
+        uint32 quorumThreshold
+    ) public view returns (bool) {
+        (bool success,) = checkQuorum(
+            message.hashCalldata(protocolVersion),
+            quorumNumbers,
+            referenceBlockNumber,
+            nonSignerStakesAndSignature,
+            quorumThreshold
+        );
+
+        return success;
+    }
+
+    /**
+     * @notice Verifies whether the quorum for a state root update message was met
+     * @param message State root update message
+     * @param quorumNumbers Byte array of byte numbers
+     * @param referenceBlockNumber Reference block number for the operator set
+     * @param nonSignerStakesAndSignature Agreement signature info
+     * @param quorumThreshold Necessary quorum, based on THRESHOLD_DENOMINATOR
+     * @return Whether the voting passed quorum or not
+     */
+    function verifyOperatorSetUpdate(
+        OperatorSetUpdate.Message calldata message,
+        bytes calldata quorumNumbers,
+        uint32 referenceBlockNumber,
+        NonSignerStakesAndSignature memory nonSignerStakesAndSignature,
+        uint32 quorumThreshold
+    ) public view returns (bool) {
+        (bool success,) = checkQuorum(
+            message.hashCalldata(protocolVersion),
+            quorumNumbers,
+            referenceBlockNumber,
+            nonSignerStakesAndSignature,
+            quorumThreshold
+        );
+
+        return success;
     }
 
     function _validateChallenge(

@@ -434,7 +434,6 @@ contract RegistryCoordinator is
      *                         INTERNAL FUNCTIONS
      *
      */
-
     struct RegisterResults {
         uint32[] numOperatorsPerQuorum;
         uint96[] operatorStakes;
