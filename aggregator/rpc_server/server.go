@@ -2,7 +2,6 @@ package rpc_server
 
 import (
 	"errors"
-	"fmt"
 	"net/http"
 	"net/rpc"
 	"strings"
@@ -93,11 +92,17 @@ func mapErrors(err error) error {
 // reply doesn't need to be checked. If there are no errors, the task response is accepted
 // rpc framework forces a reply type to exist, so we put bool as a placeholder
 func (s *RpcServer) ProcessSignedCheckpointTaskResponse(signedCheckpointTaskResponse *messages.SignedCheckpointTaskResponse, reply *bool) error {
-	s.logger.Info("Received signed task response", "response", fmt.Sprintf("%#v", signedCheckpointTaskResponse))
+	s.logger.Info("Received signed task response", "response", signedCheckpointTaskResponse)
+
+	err := signedCheckpointTaskResponse.IsValid()
+	if err != nil {
+		return err
+	}
+
 	s.listener.IncTotalSignedCheckpointTaskResponse()
 	s.listener.ObserveLastMessageReceivedTime(signedCheckpointTaskResponse.OperatorId, CheckpointTaskResponseLabel)
 
-	err := s.app.ProcessSignedCheckpointTaskResponse(signedCheckpointTaskResponse)
+	err = s.app.ProcessSignedCheckpointTaskResponse(signedCheckpointTaskResponse)
 	if err != nil {
 		s.listener.IncSignedCheckpointTaskResponse(
 			signedCheckpointTaskResponse.OperatorId,
@@ -113,7 +118,13 @@ func (s *RpcServer) ProcessSignedCheckpointTaskResponse(signedCheckpointTaskResp
 }
 
 func (s *RpcServer) ProcessSignedStateRootUpdateMessage(signedStateRootUpdateMessage *messages.SignedStateRootUpdateMessage, reply *bool) error {
-	s.logger.Info("Received signed state root update message", "updateMessage", fmt.Sprintf("%#v", signedStateRootUpdateMessage))
+	s.logger.Info("Received signed state root update message", "updateMessage", signedStateRootUpdateMessage)
+
+	err := signedStateRootUpdateMessage.IsValid()
+	if err != nil {
+		return err
+	}
+
 	s.listener.IncTotalSignedCheckpointTaskResponse()
 	s.listener.ObserveLastMessageReceivedTime(signedStateRootUpdateMessage.OperatorId, StateRootUpdateMessageLabel)
 
@@ -121,7 +132,7 @@ func (s *RpcServer) ProcessSignedStateRootUpdateMessage(signedStateRootUpdateMes
 	operatorId := signedStateRootUpdateMessage.OperatorId
 	rollupId := signedStateRootUpdateMessage.Message.RollupId
 
-	err := s.app.ProcessSignedStateRootUpdateMessage(signedStateRootUpdateMessage)
+	err = s.app.ProcessSignedStateRootUpdateMessage(signedStateRootUpdateMessage)
 	s.listener.IncSignedStateRootUpdateMessage(operatorId, rollupId, err != nil, hasNearDaCommitment)
 	if err != nil {
 		return mapErrors(err)
@@ -131,13 +142,18 @@ func (s *RpcServer) ProcessSignedStateRootUpdateMessage(signedStateRootUpdateMes
 }
 
 func (s *RpcServer) ProcessSignedOperatorSetUpdateMessage(signedOperatorSetUpdateMessage *messages.SignedOperatorSetUpdateMessage, reply *bool) error {
-	s.logger.Info("Received signed operator set update message", "message", fmt.Sprintf("%#v", signedOperatorSetUpdateMessage))
+	s.logger.Info("Received signed operator set update message", "message", signedOperatorSetUpdateMessage)
+
+	err := signedOperatorSetUpdateMessage.IsValid()
+	if err != nil {
+		return err
+	}
 
 	operatorId := signedOperatorSetUpdateMessage.OperatorId
 	s.listener.ObserveLastMessageReceivedTime(operatorId, OperatorSetUpdateMessageLabel)
 	s.listener.IncTotalSignedOperatorSetUpdateMessage()
 
-	err := s.app.ProcessSignedOperatorSetUpdateMessage(signedOperatorSetUpdateMessage)
+	err = s.app.ProcessSignedOperatorSetUpdateMessage(signedOperatorSetUpdateMessage)
 	s.listener.IncSignedOperatorSetUpdateMessage(operatorId, err != nil)
 	if err != nil {
 		return mapErrors(err)
@@ -150,7 +166,32 @@ type GetAggregatedCheckpointMessagesArgs struct {
 	FromTimestamp, ToTimestamp uint64
 }
 
+const MaxCheckpointRange uint64 = 60 * 60 * 2 // 2 hours
+
+func (args *GetAggregatedCheckpointMessagesArgs) IsValid() error {
+	if args == nil {
+		return errors.New("Args is nil")
+	}
+
+	if args.FromTimestamp > args.ToTimestamp {
+		return errors.New("FromTimestamp is greater than ToTimestamp")
+	}
+
+	if (args.ToTimestamp - args.FromTimestamp) > MaxCheckpointRange {
+		return errors.New("Checkpoint range exceeds 2 hours")
+	}
+
+	return nil
+}
+
 func (s *RpcServer) GetAggregatedCheckpointMessages(args *GetAggregatedCheckpointMessagesArgs, reply *messages.CheckpointMessages) error {
+	s.logger.Info("Fetching aggregated checkpoint messages", "args", args)
+
+	err := args.IsValid()
+	if err != nil {
+		return err
+	}
+
 	result, err := s.app.GetAggregatedCheckpointMessages(args.FromTimestamp, args.ToTimestamp)
 	if err != nil {
 		return mapErrors(err)

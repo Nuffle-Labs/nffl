@@ -5,6 +5,7 @@
 //
 //	mockgen -destination=./mocks/rest_aggregator.go -package=mocks github.com/NethermindEth/near-sffl/aggregator RestAggregatorer
 //
+
 // Package mocks is a generated GoMock package.
 package mocks
 

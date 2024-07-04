@@ -4,7 +4,7 @@ sidebar_position: 1
 
 # Registration
 
-Here we'll go step-by-step on how to opt-in into NEAR NFFL. It's a quick and
+Here we'll go step-by-step on how to opt-in into NFFL. It's a quick and
 easy process that will allow you to start contributing to the network once the
 testnet starts functioning.
 
