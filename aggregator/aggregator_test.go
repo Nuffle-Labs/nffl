@@ -219,7 +219,7 @@ func createMockAggregator(
 		httpClient:                             mockClient,
 		wsClient:                               mockClient,
 		aggregatorListener:                     &SelectiveAggregatorListener{},
-		clock:                                  *core.SystemClock,
+		clock:                                  core.SystemClock,
 	}
 	return aggregator, mockAvsReader, mockAvsWriter, mockTaskBlsAggregationService, mockStateRootUpdateBlsAggregationService, mockOperatorSetUpdateBlsAggregationService, mockMsgDb, mockRollupBroadcaster, mockClient, nil
 }

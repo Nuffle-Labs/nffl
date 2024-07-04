@@ -92,4 +92,4 @@ type Clock struct {
 	Now func() time.Time
 }
 
-var SystemClock = &Clock{Now: time.Now}
+var SystemClock = Clock{Now: time.Now}
