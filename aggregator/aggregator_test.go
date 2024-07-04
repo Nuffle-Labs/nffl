@@ -70,7 +70,11 @@ func TestSendNewTask(t *testing.T) {
 	)
 
 	mockAvsWriterer.EXPECT().SendNewCheckpointTask(
-		context.Background(), FROM_TIMESTAMP, TO_TIMESTAMP-uint64(types.MESSAGE_SUBMISSION_TIMEOUT.Seconds()), types.TASK_QUORUM_THRESHOLD, coretypes.QUORUM_NUMBERS,
+		context.Background(),
+		FROM_TIMESTAMP,
+		TO_TIMESTAMP-uint64(types.MESSAGE_SUBMISSION_TIMEOUT.Seconds())-uint64(types.MESSAGE_BLS_AGGREGATION_TIMEOUT.Seconds()),
+		types.TASK_QUORUM_THRESHOLD,
+		coretypes.QUORUM_NUMBERS,
 	).Return(aggmocks.MockSendNewCheckpointTask(BLOCK_NUMBER, TASK_INDEX, FROM_TIMESTAMP, TO_TIMESTAMP))
 	mockAvsReaderer.EXPECT().GetLastCheckpointToTimestamp(context.Background()).Return(FROM_TIMESTAMP-1, nil)
 
