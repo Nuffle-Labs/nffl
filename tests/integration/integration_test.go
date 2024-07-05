@@ -37,6 +37,7 @@ import (
 	aggtypes "github.com/NethermindEth/near-sffl/aggregator/types"
 	registryrollup "github.com/NethermindEth/near-sffl/contracts/bindings/SFFLRegistryRollup"
 	transparentproxy "github.com/NethermindEth/near-sffl/contracts/bindings/TransparentUpgradeableProxy"
+	"github.com/NethermindEth/near-sffl/core"
 	"github.com/NethermindEth/near-sffl/core/chainio"
 	"github.com/NethermindEth/near-sffl/core/config"
 	"github.com/NethermindEth/near-sffl/core/types"
@@ -522,7 +523,7 @@ func deployRegistryRollup(t *testing.T, anvil *utils.AnvilInstance) (common.Addr
 		t.Fatalf("Error generating transactor: %s", err.Error())
 	}
 
-	implAddr, _, _, err := registryrollup.DeployContractSFFLRegistryRollup(ownerAuth, anvil.WsClient)
+	implAddr, _, _, err := registryrollup.DeployContractSFFLRegistryRollup(ownerAuth, anvil.WsClient, core.Keccak256([]byte("v0.0.1-devnet")))
 	if err != nil {
 		t.Fatalf("Error deploying RegistryRollup: %s", err.Error())
 	}

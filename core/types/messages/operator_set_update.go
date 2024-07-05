@@ -97,12 +97,7 @@ func (msg OperatorSetUpdateMessage) Digest() ([32]byte, error) {
 		return [32]byte{}, err
 	}
 
-	digest, err := core.HashMessageWithPrefix([]byte("SFFL::OperatorSetUpdateMessage"), data)
-	if err != nil {
-		return [32]byte{}, err
-	}
-
-	return digest, nil
+	return core.Keccak256(data), nil
 }
 
 func (msg OperatorSetUpdateMessage) Key() [32]byte {
