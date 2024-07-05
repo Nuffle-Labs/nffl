@@ -114,6 +114,7 @@ type Aggregator struct {
 	httpClient           safeclient.SafeClient
 	wsClient             safeclient.SafeClient
 	messageHasher        *messages.Hasher
+	clock                core.Clock
 
 	// TODO(edwin): once rpc & rest decouple from aggregator fome it with them
 	registry           *prometheus.Registry
@@ -241,6 +242,7 @@ func NewAggregator(
 		httpClient:                             ethHttpClient,
 		wsClient:                               ethWsClient,
 		messageHasher:                          messageHasher,
+		clock:                                  core.SystemClock,
 		taskBlsAggregationService:              taskBlsAggregationService,
 		stateRootUpdateBlsAggregationService:   stateRootUpdateBlsAggregationService,
 		operatorSetUpdateBlsAggregationService: operatorSetUpdateBlsAggregationService,
@@ -398,12 +400,11 @@ func (agg *Aggregator) sendNewCheckpointTask() {
 		return
 	}
 
+	toTimestamp := block.Time() - uint64(types.MESSAGE_SUBMISSION_TIMEOUT.Seconds()) - uint64(types.MESSAGE_BLS_AGGREGATION_TIMEOUT.Seconds())
 	fromTimestamp := lastCheckpointToTimestamp + 1
 	if lastCheckpointToTimestamp == 0 {
-		fromTimestamp = 0
+		fromTimestamp = toTimestamp - uint64(agg.checkpointInterval.Seconds())
 	}
-
-	toTimestamp := block.Time()
 
 	agg.logger.Info("Aggregator sending new task", "fromTimestamp", fromTimestamp, "toTimestamp", toTimestamp)
 	// Send checkpoint to the task manager contract
@@ -566,6 +567,13 @@ func (agg *Aggregator) ProcessSignedStateRootUpdateMessage(signedStateRootUpdate
 		return DigestError
 	}
 
+	timestamp := signedStateRootUpdateMessage.Message.Timestamp
+	err = agg.validateMessageTimestamp(timestamp)
+	if err != nil {
+		agg.logger.Error("Failed to validate message timestamp", "err", err, "timestamp", timestamp)
+		return err
+	}
+
 	err = agg.stateRootUpdateBlsAggregationService.InitializeMessageIfNotExists(
 		messageDigest,
 		coretypes.QUORUM_NUMBERS,
@@ -594,6 +602,13 @@ func (agg *Aggregator) ProcessSignedOperatorSetUpdateMessage(signedOperatorSetUp
 	if err != nil {
 		agg.logger.Error("Failed to get message digest", "err", err)
 		return DigestError
+	}
+
+	timestamp := signedOperatorSetUpdateMessage.Message.Timestamp
+	err = agg.validateMessageTimestamp(timestamp)
+	if err != nil {
+		agg.logger.Error("Failed to validate message timestamp", "err", err, "timestamp", timestamp)
+		return err
 	}
 
 	blockNumber, err := agg.avsReader.GetOperatorSetUpdateBlock(context.Background(), signedOperatorSetUpdateMessage.Message.Id)
@@ -684,4 +699,16 @@ func (agg *Aggregator) GetCheckpointMessages(fromTimestamp, toTimestamp uint64) 
 	return &types.GetCheckpointMessagesResponse{
 		CheckpointMessages: *checkpointMessages,
 	}, nil
+}
+
+func (agg *Aggregator) validateMessageTimestamp(messageTimestamp uint64) error {
+	now := agg.clock.Now().Unix()
+	timeoutInSeconds := types.MESSAGE_SUBMISSION_TIMEOUT.Seconds()
+
+	// Prevent possible underflow (specially in testing)
+	if uint64(now) > uint64(timeoutInSeconds) && messageTimestamp < uint64(now)-uint64(timeoutInSeconds) {
+		return MessageExpiredError
+	}
+
+	return nil
 }

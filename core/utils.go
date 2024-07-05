@@ -2,6 +2,7 @@ package core
 
 import (
 	"math/big"
+	"time"
 
 	"github.com/Layr-Labs/eigensdk-go/crypto/bls"
 	eigentypes "github.com/Layr-Labs/eigensdk-go/types"
@@ -67,3 +68,9 @@ func ConvertBytesToQuorumNumbers(input []byte) []eigentypes.QuorumNum {
 	}
 	return output
 }
+
+type Clock struct {
+	Now func() time.Time
+}
+
+var SystemClock = Clock{Now: time.Now}

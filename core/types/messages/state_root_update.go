@@ -3,6 +3,7 @@ package messages
 import (
 	"bytes"
 	"encoding/binary"
+	"errors"
 
 	"github.com/Layr-Labs/eigensdk-go/crypto/bls"
 	eigentypes "github.com/Layr-Labs/eigensdk-go/types"
@@ -26,6 +27,18 @@ type SignedStateRootUpdateMessage struct {
 	Message      StateRootUpdateMessage
 	BlsSignature bls.Signature
 	OperatorId   eigentypes.OperatorId
+}
+
+func (s *SignedStateRootUpdateMessage) IsValid() error {
+	if s == nil {
+		return errors.New("SignedStateRootUpdateMessage is nil")
+	}
+
+	if s.BlsSignature.G1Point == nil {
+		return errors.New("BlsSignature.G1Point is nil")
+	}
+
+	return nil
 }
 
 func NewStateRootUpdateMessageFromBinding(binding servicemanager.StateRootUpdateMessage) StateRootUpdateMessage {
