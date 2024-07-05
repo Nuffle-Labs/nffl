@@ -25,12 +25,14 @@ var (
 	UnknownErrorWhileVerifyingSignature400   = errors.New("400. Failed to verify signature")
 	SignatureVerificationFailed400           = errors.New("400. Signature verification failed")
 	CallToGetCheckSignaturesIndicesFailed500 = errors.New("500. Failed to get check signatures indices")
+	MessageExpiredError500                   = errors.New("500. Message expired")
 	UnknownError400                          = errors.New("400. Unknown error")
 
 	errorsMap = map[error]error{
 		aggregator.DigestError:                    MessageDigestNotFoundError500,
 		aggregator.TaskResponseDigestError:        TaskResponseDigestNotFoundError500,
 		aggregator.GetOperatorSetUpdateBlockError: OperatorSetUpdateBlockNotFoundError500,
+		aggregator.MessageExpiredError:            MessageExpiredError500,
 	}
 )
 
