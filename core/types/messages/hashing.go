@@ -5,38 +5,24 @@ import (
 	"github.com/ethereum/go-ethereum/accounts/abi"
 )
 
-type MessageHasher struct {
+type Hasher struct {
 	protocolVersion [32]byte
 }
 
-func NewMessageHasher(protocolVersion [32]byte) *MessageHasher {
-	return &MessageHasher{protocolVersion: protocolVersion}
+func NewHasher(protocolVersion [32]byte) *Hasher {
+	return &Hasher{protocolVersion: protocolVersion}
 }
 
-func (h *MessageHasher) Hash(message interface{}) ([32]byte, error) {
-	var messageName string
-	var digest [32]byte
-	var err error
+type HasherMessage interface {
+	Digest() ([32]byte, error)
+	Name() string
+}
 
-	switch message := message.(type) {
-	case *CheckpointTaskResponse:
-		messageName = "CheckpointTaskResponse"
-		digest, err = message.Digest()
-		if err != nil {
-			return [32]byte{}, err
-		}
-	case *StateRootUpdateMessage:
-		messageName = "StateRootUpdateMessage"
-		digest, err = message.Digest()
-		if err != nil {
-			return [32]byte{}, err
-		}
-	case *OperatorSetUpdateMessage:
-		messageName = "OperatorSetUpdateMessage"
-		digest, err = message.Digest()
-		if err != nil {
-			return [32]byte{}, err
-		}
+func (h *Hasher) Hash(message HasherMessage) ([32]byte, error) {
+	messageName := message.Name()
+	digest, err := message.Digest()
+	if err != nil {
+		return [32]byte{}, err
 	}
 
 	bytes32Ty, err := abi.NewType("bytes32", "", nil)
@@ -57,7 +43,50 @@ func (h *MessageHasher) Hash(message interface{}) ([32]byte, error) {
 	return core.Keccak256(data), nil
 }
 
-func (h *MessageHasher) getDomainSeparator(messageName string, protocolVersion [32]byte) ([32]byte, error) {
+func (h *Hasher) legacyHash(message interface{}) ([32]byte, error) {
+	var messagePrefix string
+	var digest [32]byte
+	var err error
+
+	switch message := message.(type) {
+	case *CheckpointTaskResponse:
+		messagePrefix = "SFFL::CheckpointTaskResponse"
+		digest, err = message.Digest()
+		if err != nil {
+			return [32]byte{}, err
+		}
+	case *StateRootUpdateMessage:
+		messagePrefix = "SFFL::StateRootUpdateMessage"
+		digest, err = message.Digest()
+		if err != nil {
+			return [32]byte{}, err
+		}
+	case *OperatorSetUpdateMessage:
+		messagePrefix = "SFFL::OperatorSetUpdateMessage"
+		digest, err = message.Digest()
+		if err != nil {
+			return [32]byte{}, err
+		}
+	}
+
+	prefixHash := core.Keccak256([]byte(messagePrefix))
+
+	bytes32Ty, err := abi.NewType("bytes32", "", nil)
+	if err != nil {
+		return [32]byte{}, err
+	}
+
+	arguments := abi.Arguments{{Type: bytes32Ty}, {Type: bytes32Ty}}
+
+	bytes, err := arguments.Pack(prefixHash, digest)
+	if err != nil {
+		return [32]byte{}, err
+	}
+
+	return core.Keccak256(bytes), nil
+}
+
+func (h *Hasher) getDomainSeparator(messageName string, protocolVersion [32]byte) ([32]byte, error) {
 	bytes32Ty, err := abi.NewType("bytes32", "", nil)
 	if err != nil {
 		return [32]byte{}, err

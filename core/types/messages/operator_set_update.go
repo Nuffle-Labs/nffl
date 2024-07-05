@@ -107,3 +107,7 @@ func (msg OperatorSetUpdateMessage) Key() [32]byte {
 
 	return key
 }
+
+func (_ OperatorSetUpdateMessage) Name() string {
+	return "OperatorSetUpdateMessage"
+}

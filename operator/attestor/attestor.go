@@ -55,6 +55,8 @@ type Attestor struct {
 	blsKeypair *bls.KeyPair
 	operatorId eigentypes.OperatorId
 
+	messageHasher *messages.Hasher
+
 	logger   sdklogging.Logger
 	listener EventListener
 	// TODO(edwin): remove after https://github.com/Layr-Labs/eigensdk-go/pull/117 merged
@@ -63,7 +65,7 @@ type Attestor struct {
 
 var _ core.Metricable = (*Attestor)(nil)
 
-func NewAttestor(config *optypes.NodeConfig, blsKeypair *bls.KeyPair, operatorId eigentypes.OperatorId, registry *prometheus.Registry, logger sdklogging.Logger) (*Attestor, error) {
+func NewAttestor(config *optypes.NodeConfig, messageHasher *messages.Hasher, blsKeypair *bls.KeyPair, operatorId eigentypes.OperatorId, registry *prometheus.Registry, logger sdklogging.Logger) (*Attestor, error) {
 	consumer := consumer.NewConsumer(consumer.ConsumerConfig{
 		RollupIds: config.NearDaIndexerRollupIds,
 		Id:        hex.EncodeToString(operatorId[:]),
@@ -82,6 +84,7 @@ func NewAttestor(config *optypes.NodeConfig, blsKeypair *bls.KeyPair, operatorId
 		registry:           registry,
 		listener:           &SelectiveEventListener{},
 		config:             config,
+		messageHasher:      messageHasher,
 	}
 
 	for rollupId, url := range config.RollupIdsToRpcUrls {
@@ -289,7 +292,7 @@ loop:
 		NearDaTransactionId: transactionId,
 		NearDaCommitment:    daCommitment,
 	}
-	signature, err := SignStateRootUpdateMessage(attestor.blsKeypair, &message)
+	signature, err := attestor.SignStateRootUpdateMessage(&message)
 	if err != nil {
 		attestor.logger.Warn("StateRoot sign failed", "err", err)
 		return
@@ -304,13 +307,13 @@ loop:
 	attestor.signedRootC <- signedStateRootUpdateMessage
 }
 
-func SignStateRootUpdateMessage(blsKeypair *bls.KeyPair, stateRootUpdateMessage *messages.StateRootUpdateMessage) (*bls.Signature, error) {
-	messageDigest, err := stateRootUpdateMessage.Digest()
+func (attestor *Attestor) SignStateRootUpdateMessage(stateRootUpdateMessage *messages.StateRootUpdateMessage) (*bls.Signature, error) {
+	messageDigest, err := attestor.messageHasher.Hash(stateRootUpdateMessage)
 	if err != nil {
 		return nil, err
 	}
 
-	blsSignature := blsKeypair.SignMessage(messageDigest)
+	blsSignature := attestor.blsKeypair.SignMessage(messageDigest)
 	return blsSignature, nil
 }
 

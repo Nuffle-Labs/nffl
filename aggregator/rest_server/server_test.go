@@ -3,13 +3,14 @@ package rest_server
 import (
 	"encoding/json"
 	"fmt"
+	"net/http"
+	"net/http/httptest"
+	"testing"
+
 	sdklogging "github.com/Layr-Labs/eigensdk-go/logging"
 	"github.com/NethermindEth/near-sffl/aggregator/mocks"
 	"github.com/NethermindEth/near-sffl/core/types/messages"
 	"github.com/NethermindEth/near-sffl/tests"
-	"net/http"
-	"net/http/httptest"
-	"testing"
 
 	"github.com/stretchr/testify/assert"
 	"go.uber.org/mock/gomock"
@@ -25,6 +26,8 @@ func TestGetStateRootUpdateAggregation(t *testing.T) {
 	aggregator := mocks.NewMockRestAggregatorer(mockCtrl)
 	restServer := NewRestServer("", aggregator, logger)
 
+	hasher := messages.NewHasher([32]byte{})
+
 	msg := messages.StateRootUpdateMessage{
 		RollupId:            1,
 		BlockHeight:         2,
@@ -33,7 +36,7 @@ func TestGetStateRootUpdateAggregation(t *testing.T) {
 		NearDaTransactionId: tests.Keccak256(5),
 		StateRoot:           tests.Keccak256(6),
 	}
-	msgDigest, err := msg.Digest()
+	msgDigest, err := hasher.Hash(msg)
 	assert.Nil(t, err)
 
 	response := aggtypes.GetStateRootUpdateAggregationResponse{
@@ -69,11 +72,13 @@ func TestGetOperatorSetUpdateAggregation(t *testing.T) {
 	aggregator := mocks.NewMockRestAggregatorer(mockCtrl)
 	restServer := NewRestServer("", aggregator, logger)
 
+	hasher := messages.NewHasher([32]byte{})
+
 	msg := messages.OperatorSetUpdateMessage{
 		Id:        1,
 		Timestamp: 2,
 	}
-	digest, err := msg.Digest()
+	digest, err := hasher.Hash(msg)
 	assert.Nil(t, err)
 
 	response := aggtypes.GetOperatorSetUpdateAggregationResponse{
@@ -110,12 +115,14 @@ func TestGetCheckpointMessages(t *testing.T) {
 	aggregator := mocks.NewMockRestAggregatorer(mockCtrl)
 	restServer := NewRestServer("", aggregator, logger)
 
+	hasher := messages.NewHasher([32]byte{})
+
 	stateRootMessage := messages.StateRootUpdateMessage{
 		RollupId:    1,
 		BlockHeight: 2,
 		Timestamp:   3,
 	}
-	stateRootDigest, err := stateRootMessage.Digest()
+	stateRootDigest, err := hasher.Hash(stateRootMessage)
 	assert.Nil(t, err)
 	stateRootAggregation := messages.MessageBlsAggregation{
 		MessageDigest: stateRootDigest,
@@ -125,7 +132,7 @@ func TestGetCheckpointMessages(t *testing.T) {
 		Id:        1,
 		Timestamp: 2,
 	}
-	operatorSetDigest, err := operatorSetMesssage.Digest()
+	operatorSetDigest, err := hasher.Hash(operatorSetMesssage)
 	assert.Nil(t, err)
 	operatorSetAggregation := messages.MessageBlsAggregation{
 		MessageDigest: operatorSetDigest,

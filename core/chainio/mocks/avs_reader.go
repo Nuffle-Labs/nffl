@@ -289,6 +289,21 @@ func (mr *MockAvsReadererMockRecorder) GetOperatorsStakeInQuorumsOfOperatorAtCur
 	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "GetOperatorsStakeInQuorumsOfOperatorAtCurrentBlock", reflect.TypeOf((*MockAvsReaderer)(nil).GetOperatorsStakeInQuorumsOfOperatorAtCurrentBlock), arg0, arg1)
 }
 
+// GetProtocolVersion mocks base method.
+func (m *MockAvsReaderer) GetProtocolVersion(arg0 context.Context) ([32]byte, error) {
+	m.ctrl.T.Helper()
+	ret := m.ctrl.Call(m, "GetProtocolVersion", arg0)
+	ret0, _ := ret[0].([32]byte)
+	ret1, _ := ret[1].(error)
+	return ret0, ret1
+}
+
+// GetProtocolVersion indicates an expected call of GetProtocolVersion.
+func (mr *MockAvsReadererMockRecorder) GetProtocolVersion(arg0 any) *gomock.Call {
+	mr.mock.ctrl.T.Helper()
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "GetProtocolVersion", reflect.TypeOf((*MockAvsReaderer)(nil).GetProtocolVersion), arg0)
+}
+
 // GetQuorumCount mocks base method.
 func (m *MockAvsReaderer) GetQuorumCount(arg0 *bind.CallOpts) (byte, error) {
 	m.ctrl.T.Helper()

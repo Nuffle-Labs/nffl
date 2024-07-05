@@ -113,6 +113,7 @@ type Aggregator struct {
 	rollupBroadcaster    RollupBroadcasterer
 	httpClient           safeclient.SafeClient
 	wsClient             safeclient.SafeClient
+	messageHasher        *messages.Hasher
 
 	// TODO(edwin): once rpc & rest decouple from aggregator fome it with them
 	registry           *prometheus.Registry
@@ -214,6 +215,14 @@ func NewAggregator(
 		return nil, err
 	}
 
+	protocolVersion, err := avsReader.GetProtocolVersion(ctx)
+	if err != nil {
+		logger.Error("Cannot get protocol version", "err", err)
+		return nil, err
+	}
+
+	messageHasher := messages.NewHasher(protocolVersion)
+
 	operatorPubkeysService := opinfoserv.NewOperatorsInfoServiceInMemory(ctx, avsRegistryChainSubscriber, avsReader, logger)
 	avsRegistryService := avsregistry.NewAvsRegistryServiceChainCaller(avsReader, operatorPubkeysService, logger)
 	taskBlsAggregationService := blsagg.NewBlsAggregatorService(avsRegistryService, logger)
@@ -231,6 +240,7 @@ func NewAggregator(
 		rollupBroadcaster:                      rollupBroadcaster,
 		httpClient:                             ethHttpClient,
 		wsClient:                               ethWsClient,
+		messageHasher:                          messageHasher,
 		taskBlsAggregationService:              taskBlsAggregationService,
 		stateRootUpdateBlsAggregationService:   stateRootUpdateBlsAggregationService,
 		operatorSetUpdateBlsAggregationService: operatorSetUpdateBlsAggregationService,
@@ -522,7 +532,7 @@ func (agg *Aggregator) handleOperatorSetUpdateReachedQuorum(ctx context.Context,
 
 func (agg *Aggregator) ProcessSignedCheckpointTaskResponse(signedCheckpointTaskResponse *messages.SignedCheckpointTaskResponse) error {
 	taskIndex := signedCheckpointTaskResponse.TaskResponse.ReferenceTaskIndex
-	taskResponseDigest, err := signedCheckpointTaskResponse.TaskResponse.Digest()
+	taskResponseDigest, err := agg.messageHasher.Hash(signedCheckpointTaskResponse.TaskResponse)
 	if err != nil {
 		agg.logger.Error("Failed to get task response digest", "err", err)
 		return TaskResponseDigestError
@@ -550,7 +560,7 @@ func (agg *Aggregator) ProcessSignedCheckpointTaskResponse(signedCheckpointTaskR
 
 // Rpc request handlers
 func (agg *Aggregator) ProcessSignedStateRootUpdateMessage(signedStateRootUpdateMessage *messages.SignedStateRootUpdateMessage) error {
-	messageDigest, err := signedStateRootUpdateMessage.Message.Digest()
+	messageDigest, err := agg.messageHasher.Hash(signedStateRootUpdateMessage.Message)
 	if err != nil {
 		agg.logger.Error("Failed to get message digest", "err", err)
 		return DigestError
@@ -580,7 +590,7 @@ func (agg *Aggregator) ProcessSignedStateRootUpdateMessage(signedStateRootUpdate
 }
 
 func (agg *Aggregator) ProcessSignedOperatorSetUpdateMessage(signedOperatorSetUpdateMessage *messages.SignedOperatorSetUpdateMessage) error {
-	messageDigest, err := signedOperatorSetUpdateMessage.Message.Digest()
+	messageDigest, err := agg.messageHasher.Hash(signedOperatorSetUpdateMessage.Message)
 	if err != nil {
 		agg.logger.Error("Failed to get message digest", "err", err)
 		return DigestError

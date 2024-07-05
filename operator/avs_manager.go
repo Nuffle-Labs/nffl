@@ -306,3 +306,12 @@ func (avsManager *AvsManager) IsOperatorRegistered(options *bind.CallOpts, addre
 func (avsManager *AvsManager) GetOperatorId(options *bind.CallOpts, address common.Address) ([32]byte, error) {
 	return avsManager.avsReader.GetOperatorId(options, address)
 }
+
+func (avsManager *AvsManager) GetProtocolVersion() ([32]byte, error) {
+	protocolVersion, err := avsManager.avsReader.GetProtocolVersion(context.Background())
+	if err != nil {
+		avsManager.logger.Error("Unable to get protocol version")
+		return [32]byte{}, err
+	}
+	return protocolVersion, nil
+}

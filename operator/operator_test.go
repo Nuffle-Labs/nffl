@@ -114,11 +114,11 @@ func TestOperator(t *testing.T) {
 			Timestamp: block.Header().Time,
 			Raw:       types.Log{},
 		}
-		signedOperatorSetUpdateMessage, err := SignOperatorSetUpdate(messages.OperatorSetUpdateMessage{
+		signedOperatorSetUpdateMessage, err := operator.SignOperatorSetUpdate(messages.OperatorSetUpdateMessage{
 			Id:        operatorSetUpdate.Id,
 			Timestamp: operatorSetUpdate.Timestamp,
 			Operators: make([]coretypes.RollupOperator, 0),
-		}, operator.blsKeypair, operator.operatorId)
+		})
 		assert.Nil(t, err)
 
 		mockCtrl := gomock.NewController(t)
@@ -189,7 +189,8 @@ func createMockOperator(mockCtrl *gomock.Controller) (*Operator, *AvsManager, *m
 	}
 	operatorKeypair := bls.NewKeyPair(blsPrivateKey)
 
-	mockAttestor := mocks.NewMockAttestor(operatorKeypair, MOCK_OPERATOR_ID)
+	hasher := messages.NewHasher([32]byte{})
+	mockAttestor := mocks.NewMockAttestor(hasher, operatorKeypair, MOCK_OPERATOR_ID)
 	avsManager := &AvsManager{
 		logger:                       logger,
 		checkpointTaskCreatedChan:    make(chan *taskmanager.ContractSFFLTaskManagerCheckpointTaskCreated),

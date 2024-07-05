@@ -30,12 +30,16 @@ type CheckpointMessages struct {
 	OperatorSetUpdateMessageAggregations []MessageBlsAggregation
 }
 
-func NewCheckpointTaskResponseFromMessages(taskIndex coretypes.TaskIndex, checkpointMessages *CheckpointMessages) (CheckpointTaskResponse, error) {
+func NewCheckpointTaskResponseFromMessages(taskIndex coretypes.TaskIndex, checkpointMessages *CheckpointMessages, hasher *Hasher) (CheckpointTaskResponse, error) {
 	stateRootUpdatesSmt := smt.NewSMT()
 	operatorSetUpdatesSmt := smt.NewSMT()
 
 	for _, msg := range checkpointMessages.StateRootUpdateMessages {
-		err := stateRootUpdatesSmt.AddMessage(msg)
+		digest, err := hasher.Hash(msg)
+		if err != nil {
+			return CheckpointTaskResponse{}, err
+		}
+		err = stateRootUpdatesSmt.Add(msg.Key(), digest)
 		if err != nil {
 			return CheckpointTaskResponse{}, err
 		}
@@ -47,7 +51,11 @@ func NewCheckpointTaskResponseFromMessages(taskIndex coretypes.TaskIndex, checkp
 	}
 
 	for _, msg := range checkpointMessages.OperatorSetUpdateMessages {
-		err := operatorSetUpdatesSmt.AddMessage(msg)
+		digest, err := hasher.Hash(msg)
+		if err != nil {
+			return CheckpointTaskResponse{}, err
+		}
+		err = operatorSetUpdatesSmt.Add(msg.Key(), digest)
 		if err != nil {
 			return CheckpointTaskResponse{}, err
 		}
@@ -100,4 +108,8 @@ func (msg CheckpointTaskResponse) Digest() ([32]byte, error) {
 	}
 
 	return core.Keccak256(data), nil
+}
+
+func (_ CheckpointTaskResponse) Name() string {
+	return "CheckpointTaskResponse"
 }

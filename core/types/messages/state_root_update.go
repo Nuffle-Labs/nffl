@@ -80,3 +80,7 @@ func (msg StateRootUpdateMessage) Key() [32]byte {
 func (msg StateRootUpdateMessage) HasNearDaCommitment() bool {
 	return !bytes.Equal(msg.NearDaCommitment[:], make([]byte, 32)) && !bytes.Equal(msg.NearDaTransactionId[:], make([]byte, 32))
 }
+
+func (_ StateRootUpdateMessage) Name() string {
+	return "StateRootUpdateMessage"
+}

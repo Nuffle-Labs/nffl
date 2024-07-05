@@ -27,7 +27,7 @@ func TestProcessSignedCheckpointTaskResponse(t *testing.T) {
 	var FROM_NEAR_BLOCK = uint64(3)
 	var TO_NEAR_BLOCK = uint64(4)
 
-	aggregator, _, _, mockBlsAggServ, _, _, _, _, _, err := createMockAggregator(mockCtrl, MOCK_OPERATOR_PUBKEY_DICT)
+	aggregator, _, _, mockBlsAggServ, _, _, _, _, _, hasher, err := createMockAggregator(mockCtrl, MOCK_OPERATOR_PUBKEY_DICT)
 	assert.Nil(t, err)
 
 	signedCheckpointTaskResponse, err := createMockSignedCheckpointTaskResponse(MockTask{
@@ -35,9 +35,9 @@ func TestProcessSignedCheckpointTaskResponse(t *testing.T) {
 		BlockNumber:   BLOCK_NUMBER,
 		FromTimestamp: FROM_NEAR_BLOCK,
 		ToTimestamp:   TO_NEAR_BLOCK,
-	}, *MOCK_OPERATOR_KEYPAIR)
+	}, *MOCK_OPERATOR_KEYPAIR, hasher)
 	assert.Nil(t, err)
-	signedCheckpointTaskResponseDigest, err := signedCheckpointTaskResponse.TaskResponse.Digest()
+	signedCheckpointTaskResponseDigest, err := hasher.Hash(signedCheckpointTaskResponse.TaskResponse)
 	assert.Nil(t, err)
 
 	// TODO(samlaf): is this the right way to test writing to external service?
@@ -53,7 +53,7 @@ func TestProcessSignedStateRootUpdateMessage(t *testing.T) {
 	mockCtrl := gomock.NewController(t)
 	defer mockCtrl.Finish()
 
-	aggregator, _, _, _, mockMessageBlsAggServ, _, _, _, _, err := createMockAggregator(mockCtrl, MOCK_OPERATOR_PUBKEY_DICT)
+	aggregator, _, _, _, mockMessageBlsAggServ, _, _, _, _, hasher, err := createMockAggregator(mockCtrl, MOCK_OPERATOR_PUBKEY_DICT)
 	assert.Nil(t, err)
 
 	message := messages.StateRootUpdateMessage{
@@ -65,9 +65,9 @@ func TestProcessSignedStateRootUpdateMessage(t *testing.T) {
 		StateRoot:           keccak256(6),
 	}
 
-	signedMessage, err := createMockSignedStateRootUpdateMessage(message, *MOCK_OPERATOR_KEYPAIR)
+	signedMessage, err := createMockSignedStateRootUpdateMessage(message, *MOCK_OPERATOR_KEYPAIR, hasher)
 	assert.Nil(t, err)
-	messageDigest, err := signedMessage.Message.Digest()
+	messageDigest, err := hasher.Hash(signedMessage.Message)
 	assert.Nil(t, err)
 
 	mockMessageBlsAggServ.EXPECT().ProcessNewSignature(context.Background(), messageDigest,
@@ -81,7 +81,7 @@ func TestProcessOperatorSetUpdateMessage(t *testing.T) {
 	mockCtrl := gomock.NewController(t)
 	defer mockCtrl.Finish()
 
-	aggregator, mockAvsReader, _, _, _, mockMessageBlsAggServ, _, _, _, err := createMockAggregator(mockCtrl, MOCK_OPERATOR_PUBKEY_DICT)
+	aggregator, mockAvsReader, _, _, _, mockMessageBlsAggServ, _, _, _, hasher, err := createMockAggregator(mockCtrl, MOCK_OPERATOR_PUBKEY_DICT)
 	assert.Nil(t, err)
 
 	message := messages.OperatorSetUpdateMessage{
@@ -92,9 +92,9 @@ func TestProcessOperatorSetUpdateMessage(t *testing.T) {
 		},
 	}
 
-	signedMessage, err := createMockSignedOperatorSetUpdateMessage(message, *MOCK_OPERATOR_KEYPAIR)
+	signedMessage, err := createMockSignedOperatorSetUpdateMessage(message, *MOCK_OPERATOR_KEYPAIR, hasher)
 	assert.Nil(t, err)
-	messageDigest, err := signedMessage.Message.Digest()
+	messageDigest, err := hasher.Hash(signedMessage.Message)
 	assert.Nil(t, err)
 
 	mockAvsReader.EXPECT().GetOperatorSetUpdateBlock(context.Background(), uint64(1)).Return(uint32(10), nil)
@@ -110,7 +110,7 @@ func TestGetAggregatedCheckpointMessages(t *testing.T) {
 	mockCtrl := gomock.NewController(t)
 	defer mockCtrl.Finish()
 
-	aggregator, _, _, _, _, _, mockDb, _, _, err := createMockAggregator(mockCtrl, MOCK_OPERATOR_PUBKEY_DICT)
+	aggregator, _, _, _, _, _, mockDb, _, _, _, err := createMockAggregator(mockCtrl, MOCK_OPERATOR_PUBKEY_DICT)
 	assert.Nil(t, err)
 
 	var checkpointMessages messages.CheckpointMessages
@@ -128,13 +128,13 @@ func keccak256(num uint64) [32]byte {
 	return hash
 }
 
-func createMockSignedCheckpointTaskResponse(mockTask MockTask, keypair bls.KeyPair) (*messages.SignedCheckpointTaskResponse, error) {
+func createMockSignedCheckpointTaskResponse(mockTask MockTask, keypair bls.KeyPair, messageHasher *messages.Hasher) (*messages.SignedCheckpointTaskResponse, error) {
 	taskResponse := &messages.CheckpointTaskResponse{
 		ReferenceTaskIndex:     mockTask.TaskNum,
 		StateRootUpdatesRoot:   keccak256(mockTask.FromTimestamp),
 		OperatorSetUpdatesRoot: keccak256(mockTask.ToTimestamp),
 	}
-	taskResponseHash, err := taskResponse.Digest()
+	taskResponseHash, err := messageHasher.Hash(taskResponse)
 	if err != nil {
 		return nil, err
 	}
@@ -147,8 +147,8 @@ func createMockSignedCheckpointTaskResponse(mockTask MockTask, keypair bls.KeyPa
 	return signedCheckpointTaskResponse, nil
 }
 
-func createMockSignedStateRootUpdateMessage(mockMessage messages.StateRootUpdateMessage, keypair bls.KeyPair) (*messages.SignedStateRootUpdateMessage, error) {
-	messageDigest, err := mockMessage.Digest()
+func createMockSignedStateRootUpdateMessage(mockMessage messages.StateRootUpdateMessage, keypair bls.KeyPair, messageHasher *messages.Hasher) (*messages.SignedStateRootUpdateMessage, error) {
+	messageDigest, err := messageHasher.Hash(mockMessage)
 	if err != nil {
 		return nil, err
 	}
@@ -161,8 +161,8 @@ func createMockSignedStateRootUpdateMessage(mockMessage messages.StateRootUpdate
 	return signedStateRootUpdateMessage, nil
 }
 
-func createMockSignedOperatorSetUpdateMessage(mockMessage messages.OperatorSetUpdateMessage, keypair bls.KeyPair) (*messages.SignedOperatorSetUpdateMessage, error) {
-	messageDigest, err := mockMessage.Digest()
+func createMockSignedOperatorSetUpdateMessage(mockMessage messages.OperatorSetUpdateMessage, keypair bls.KeyPair, messageHasher *messages.Hasher) (*messages.SignedOperatorSetUpdateMessage, error) {
+	messageDigest, err := messageHasher.Hash(mockMessage)
 	if err != nil {
 		return nil, err
 	}

@@ -32,25 +32,8 @@ func NewSMT() *SMT {
 	}
 }
 
-type SmtMessage interface {
-	Digest() ([32]byte, error)
-	Key() [32]byte
-}
-
-func (s *SMT) AddMessage(msg SmtMessage) error {
-	digest, err := msg.Digest()
-	if err != nil {
-		return err
-	}
-
-	key := msg.Key()
-
-	err = s.Update(key[:], digest[:])
-	if err != nil {
-		return err
-	}
-
-	return nil
+func (s *SMT) Add(key [32]byte, value [32]byte) error {
+	return s.Update(key[:], value[:])
 }
 
 func (s *SMT) ProveCompact(key []byte) (*smt.SparseCompactMerkleProof, error) {
