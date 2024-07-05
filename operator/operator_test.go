@@ -200,15 +200,16 @@ func createMockOperator(mockCtrl *gomock.Controller) (*Operator, *AvsManager, *m
 	mockClient := safeclientmocks.NewMockSafeClient(mockCtrl)
 
 	operator := &Operator{
-		logger:     logger,
-		blsKeypair: operatorKeypair,
-		metricsReg: reg,
-		metrics:    noopMetrics,
-		operatorId: MOCK_OPERATOR_ID,
-		attestor:   mockAttestor,
-		avsManager: avsManager,
-		listener:   &SelectiveOperatorListener{},
-		ethClient:  mockClient,
+		logger:        logger,
+		blsKeypair:    operatorKeypair,
+		metricsReg:    reg,
+		metrics:       noopMetrics,
+		operatorId:    MOCK_OPERATOR_ID,
+		attestor:      mockAttestor,
+		avsManager:    avsManager,
+		listener:      &SelectiveOperatorListener{},
+		ethClient:     mockClient,
+		messageHasher: hasher,
 	}
 
 	return operator, avsManager, mockAttestor.MockGetConsumer(), mockClient, nil
