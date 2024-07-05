@@ -348,7 +348,7 @@ func (o *Operator) Start(ctx context.Context) error {
 				return o.Close()
 			}
 
-			signedOperatorSetUpdate, err := o.SignOperatorSetUpdate(operatorSetUpdate)
+			signedOperatorSetUpdate, err := o.SignOperatorSetUpdate(&operatorSetUpdate)
 			if err != nil {
 				o.logger.Error("Failed to sign operator set update", "signedOperatorSetUpdate", signedOperatorSetUpdate)
 				continue
@@ -388,14 +388,14 @@ func (o *Operator) SignTaskResponse(taskResponse *messages.CheckpointTaskRespons
 	return signedCheckpointTaskResponse, nil
 }
 
-func (o *Operator) SignOperatorSetUpdate(message messages.OperatorSetUpdateMessage) (*messages.SignedOperatorSetUpdateMessage, error) {
+func (o *Operator) SignOperatorSetUpdate(message *messages.OperatorSetUpdateMessage) (*messages.SignedOperatorSetUpdateMessage, error) {
 	messageHash, err := o.messageHasher.Hash(message)
 	if err != nil {
 		return nil, err
 	}
 	signature := o.blsKeypair.SignMessage(messageHash)
 	signedOperatorSetUpdate := messages.SignedOperatorSetUpdateMessage{
-		Message:      message,
+		Message:      *message,
 		OperatorId:   o.operatorId,
 		BlsSignature: *signature,
 	}

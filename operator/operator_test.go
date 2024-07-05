@@ -114,7 +114,7 @@ func TestOperator(t *testing.T) {
 			Timestamp: block.Header().Time,
 			Raw:       types.Log{},
 		}
-		signedOperatorSetUpdateMessage, err := operator.SignOperatorSetUpdate(messages.OperatorSetUpdateMessage{
+		signedOperatorSetUpdateMessage, err := operator.SignOperatorSetUpdate(&messages.OperatorSetUpdateMessage{
 			Id:        operatorSetUpdate.Id,
 			Timestamp: operatorSetUpdate.Timestamp,
 			Operators: make([]coretypes.RollupOperator, 0),
