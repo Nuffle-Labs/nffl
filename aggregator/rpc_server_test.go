@@ -5,6 +5,7 @@ import (
 	"encoding/binary"
 	"math/big"
 	"testing"
+	"time"
 
 	"github.com/stretchr/testify/assert"
 	"go.uber.org/mock/gomock"
@@ -14,6 +15,7 @@ import (
 	eigentypes "github.com/Layr-Labs/eigensdk-go/types"
 
 	"github.com/NethermindEth/near-sffl/aggregator/types"
+	"github.com/NethermindEth/near-sffl/core"
 	coretypes "github.com/NethermindEth/near-sffl/core/types"
 	"github.com/NethermindEth/near-sffl/core/types/messages"
 )
@@ -56,10 +58,11 @@ func TestProcessSignedStateRootUpdateMessage(t *testing.T) {
 	aggregator, _, _, _, mockMessageBlsAggServ, _, _, _, _, err := createMockAggregator(mockCtrl, MOCK_OPERATOR_PUBKEY_DICT)
 	assert.Nil(t, err)
 
+	aggregator.clock = core.Clock{Now: func() time.Time { return time.Unix(10_000, 0) }}
 	message := messages.StateRootUpdateMessage{
 		RollupId:            1,
 		BlockHeight:         2,
-		Timestamp:           3,
+		Timestamp:           9_995,
 		NearDaCommitment:    keccak256(4),
 		NearDaTransactionId: keccak256(5),
 		StateRoot:           keccak256(6),
@@ -70,8 +73,7 @@ func TestProcessSignedStateRootUpdateMessage(t *testing.T) {
 	messageDigest, err := signedMessage.Message.Digest()
 	assert.Nil(t, err)
 
-	mockMessageBlsAggServ.EXPECT().ProcessNewSignature(context.Background(), messageDigest,
-		&signedMessage.BlsSignature, signedMessage.OperatorId)
+	mockMessageBlsAggServ.EXPECT().ProcessNewSignature(context.Background(), messageDigest, &signedMessage.BlsSignature, signedMessage.OperatorId)
 	mockMessageBlsAggServ.EXPECT().InitializeMessageIfNotExists(messageDigest, coretypes.QUORUM_NUMBERS, []eigentypes.QuorumThresholdPercentage{types.MESSAGE_AGGREGATION_QUORUM_THRESHOLD}, types.MESSAGE_TTL, types.MESSAGE_BLS_AGGREGATION_TIMEOUT, uint64(0))
 	err = aggregator.ProcessSignedStateRootUpdateMessage(signedMessage)
 	assert.Nil(t, err)
@@ -84,9 +86,10 @@ func TestProcessOperatorSetUpdateMessage(t *testing.T) {
 	aggregator, mockAvsReader, _, _, _, mockMessageBlsAggServ, _, _, _, err := createMockAggregator(mockCtrl, MOCK_OPERATOR_PUBKEY_DICT)
 	assert.Nil(t, err)
 
+	aggregator.clock = core.Clock{Now: func() time.Time { return time.Unix(10_000, 0) }}
 	message := messages.OperatorSetUpdateMessage{
 		Id:        1,
-		Timestamp: 2,
+		Timestamp: 9_995,
 		Operators: []coretypes.RollupOperator{
 			{Pubkey: bls.NewG1Point(big.NewInt(3), big.NewInt(4)), Weight: big.NewInt(5)},
 		},
