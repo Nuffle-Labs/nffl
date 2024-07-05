@@ -59,16 +59,16 @@ func TestOperator(t *testing.T) {
 		}
 		fmt.Println("newTaskCreatedEvent", newTaskCreatedEvent)
 
-		X, ok := big.NewInt(0).SetString("14682076405452102073294678397007301219581403230466932828034308124846926767307", 10)
+		X, ok := big.NewInt(0).SetString("17661335844121276474564666950358303590922297397044732665699090882239279390831", 10)
 		assert.True(t, ok)
-		Y, ok := big.NewInt(0).SetString("21795352068006341387944991363719316176428465837889238952393688260477242359304", 10)
+		Y, ok := big.NewInt(0).SetString("12547054754368699128461691059748124385981650477514768718744243985037962958213", 10)
 		assert.True(t, ok)
 		taskResponseSignature := bls.Signature{G1Point: bls.NewG1Point(X, Y)}
 
-		stateRootUpdatesRoot, err := hex.DecodeString("f4356e325f801b1c6acd597d8d32d2b65d28596622a33f9ec882314f41dd4411")
+		stateRootUpdatesRoot, err := hex.DecodeString("f5d0fae03562975bbec0032ca44d563d0a44d75b6e84b63f4b3c0cbc6e3aeb2c")
 		assert.Nil(t, err)
 
-		operatorSetUpdatesRoot, err := hex.DecodeString("a5552192acf1e92adb86a881768349fb3408f56e68a31cd17dabdf1108f1ac93")
+		operatorSetUpdatesRoot, err := hex.DecodeString("47c2698d40a371cd35f175f5a7696d74cf4b2161cb2d6139671a627062fb596d")
 		assert.Nil(t, err)
 
 		signedTaskResponse := &messages.SignedCheckpointTaskResponse{
@@ -84,9 +84,9 @@ func TestOperator(t *testing.T) {
 		stateRoot, err := hex.DecodeString("04d855ea9fbfefca9069335296aaa5108fa16d36ecd200bf133a1f5b5a7f5fe2")
 		assert.Nil(t, err)
 
-		X, ok = big.NewInt(0).SetString("14166665838505742237234466022950148109946898229040848081862518171991385270422", 10)
+		X, ok = big.NewInt(0).SetString("13800588136723745139086930992795855876038340441781760930411710515590881085702", 10)
 		assert.True(t, ok)
-		Y, ok = big.NewInt(0).SetString("4090516448351082424065118359663770590467802349609723171049485579272418302598", 10)
+		Y, ok = big.NewInt(0).SetString("13177653237352420178350570044696862987004831431618036354360834407331725483722", 10)
 		assert.True(t, ok)
 		stateRootUpdateMessageSignature := bls.Signature{G1Point: bls.NewG1Point(X, Y)}
 
