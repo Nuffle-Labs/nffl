@@ -458,17 +458,17 @@ contract SFFLTaskManagerTest is TestUtils {
 
         bytes32[] memory sideNodes = new bytes32[](11);
 
-        sideNodes[0] = 0x7f4b7151686c441af6499bbf68abeb253bb84d5bb5f66da5c93df82f1f719c05;
-        sideNodes[1] = 0x0f94480f4d0527712e218589246ba3f04bb8449ef81141d5ba603aa354e23969;
-        sideNodes[2] = 0x6bfc75aaa51725893f078eac6a37ebdd6213d9d5aac5b466ea4dfaf3c489e57e;
-        sideNodes[3] = 0xa80486bbb3eb15774f54beb0a7410e967f78ede7c96350b05d25904d8f2ed810;
-        sideNodes[4] = 0xe710a223a617328e35845b0c3294ee5042c1a135e9ea548e42c4083e432493b8;
-        sideNodes[5] = 0xa00d73f85f050ff0d2ee145c0c95c91c07c146ec4d40ee41800f569750f6969e;
-        sideNodes[6] = 0x56404ae62a3311e61b7d3fef04b3d71cc48ffa305e650bf2b198cac391e74b79;
-        sideNodes[7] = 0xa7d0ab5d512a10cade283f9abb042ab4fdd2eaceee3040e4e9edbc78965d77c8;
-        sideNodes[8] = 0x806cf87f0861b7cbb46f963341dd733aad0210c8d1ff57564b8b3c284e41bc4b;
-        sideNodes[9] = 0x3bc710489d6eb190e53704cc2ec844dd6c92bd3ef9d1b805c8549304966e390e;
-        sideNodes[10] = 0xc2999aed977c19a389ebb3a7a850acbfd813c8444b739f4f879f71d410a66023;
+        sideNodes[0] = 0x9493aa90005894490c64b3ff6886264188a3a167c29e6cd811eb778506e2b9ec;
+        sideNodes[1] = 0x45aee272a2a783e21f90a7036fc166acef2b32b3231879a232841f93250ffba2;
+        sideNodes[2] = 0x00e65f887e4daf008e313293ac20f7d46d21e20a77dfa670f9a216306bf94ac3;
+        sideNodes[3] = 0xdf51b2ed1456c903c07193963e8d29256d576cf21c8879f2cd70b2b1f7f04580;
+        sideNodes[4] = 0x5e0f58ca8fc3be03a5201dc4f0033a325b9a86ec36e7aee24a1665ad736b15e8;
+        sideNodes[5] = 0x096074a041a98700bffe9bfe5d8cde3b82db5990df13eb4d3788a7c8445dfcac;
+        sideNodes[6] = 0x144b921b977ec913b48bb82d8d5038c8483ada5465b980c7c812d8e4f2439a99;
+        sideNodes[7] = 0x7c979e9cdedb3b36a1632011c2241fde8a2b4f3d1d4b61d6798fd204082b6048;
+        sideNodes[8] = 0xd77a7f54c4b55dd8a86d88e4da0d5ad41aaceb1b664326cf3ef372dd4c764449;
+        sideNodes[9] = 0xc71fa4a63ad34e585ad0d6fe92d39a4a49dfbb8ad67870e918dfaeff6f8707b8;
+        sideNodes[10] = 0xa4e84e3fd178d049a935616b552c6d00f2c27dfac4fb7329082992e718dc3fb0;
 
         SparseMerkleTree.Proof memory proof = SparseMerkleTree.Proof({
             key: message.index(),
@@ -482,7 +482,7 @@ contract SFFLTaskManagerTest is TestUtils {
 
         Checkpoint.TaskResponse memory taskResponse = Checkpoint.TaskResponse({
             referenceTaskIndex: 0,
-            stateRootUpdatesRoot: 0x2995a20b408596346fae51a08ba60b37947da6a1e6e7e26b6b4912bf92b978d4,
+            stateRootUpdatesRoot: 0x872b1ae00dddf580168f6bdf3e73e5da5c89e619e9c0551a4b50c435b9655c13,
             operatorSetUpdatesRoot: keccak256(hex"f00d")
         });
 
@@ -704,18 +704,18 @@ contract SFFLTaskManagerTest is TestUtils {
             OperatorSetUpdate.Message({id: 10000, timestamp: 10001, operators: operators});
 
         bytes32[] memory sideNodes = new bytes32[](12);
-        sideNodes[0] = 0x83eb8c0b0aaec64b321f1749e66558152bab4c9a420988beddf222d81b6de2e7;
-        sideNodes[1] = 0x88379ae89df4a7ae80fb720bb0f2b04a018632404b270e1c97ec7ed3b012912b;
-        sideNodes[2] = 0x8f4ef77dcec29af1ed095ef0c8f7eb841556515bfb9847a00abd147d861d954a;
-        sideNodes[3] = 0xbdee7a4b841e5ee0f84962e715a0072144b6f4645fb22e7ac53887d75db142d7;
-        sideNodes[4] = 0xf48c5f91abb95e3c45672d51d880470ea4e67f9b2c2741a1c6fae5b06fe01978;
-        sideNodes[5] = 0x05212b87bf3b2fc90dcece0dd03f14e3e7a791a87ff4a0547f38e94854527f92;
-        sideNodes[6] = 0x6e8feb78b991c773d1e52ca520600e5dd55654a58b4f32ceffdce7f94dc504e0;
-        sideNodes[7] = 0x6331e68420ddd9a7003e8716a891d2a8c6cce47ccf7f41044b2aaf3c7ceadfdb;
-        sideNodes[8] = 0x5bde76ce537bb77991a7bed8bef44acbaf8e4ff1618267dab90aa38221252c31;
-        sideNodes[9] = 0x2f5e2715efca5957ca1ddbe55a70fbe22df593e5b6067194e063be85ce94e6fc;
-        sideNodes[10] = 0x843a1a89f9252bbfe4653bf220782de338d08b9423b222de88cf3bfad5d27d1f;
-        sideNodes[11] = 0x2e75cecfde115838aa252c63c4353ebcd478419163bbef4db82f61d7b71f90b2;
+        sideNodes[0] = 0x68b88a2681579fa7316f4c53f32cea8ad0fd801ec379f64e2eaa78032baddc29;
+        sideNodes[1] = 0x814b60cf3eb29309c2d6f3d8b47a262f6b4eba6a883e0ef5620e99e703701dc1;
+        sideNodes[2] = 0x403d6cada3ad120e36fee5ab5690d45b3da55be9d6522cca4078c2c9a2c8206b;
+        sideNodes[3] = 0xa7dda291d7271e5d6be25a1e7778db22c8a57ed3f1d94bfdd9a4a81343c05b31;
+        sideNodes[4] = 0x088babaf5ad39a3f6e2a7807b8d0feb66f145b3c378d207e5ef5cec2ccd6c269;
+        sideNodes[5] = 0x460a49f5af41f2cf306c02b1bed0668320088df64f2c2026e8620a45d6068ffe;
+        sideNodes[6] = 0xe400c82bafb0d5f4d263c4146b69bf7058e162af94ff76aac876b4777f8318d7;
+        sideNodes[7] = 0x084519dca6edf66c6d58615cd03f686da4d6b0d84abbd16eb9b7ff9c98c90b23;
+        sideNodes[8] = 0x37b707900783eb3b532fec13f6942ece909d1c5b074536bf62bf8037bab7d30f;
+        sideNodes[9] = 0x9b4f7ac182691402d9f8ae3625b0d185bf6333b4ec29b99632c11a13dcbfe180;
+        sideNodes[10] = 0xa6118ed7855da974a2d688f7a199d84431bf8fbd072cf80b7ccc649c221732bd;
+        sideNodes[11] = 0xfca69c43e91e5ff6e7dd91261dea463f0a4785596ab1363b717e50304c3c5b7b;
 
         SparseMerkleTree.Proof memory proof = SparseMerkleTree.Proof({
             key: message.index(),
@@ -730,7 +730,7 @@ contract SFFLTaskManagerTest is TestUtils {
         Checkpoint.TaskResponse memory taskResponse = Checkpoint.TaskResponse({
             referenceTaskIndex: 0,
             stateRootUpdatesRoot: keccak256(hex"beef"),
-            operatorSetUpdatesRoot: 0x1d2099c47f6cfdc9df0ddc787094f286a83a9b3138da2cb909a8e52849c4c7e7
+            operatorSetUpdatesRoot: 0x357b2f284c6cf86377718fd055acb237d930a94275d178ae491c962e5853a0bc
         });
 
         assertTrue(taskManager.verifyMessageInclusionState(message, taskResponse, proof));

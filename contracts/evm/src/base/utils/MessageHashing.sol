@@ -19,7 +19,7 @@ library MessageHashing {
         pure
         returns (bytes32)
     {
-        return keccak256(abi.encodePacked(TYPE_HASH, version, taskManager, chainId));
+        return keccak256(abi.encodePacked(TYPE_HASH, keccak256(bytes(version)), taskManager, chainId));
     }
 
     function hashMessage(bytes32 messagingPrefix, bytes32 messageName, bytes32 messageHash)
