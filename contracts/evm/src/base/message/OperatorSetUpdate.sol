@@ -24,19 +24,21 @@ library OperatorSetUpdate {
     /**
      * @notice Hashes an operator set update message
      * @param message Message structured data
+     * @param messagingPrefix Messaging prefix
      * @return Message hash
      */
-    function hashCalldata(Message calldata message, bytes32 protocolVersion) internal pure returns (bytes32) {
-        return MessageHashing.hashMessage(MESSAGE_NAME, protocolVersion, keccak256(abi.encode(message)));
+    function hashCalldata(Message calldata message, bytes32 messagingPrefix) internal pure returns (bytes32) {
+        return MessageHashing.hashMessage(messagingPrefix, MESSAGE_NAME, keccak256(abi.encode(message)));
     }
 
     /**
      * @notice Hashes an operator set update message
      * @param message Message structured data
+     * @param messagingPrefix Messaging prefix
      * @return Message hash
      */
-    function hash(Message memory message, bytes32 protocolVersion) internal pure returns (bytes32) {
-        return MessageHashing.hashMessage(MESSAGE_NAME, protocolVersion, keccak256(abi.encode(message)));
+    function hash(Message memory message, bytes32 messagingPrefix) internal pure returns (bytes32) {
+        return MessageHashing.hashMessage(messagingPrefix, MESSAGE_NAME, keccak256(abi.encode(message)));
     }
 
     /**

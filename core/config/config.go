@@ -65,6 +65,7 @@ type SFFLDeploymentRaw struct {
 type SFFLContractsRaw struct {
 	RegistryCoordinatorAddr    string `json:"registryCoordinator"`
 	OperatorStateRetrieverAddr string `json:"operatorStateRetriever"`
+	TaskManagerAddr            string `json:"sfflTaskManager"`
 }
 
 type RollupInfo struct {

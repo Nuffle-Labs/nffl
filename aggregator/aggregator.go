@@ -216,13 +216,13 @@ func NewAggregator(
 		return nil, err
 	}
 
-	protocolVersion, err := avsReader.GetProtocolVersion(ctx)
+	messagingPrefix, err := avsReader.GetMessagingPrefix(ctx)
 	if err != nil {
-		logger.Error("Cannot get protocol version", "err", err)
+		logger.Error("Cannot get messaging prefix", "err", err)
 		return nil, err
 	}
 
-	messageHasher := messages.NewHasher(protocolVersion)
+	messageHasher := messages.NewHasher(messagingPrefix)
 
 	operatorPubkeysService := opinfoserv.NewOperatorsInfoServiceInMemory(ctx, avsRegistryChainSubscriber, avsReader, logger)
 	avsRegistryService := avsregistry.NewAvsRegistryServiceChainCaller(avsReader, operatorPubkeysService, logger)

@@ -307,11 +307,11 @@ func (avsManager *AvsManager) GetOperatorId(options *bind.CallOpts, address comm
 	return avsManager.avsReader.GetOperatorId(options, address)
 }
 
-func (avsManager *AvsManager) GetProtocolVersion() ([32]byte, error) {
-	protocolVersion, err := avsManager.avsReader.GetProtocolVersion(context.Background())
+func (avsManager *AvsManager) GetMessagingPrefix() ([32]byte, error) {
+	messagingPrefix, err := avsManager.avsReader.GetMessagingPrefix(context.Background())
 	if err != nil {
-		avsManager.logger.Error("Unable to get protocol version")
+		avsManager.logger.Error("Unable to get messaging prefix")
 		return [32]byte{}, err
 	}
-	return protocolVersion, nil
+	return messagingPrefix, nil
 }

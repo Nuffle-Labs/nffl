@@ -187,13 +187,13 @@ func NewOperatorFromConfig(c optypes.NodeConfig) (*Operator, error) {
 		return nil, err
 	}
 
-	protocolVersion, err := avsManager.GetProtocolVersion()
+	messagingPrefix, err := avsManager.GetMessagingPrefix()
 	if err != nil {
-		logger.Error("Cannot get protocol version", "err", err)
+		logger.Error("Cannot get messaging prefix", "err", err)
 		return nil, err
 	}
 
-	messageHasher := messages.NewHasher(protocolVersion)
+	messageHasher := messages.NewHasher(messagingPrefix)
 
 	// We must register the economic metrics separately because they are exported metrics (from jsonrpc or subgraph calls)
 	// and not instrumented metrics: see https://prometheus.io/docs/instrumenting/writing_clientlibs/#overall-structure

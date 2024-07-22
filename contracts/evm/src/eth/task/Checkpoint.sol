@@ -56,23 +56,25 @@ library Checkpoint {
     /**
      * @notice Hashes a checkpoint task response
      * @param taskResponse Checkpoint task response structured data
+     * @param messagingPrefix Messaging prefix
      * @return Task response hash
      */
-    function hash(TaskResponse memory taskResponse, bytes32 protocolVersion) internal pure returns (bytes32) {
-        return MessageHashing.hashMessage(MESSAGE_NAME, protocolVersion, keccak256(abi.encode(taskResponse)));
+    function hash(TaskResponse memory taskResponse, bytes32 messagingPrefix) internal pure returns (bytes32) {
+        return MessageHashing.hashMessage(messagingPrefix, MESSAGE_NAME, keccak256(abi.encode(taskResponse)));
     }
 
     /**
      * @notice Hashes a checkpoint task response
      * @param taskResponse Checkpoint task response structured data
+     * @param messagingPrefix Messaging prefix
      * @return Task response hash
      */
-    function hashCalldata(TaskResponse calldata taskResponse, bytes32 protocolVersion)
+    function hashCalldata(TaskResponse calldata taskResponse, bytes32 messagingPrefix)
         internal
         pure
         returns (bytes32)
     {
-        return MessageHashing.hashMessage(MESSAGE_NAME, protocolVersion, keccak256(abi.encode(taskResponse)));
+        return MessageHashing.hashMessage(messagingPrefix, MESSAGE_NAME, keccak256(abi.encode(taskResponse)));
     }
 
     /**

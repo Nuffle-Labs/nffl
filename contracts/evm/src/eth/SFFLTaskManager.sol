@@ -10,6 +10,7 @@ import {IPauserRegistry} from "@eigenlayer/contracts/interfaces/IPauserRegistry.
 import {IRegistryCoordinator} from "eigenlayer-middleware/src/interfaces/IRegistryCoordinator.sol";
 import {BN254} from "eigenlayer-middleware/src/libraries/BN254.sol";
 
+import {MessageHashing} from "../base/utils/MessageHashing.sol";
 import {StateRootUpdate} from "../base/message/StateRootUpdate.sol";
 import {OperatorSetUpdate} from "../base/message/OperatorSetUpdate.sol";
 import {SparseMerkleTree} from "./utils/SparseMerkleTree.sol";
@@ -57,6 +58,11 @@ contract SFFLTaskManager is Initializable, OwnableUpgradeable, Pausable, BLSSign
     uint8 public constant PAUSED_CHALLENGE_CHECKPOINT_TASK = 2;
 
     /**
+     * @notice Messaging prefix
+     */
+    bytes32 public immutable messagingPrefix;
+
+    /**
      * @notice Next checkpoint task number
      */
     uint32 public nextCheckpointTaskNum;
@@ -72,11 +78,6 @@ contract SFFLTaskManager is Initializable, OwnableUpgradeable, Pausable, BLSSign
      * @notice Signature aggregator whitelisted address
      */
     address public aggregator;
-
-    /**
-     * @notice Messaging protocol version
-     */
-    bytes32 public immutable protocolVersion;
 
     /**
      * @notice Mapping from task ID to task hash
@@ -128,11 +129,11 @@ contract SFFLTaskManager is Initializable, OwnableUpgradeable, Pausable, BLSSign
         _;
     }
 
-    constructor(IRegistryCoordinator registryCoordinator, uint32 taskResponseWindowBlock, bytes32 _protocolVersion)
+    constructor(IRegistryCoordinator registryCoordinator, uint32 taskResponseWindowBlock, string memory version)
         BLSSignatureChecker(registryCoordinator)
     {
         TASK_RESPONSE_WINDOW_BLOCK = taskResponseWindowBlock;
-        protocolVersion = _protocolVersion;
+        messagingPrefix = MessageHashing.buildMessagingPrefix(version, address(this), block.chainid);
 
         _disableInitializers();
     }
@@ -212,7 +213,7 @@ contract SFFLTaskManager is Initializable, OwnableUpgradeable, Pausable, BLSSign
         require(allCheckpointTaskResponses[taskResponse.referenceTaskIndex] == bytes32(0), "Task already responded");
         require(uint32(block.number) <= taskCreatedBlock + TASK_RESPONSE_WINDOW_BLOCK, "Response time exceeded");
 
-        bytes32 messageHash = taskResponse.hashCalldata(protocolVersion);
+        bytes32 messageHash = taskResponse.hashCalldata(messagingPrefix);
 
         (bool success, bytes32 hashOfNonSigners) =
             checkQuorum(messageHash, quorumNumbers, taskCreatedBlock, nonSignerStakesAndSignature, quorumThreshold);
@@ -300,7 +301,7 @@ contract SFFLTaskManager is Initializable, OwnableUpgradeable, Pausable, BLSSign
         require(proof.key == message.indexCalldata(), "Wrong message index");
         require(SparseMerkleTree.verifyProof(taskResponse.stateRootUpdatesRoot, proof), "Invalid SMT proof");
 
-        bool isInclusionProof = proof.value == message.hashCalldata(protocolVersion);
+        bool isInclusionProof = proof.value == message.hashCalldata(messagingPrefix);
 
         return isInclusionProof;
     }
@@ -322,7 +323,7 @@ contract SFFLTaskManager is Initializable, OwnableUpgradeable, Pausable, BLSSign
         require(proof.key == message.indexCalldata(), "Wrong message index");
         require(SparseMerkleTree.verifyProof(taskResponse.operatorSetUpdatesRoot, proof), "Invalid SMT proof");
 
-        bool isInclusionProof = proof.value == message.hashCalldata(protocolVersion);
+        bool isInclusionProof = proof.value == message.hashCalldata(messagingPrefix);
 
         return isInclusionProof;
     }
@@ -376,7 +377,7 @@ contract SFFLTaskManager is Initializable, OwnableUpgradeable, Pausable, BLSSign
         uint32 quorumThreshold
     ) public view returns (bool) {
         (bool success,) = checkQuorum(
-            message.hashCalldata(protocolVersion),
+            message.hashCalldata(messagingPrefix),
             quorumNumbers,
             referenceBlockNumber,
             nonSignerStakesAndSignature,
@@ -403,7 +404,7 @@ contract SFFLTaskManager is Initializable, OwnableUpgradeable, Pausable, BLSSign
         uint32 quorumThreshold
     ) public view returns (bool) {
         (bool success,) = checkQuorum(
-            message.hashCalldata(protocolVersion),
+            message.hashCalldata(messagingPrefix),
             quorumNumbers,
             referenceBlockNumber,
             nonSignerStakesAndSignature,

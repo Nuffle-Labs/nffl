@@ -61,7 +61,7 @@ contract SFFLDeployer is Script, Utils {
     string public constant EIGENLAYER_DEPLOYMENT_FILE = "eigenlayer_deployment_output";
     string public constant SFFL_DEPLOYMENT_FILE = "sffl_avs_deployment_output";
 
-    bytes32 public constant PROTOCOL_VERSION = keccak256("v0.0.1-devnet");
+    string public constant PROTOCOL_VERSION = "v0.0.1-devnet";
 
     struct EigenlayerDeployedContracts {
         IStrategyManager strategyManager;
