@@ -37,7 +37,6 @@ import (
 	aggtypes "github.com/NethermindEth/near-sffl/aggregator/types"
 	registryrollup "github.com/NethermindEth/near-sffl/contracts/bindings/SFFLRegistryRollup"
 	transparentproxy "github.com/NethermindEth/near-sffl/contracts/bindings/TransparentUpgradeableProxy"
-	"github.com/NethermindEth/near-sffl/core"
 	"github.com/NethermindEth/near-sffl/core/chainio"
 	"github.com/NethermindEth/near-sffl/core/config"
 	"github.com/NethermindEth/near-sffl/core/types"
@@ -216,7 +215,7 @@ func setupTestEnv(t *testing.T, ctx context.Context) *testEnv {
 
 	nodeConfig, _, _ := genOperatorConfig(t, ctx, "3", mainnetAnvil, rollupAnvils, rabbitMq)
 
-	addresses, registryRollups, registryRollupAuths, _ := deployRegistryRollups(t, rollupAnvils)
+	addresses, registryRollups, registryRollupAuths, _ := deployRegistryRollups(t, common.HexToAddress(sfflDeploymentRaw.Addresses.TaskManagerAddr), mainnetAnvil, rollupAnvils)
 	operator := startOperator(t, ctx, nodeConfig)
 
 	config := buildConfig(t, sfflDeploymentRaw, addresses, rollupAnvils, configRaw)
@@ -488,14 +487,14 @@ func buildConfig(t *testing.T, sfflDeploymentRaw config.SFFLDeploymentRaw, addre
 	}
 }
 
-func deployRegistryRollups(t *testing.T, anvils []*utils.AnvilInstance) ([]common.Address, []*registryrollup.ContractSFFLRegistryRollup, []*bind.TransactOpts, []*bind.TransactOpts) {
+func deployRegistryRollups(t *testing.T, taskManagerAddr common.Address, mainnetAnvil *utils.AnvilInstance, anvils []*utils.AnvilInstance) ([]common.Address, []*registryrollup.ContractSFFLRegistryRollup, []*bind.TransactOpts, []*bind.TransactOpts) {
 	var registryRollups []*registryrollup.ContractSFFLRegistryRollup
 	var ownerAuths []*bind.TransactOpts
 	var proxyAdminAuths []*bind.TransactOpts
 	var addresses []common.Address
 
 	for _, anvil := range anvils {
-		addr, registryRollup, ownerAuth, proxyAdminAuth := deployRegistryRollup(t, anvil)
+		addr, registryRollup, ownerAuth, proxyAdminAuth := deployRegistryRollup(t, taskManagerAddr, mainnetAnvil, anvil)
 
 		addresses = append(addresses, addr)
 		registryRollups = append(registryRollups, registryRollup)
@@ -506,7 +505,7 @@ func deployRegistryRollups(t *testing.T, anvils []*utils.AnvilInstance) ([]commo
 	return addresses, registryRollups, ownerAuths, proxyAdminAuths
 }
 
-func deployRegistryRollup(t *testing.T, anvil *utils.AnvilInstance) (common.Address, *registryrollup.ContractSFFLRegistryRollup, *bind.TransactOpts, *bind.TransactOpts) {
+func deployRegistryRollup(t *testing.T, taskManagerAddr common.Address, mainnetAnvil, anvil *utils.AnvilInstance) (common.Address, *registryrollup.ContractSFFLRegistryRollup, *bind.TransactOpts, *bind.TransactOpts) {
 	t.Logf("Deploying RegistryRollup to chain %s", anvil.ChainID.String())
 
 	ownerPrivateKeyString := "ac0974bec39a17e36ba4a6b4d238ff944bacb478cbed5efcae784d7bf4f2ff80"
@@ -523,7 +522,7 @@ func deployRegistryRollup(t *testing.T, anvil *utils.AnvilInstance) (common.Addr
 		t.Fatalf("Error generating transactor: %s", err.Error())
 	}
 
-	implAddr, _, _, err := registryrollup.DeployContractSFFLRegistryRollup(ownerAuth, anvil.WsClient, core.Keccak256([]byte("v0.0.1-devnet")))
+	implAddr, _, _, err := registryrollup.DeployContractSFFLRegistryRollup(ownerAuth, anvil.WsClient, "v0.0.1-devnet", taskManagerAddr, big.NewInt(mainnetAnvil.ChainID.Int64()))
 	if err != nil {
 		t.Fatalf("Error deploying RegistryRollup: %s", err.Error())
 	}
