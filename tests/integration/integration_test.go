@@ -197,7 +197,7 @@ func setupTestEnv(t *testing.T, ctx context.Context) *testEnv {
 	rollup1AnvilContainerName := "rollup1-anvil"
 	rmqContainerName := "rmq"
 
-	mainnetAnvil := utils.StartAnvilTestContainer(t, containersCtx, mainnetAnvilContainerName, "8545", "1", true, networkName)
+	mainnetAnvil := utils.StartAnvilTestContainer(t, containersCtx, mainnetAnvilContainerName, "8545", "31337", true, networkName)
 	rollupAnvils := []*utils.AnvilInstance{
 		utils.StartAnvilTestContainer(t, containersCtx, rollup0AnvilContainerName, "8546", "2", false, networkName),
 		utils.StartAnvilTestContainer(t, containersCtx, rollup1AnvilContainerName, "8547", "3", false, networkName),
