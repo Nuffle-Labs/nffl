@@ -129,11 +129,11 @@ contract SFFLTaskManager is Initializable, OwnableUpgradeable, Pausable, BLSSign
         _;
     }
 
-    constructor(IRegistryCoordinator registryCoordinator, uint32 taskResponseWindowBlock, string memory version)
+    constructor(IRegistryCoordinator registryCoordinator, uint32 taskResponseWindowBlock, address proxyAddress, string memory version)
         BLSSignatureChecker(registryCoordinator)
     {
         TASK_RESPONSE_WINDOW_BLOCK = taskResponseWindowBlock;
-        messagingPrefix = MessageHashing.buildMessagingPrefix(version, address(this), block.chainid);
+        messagingPrefix = MessageHashing.buildMessagingPrefix(version, proxyAddress, block.chainid);
 
         _disableInitializers();
     }

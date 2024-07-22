@@ -3,7 +3,10 @@ pragma solidity ^0.8.12;
 
 import {Test, console2} from "forge-std/Test.sol";
 
+import {TransparentUpgradeableProxy} from "@openzeppelin/contracts/proxy/transparent/ProxyAdmin.sol";
+
 import {BLSMockAVSDeployer} from "eigenlayer-middleware/test/utils/BLSMockAVSDeployer.sol";
+import {EmptyContract} from "@eigenlayer/test/mocks/EmptyContract.sol";
 import {BN254} from "eigenlayer-middleware/src/libraries/BN254.sol";
 import {IRegistryCoordinator} from "eigenlayer-middleware/src/interfaces/IRegistryCoordinator.sol";
 import {IBLSSignatureChecker} from "eigenlayer-middleware/src/interfaces/IBLSSignatureChecker.sol";
@@ -17,8 +20,8 @@ import {OperatorSetUpdate, RollupOperators} from "../src/base/message/OperatorSe
 import {TestUtils} from "./utils/TestUtils.sol";
 
 contract SFFLTaskManagerHarness is SFFLTaskManager {
-    constructor(IRegistryCoordinator registryCoordinator, uint32 taskResponseWindowBlock, string memory version)
-        SFFLTaskManager(registryCoordinator, taskResponseWindowBlock, version)
+    constructor(IRegistryCoordinator registryCoordinator, uint32 taskResponseWindowBlock, address proxyAddress, string memory version)
+        SFFLTaskManager(registryCoordinator, taskResponseWindowBlock, proxyAddress, version)
     {}
 
     function setLastCheckpointToTimestamp(uint64 timestamp) public {
@@ -56,16 +59,21 @@ contract SFFLTaskManagerTest is TestUtils {
         aggregator = addr("aggregator");
         generator = addr("generator");
 
-        address impl =
-            address(new SFFLTaskManagerHarness(registryCoordinator, TASK_RESPONSE_WINDOW_BLOCK, PROTOCOL_VERSION));
-
         taskManager = SFFLTaskManagerHarness(
             deployProxy(
-                impl,
+                address(new EmptyContract()),
                 address(proxyAdmin),
-                abi.encodeWithSelector(
-                    taskManager.initialize.selector, pauserRegistry, registryCoordinatorOwner, aggregator, generator
-                )
+                hex""
+            )
+        );
+
+        address impl = address(new SFFLTaskManagerHarness(registryCoordinator, TASK_RESPONSE_WINDOW_BLOCK, address(taskManager), PROTOCOL_VERSION));
+
+        proxyAdmin.upgradeAndCall(
+            TransparentUpgradeableProxy(payable(address(taskManager))),
+            impl,
+            abi.encodeWithSelector(
+                taskManager.initialize.selector, pauserRegistry, registryCoordinatorOwner, aggregator, generator
             )
         );
 

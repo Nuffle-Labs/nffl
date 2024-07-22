@@ -274,7 +274,7 @@ contract SFFLDeployer is Script, Utils {
         );
 
         sfflTaskManagerImpl =
-            address(new SFFLTaskManager(registryCoordinator, TASK_RESPONSE_WINDOW_BLOCK, PROTOCOL_VERSION));
+            address(new SFFLTaskManager(registryCoordinator, TASK_RESPONSE_WINDOW_BLOCK, address(sfflTaskManager), PROTOCOL_VERSION));
 
         _upgradeProxyAndCall(
             sfflProxyAdmin,

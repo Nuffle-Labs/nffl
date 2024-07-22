@@ -8,6 +8,7 @@ import {TransparentUpgradeableProxy} from "@openzeppelin/contracts/proxy/transpa
 import {BLSMockAVSDeployer} from "eigenlayer-middleware/test/utils/BLSMockAVSDeployer.sol";
 import {BN254} from "eigenlayer-middleware/src/libraries/BN254.sol";
 import {ServiceManagerBase} from "eigenlayer-middleware/src/ServiceManagerBase.sol";
+import {EmptyContract} from "@eigenlayer/test/mocks/EmptyContract.sol";
 import {IRegistryCoordinator} from "eigenlayer-middleware/src/interfaces/IRegistryCoordinator.sol";
 import {IBLSSignatureChecker} from "eigenlayer-middleware/src/interfaces/IBLSSignatureChecker.sol";
 import {IAVSDirectory} from "@eigenlayer/contracts/interfaces/IAVSDirectory.sol";
@@ -72,15 +73,21 @@ contract SFFLServiceManagerTest is TestUtils {
         aggregator = addr("aggregator");
         generator = addr("generator");
 
-        address impl = address(new SFFLTaskManager(registryCoordinator, TASK_RESPONSE_WINDOW_BLOCK, PROTOCOL_VERSION));
-
         taskManager = SFFLTaskManager(
             deployProxy(
-                impl,
+                address(new EmptyContract()),
                 address(proxyAdmin),
-                abi.encodeWithSelector(
-                    taskManager.initialize.selector, pauserRegistry, registryCoordinatorOwner, aggregator, generator
-                )
+                hex""
+            )
+        );
+
+        address impl = address(new SFFLTaskManager(registryCoordinator, TASK_RESPONSE_WINDOW_BLOCK, address(taskManager), PROTOCOL_VERSION));
+
+        proxyAdmin.upgradeAndCall(
+            TransparentUpgradeableProxy(payable(address(taskManager))),
+            impl,
+            abi.encodeWithSelector(
+                taskManager.initialize.selector, pauserRegistry, registryCoordinatorOwner, aggregator, generator
             )
         );
 
