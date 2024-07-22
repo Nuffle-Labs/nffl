@@ -507,6 +507,8 @@ func deployRegistryRollups(t *testing.T, taskManagerAddr common.Address, mainnet
 
 func deployRegistryRollup(t *testing.T, taskManagerAddr common.Address, mainnetAnvil, anvil *utils.AnvilInstance) (common.Address, *registryrollup.ContractSFFLRegistryRollup, *bind.TransactOpts, *bind.TransactOpts) {
 	t.Logf("Deploying RegistryRollup to chain %s", anvil.ChainID.String())
+	t.Logf("TaskManager address: %s", taskManagerAddr.Hex())
+	t.Logf("MainnetAnvil Chain ID: %s", mainnetAnvil.ChainID.String())
 
 	ownerPrivateKeyString := "ac0974bec39a17e36ba4a6b4d238ff944bacb478cbed5efcae784d7bf4f2ff80"
 	ownerKeyPair, err := crypto.HexToECDSA(ownerPrivateKeyString)
