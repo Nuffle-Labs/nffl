@@ -225,14 +225,12 @@ contract SFFLTaskManager is Initializable, OwnableUpgradeable, Pausable, BLSSign
      * @dev Does not fail if the challenge is not succesful
      * @param task Resolved task to be challenged
      * @param taskResponse Task response to be challenged
-     * @param taskResponseMetadata Current task response metadata
-     * @param pubkeysOfNonSigningOperators Non-signing operators BLS pubkeys
      */
     function raiseAndResolveCheckpointChallenge(
         Checkpoint.Task calldata task,
         Checkpoint.TaskResponse calldata taskResponse,
-        Checkpoint.TaskResponseMetadata calldata taskResponseMetadata,// forgefmt: disable-line
-        BN254.G1Point[] memory pubkeysOfNonSigningOperators// forgefmt: disable-line
+        Checkpoint.TaskResponseMetadata calldata, /* taskResponseMetadata */
+        BN254.G1Point[] memory /* pubkeysOfNonSigningOperators */
     ) external onlyWhenNotPaused(PAUSED_CHALLENGE_CHECKPOINT_TASK) {
         uint32 referenceTaskIndex = taskResponse.referenceTaskIndex;
 
@@ -261,8 +259,6 @@ contract SFFLTaskManager is Initializable, OwnableUpgradeable, Pausable, BLSSign
         // bytes32 signatoryRecordHash =
         //     keccak256(abi.encodePacked(task.taskCreatedBlock, hashesOfPubkeysOfNonSigningOperators));
         // require(signatoryRecordHash == taskResponseMetadata.hashOfNonSigners, "Wrong non-signer pubkeys");
-
-        // // TODO: slashing logic when it's available
 
         // checkpointTaskSuccesfullyChallenged[referenceTaskIndex] = true;
 
