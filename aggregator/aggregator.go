@@ -46,6 +46,7 @@ var (
 	GetOperatorSetUpdateBlockError = errors.New("Failed to get operator set update block")
 	OperatorNotFoundError          = errors.New("Operator not found")
 	InvalidSignatureError          = errors.New("Invalid signature")
+	UnsupportedMessageTypeError    = errors.New("Unsupported message type")
 
 	// REST errors
 	StateRootUpdateNotFoundError = errors.New("StateRootUpdate not found")
@@ -739,6 +740,8 @@ func (agg *Aggregator) verifySignature(signedMessage interface{}) error {
 		if err != nil {
 			return DigestError
 		}
+	default:
+		return UnsupportedMessageTypeError
 	}
 
 	operatorInfo, ok := agg.GetOperatorInfoById(context.Background(), operatorId)
