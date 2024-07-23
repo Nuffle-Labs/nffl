@@ -71,6 +71,17 @@ contract SFFLTaskManagerTest is TestUtils {
         thresholdDenominator = taskManager.THRESHOLD_DENOMINATOR();
     }
 
+    function test_constructor() public {
+        SFFLTaskManagerHarness newTaskManager =
+            new SFFLTaskManagerHarness(registryCoordinator, TASK_RESPONSE_WINDOW_BLOCK);
+
+        assertEq(newTaskManager.TASK_RESPONSE_WINDOW_BLOCK(), TASK_RESPONSE_WINDOW_BLOCK);
+        assertEq(address(newTaskManager.registryCoordinator()), address(registryCoordinator));
+
+        vm.expectRevert("Initializable: contract is already initialized");
+        newTaskManager.initialize(pauserRegistry, registryCoordinatorOwner, aggregator, generator);
+    }
+
     function test_createCheckpointTask_RevertWhen_CallerNotTaskGenerator() public {
         Checkpoint.Task memory task = Checkpoint.Task({
             taskCreatedBlock: 100,
@@ -693,6 +704,38 @@ contract SFFLTaskManagerTest is TestUtils {
         taskManager.verifyMessageInclusionState(message, taskResponse, proof);
     }
 
+    function test_verifyMessageInclusionState_stateRootUpdate_RevertWhen_InvalidSMTProof() public {
+        StateRootUpdate.Message memory message = StateRootUpdate.Message({
+            rollupId: 10000,
+            blockHeight: 10001,
+            timestamp: 10002,
+            stateRoot: bytes32(0),
+            nearDaTransactionId: bytes32(0),
+            nearDaCommitment: bytes32(0)
+        });
+
+        bytes32[] memory sideNodes = new bytes32[](0);
+
+        SparseMerkleTree.Proof memory proof = SparseMerkleTree.Proof({
+            key: message.index(),
+            value: bytes32(0),
+            bitMask: 12,
+            sideNodes: sideNodes,
+            numSideNodes: 0,
+            nonMembershipLeafPath: bytes32(0),
+            nonMembershipLeafValue: bytes32(0)
+        });
+
+        Checkpoint.TaskResponse memory taskResponse = Checkpoint.TaskResponse({
+            referenceTaskIndex: 0,
+            stateRootUpdatesRoot: keccak256(hex"beef"),
+            operatorSetUpdatesRoot: keccak256(hex"f00d")
+        });
+
+        vm.expectRevert("Invalid SMT proof");
+        taskManager.verifyMessageInclusionState(message, taskResponse, proof);
+    }
+
     function test_verifyMessageInclusionState_operatorSetUpdate_Inclusion() public {
         RollupOperators.Operator[] memory operators = new RollupOperators.Operator[](0);
         OperatorSetUpdate.Message memory message =
@@ -915,6 +958,33 @@ contract SFFLTaskManagerTest is TestUtils {
         });
 
         vm.expectRevert("nonMembershipLeaf not unrelated");
+        taskManager.verifyMessageInclusionState(message, taskResponse, proof);
+    }
+
+    function test_verifyMessageInclusionState_operatorSetUpdate_RevertWhen_InvalidSMTProof() public {
+        RollupOperators.Operator[] memory operators = new RollupOperators.Operator[](0);
+        OperatorSetUpdate.Message memory message =
+            OperatorSetUpdate.Message({id: 10001, timestamp: 10002, operators: operators});
+
+        bytes32[] memory sideNodes = new bytes32[](9);
+
+        SparseMerkleTree.Proof memory proof = SparseMerkleTree.Proof({
+            key: message.index(),
+            value: bytes32(0),
+            bitMask: 30,
+            sideNodes: sideNodes,
+            numSideNodes: 0,
+            nonMembershipLeafPath: bytes32(0),
+            nonMembershipLeafValue: bytes32(0)
+        });
+
+        Checkpoint.TaskResponse memory taskResponse = Checkpoint.TaskResponse({
+            referenceTaskIndex: 0,
+            stateRootUpdatesRoot: keccak256(hex"beef"),
+            operatorSetUpdatesRoot: keccak256(hex"f00d")
+        });
+
+        vm.expectRevert("Invalid SMT proof");
         taskManager.verifyMessageInclusionState(message, taskResponse, proof);
     }
 
