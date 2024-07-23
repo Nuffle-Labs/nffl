@@ -91,10 +91,11 @@ func TestProcessInvalidSignedStateRootUpdateMessage(t *testing.T) {
 	aggregator, _, _, _, _, _, mockOperatorRegistrationsServ, _, _, _, err := createMockAggregator(mockCtrl, MOCK_OPERATOR_PUBKEY_DICT)
 	assert.Nil(t, err)
 
+	aggregator.clock = core.Clock{Now: func() time.Time { return time.Unix(10_000, 0) }}
 	message := messages.StateRootUpdateMessage{
 		RollupId:            1,
 		BlockHeight:         2,
-		Timestamp:           3,
+		Timestamp:           9_995,
 		NearDaCommitment:    keccak256(4),
 		NearDaTransactionId: keccak256(5),
 		StateRoot:           keccak256(6),
