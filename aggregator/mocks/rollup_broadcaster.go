@@ -5,7 +5,6 @@
 //
 //	mockgen -destination=./mocks/rollup_broadcaster.go -package=mocks github.com/NethermindEth/near-sffl/aggregator RollupBroadcasterer
 //
-
 // Package mocks is a generated GoMock package.
 package mocks
 

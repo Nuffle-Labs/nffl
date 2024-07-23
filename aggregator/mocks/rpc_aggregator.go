@@ -5,13 +5,14 @@
 //
 //	mockgen -destination=./mocks/rpc_aggregator.go -package=mocks github.com/NethermindEth/near-sffl/aggregator RpcAggregatorer
 //
-
 // Package mocks is a generated GoMock package.
 package mocks
 
 import (
+	context "context"
 	reflect "reflect"
 
+	types "github.com/Layr-Labs/eigensdk-go/types"
 	messages "github.com/NethermindEth/near-sffl/core/types/messages"
 	gomock "go.uber.org/mock/gomock"
 )
@@ -52,6 +53,21 @@ func (m *MockRpcAggregatorer) GetAggregatedCheckpointMessages(arg0, arg1 uint64)
 func (mr *MockRpcAggregatorerMockRecorder) GetAggregatedCheckpointMessages(arg0, arg1 any) *gomock.Call {
 	mr.mock.ctrl.T.Helper()
 	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "GetAggregatedCheckpointMessages", reflect.TypeOf((*MockRpcAggregatorer)(nil).GetAggregatedCheckpointMessages), arg0, arg1)
+}
+
+// GetOperatorInfoById mocks base method.
+func (m *MockRpcAggregatorer) GetOperatorInfoById(arg0 context.Context, arg1 types.Bytes32) (types.OperatorInfo, bool) {
+	m.ctrl.T.Helper()
+	ret := m.ctrl.Call(m, "GetOperatorInfoById", arg0, arg1)
+	ret0, _ := ret[0].(types.OperatorInfo)
+	ret1, _ := ret[1].(bool)
+	return ret0, ret1
+}
+
+// GetOperatorInfoById indicates an expected call of GetOperatorInfoById.
+func (mr *MockRpcAggregatorerMockRecorder) GetOperatorInfoById(arg0, arg1 any) *gomock.Call {
+	mr.mock.ctrl.T.Helper()
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "GetOperatorInfoById", reflect.TypeOf((*MockRpcAggregatorer)(nil).GetOperatorInfoById), arg0, arg1)
 }
 
 // GetRegistryCoordinatorAddress mocks base method.
