@@ -12,6 +12,7 @@ import {SFFLRegistryBase} from "../base/SFFLRegistryBase.sol";
 import {StateRootUpdate} from "../base/message/StateRootUpdate.sol";
 import {OperatorSetUpdate} from "../base/message/OperatorSetUpdate.sol";
 import {RollupOperators} from "../base/utils/RollupOperators.sol";
+import {MessageHashing} from "../base/utils/MessageHashing.sol";
 
 /**
  * @title SFFL registry for rollups / external networks
@@ -37,6 +38,11 @@ contract SFFLRegistryRollup is Initializable, OwnableUpgradeable, Pausable, SFFL
     uint8 public constant PAUSED_UPDATE_STATE_ROOT = 1;
 
     /**
+     * @notice Messaging prefix
+     */
+    bytes32 public immutable messagingPrefix;
+
+    /**
      * @dev Operator set used for agreements
      */
     RollupOperators.OperatorSet internal _operatorSet;
@@ -56,7 +62,9 @@ contract SFFLRegistryRollup is Initializable, OwnableUpgradeable, Pausable, SFFL
         _;
     }
 
-    constructor() {
+    constructor(string memory version, address taskManager, uint256 chainId) {
+        messagingPrefix = MessageHashing.buildMessagingPrefix(version, taskManager, chainId);
+
         _disableInitializers();
     }
 
@@ -105,7 +113,7 @@ contract SFFLRegistryRollup is Initializable, OwnableUpgradeable, Pausable, SFFL
         RollupOperators.SignatureInfo calldata signatureInfo
     ) external onlyWhenNotPaused(PAUSED_UPDATE_OPERATOR_SET) {
         require(message.id == nextOperatorUpdateId, "Wrong message ID");
-        require(_operatorSet.verifyCalldata(message.hashCalldata(), signatureInfo), "Quorum not met");
+        require(_operatorSet.verifyCalldata(message.hashCalldata(messagingPrefix), signatureInfo), "Quorum not met");
 
         nextOperatorUpdateId = message.id + 1;
 
@@ -122,7 +130,7 @@ contract SFFLRegistryRollup is Initializable, OwnableUpgradeable, Pausable, SFFL
         StateRootUpdate.Message calldata message,
         RollupOperators.SignatureInfo calldata signatureInfo
     ) public onlyWhenNotPaused(PAUSED_UPDATE_STATE_ROOT) {
-        require(_operatorSet.verifyCalldata(message.hashCalldata(), signatureInfo), "Quorum not met");
+        require(_operatorSet.verifyCalldata(message.hashCalldata(messagingPrefix), signatureInfo), "Quorum not met");
 
         _pushStateRoot(message.rollupId, message.blockHeight, message.stateRoot);
     }

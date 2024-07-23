@@ -61,6 +61,8 @@ contract SFFLDeployer is Script, Utils {
     string public constant EIGENLAYER_DEPLOYMENT_FILE = "eigenlayer_deployment_output";
     string public constant SFFL_DEPLOYMENT_FILE = "sffl_avs_deployment_output";
 
+    string public constant PROTOCOL_VERSION = "v0.0.1-devnet";
+
     struct EigenlayerDeployedContracts {
         IStrategyManager strategyManager;
         IDelegationManager delegationManager;
@@ -314,7 +316,8 @@ contract SFFLDeployer is Script, Utils {
             abi.encodeWithSignature("initialize(address,address)", sfflCommunityMultisig, sfflPauserReg)
         );
 
-        sfflTaskManagerImpl = address(new SFFLTaskManager(registryCoordinator, TASK_RESPONSE_WINDOW_BLOCK));
+        sfflTaskManagerImpl =
+            address(new SFFLTaskManager(registryCoordinator, TASK_RESPONSE_WINDOW_BLOCK, address(sfflTaskManager), PROTOCOL_VERSION));
 
         _upgradeProxyAndCall(
             sfflProxyAdmin,

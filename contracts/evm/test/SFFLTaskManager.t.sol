@@ -3,7 +3,10 @@ pragma solidity ^0.8.12;
 
 import {Test, console2} from "forge-std/Test.sol";
 
+import {TransparentUpgradeableProxy} from "@openzeppelin/contracts/proxy/transparent/ProxyAdmin.sol";
+
 import {BLSMockAVSDeployer} from "eigenlayer-middleware/test/utils/BLSMockAVSDeployer.sol";
+import {EmptyContract} from "@eigenlayer/test/mocks/EmptyContract.sol";
 import {BN254} from "eigenlayer-middleware/src/libraries/BN254.sol";
 import {IRegistryCoordinator} from "eigenlayer-middleware/src/interfaces/IRegistryCoordinator.sol";
 import {IBLSSignatureChecker} from "eigenlayer-middleware/src/interfaces/IBLSSignatureChecker.sol";
@@ -17,8 +20,8 @@ import {OperatorSetUpdate, RollupOperators} from "../src/base/message/OperatorSe
 import {TestUtils} from "./utils/TestUtils.sol";
 
 contract SFFLTaskManagerHarness is SFFLTaskManager {
-    constructor(IRegistryCoordinator registryCoordinator, uint32 taskResponseWindowBlock)
-        SFFLTaskManager(registryCoordinator, taskResponseWindowBlock)
+    constructor(IRegistryCoordinator registryCoordinator, uint32 taskResponseWindowBlock, address proxyAddress, string memory version)
+        SFFLTaskManager(registryCoordinator, taskResponseWindowBlock, proxyAddress, version)
     {}
 
     function setLastCheckpointToTimestamp(uint64 timestamp) public {
@@ -40,6 +43,9 @@ contract SFFLTaskManagerTest is TestUtils {
     address public generator;
     uint32 public thresholdDenominator;
 
+    string public constant PROTOCOL_VERSION = "v0.0.1-test";
+    bytes32 public messagingPrefix;
+
     event CheckpointTaskCreated(uint32 indexed taskIndex, Checkpoint.Task task);
     event CheckpointTaskResponded(
         Checkpoint.TaskResponse taskResponse, Checkpoint.TaskResponseMetadata taskResponseMetadata
@@ -53,15 +59,22 @@ contract SFFLTaskManagerTest is TestUtils {
         aggregator = addr("aggregator");
         generator = addr("generator");
 
-        address impl = address(new SFFLTaskManagerHarness(registryCoordinator, TASK_RESPONSE_WINDOW_BLOCK));
-
         taskManager = SFFLTaskManagerHarness(
             deployProxy(
-                impl,
+                address(new EmptyContract()),
                 address(proxyAdmin),
-                abi.encodeWithSelector(
-                    taskManager.initialize.selector, pauserRegistry, registryCoordinatorOwner, aggregator, generator
-                )
+                hex""
+            )
+        );
+
+        address impl = address(new SFFLTaskManagerHarness(registryCoordinator, TASK_RESPONSE_WINDOW_BLOCK, address(taskManager), PROTOCOL_VERSION));
+
+        vm.prank(proxyAdminOwner);
+        proxyAdmin.upgradeAndCall(
+            TransparentUpgradeableProxy(payable(address(taskManager))),
+            impl,
+            abi.encodeWithSelector(
+                taskManager.initialize.selector, pauserRegistry, registryCoordinatorOwner, aggregator, generator
             )
         );
 
@@ -69,6 +82,7 @@ contract SFFLTaskManagerTest is TestUtils {
         vm.label(address(taskManager), "taskManagerProxy");
 
         thresholdDenominator = taskManager.THRESHOLD_DENOMINATOR();
+        messagingPrefix = taskManager.messagingPrefix();
     }
 
     function test_createCheckpointTask_RevertWhen_CallerNotTaskGenerator() public {
@@ -213,7 +227,7 @@ contract SFFLTaskManagerTest is TestUtils {
         (
             bytes32 signatoryRecordHash,
             IBLSSignatureChecker.NonSignerStakesAndSignature memory nonSignerStakesAndSignature
-        ) = setUpOperators(taskResponse.hash(), task.taskCreatedBlock - 1, task.taskCreatedBlock, 100, 1);
+        ) = setUpOperators(taskResponse.hash(messagingPrefix), task.taskCreatedBlock - 1, task.taskCreatedBlock, 100, 1);
 
         Checkpoint.TaskResponseMetadata memory taskResponseMetadata = Checkpoint.TaskResponseMetadata({
             taskRespondedBlock: task.taskCreatedBlock + TASK_RESPONSE_WINDOW_BLOCK,
@@ -282,7 +296,7 @@ contract SFFLTaskManagerTest is TestUtils {
         (
             bytes32 signatoryRecordHash,
             IBLSSignatureChecker.NonSignerStakesAndSignature memory nonSignerStakesAndSignature
-        ) = setUpOperators(taskResponse.hash(), task.taskCreatedBlock - 1, task.taskCreatedBlock, 100, 1);
+        ) = setUpOperators(taskResponse.hash(messagingPrefix), task.taskCreatedBlock - 1, task.taskCreatedBlock, 100, 1);
 
         Checkpoint.TaskResponseMetadata memory taskResponseMetadata = Checkpoint.TaskResponseMetadata({
             taskRespondedBlock: task.taskCreatedBlock + TASK_RESPONSE_WINDOW_BLOCK,
@@ -320,7 +334,7 @@ contract SFFLTaskManagerTest is TestUtils {
         (
             bytes32 signatoryRecordHash,
             IBLSSignatureChecker.NonSignerStakesAndSignature memory nonSignerStakesAndSignature
-        ) = setUpOperators(taskResponse.hash(), task.taskCreatedBlock - 1, task.taskCreatedBlock, 100, 1);
+        ) = setUpOperators(taskResponse.hash(messagingPrefix), task.taskCreatedBlock - 1, task.taskCreatedBlock, 100, 1);
 
         Checkpoint.TaskResponseMetadata memory taskResponseMetadata = Checkpoint.TaskResponseMetadata({
             taskRespondedBlock: task.taskCreatedBlock + TASK_RESPONSE_WINDOW_BLOCK,
@@ -361,7 +375,7 @@ contract SFFLTaskManagerTest is TestUtils {
         (
             bytes32 signatoryRecordHash,
             IBLSSignatureChecker.NonSignerStakesAndSignature memory nonSignerStakesAndSignature
-        ) = setUpOperators(taskResponse.hash(), task.taskCreatedBlock - 1, task.taskCreatedBlock, 100, 1);
+        ) = setUpOperators(taskResponse.hash(messagingPrefix), task.taskCreatedBlock - 1, task.taskCreatedBlock, 100, 1);
 
         Checkpoint.TaskResponseMetadata memory taskResponseMetadata = Checkpoint.TaskResponseMetadata({
             taskRespondedBlock: task.taskCreatedBlock + TASK_RESPONSE_WINDOW_BLOCK + 1,
@@ -399,7 +413,7 @@ contract SFFLTaskManagerTest is TestUtils {
         (
             bytes32 signatoryRecordHash,
             IBLSSignatureChecker.NonSignerStakesAndSignature memory nonSignerStakesAndSignature
-        ) = setUpOperators(taskResponse.hash(), task.taskCreatedBlock - 1, task.taskCreatedBlock, 100, 1);
+        ) = setUpOperators(taskResponse.hash(messagingPrefix), task.taskCreatedBlock - 1, task.taskCreatedBlock, 100, 1);
 
         Checkpoint.TaskResponseMetadata memory taskResponseMetadata = Checkpoint.TaskResponseMetadata({
             taskRespondedBlock: task.taskCreatedBlock + TASK_RESPONSE_WINDOW_BLOCK,
@@ -445,29 +459,29 @@ contract SFFLTaskManagerTest is TestUtils {
         StateRootUpdate.Message memory message = StateRootUpdate.Message({
             rollupId: 10000,
             blockHeight: 10001,
-            timestamp: 10002,
+            timestamp: 0,
             stateRoot: bytes32(0),
             nearDaTransactionId: bytes32(0),
             nearDaCommitment: bytes32(0)
         });
 
-        bytes32[] memory sideNodes = new bytes32[](14);
+        bytes32[] memory sideNodes = new bytes32[](11);
 
-        sideNodes[0] = 0xa0286b7cb830ed21a1a2189ee78ba381f6873fe4ccc22d539ab255248edf693e;
-        sideNodes[1] = 0x7e3cd0e7384e5a7067756b7e28b7efa849e4aaf12a1bdcb24c0ca5cbcaad8cd9;
-        sideNodes[2] = 0x7630a1cb55f8f353927b18d3a753089c204bc99cef47e3c16d1b2cbaf7c2d036;
-        sideNodes[3] = 0x3858f0f8dcfd0d3129bcff66835a6fdbf8e24afc615e8f444f467bdc232643ec;
-        sideNodes[4] = 0xa0639833727ebd631b230b6ac1b1420358df10de7c080c142bc3f86281c4b5a9;
-        sideNodes[5] = 0x8dae5c1cba3b325a7a5c1469dbd1e0dfb61c73a7ed3800b0792abc95f6225795;
-        sideNodes[6] = 0x0e19b18097d957f6d96dfaf452417300fec1044004d00eeae251e5e53ba7898f;
-        sideNodes[7] = 0x77a64d95442ac067e77c91ba17cd5e7e56846eb7b82569d428b5fbbffdfffbc2;
-        sideNodes[8] = 0xe29c7de383621e49406c7072ea1a4278f557729e666e679169946272532d6b8c;
-        sideNodes[9] = 0xbc1812f22537be7471527f0521a68b83afefaff574e84791ac70a05eff31e579;
-        sideNodes[10] = 0x72abfb17637bf5469c09dc4ab46565d0152bebd10e2bcf37b336028613cfb33c;
+        sideNodes[0] = 0x41068c6e012a5b833354334a534d73323e6680e4d2948fe55a8484b902e3310f;
+        sideNodes[1] = 0x13bc269f62af981aa54128fdd74842598a211d274ba60aed85f86794a0447b7d;
+        sideNodes[2] = 0x31b639a213c85a53c9f34f81a591ebaaf3ec1eba88444474ec14211ac5646554;
+        sideNodes[3] = 0x6ee2441a440879cb27c8654d68fa8926f5dcdceef594f86c4a92d4f6ca0a5a13;
+        sideNodes[4] = 0x9082960ae9f30fc3deb0be52e07ccad20418b9e81e0eea3f103c4fc2e03a7972;
+        sideNodes[5] = 0xcecb15684184e64473d224f57a5a430f7c77e9db5853704eaa50fd88fb365392;
+        sideNodes[6] = 0xface2bc6282511b36e8efc853876715f2cb1c79061d2e1f1c3f8baebe04f42c6;
+        sideNodes[7] = 0x4aa837b278f90fc84c2dc3d84214b8bb1f2bea1f9fef73518f0b521a768e3acb;
+        sideNodes[8] = 0x81a2e875c910299d52ffc8373aa64c9ef5f74e465dcfb5c6cdfbf3a5f57538a4;
+        sideNodes[9] = 0x9ee0b767f08e95241b312935c4cb44f42dca7e254f3b7e7d7eb5bea26efaf12e;
+        sideNodes[10] = 0x8877ecc7348f7d7ea4d9888ff300565b00abc85736a2406501e9ce3fcbd40cb7;
 
         SparseMerkleTree.Proof memory proof = SparseMerkleTree.Proof({
             key: message.index(),
-            value: message.hash(),
+            value: message.hash(messagingPrefix),
             bitMask: 12,
             sideNodes: sideNodes,
             numSideNodes: 13,
@@ -477,7 +491,7 @@ contract SFFLTaskManagerTest is TestUtils {
 
         Checkpoint.TaskResponse memory taskResponse = Checkpoint.TaskResponse({
             referenceTaskIndex: 0,
-            stateRootUpdatesRoot: 0x60a11596701d4c4806d5585a092192f4773197ee4819f4b0fad16b071970e3c8,
+            stateRootUpdatesRoot: 0x704ac96a830d7d5a6e9de8bc5d5baa97a8920cae2e6b760cedf011a5894057a7,
             operatorSetUpdatesRoot: keccak256(hex"f00d")
         });
 
@@ -680,7 +694,7 @@ contract SFFLTaskManagerTest is TestUtils {
             sideNodes: sideNodes,
             numSideNodes: 13,
             nonMembershipLeafPath: keccak256(abi.encodePacked(message.index())),
-            nonMembershipLeafValue: message.hash()
+            nonMembershipLeafValue: message.hash(messagingPrefix)
         });
 
         Checkpoint.TaskResponse memory taskResponse = Checkpoint.TaskResponse({
@@ -696,25 +710,28 @@ contract SFFLTaskManagerTest is TestUtils {
     function test_verifyMessageInclusionState_operatorSetUpdate_Inclusion() public {
         RollupOperators.Operator[] memory operators = new RollupOperators.Operator[](0);
         OperatorSetUpdate.Message memory message =
-            OperatorSetUpdate.Message({id: 0, timestamp: 1, operators: operators});
+            OperatorSetUpdate.Message({id: 10000, timestamp: 10001, operators: operators});
 
-        bytes32[] memory sideNodes = new bytes32[](9);
-        sideNodes[0] = 0xfb6698c46f574262f6ebf78c364ee4062713b4736272dd4accdfd00062af13f1;
-        sideNodes[1] = 0x5592d260430874768f71103d707880731e6bc4856eb6cba7823dd42088814876;
-        sideNodes[2] = 0xebee5d31739018590231f08764a35919e9d434aa41ece6267999c608c925961c;
-        sideNodes[3] = 0x08dca9669f5189255649692a9049a77d362f611c937c05a94197aa653bd30908;
-        sideNodes[4] = 0x3e8bb9029380067c6df6824b876c67f1e490bf95372d0544a9bdcc790c0cba90;
-        sideNodes[5] = 0xc9bf81cc84cc3a173d45be52de08d757126c97535f290f84930cc42510e5d90e;
-        sideNodes[6] = 0xcc0dc57fdc5130c33bdd6779ec3ad71252863681510701b5544b05e822e509b2;
-        sideNodes[7] = 0xc02f223854592783e7b9b1a3f79fa14d29491a0d9a6783bcb1c9a3dac44c8906;
-        sideNodes[8] = 0xe290d048070c4c99c6d56638f5d002d3aa7a91655cae56dfbf046612f6301e55;
+        bytes32[] memory sideNodes = new bytes32[](12);
+        sideNodes[0] = 0xa4babef2607ae50f03fcb1c020667a441fa46fd4cf0567327080315b9a200e54;
+        sideNodes[1] = 0x0695c40bd576261ead04f4eacee9d7a7e2e39fccdb7467b6570d53b33222565b;
+        sideNodes[2] = 0x59401a7315bf6c4d9501a15fd2416ebbdef46fc9caa6d6c4aa24f12cc8dc0928;
+        sideNodes[3] = 0xe96b71d1ce264d029b01d8d70b1b2f3e0345b98408aa358f0bf10b354fcad12c;
+        sideNodes[4] = 0xbdda57e16bf62ac534733baef85cd558d954cf7f6405704b465e567dff6f4850;
+        sideNodes[5] = 0x9defe7a0ad0b15a564dfd4efb49cbbae0590e114fe84a43de9baec62b2f34891;
+        sideNodes[6] = 0xd7ce5c239568957864b8ed687a71328729842a95438cb0afd38400eb19ea45d3;
+        sideNodes[7] = 0x55d4ef1b3c9a6d9faa031d41a80338ff9d97d4b426354255790f05bd45e3a417;
+        sideNodes[8] = 0x450bbffc6246557a09cd2deee322b7f71e89dcf6829eb83cebb7a08be95c495c;
+        sideNodes[9] = 0x113345a715e96e5f407eb9f9e6c2aa3d0870e32a098f496cad2764b4afcc94a6;
+        sideNodes[10] = 0x96db72f9bd7d99a3d30292e25e70c25198782f76453a2e45c23fc348791f24ad;
+        sideNodes[11] = 0x67628528a35222ce74a12f45f5f20c3fba606d788f794d363169c6595bd2f047;
 
         SparseMerkleTree.Proof memory proof = SparseMerkleTree.Proof({
             key: message.index(),
-            value: message.hash(),
+            value: message.hash(messagingPrefix),
             bitMask: 0,
             sideNodes: sideNodes,
-            numSideNodes: 9,
+            numSideNodes: 12,
             nonMembershipLeafPath: bytes32(0),
             nonMembershipLeafValue: bytes32(0)
         });
@@ -722,7 +739,7 @@ contract SFFLTaskManagerTest is TestUtils {
         Checkpoint.TaskResponse memory taskResponse = Checkpoint.TaskResponse({
             referenceTaskIndex: 0,
             stateRootUpdatesRoot: keccak256(hex"beef"),
-            operatorSetUpdatesRoot: 0x28d5b47b9e30188a9cb2ece12a42ce864e7f818775ef5ca62d2691411580d428
+            operatorSetUpdatesRoot: 0x5bfa4261ea7f3d6af682cdf38038e917d66443ed573f62e1a556431c6545a543
         });
 
         assertTrue(taskManager.verifyMessageInclusionState(message, taskResponse, proof));
@@ -822,7 +839,7 @@ contract SFFLTaskManagerTest is TestUtils {
 
         SparseMerkleTree.Proof memory proof = SparseMerkleTree.Proof({
             key: bytes32(0),
-            value: message.hash(),
+            value: message.hash(messagingPrefix),
             bitMask: 30,
             sideNodes: sideNodes,
             numSideNodes: 13,
@@ -849,7 +866,7 @@ contract SFFLTaskManagerTest is TestUtils {
 
         SparseMerkleTree.Proof memory proof = SparseMerkleTree.Proof({
             key: message.index(),
-            value: message.hash(),
+            value: message.hash(messagingPrefix),
             bitMask: 30,
             sideNodes: emptySideNodes,
             numSideNodes: 13,
@@ -905,7 +922,7 @@ contract SFFLTaskManagerTest is TestUtils {
             sideNodes: sideNodes,
             numSideNodes: 13,
             nonMembershipLeafPath: keccak256(abi.encodePacked(message.index())),
-            nonMembershipLeafValue: message.hash()
+            nonMembershipLeafValue: message.hash(messagingPrefix)
         });
 
         Checkpoint.TaskResponse memory taskResponse = Checkpoint.TaskResponse({

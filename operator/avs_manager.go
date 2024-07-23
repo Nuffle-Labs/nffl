@@ -306,3 +306,12 @@ func (avsManager *AvsManager) IsOperatorRegistered(options *bind.CallOpts, addre
 func (avsManager *AvsManager) GetOperatorId(options *bind.CallOpts, address common.Address) ([32]byte, error) {
 	return avsManager.avsReader.GetOperatorId(options, address)
 }
+
+func (avsManager *AvsManager) GetMessagingPrefix() ([32]byte, error) {
+	messagingPrefix, err := avsManager.avsReader.GetMessagingPrefix(context.Background())
+	if err != nil {
+		avsManager.logger.Error("Unable to get messaging prefix")
+		return [32]byte{}, err
+	}
+	return messagingPrefix, nil
+}

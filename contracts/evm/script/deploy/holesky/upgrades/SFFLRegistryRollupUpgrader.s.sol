@@ -22,12 +22,16 @@ contract SFFLRegistryRollupUpgrader is Script, Utils {
 
     string public constant SFFL_DEPLOYMENT_FILE = "sffl_rollup_deployment_output";
 
+    string public constant PROTOCOL_VERSION = "v0.0.1-holesky";
+    address public constant TASK_MANAGER_ADDR = 0x00ee5871e23c7f9C1b99D9eDd1Cf022772a604FD;
+    uint256 public constant CHAIN_ID = 17000;
+
     function run() external {
         _readSFFLDeployedContracts();
 
         vm.startBroadcast();
 
-        sfflRegistryRollupImpl = address(new SFFLRegistryRollup());
+        sfflRegistryRollupImpl = address(new SFFLRegistryRollup(PROTOCOL_VERSION, TASK_MANAGER_ADDR, CHAIN_ID));
         sfflProxyAdmin.upgrade(sfflRegistryRollupProxy, sfflRegistryRollupImpl);
 
         vm.stopBroadcast();

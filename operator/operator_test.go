@@ -59,16 +59,16 @@ func TestOperator(t *testing.T) {
 		}
 		fmt.Println("newTaskCreatedEvent", newTaskCreatedEvent)
 
-		X, ok := big.NewInt(0).SetString("14682076405452102073294678397007301219581403230466932828034308124846926767307", 10)
+		X, ok := big.NewInt(0).SetString("12613642297543744275326684415743486704748828415939688962790733558803545899833", 10)
 		assert.True(t, ok)
-		Y, ok := big.NewInt(0).SetString("21795352068006341387944991363719316176428465837889238952393688260477242359304", 10)
+		Y, ok := big.NewInt(0).SetString("2616743449824847804950932714835613626562747429847717032048727881650184877373", 10)
 		assert.True(t, ok)
 		taskResponseSignature := bls.Signature{G1Point: bls.NewG1Point(X, Y)}
 
-		stateRootUpdatesRoot, err := hex.DecodeString("f4356e325f801b1c6acd597d8d32d2b65d28596622a33f9ec882314f41dd4411")
+		stateRootUpdatesRoot, err := hex.DecodeString("aa726e89a4b2dd6bc24b316f3d4bbccc3a3a63270014ca90c0da13d2a9f1b60f")
 		assert.Nil(t, err)
 
-		operatorSetUpdatesRoot, err := hex.DecodeString("a5552192acf1e92adb86a881768349fb3408f56e68a31cd17dabdf1108f1ac93")
+		operatorSetUpdatesRoot, err := hex.DecodeString("9c3dbc1ca1dfb69ab8532e7fb43322862823f98b20338990713b0d3c9bc51ff0")
 		assert.Nil(t, err)
 
 		signedTaskResponse := &messages.SignedCheckpointTaskResponse{
@@ -84,9 +84,9 @@ func TestOperator(t *testing.T) {
 		stateRoot, err := hex.DecodeString("04d855ea9fbfefca9069335296aaa5108fa16d36ecd200bf133a1f5b5a7f5fe2")
 		assert.Nil(t, err)
 
-		X, ok = big.NewInt(0).SetString("14166665838505742237234466022950148109946898229040848081862518171991385270422", 10)
+		X, ok = big.NewInt(0).SetString("145684791764708762489294184098393889857442563975664490743890090895658937067", 10)
 		assert.True(t, ok)
-		Y, ok = big.NewInt(0).SetString("4090516448351082424065118359663770590467802349609723171049485579272418302598", 10)
+		Y, ok = big.NewInt(0).SetString("6477528892499587132611856241434338218424427338721689922607925314585802617702", 10)
 		assert.True(t, ok)
 		stateRootUpdateMessageSignature := bls.Signature{G1Point: bls.NewG1Point(X, Y)}
 
@@ -114,11 +114,11 @@ func TestOperator(t *testing.T) {
 			Timestamp: block.Header().Time,
 			Raw:       types.Log{},
 		}
-		signedOperatorSetUpdateMessage, err := SignOperatorSetUpdate(messages.OperatorSetUpdateMessage{
+		signedOperatorSetUpdateMessage, err := operator.SignOperatorSetUpdate(&messages.OperatorSetUpdateMessage{
 			Id:        operatorSetUpdate.Id,
 			Timestamp: operatorSetUpdate.Timestamp,
 			Operators: make([]coretypes.RollupOperator, 0),
-		}, operator.blsKeypair, operator.operatorId)
+		})
 		assert.Nil(t, err)
 
 		mockCtrl := gomock.NewController(t)
@@ -189,7 +189,8 @@ func createMockOperator(mockCtrl *gomock.Controller) (*Operator, *AvsManager, *m
 	}
 	operatorKeypair := bls.NewKeyPair(blsPrivateKey)
 
-	mockAttestor := mocks.NewMockAttestor(operatorKeypair, MOCK_OPERATOR_ID)
+	hasher := messages.NewHasher([32]byte{})
+	mockAttestor := mocks.NewMockAttestor(hasher, operatorKeypair, MOCK_OPERATOR_ID)
 	avsManager := &AvsManager{
 		logger:                       logger,
 		checkpointTaskCreatedChan:    make(chan *taskmanager.ContractSFFLTaskManagerCheckpointTaskCreated),
@@ -199,15 +200,16 @@ func createMockOperator(mockCtrl *gomock.Controller) (*Operator, *AvsManager, *m
 	mockClient := safeclientmocks.NewMockSafeClient(mockCtrl)
 
 	operator := &Operator{
-		logger:     logger,
-		blsKeypair: operatorKeypair,
-		metricsReg: reg,
-		metrics:    noopMetrics,
-		operatorId: MOCK_OPERATOR_ID,
-		attestor:   mockAttestor,
-		avsManager: avsManager,
-		listener:   &SelectiveOperatorListener{},
-		ethClient:  mockClient,
+		logger:        logger,
+		blsKeypair:    operatorKeypair,
+		metricsReg:    reg,
+		metrics:       noopMetrics,
+		operatorId:    MOCK_OPERATOR_ID,
+		attestor:      mockAttestor,
+		avsManager:    avsManager,
+		listener:      &SelectiveOperatorListener{},
+		ethClient:     mockClient,
+		messageHasher: hasher,
 	}
 
 	return operator, avsManager, mockAttestor.MockGetConsumer(), mockClient, nil

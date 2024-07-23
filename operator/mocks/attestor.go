@@ -9,26 +9,27 @@ import (
 
 	"github.com/NethermindEth/near-sffl/core"
 	messages "github.com/NethermindEth/near-sffl/core/types/messages"
-	"github.com/NethermindEth/near-sffl/operator/attestor"
 )
 
 type MockAttestor struct {
-	consumer   *MockConsumer
-	blsKeypair *bls.KeyPair
-	operatorId eigentypes.OperatorId
+	consumer      *MockConsumer
+	messageHasher *messages.Hasher
+	blsKeypair    *bls.KeyPair
+	operatorId    eigentypes.OperatorId
 
 	signedRootC chan messages.SignedStateRootUpdateMessage
 }
 
 var _ core.Metricable = (*MockAttestor)(nil)
 
-func NewMockAttestor(blsKeypair *bls.KeyPair, operatorId eigentypes.OperatorId) *MockAttestor {
+func NewMockAttestor(messageHasher *messages.Hasher, blsKeypair *bls.KeyPair, operatorId eigentypes.OperatorId) *MockAttestor {
 	consumer := NewMockConsumer()
 	return &MockAttestor{
-		blsKeypair:  blsKeypair,
-		operatorId:  operatorId,
-		consumer:    consumer,
-		signedRootC: make(chan messages.SignedStateRootUpdateMessage),
+		messageHasher: messageHasher,
+		blsKeypair:    blsKeypair,
+		operatorId:    operatorId,
+		consumer:      consumer,
+		signedRootC:   make(chan messages.SignedStateRootUpdateMessage),
 	}
 }
 
@@ -51,7 +52,7 @@ func (mockAttestor *MockAttestor) Start(ctx context.Context) error {
 				NearDaTransactionId: [32]byte{1},
 				NearDaCommitment:    [32]byte{2},
 			}
-			signature, err := attestor.SignStateRootUpdateMessage(mockAttestor.blsKeypair, &message)
+			signature, err := mockAttestor.SignStateRootUpdateMessage(&message)
 			if err != nil {
 				panic(err)
 			}
@@ -67,6 +68,16 @@ func (mockAttestor *MockAttestor) Start(ctx context.Context) error {
 	}()
 
 	return nil
+}
+
+func (mockAttestor *MockAttestor) SignStateRootUpdateMessage(stateRootUpdateMessage *messages.StateRootUpdateMessage) (*bls.Signature, error) {
+	messageDigest, err := mockAttestor.messageHasher.Hash(stateRootUpdateMessage)
+	if err != nil {
+		return nil, err
+	}
+
+	blsSignature := mockAttestor.blsKeypair.SignMessage(messageDigest)
+	return blsSignature, nil
 }
 
 func (mockAttestor *MockAttestor) Close() error { return mockAttestor.consumer.Close() }

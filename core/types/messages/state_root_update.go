@@ -78,12 +78,7 @@ func (msg StateRootUpdateMessage) Digest() ([32]byte, error) {
 		return [32]byte{}, err
 	}
 
-	digest, err := core.HashMessageWithPrefix([]byte("SFFL::StateRootUpdateMessage"), data)
-	if err != nil {
-		return [32]byte{}, err
-	}
-
-	return digest, nil
+	return core.Keccak256(data), nil
 }
 
 func (msg StateRootUpdateMessage) Key() [32]byte {
@@ -97,4 +92,8 @@ func (msg StateRootUpdateMessage) Key() [32]byte {
 
 func (msg StateRootUpdateMessage) HasNearDaCommitment() bool {
 	return !bytes.Equal(msg.NearDaCommitment[:], make([]byte, 32)) && !bytes.Equal(msg.NearDaTransactionId[:], make([]byte, 32))
+}
+
+func (_ StateRootUpdateMessage) Name() string {
+	return "StateRootUpdateMessage"
 }

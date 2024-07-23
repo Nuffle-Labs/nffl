@@ -1,6 +1,8 @@
 // SPDX-License-Identifier: MIT
 pragma solidity ^0.8.12;
 
+import {MessageHashing} from "../utils/MessageHashing.sol";
+
 /**
  * @title SFFL state root update message library
  * @notice Represents the message passed to update state roots in various
@@ -23,24 +25,26 @@ library StateRootUpdate {
         bytes32 stateRoot;
     }
 
-    bytes32 internal constant STATE_ROOT_UPDATE_HASH_PREFIX = keccak256("SFFL::StateRootUpdateMessage");
+    bytes32 internal constant MESSAGE_NAME = keccak256("StateRootUpdateMessage");
 
     /**
      * @notice Hashes a state root update message
      * @param message Message structured data
+     * @param messagingPrefix Messaging prefix
      * @return Message hash
      */
-    function hashCalldata(Message calldata message) internal pure returns (bytes32) {
-        return keccak256(abi.encode(STATE_ROOT_UPDATE_HASH_PREFIX, keccak256(abi.encode(message))));
+    function hashCalldata(Message calldata message, bytes32 messagingPrefix) internal pure returns (bytes32) {
+        return MessageHashing.hashMessage(messagingPrefix, MESSAGE_NAME, keccak256(abi.encode(message)));
     }
 
     /**
      * @notice Hashes a state root update message
      * @param message Message structured data
+     * @param messagingPrefix Messaging prefix
      * @return Message hash
      */
-    function hash(Message memory message) internal pure returns (bytes32) {
-        return keccak256(abi.encode(STATE_ROOT_UPDATE_HASH_PREFIX, keccak256(abi.encode(message))));
+    function hash(Message memory message, bytes32 messagingPrefix) internal pure returns (bytes32) {
+        return MessageHashing.hashMessage(messagingPrefix, MESSAGE_NAME, keccak256(abi.encode(message)));
     }
 
     /**

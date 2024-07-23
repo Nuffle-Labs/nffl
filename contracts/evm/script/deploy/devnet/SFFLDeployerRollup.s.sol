@@ -27,6 +27,10 @@ contract SFFLDeployerRollup is Script, Utils {
 
     string public constant SFFL_DEPLOYMENT_FILE = "sffl_rollup_deployment_output";
 
+    string public constant PROTOCOL_VERSION = "v0.0.1-devnet";
+    address public constant TASK_MANAGER_ADDR = 0x0E801D84Fa97b50751Dbf25036d067dCf18858bF;
+    uint256 public constant CHAIN_ID = 31337;
+
     function run() external {
         address sfflCommunityMultisig = msg.sender;
         address sfflPauser = msg.sender;
@@ -41,7 +45,7 @@ contract SFFLDeployerRollup is Script, Utils {
 
         sfflPauserReg = new PauserRegistry(pausers, sfflCommunityMultisig);
 
-        sfflRegistryRollupImpl = address(new SFFLRegistryRollup());
+        sfflRegistryRollupImpl = address(new SFFLRegistryRollup(PROTOCOL_VERSION, TASK_MANAGER_ADDR, CHAIN_ID));
         sfflRegistryRollupProxy = _deployProxy(
             sfflProxyAdmin,
             sfflRegistryRollupImpl,

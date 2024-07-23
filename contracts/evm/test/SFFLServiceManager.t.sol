@@ -8,6 +8,7 @@ import {TransparentUpgradeableProxy} from "@openzeppelin/contracts/proxy/transpa
 import {BLSMockAVSDeployer} from "eigenlayer-middleware/test/utils/BLSMockAVSDeployer.sol";
 import {BN254} from "eigenlayer-middleware/src/libraries/BN254.sol";
 import {ServiceManagerBase} from "eigenlayer-middleware/src/ServiceManagerBase.sol";
+import {EmptyContract} from "@eigenlayer/test/mocks/EmptyContract.sol";
 import {IRegistryCoordinator} from "eigenlayer-middleware/src/interfaces/IRegistryCoordinator.sol";
 import {IBLSSignatureChecker} from "eigenlayer-middleware/src/interfaces/IBLSSignatureChecker.sol";
 import {IAVSDirectory} from "@eigenlayer/contracts/interfaces/IAVSDirectory.sol";
@@ -59,6 +60,9 @@ contract SFFLServiceManagerTest is TestUtils {
     address public serviceManagerOwner = address(uint160(uint256(keccak256("serviceManagerOwner"))));
 
     uint32 public constant TASK_RESPONSE_WINDOW_BLOCK = 30;
+    string public constant PROTOCOL_VERSION = "v0.0.1-test";
+    bytes32 public messagingPrefix;
+
     address public aggregator;
     address public generator;
     uint256 public thresholdDenominator;
@@ -69,15 +73,22 @@ contract SFFLServiceManagerTest is TestUtils {
         aggregator = addr("aggregator");
         generator = addr("generator");
 
-        address impl = address(new SFFLTaskManager(registryCoordinator, TASK_RESPONSE_WINDOW_BLOCK));
-
         taskManager = SFFLTaskManager(
             deployProxy(
-                impl,
+                address(new EmptyContract()),
                 address(proxyAdmin),
-                abi.encodeWithSelector(
-                    taskManager.initialize.selector, pauserRegistry, registryCoordinatorOwner, aggregator, generator
-                )
+                hex""
+            )
+        );
+
+        address impl = address(new SFFLTaskManager(registryCoordinator, TASK_RESPONSE_WINDOW_BLOCK, address(taskManager), PROTOCOL_VERSION));
+
+        vm.prank(proxyAdminOwner);
+        proxyAdmin.upgradeAndCall(
+            TransparentUpgradeableProxy(payable(address(taskManager))),
+            impl,
+            abi.encodeWithSelector(
+                taskManager.initialize.selector, pauserRegistry, registryCoordinatorOwner, aggregator, generator
             )
         );
 
@@ -109,6 +120,7 @@ contract SFFLServiceManagerTest is TestUtils {
         vm.label(address(serviceManager), "serviceManagerProxy");
 
         thresholdDenominator = taskManager.THRESHOLD_DENOMINATOR();
+        messagingPrefix = taskManager.messagingPrefix();
     }
 
     function test_updateStateRoot() public {
@@ -122,7 +134,7 @@ contract SFFLServiceManagerTest is TestUtils {
         });
 
         (, IBLSSignatureChecker.NonSignerStakesAndSignature memory nonSignerStakesAndSignature) =
-            setUpOperators(message.hash(), 999, 1000, 100, 1);
+            setUpOperators(message.hash(messagingPrefix), 999, 1000, 100, 1);
 
         vm.expectEmit(true, true, false, true);
         emit StateRootUpdated(message.rollupId, message.blockHeight, message.stateRoot);
@@ -146,7 +158,7 @@ contract SFFLServiceManagerTest is TestUtils {
         });
 
         (, IBLSSignatureChecker.NonSignerStakesAndSignature memory nonSignerStakesAndSignature) =
-            setUpOperators(message.hash(), 999, 1000, 100, maxOperatorsToRegister / 2);
+            setUpOperators(message.hash(messagingPrefix), 999, 1000, 100, maxOperatorsToRegister / 2);
 
         vm.expectRevert("Quorum not met");
 
@@ -170,7 +182,7 @@ contract SFFLServiceManagerTest is TestUtils {
         });
 
         (, IBLSSignatureChecker.NonSignerStakesAndSignature memory nonSignerStakesAndSignature) =
-            setUpOperators(message.hash(), 999, 1000, 100, 1);
+            setUpOperators(message.hash(messagingPrefix), 999, 1000, 100, 1);
 
         vm.expectRevert("Pausable: index is paused");
 

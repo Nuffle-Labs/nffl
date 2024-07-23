@@ -64,6 +64,8 @@ type Operator struct {
 	registryCoordinatorAddr common.Address
 	// NEAR DA indexer consumer
 	attestor attestor.Attestorer
+	// Message hasher
+	messageHasher *messages.Hasher
 	// Avs Manager
 	avsManager *AvsManager
 }
@@ -185,6 +187,14 @@ func NewOperatorFromConfig(c optypes.NodeConfig) (*Operator, error) {
 		return nil, err
 	}
 
+	messagingPrefix, err := avsManager.GetMessagingPrefix()
+	if err != nil {
+		logger.Error("Cannot get messaging prefix", "err", err)
+		return nil, err
+	}
+
+	messageHasher := messages.NewHasher(messagingPrefix)
+
 	// We must register the economic metrics separately because they are exported metrics (from jsonrpc or subgraph calls)
 	// and not instrumented metrics: see https://prometheus.io/docs/instrumenting/writing_clientlibs/#overall-structure
 	quorumNames := map[eigentypes.QuorumNum]string{
@@ -223,6 +233,7 @@ func NewOperatorFromConfig(c optypes.NodeConfig) (*Operator, error) {
 		registryCoordinatorAddr:    registryCoordinatorAddress,
 		operatorId:                 operatorId,
 		taskResponseWait:           time.Duration(c.TaskResponseWaitMs) * time.Millisecond,
+		messageHasher:              messageHasher,
 	}
 
 	if c.RegisterOperatorOnStartup {
@@ -244,7 +255,7 @@ func NewOperatorFromConfig(c optypes.NodeConfig) (*Operator, error) {
 		"operatorG2Pubkey", operator.blsKeypair.GetPubKeyG2(),
 	)
 
-	attestor, err := attestor.NewAttestor(&c, blsKeyPair, operator.operatorId, reg, logger)
+	attestor, err := attestor.NewAttestor(&c, messageHasher, blsKeyPair, operator.operatorId, reg, logger)
 	if err != nil {
 		return nil, err
 	}
@@ -337,7 +348,7 @@ func (o *Operator) Start(ctx context.Context) error {
 				return o.Close()
 			}
 
-			signedOperatorSetUpdate, err := SignOperatorSetUpdate(operatorSetUpdate, o.blsKeypair, o.operatorId)
+			signedOperatorSetUpdate, err := o.SignOperatorSetUpdate(&operatorSetUpdate)
 			if err != nil {
 				o.logger.Error("Failed to sign operator set update", "signedOperatorSetUpdate", signedOperatorSetUpdate)
 				continue
@@ -360,7 +371,7 @@ func (o *Operator) Close() error {
 }
 
 func (o *Operator) SignTaskResponse(taskResponse *messages.CheckpointTaskResponse) (*messages.SignedCheckpointTaskResponse, error) {
-	taskResponseHash, err := taskResponse.Digest()
+	taskResponseHash, err := o.messageHasher.Hash(taskResponse)
 	if err != nil {
 		o.logger.Error("Error getting task response header hash. skipping task (this is not expected and should be investigated)", "err", err)
 		return nil, err
@@ -377,15 +388,15 @@ func (o *Operator) SignTaskResponse(taskResponse *messages.CheckpointTaskRespons
 	return signedCheckpointTaskResponse, nil
 }
 
-func SignOperatorSetUpdate(message messages.OperatorSetUpdateMessage, blsKeyPair *bls.KeyPair, operatorId eigentypes.OperatorId) (*messages.SignedOperatorSetUpdateMessage, error) {
-	messageHash, err := message.Digest()
+func (o *Operator) SignOperatorSetUpdate(message *messages.OperatorSetUpdateMessage) (*messages.SignedOperatorSetUpdateMessage, error) {
+	messageHash, err := o.messageHasher.Hash(message)
 	if err != nil {
 		return nil, err
 	}
-	signature := blsKeyPair.SignMessage(messageHash)
+	signature := o.blsKeypair.SignMessage(messageHash)
 	signedOperatorSetUpdate := messages.SignedOperatorSetUpdateMessage{
-		Message:      message,
-		OperatorId:   operatorId,
+		Message:      *message,
+		OperatorId:   o.operatorId,
 		BlsSignature: *signature,
 	}
 
@@ -411,6 +422,7 @@ func (o *Operator) ProcessCheckpointTask(event *taskmanager.ContractSFFLTaskMana
 	checkpointTaskResponse, err := messages.NewCheckpointTaskResponseFromMessages(
 		event.TaskIndex,
 		checkpointMessages,
+		o.messageHasher,
 	)
 	if err != nil {
 		o.logger.Error("Failed to get create checkpoint response", "err", err)

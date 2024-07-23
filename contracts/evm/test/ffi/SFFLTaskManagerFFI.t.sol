@@ -3,7 +3,10 @@ pragma solidity ^0.8.12;
 
 import {Test, console2} from "forge-std/Test.sol";
 
+import {ProxyAdmin, TransparentUpgradeableProxy} from "@openzeppelin/contracts/proxy/transparent/ProxyAdmin.sol";
+
 import {BLSMockAVSDeployer} from "eigenlayer-middleware/test/utils/BLSMockAVSDeployer.sol";
+import {EmptyContract} from "@eigenlayer/test/mocks/EmptyContract.sol";
 import {BN254} from "eigenlayer-middleware/src/libraries/BN254.sol";
 import {IRegistryCoordinator} from "eigenlayer-middleware/src/interfaces/IRegistryCoordinator.sol";
 import {IBLSSignatureChecker} from "eigenlayer-middleware/src/interfaces/IBLSSignatureChecker.sol";
@@ -20,6 +23,10 @@ contract SFFLTaskManagerTestFFI is TestUtils {
     SFFLTaskManager public taskManager;
 
     uint32 public constant TASK_RESPONSE_WINDOW_BLOCK = 30;
+
+    string public constant PROTOCOL_VERSION = "v0.0.1-test";
+    bytes32 public messagingPrefix;
+
     address public aggregator;
     address public generator;
     uint32 public thresholdDenominator;
@@ -37,15 +44,22 @@ contract SFFLTaskManagerTestFFI is TestUtils {
         aggregator = addr("aggregator");
         generator = addr("generator");
 
-        address impl = address(new SFFLTaskManager(registryCoordinator, TASK_RESPONSE_WINDOW_BLOCK));
-
         taskManager = SFFLTaskManager(
             deployProxy(
-                impl,
+                address(new EmptyContract()),
                 address(proxyAdmin),
-                abi.encodeWithSelector(
-                    taskManager.initialize.selector, pauserRegistry, registryCoordinatorOwner, aggregator, generator
-                )
+                hex""
+            )
+        );
+
+        address impl = address(new SFFLTaskManager(registryCoordinator, TASK_RESPONSE_WINDOW_BLOCK, address(taskManager), PROTOCOL_VERSION));
+
+        vm.prank(proxyAdminOwner);
+        proxyAdmin.upgradeAndCall(
+            TransparentUpgradeableProxy(payable(address(taskManager))),
+            impl,
+            abi.encodeWithSelector(
+                taskManager.initialize.selector, pauserRegistry, registryCoordinatorOwner, aggregator, generator
             )
         );
 
@@ -53,6 +67,7 @@ contract SFFLTaskManagerTestFFI is TestUtils {
         vm.label(address(taskManager), "taskManagerProxy");
 
         thresholdDenominator = taskManager.THRESHOLD_DENOMINATOR();
+        messagingPrefix = taskManager.messagingPrefix();
     }
 
     /// forge-config: default.fuzz.runs = 50
@@ -74,7 +89,7 @@ contract SFFLTaskManagerTestFFI is TestUtils {
         (
             bytes32 signatoryRecordHash,
             IBLSSignatureChecker.NonSignerStakesAndSignature memory nonSignerStakesAndSignature
-        ) = setUpOperatorsFFI(taskResponse.hash(), task.taskCreatedBlock, seed, 1);
+        ) = setUpOperatorsFFI(taskResponse.hash(messagingPrefix), task.taskCreatedBlock, seed, 1);
 
         Checkpoint.TaskResponseMetadata memory taskResponseMetadata = Checkpoint.TaskResponseMetadata({
             taskRespondedBlock: task.taskCreatedBlock + TASK_RESPONSE_WINDOW_BLOCK,
@@ -120,7 +135,7 @@ contract SFFLTaskManagerTestFFI is TestUtils {
         (
             bytes32 signatoryRecordHash,
             IBLSSignatureChecker.NonSignerStakesAndSignature memory nonSignerStakesAndSignature
-        ) = setUpOperatorsFFI(taskResponse.hash(), task.taskCreatedBlock, seed, numNonSigners);
+        ) = setUpOperatorsFFI(taskResponse.hash(messagingPrefix), task.taskCreatedBlock, seed, numNonSigners);
 
         Checkpoint.TaskResponseMetadata memory taskResponseMetadata = Checkpoint.TaskResponseMetadata({
             taskRespondedBlock: task.taskCreatedBlock + TASK_RESPONSE_WINDOW_BLOCK,
@@ -158,7 +173,7 @@ contract SFFLTaskManagerTestFFI is TestUtils {
         (
             bytes32 signatoryRecordHash,
             IBLSSignatureChecker.NonSignerStakesAndSignature memory nonSignerStakesAndSignature
-        ) = setUpOperatorsFFI(taskResponse.hash(), task.taskCreatedBlock, 100, 1);
+        ) = setUpOperatorsFFI(taskResponse.hash(messagingPrefix), task.taskCreatedBlock, 100, 1);
 
         Checkpoint.TaskResponseMetadata memory taskResponseMetadata = Checkpoint.TaskResponseMetadata({
             taskRespondedBlock: task.taskCreatedBlock + TASK_RESPONSE_WINDOW_BLOCK,
@@ -199,7 +214,7 @@ contract SFFLTaskManagerTestFFI is TestUtils {
         (
             bytes32 signatoryRecordHash,
             IBLSSignatureChecker.NonSignerStakesAndSignature memory nonSignerStakesAndSignature
-        ) = setUpOperatorsFFI(taskResponse.hash(), task.taskCreatedBlock, 100, 2);
+        ) = setUpOperatorsFFI(taskResponse.hash(messagingPrefix), task.taskCreatedBlock, 100, 2);
 
         Checkpoint.TaskResponseMetadata memory taskResponseMetadata = Checkpoint.TaskResponseMetadata({
             taskRespondedBlock: task.taskCreatedBlock + TASK_RESPONSE_WINDOW_BLOCK,

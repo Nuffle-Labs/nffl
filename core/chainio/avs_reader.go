@@ -34,6 +34,7 @@ type AvsReaderer interface {
 	GetOperatorSetUpdateBlock(ctx context.Context, id uint64) (uint32, error)
 	GetNextOperatorSetUpdateId(ctx context.Context) (uint64, error)
 	GetLastCheckpointToTimestamp(ctx context.Context) (uint64, error)
+	GetMessagingPrefix(ctx context.Context) ([32]byte, error)
 }
 
 type AvsReader struct {
@@ -173,4 +174,12 @@ func (r *AvsReader) GetLastCheckpointToTimestamp(ctx context.Context) (uint64, e
 		return 0, err
 	}
 	return lastCheckpointToTimestamp, nil
+}
+
+func (r *AvsReader) GetMessagingPrefix(ctx context.Context) ([32]byte, error) {
+	messagingPrefix, err := r.AvsServiceBindings.TaskManager.MessagingPrefix(&bind.CallOpts{})
+	if err != nil {
+		return [32]byte{}, err
+	}
+	return messagingPrefix, nil
 }
