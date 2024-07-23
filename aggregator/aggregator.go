@@ -557,7 +557,14 @@ func (agg *Aggregator) ProcessSignedCheckpointTaskResponse(signedCheckpointTaskR
 
 // Rpc request handlers
 func (agg *Aggregator) ProcessSignedStateRootUpdateMessage(signedStateRootUpdateMessage *messages.SignedStateRootUpdateMessage) error {
-	err := agg.verifySignature(signedStateRootUpdateMessage)
+	timestamp := signedStateRootUpdateMessage.Message.Timestamp
+	err := agg.validateMessageTimestamp(timestamp)
+	if err != nil {
+		agg.logger.Error("Failed to validate message timestamp", "err", err, "timestamp", timestamp)
+		return err
+	}
+
+	err = agg.verifySignature(signedStateRootUpdateMessage)
 	if err != nil {
 		return err
 	}
@@ -566,13 +573,6 @@ func (agg *Aggregator) ProcessSignedStateRootUpdateMessage(signedStateRootUpdate
 	if err != nil {
 		agg.logger.Error("Failed to get message digest", "err", err)
 		return DigestError
-	}
-
-	timestamp := signedStateRootUpdateMessage.Message.Timestamp
-	err = agg.validateMessageTimestamp(timestamp)
-	if err != nil {
-		agg.logger.Error("Failed to validate message timestamp", "err", err, "timestamp", timestamp)
-		return err
 	}
 
 	err = agg.stateRootUpdateBlsAggregationService.InitializeMessageIfNotExists(
@@ -599,7 +599,14 @@ func (agg *Aggregator) ProcessSignedStateRootUpdateMessage(signedStateRootUpdate
 }
 
 func (agg *Aggregator) ProcessSignedOperatorSetUpdateMessage(signedOperatorSetUpdateMessage *messages.SignedOperatorSetUpdateMessage) error {
-	err := agg.verifySignature(signedOperatorSetUpdateMessage)
+	timestamp := signedOperatorSetUpdateMessage.Message.Timestamp
+	err := agg.validateMessageTimestamp(timestamp)
+	if err != nil {
+		agg.logger.Error("Failed to validate message timestamp", "err", err, "timestamp", timestamp)
+		return err
+	}
+
+	err = agg.verifySignature(signedOperatorSetUpdateMessage)
 	if err != nil {
 		return err
 	}
@@ -608,13 +615,6 @@ func (agg *Aggregator) ProcessSignedOperatorSetUpdateMessage(signedOperatorSetUp
 	if err != nil {
 		agg.logger.Error("Failed to get message digest", "err", err)
 		return DigestError
-	}
-
-	timestamp := signedOperatorSetUpdateMessage.Message.Timestamp
-	err = agg.validateMessageTimestamp(timestamp)
-	if err != nil {
-		agg.logger.Error("Failed to validate message timestamp", "err", err, "timestamp", timestamp)
-		return err
 	}
 
 	blockNumber, err := agg.avsReader.GetOperatorSetUpdateBlock(context.Background(), signedOperatorSetUpdateMessage.Message.Id)
