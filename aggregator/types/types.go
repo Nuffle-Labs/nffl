@@ -18,6 +18,7 @@ const QUERY_FILTER_FROM_BLOCK = uint64(1)
 
 const MESSAGE_TTL = 1 * time.Minute
 const MESSAGE_BLS_AGGREGATION_TIMEOUT = 30 * time.Second
+const MESSAGE_SUBMISSION_TIMEOUT = 1 * time.Minute
 
 type OperatorInfo struct {
 	OperatorPubkeys eigentypes.OperatorPubkeys

@@ -101,7 +101,7 @@ start-indexer: ##
 	cargo run -p indexer --release -- --home-dir ~/.near/localnet run --da-contract-ids da.test.near --rollup-ids 2 --rmq-address "amqp://127.0.0.1:5672"
 
 start-test-relayer: ##
-	go run relayer/cmd/main.go --rpc-url ws://127.0.0.1:8546 --da-account-id da.test.near
+	CGO_LDFLAGS="-L ./relayer/libs ${CGO_LDFLAGS}" go run relayer/cmd/main.go run-args --rpc-url ws://127.0.0.1:8546 --da-account-id da.test.near --key-path ~/.near-credentials/localnet/da.test.near.json
 
 run-plugin: ##
 	go run plugin/cmd/main.go --config config-files/operator.anvil.yaml
@@ -117,6 +117,17 @@ tests-unit: ## runs all unit tests
 
 tests-contract: ## runs all forge tests
 	cd contracts/evm && forge test --ffi
+
+near-da-rpc-sys:
+	rm -rf relayer/libs && \
+	mkdir relayer/libs && \
+	git clone https://github.com/taco-paco/rollup-data-availability.git && \
+	cd rollup-data-availability && \
+	git checkout c9ec12924b27e37b8c40e7ab1a051a64b363cfd6 && \
+	make da-rpc-sys && \
+	cp gopkg/da-rpc/lib/* ../relayer/libs && \
+	cd .. && \
+	rm -rf rollup-data-availability
 
 # TODO: Currently we cannot use the race detector with `integration_test.go`
 tests-integration: ## runs all integration tests

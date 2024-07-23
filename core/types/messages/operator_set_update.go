@@ -2,6 +2,7 @@ package messages
 
 import (
 	"encoding/binary"
+	"errors"
 	"math/big"
 
 	"github.com/Layr-Labs/eigensdk-go/crypto/bls"
@@ -23,6 +24,28 @@ type SignedOperatorSetUpdateMessage struct {
 	Message      OperatorSetUpdateMessage
 	BlsSignature bls.Signature
 	OperatorId   eigentypes.OperatorId
+}
+
+func (s *SignedOperatorSetUpdateMessage) IsValid() error {
+	if s == nil {
+		return errors.New("SignedOperatorSetUpdateMessage is nil")
+	}
+
+	if s.BlsSignature.G1Point == nil {
+		return errors.New("BlsSignature.G1Point is nil")
+	}
+
+	for _, operator := range s.Message.Operators {
+		if operator.Pubkey == nil {
+			return errors.New("Operator.Pubkey is nil")
+		}
+
+		if operator.Weight == nil {
+			return errors.New("Operator.Weight is nil")
+		}
+	}
+
+	return nil
 }
 
 func NewOperatorSetUpdateMessageFromBinding(binding registryrollup.OperatorSetUpdateMessage) OperatorSetUpdateMessage {

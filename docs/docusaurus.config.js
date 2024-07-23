@@ -8,8 +8,8 @@ import {themes as prismThemes} from 'prism-react-renderer';
 
 /** @type {import('@docusaurus/types').Config} */
 const config = {
-  title: 'NEAR SFFL',
-  tagline: 'NEAR Super Fast Finality Layer',
+  title: 'NFFL',
+  tagline: 'Nuffle Fast Finality Layer',
   favicon: 'img/favicon.ico',
 
   url: 'https://nffl.nethermind.io',
@@ -48,7 +48,7 @@ const config = {
     ({
       image: 'img/near-sffl-social-card.jpg',
       navbar: {
-        title: 'NEAR SFFL',
+        title: 'NFFL',
         logo: {
           alt: 'NEAR Logo',
           src: 'img/near-icon.svg',

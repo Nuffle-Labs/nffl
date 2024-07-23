@@ -6,7 +6,7 @@ sidebar_position: 2
 
 :::info
 
-While the opt-in process for NEAR NFFL is currently underway - see
+While the opt-in process for NFFL is currently underway - see
 [Registration](./registration) - the testnet is not completely operational
 just yet, so it's currently not required that operators run a node. Keep an
 eye out for updates!
@@ -14,7 +14,7 @@ eye out for updates!
 :::
 
 This guide will walk you through the steps required to set up your operator
-node on the NEAR NFFL testnet. The testnet serves as a sandbox environment
+node on the NFFL testnet. The testnet serves as a sandbox environment
 for testing and development, allowing you to test both the AVS smart contracts
 and off-chain services. As the network is under active development, it's
 crucial to stay updated with the latest changes and keep your node in sync
@@ -22,7 +22,7 @@ with the network.
 
 ## Hardware Requirements
 
-A NEAR NFFL operator node consists of two main components: the AVS node
+A NFFL operator node consists of two main components: the AVS node
 software and a NEAR DA indexer. The AVS node software is a Go implementation
 of the AVS protocol, while the NEAR DA indexer is essentially a NEAR full node
 that indexes NEAR DA submissions on the NEAR blockchain.
