@@ -83,6 +83,7 @@ contract SFFLServiceManagerTest is TestUtils {
 
         address impl = address(new SFFLTaskManager(registryCoordinator, TASK_RESPONSE_WINDOW_BLOCK, address(taskManager), PROTOCOL_VERSION));
 
+        vm.prank(proxyAdminOwner);
         proxyAdmin.upgradeAndCall(
             TransparentUpgradeableProxy(payable(address(taskManager))),
             impl,

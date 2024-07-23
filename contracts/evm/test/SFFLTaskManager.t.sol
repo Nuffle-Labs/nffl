@@ -69,6 +69,7 @@ contract SFFLTaskManagerTest is TestUtils {
 
         address impl = address(new SFFLTaskManagerHarness(registryCoordinator, TASK_RESPONSE_WINDOW_BLOCK, address(taskManager), PROTOCOL_VERSION));
 
+        vm.prank(proxyAdminOwner);
         proxyAdmin.upgradeAndCall(
             TransparentUpgradeableProxy(payable(address(taskManager))),
             impl,
@@ -466,17 +467,17 @@ contract SFFLTaskManagerTest is TestUtils {
 
         bytes32[] memory sideNodes = new bytes32[](11);
 
-        sideNodes[0] = 0x9493aa90005894490c64b3ff6886264188a3a167c29e6cd811eb778506e2b9ec;
-        sideNodes[1] = 0x45aee272a2a783e21f90a7036fc166acef2b32b3231879a232841f93250ffba2;
-        sideNodes[2] = 0x00e65f887e4daf008e313293ac20f7d46d21e20a77dfa670f9a216306bf94ac3;
-        sideNodes[3] = 0xdf51b2ed1456c903c07193963e8d29256d576cf21c8879f2cd70b2b1f7f04580;
-        sideNodes[4] = 0x5e0f58ca8fc3be03a5201dc4f0033a325b9a86ec36e7aee24a1665ad736b15e8;
-        sideNodes[5] = 0x096074a041a98700bffe9bfe5d8cde3b82db5990df13eb4d3788a7c8445dfcac;
-        sideNodes[6] = 0x144b921b977ec913b48bb82d8d5038c8483ada5465b980c7c812d8e4f2439a99;
-        sideNodes[7] = 0x7c979e9cdedb3b36a1632011c2241fde8a2b4f3d1d4b61d6798fd204082b6048;
-        sideNodes[8] = 0xd77a7f54c4b55dd8a86d88e4da0d5ad41aaceb1b664326cf3ef372dd4c764449;
-        sideNodes[9] = 0xc71fa4a63ad34e585ad0d6fe92d39a4a49dfbb8ad67870e918dfaeff6f8707b8;
-        sideNodes[10] = 0xa4e84e3fd178d049a935616b552c6d00f2c27dfac4fb7329082992e718dc3fb0;
+        sideNodes[0] = 0x41068c6e012a5b833354334a534d73323e6680e4d2948fe55a8484b902e3310f;
+        sideNodes[1] = 0x13bc269f62af981aa54128fdd74842598a211d274ba60aed85f86794a0447b7d;
+        sideNodes[2] = 0x31b639a213c85a53c9f34f81a591ebaaf3ec1eba88444474ec14211ac5646554;
+        sideNodes[3] = 0x6ee2441a440879cb27c8654d68fa8926f5dcdceef594f86c4a92d4f6ca0a5a13;
+        sideNodes[4] = 0x9082960ae9f30fc3deb0be52e07ccad20418b9e81e0eea3f103c4fc2e03a7972;
+        sideNodes[5] = 0xcecb15684184e64473d224f57a5a430f7c77e9db5853704eaa50fd88fb365392;
+        sideNodes[6] = 0xface2bc6282511b36e8efc853876715f2cb1c79061d2e1f1c3f8baebe04f42c6;
+        sideNodes[7] = 0x4aa837b278f90fc84c2dc3d84214b8bb1f2bea1f9fef73518f0b521a768e3acb;
+        sideNodes[8] = 0x81a2e875c910299d52ffc8373aa64c9ef5f74e465dcfb5c6cdfbf3a5f57538a4;
+        sideNodes[9] = 0x9ee0b767f08e95241b312935c4cb44f42dca7e254f3b7e7d7eb5bea26efaf12e;
+        sideNodes[10] = 0x8877ecc7348f7d7ea4d9888ff300565b00abc85736a2406501e9ce3fcbd40cb7;
 
         SparseMerkleTree.Proof memory proof = SparseMerkleTree.Proof({
             key: message.index(),
@@ -490,7 +491,7 @@ contract SFFLTaskManagerTest is TestUtils {
 
         Checkpoint.TaskResponse memory taskResponse = Checkpoint.TaskResponse({
             referenceTaskIndex: 0,
-            stateRootUpdatesRoot: 0x872b1ae00dddf580168f6bdf3e73e5da5c89e619e9c0551a4b50c435b9655c13,
+            stateRootUpdatesRoot: 0x704ac96a830d7d5a6e9de8bc5d5baa97a8920cae2e6b760cedf011a5894057a7,
             operatorSetUpdatesRoot: keccak256(hex"f00d")
         });
 
@@ -712,18 +713,18 @@ contract SFFLTaskManagerTest is TestUtils {
             OperatorSetUpdate.Message({id: 10000, timestamp: 10001, operators: operators});
 
         bytes32[] memory sideNodes = new bytes32[](12);
-        sideNodes[0] = 0x68b88a2681579fa7316f4c53f32cea8ad0fd801ec379f64e2eaa78032baddc29;
-        sideNodes[1] = 0x814b60cf3eb29309c2d6f3d8b47a262f6b4eba6a883e0ef5620e99e703701dc1;
-        sideNodes[2] = 0x403d6cada3ad120e36fee5ab5690d45b3da55be9d6522cca4078c2c9a2c8206b;
-        sideNodes[3] = 0xa7dda291d7271e5d6be25a1e7778db22c8a57ed3f1d94bfdd9a4a81343c05b31;
-        sideNodes[4] = 0x088babaf5ad39a3f6e2a7807b8d0feb66f145b3c378d207e5ef5cec2ccd6c269;
-        sideNodes[5] = 0x460a49f5af41f2cf306c02b1bed0668320088df64f2c2026e8620a45d6068ffe;
-        sideNodes[6] = 0xe400c82bafb0d5f4d263c4146b69bf7058e162af94ff76aac876b4777f8318d7;
-        sideNodes[7] = 0x084519dca6edf66c6d58615cd03f686da4d6b0d84abbd16eb9b7ff9c98c90b23;
-        sideNodes[8] = 0x37b707900783eb3b532fec13f6942ece909d1c5b074536bf62bf8037bab7d30f;
-        sideNodes[9] = 0x9b4f7ac182691402d9f8ae3625b0d185bf6333b4ec29b99632c11a13dcbfe180;
-        sideNodes[10] = 0xa6118ed7855da974a2d688f7a199d84431bf8fbd072cf80b7ccc649c221732bd;
-        sideNodes[11] = 0xfca69c43e91e5ff6e7dd91261dea463f0a4785596ab1363b717e50304c3c5b7b;
+        sideNodes[0] = 0xa4babef2607ae50f03fcb1c020667a441fa46fd4cf0567327080315b9a200e54;
+        sideNodes[1] = 0x0695c40bd576261ead04f4eacee9d7a7e2e39fccdb7467b6570d53b33222565b;
+        sideNodes[2] = 0x59401a7315bf6c4d9501a15fd2416ebbdef46fc9caa6d6c4aa24f12cc8dc0928;
+        sideNodes[3] = 0xe96b71d1ce264d029b01d8d70b1b2f3e0345b98408aa358f0bf10b354fcad12c;
+        sideNodes[4] = 0xbdda57e16bf62ac534733baef85cd558d954cf7f6405704b465e567dff6f4850;
+        sideNodes[5] = 0x9defe7a0ad0b15a564dfd4efb49cbbae0590e114fe84a43de9baec62b2f34891;
+        sideNodes[6] = 0xd7ce5c239568957864b8ed687a71328729842a95438cb0afd38400eb19ea45d3;
+        sideNodes[7] = 0x55d4ef1b3c9a6d9faa031d41a80338ff9d97d4b426354255790f05bd45e3a417;
+        sideNodes[8] = 0x450bbffc6246557a09cd2deee322b7f71e89dcf6829eb83cebb7a08be95c495c;
+        sideNodes[9] = 0x113345a715e96e5f407eb9f9e6c2aa3d0870e32a098f496cad2764b4afcc94a6;
+        sideNodes[10] = 0x96db72f9bd7d99a3d30292e25e70c25198782f76453a2e45c23fc348791f24ad;
+        sideNodes[11] = 0x67628528a35222ce74a12f45f5f20c3fba606d788f794d363169c6595bd2f047;
 
         SparseMerkleTree.Proof memory proof = SparseMerkleTree.Proof({
             key: message.index(),
@@ -738,7 +739,7 @@ contract SFFLTaskManagerTest is TestUtils {
         Checkpoint.TaskResponse memory taskResponse = Checkpoint.TaskResponse({
             referenceTaskIndex: 0,
             stateRootUpdatesRoot: keccak256(hex"beef"),
-            operatorSetUpdatesRoot: 0x357b2f284c6cf86377718fd055acb237d930a94275d178ae491c962e5853a0bc
+            operatorSetUpdatesRoot: 0x5bfa4261ea7f3d6af682cdf38038e917d66443ed573f62e1a556431c6545a543
         });
 
         assertTrue(taskManager.verifyMessageInclusionState(message, taskResponse, proof));
