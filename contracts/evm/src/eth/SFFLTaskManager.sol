@@ -221,14 +221,6 @@ contract SFFLTaskManager is Initializable, OwnableUpgradeable, Pausable, BLSSign
     }
 
     /**
-     * @notice Gets the next checkpoint task number
-     * @return Next checkpoint task number
-     */
-    function checkpointTaskNumber() external view returns (uint32) {
-        return nextCheckpointTaskNum;
-    }
-
-    /**
      * @notice Challenges a task
      * @dev Does not fail if the challenge is not succesful
      * @param task Resolved task to be challenged
