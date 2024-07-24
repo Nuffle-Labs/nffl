@@ -2,29 +2,37 @@ package chainio
 
 import (
 	"github.com/Layr-Labs/eigensdk-go/chainio/clients/eth"
+	blsapkreg "github.com/Layr-Labs/eigensdk-go/contracts/bindings/BLSApkRegistry"
+	regcoord "github.com/Layr-Labs/eigensdk-go/contracts/bindings/RegistryCoordinator"
 	"github.com/Layr-Labs/eigensdk-go/logging"
-
 	"github.com/ethereum/go-ethereum/accounts/abi/bind"
 	"github.com/ethereum/go-ethereum/common"
 
 	erc20mock "github.com/NethermindEth/near-sffl/contracts/bindings/ERC20Mock"
 	opsetupdatereg "github.com/NethermindEth/near-sffl/contracts/bindings/SFFLOperatorSetUpdateRegistry"
-	regcoord "github.com/NethermindEth/near-sffl/contracts/bindings/SFFLRegistryCoordinator"
+	sfflregcoord "github.com/NethermindEth/near-sffl/contracts/bindings/SFFLRegistryCoordinator"
 	csservicemanager "github.com/NethermindEth/near-sffl/contracts/bindings/SFFLServiceManager"
 	taskmanager "github.com/NethermindEth/near-sffl/contracts/bindings/SFFLTaskManager"
 )
 
 type AvsManagersBindings struct {
-	RegistryCoordinator       *regcoord.ContractSFFLRegistryCoordinator
+	RegistryCoordinator       *regcoord.ContractRegistryCoordinator
+	SFFLRegistryCoordinator   *sfflregcoord.ContractSFFLRegistryCoordinator
 	OperatorSetUpdateRegistry *opsetupdatereg.ContractSFFLOperatorSetUpdateRegistry
 	TaskManager               *taskmanager.ContractSFFLTaskManager
 	ServiceManager            *csservicemanager.ContractSFFLServiceManager
+	BlsApkRegistry            blsapkreg.ContractBLSApkRegistryFilters
 	ethClient                 eth.Client
 	logger                    logging.Logger
 }
 
 func NewAvsManagersBindings(registryCoordinatorAddr, operatorStateRetrieverAddr common.Address, ethclient eth.Client, logger logging.Logger) (*AvsManagersBindings, error) {
-	contractRegistryCoordinator, err := regcoord.NewContractSFFLRegistryCoordinator(registryCoordinatorAddr, ethclient)
+	contractSfflRegistryCoordinator, err := sfflregcoord.NewContractSFFLRegistryCoordinator(registryCoordinatorAddr, ethclient)
+	if err != nil {
+		return nil, err
+	}
+
+	contractRegistryCoordinator, err := regcoord.NewContractRegistryCoordinator(registryCoordinatorAddr, ethclient)
 	if err != nil {
 		return nil, err
 	}
@@ -51,7 +59,7 @@ func NewAvsManagersBindings(registryCoordinatorAddr, operatorStateRetrieverAddr 
 		return nil, err
 	}
 
-	operatorSetUpdateRegistryAddr, err := contractRegistryCoordinator.OperatorSetUpdateRegistry(&bind.CallOpts{})
+	operatorSetUpdateRegistryAddr, err := contractSfflRegistryCoordinator.OperatorSetUpdateRegistry(&bind.CallOpts{})
 	if err != nil {
 		return nil, err
 	}
@@ -62,11 +70,23 @@ func NewAvsManagersBindings(registryCoordinatorAddr, operatorStateRetrieverAddr 
 		return nil, err
 	}
 
+	blsApkRegistryAddr, err := contractRegistryCoordinator.BlsApkRegistry(&bind.CallOpts{})
+	if err != nil {
+		return nil, err
+	}
+
+	blsApkRegistry, err := blsapkreg.NewContractBLSApkRegistry(blsApkRegistryAddr, ethclient)
+	if err != nil {
+		return nil, err
+	}
+
 	return &AvsManagersBindings{
 		RegistryCoordinator:       contractRegistryCoordinator,
+		SFFLRegistryCoordinator:   contractSfflRegistryCoordinator,
 		OperatorSetUpdateRegistry: contractOperatorSetUpdateRegistry,
 		ServiceManager:            contractServiceManager,
 		TaskManager:               contractTaskManager,
+		BlsApkRegistry:            blsApkRegistry,
 		ethClient:                 ethclient,
 		logger:                    logger,
 	}, nil

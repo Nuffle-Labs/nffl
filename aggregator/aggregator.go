@@ -8,17 +8,15 @@ import (
 	"sync"
 	"time"
 
-	chainioavsregistry "github.com/Layr-Labs/eigensdk-go/chainio/clients/avsregistry"
 	"github.com/Layr-Labs/eigensdk-go/chainio/clients/wallet"
 	"github.com/Layr-Labs/eigensdk-go/chainio/txmgr"
+	"github.com/Layr-Labs/eigensdk-go/crypto/bls"
 	"github.com/Layr-Labs/eigensdk-go/logging"
 	"github.com/Layr-Labs/eigensdk-go/metrics"
 	"github.com/Layr-Labs/eigensdk-go/services/avsregistry"
 	blsagg "github.com/Layr-Labs/eigensdk-go/services/bls_aggregation"
-	opinfoserv "github.com/Layr-Labs/eigensdk-go/services/operatorsinfo"
 	"github.com/Layr-Labs/eigensdk-go/signerv2"
 	eigentypes "github.com/Layr-Labs/eigensdk-go/types"
-	"github.com/ethereum/go-ethereum/common"
 	"github.com/prometheus/client_golang/prometheus"
 
 	"github.com/NethermindEth/near-sffl/aggregator/database"
@@ -46,6 +44,9 @@ var (
 	DigestError                    = errors.New("Failed to get message digest")
 	TaskResponseDigestError        = errors.New("Failed to get task response digest")
 	GetOperatorSetUpdateBlockError = errors.New("Failed to get operator set update block")
+	OperatorNotFoundError          = errors.New("Operator not found")
+	InvalidSignatureError          = errors.New("Invalid signature")
+	UnsupportedMessageTypeError    = errors.New("Unsupported message type")
 
 	// REST errors
 	StateRootUpdateNotFoundError = errors.New("StateRootUpdate not found")
@@ -61,6 +62,7 @@ type RpcAggregatorer interface {
 	ProcessSignedOperatorSetUpdateMessage(signedOperatorSetUpdateMessage *messages.SignedOperatorSetUpdateMessage) error
 	GetAggregatedCheckpointMessages(fromTimestamp, toTimestamp uint64) (*messages.CheckpointMessages, error)
 	GetRegistryCoordinatorAddress(reply *string) error
+	GetOperatorInfoById(ctx context.Context, operatorId eigentypes.OperatorId) (eigentypes.OperatorInfo, bool)
 }
 
 type RestAggregatorer interface {
@@ -120,6 +122,7 @@ type Aggregator struct {
 	metrics            metrics.Metrics
 	aggregatorListener AggregatorEventListener
 
+	operatorRegistrationsService           OperatorRegistrationsService
 	taskBlsAggregationService              blsagg.BlsAggregationService
 	stateRootUpdateBlsAggregationService   MessageBlsAggregationService
 	operatorSetUpdateBlsAggregationService MessageBlsAggregationService
@@ -184,13 +187,6 @@ func NewAggregator(
 
 	txMgr := txmgr.NewSimpleTxManager(txSender, ethHttpClient, logger, config.AggregatorAddress).WithGasLimitMultiplier(1.5)
 
-	// note that the subscriber needs a ws connection instead of http
-	avsRegistryChainSubscriber, err := chainioavsregistry.BuildAvsRegistryChainSubscriber(common.HexToAddress(config.SFFLRegistryCoordinatorAddr.String()), ethWsClient, logger)
-	if err != nil {
-		logger.Error("Cannot create AvsRegistryChainSubscriber", "err", err)
-		return nil, err
-	}
-
 	avsWriter, err := chainio.BuildAvsWriterFromConfig(txMgr, config, ethHttpClient, logger)
 	if err != nil {
 		logger.Error("Cannot create avsWriter", "err", err)
@@ -215,8 +211,12 @@ func NewAggregator(
 		return nil, err
 	}
 
-	operatorPubkeysService := opinfoserv.NewOperatorsInfoServiceInMemory(ctx, avsRegistryChainSubscriber, avsReader, logger)
-	avsRegistryService := avsregistry.NewAvsRegistryServiceChainCaller(avsReader, operatorPubkeysService, logger)
+	operatorRegistrationsService, err := NewOperatorRegistrationsServiceInMemory(ctx, avsSubscriber, avsReader, logger)
+	if err != nil {
+		return nil, err
+	}
+
+	avsRegistryService := avsregistry.NewAvsRegistryServiceChainCaller(avsReader, operatorRegistrationsService, logger)
 	taskBlsAggregationService := blsagg.NewBlsAggregatorService(avsRegistryService, logger)
 	stateRootUpdateBlsAggregationService := NewMessageBlsAggregatorService(avsRegistryService, ethHttpClient, logger)
 	operatorSetUpdateBlsAggregationService := NewMessageBlsAggregatorService(avsRegistryService, ethHttpClient, logger)
@@ -232,6 +232,7 @@ func NewAggregator(
 		rollupBroadcaster:                      rollupBroadcaster,
 		httpClient:                             ethHttpClient,
 		wsClient:                               ethWsClient,
+		operatorRegistrationsService:           operatorRegistrationsService,
 		clock:                                  core.SystemClock,
 		taskBlsAggregationService:              taskBlsAggregationService,
 		stateRootUpdateBlsAggregationService:   stateRootUpdateBlsAggregationService,
@@ -522,6 +523,11 @@ func (agg *Aggregator) handleOperatorSetUpdateReachedQuorum(ctx context.Context,
 }
 
 func (agg *Aggregator) ProcessSignedCheckpointTaskResponse(signedCheckpointTaskResponse *messages.SignedCheckpointTaskResponse) error {
+	err := agg.verifySignature(signedCheckpointTaskResponse)
+	if err != nil {
+		return err
+	}
+
 	taskIndex := signedCheckpointTaskResponse.TaskResponse.ReferenceTaskIndex
 	taskResponseDigest, err := signedCheckpointTaskResponse.TaskResponse.Digest()
 	if err != nil {
@@ -551,17 +557,22 @@ func (agg *Aggregator) ProcessSignedCheckpointTaskResponse(signedCheckpointTaskR
 
 // Rpc request handlers
 func (agg *Aggregator) ProcessSignedStateRootUpdateMessage(signedStateRootUpdateMessage *messages.SignedStateRootUpdateMessage) error {
+	timestamp := signedStateRootUpdateMessage.Message.Timestamp
+	err := agg.validateMessageTimestamp(timestamp)
+	if err != nil {
+		agg.logger.Error("Failed to validate message timestamp", "err", err, "timestamp", timestamp)
+		return err
+	}
+
+	err = agg.verifySignature(signedStateRootUpdateMessage)
+	if err != nil {
+		return err
+	}
+
 	messageDigest, err := signedStateRootUpdateMessage.Message.Digest()
 	if err != nil {
 		agg.logger.Error("Failed to get message digest", "err", err)
 		return DigestError
-	}
-
-	timestamp := signedStateRootUpdateMessage.Message.Timestamp
-	err = agg.validateMessageTimestamp(timestamp)
-	if err != nil {
-		agg.logger.Error("Failed to validate message timestamp", "err", err, "timestamp", timestamp)
-		return err
 	}
 
 	err = agg.stateRootUpdateBlsAggregationService.InitializeMessageIfNotExists(
@@ -588,17 +599,22 @@ func (agg *Aggregator) ProcessSignedStateRootUpdateMessage(signedStateRootUpdate
 }
 
 func (agg *Aggregator) ProcessSignedOperatorSetUpdateMessage(signedOperatorSetUpdateMessage *messages.SignedOperatorSetUpdateMessage) error {
+	timestamp := signedOperatorSetUpdateMessage.Message.Timestamp
+	err := agg.validateMessageTimestamp(timestamp)
+	if err != nil {
+		agg.logger.Error("Failed to validate message timestamp", "err", err, "timestamp", timestamp)
+		return err
+	}
+
+	err = agg.verifySignature(signedOperatorSetUpdateMessage)
+	if err != nil {
+		return err
+	}
+
 	messageDigest, err := signedOperatorSetUpdateMessage.Message.Digest()
 	if err != nil {
 		agg.logger.Error("Failed to get message digest", "err", err)
 		return DigestError
-	}
-
-	timestamp := signedOperatorSetUpdateMessage.Message.Timestamp
-	err = agg.validateMessageTimestamp(timestamp)
-	if err != nil {
-		agg.logger.Error("Failed to validate message timestamp", "err", err, "timestamp", timestamp)
-		return err
 	}
 
 	blockNumber, err := agg.avsReader.GetOperatorSetUpdateBlock(context.Background(), signedOperatorSetUpdateMessage.Message.Id)
@@ -689,6 +705,59 @@ func (agg *Aggregator) GetCheckpointMessages(fromTimestamp, toTimestamp uint64) 
 	return &types.GetCheckpointMessagesResponse{
 		CheckpointMessages: *checkpointMessages,
 	}, nil
+}
+
+func (agg *Aggregator) GetOperatorInfoById(ctx context.Context, operatorId eigentypes.OperatorId) (eigentypes.OperatorInfo, bool) {
+	operatorInfo, ok := agg.operatorRegistrationsService.GetOperatorInfoById(ctx, operatorId)
+	return operatorInfo, ok
+}
+
+func (agg *Aggregator) verifySignature(signedMessage interface{}) error {
+	var operatorId eigentypes.OperatorId
+	var signature bls.Signature
+	var digest [32]byte
+	var err error
+
+	switch signedMessage := signedMessage.(type) {
+	case *messages.SignedCheckpointTaskResponse:
+		operatorId = signedMessage.OperatorId
+		signature = signedMessage.BlsSignature
+		digest, err = signedMessage.TaskResponse.Digest()
+		if err != nil {
+			return TaskResponseDigestError
+		}
+	case *messages.SignedStateRootUpdateMessage:
+		operatorId = signedMessage.OperatorId
+		signature = signedMessage.BlsSignature
+		digest, err = signedMessage.Message.Digest()
+		if err != nil {
+			return DigestError
+		}
+	case *messages.SignedOperatorSetUpdateMessage:
+		operatorId = signedMessage.OperatorId
+		signature = signedMessage.BlsSignature
+		digest, err = signedMessage.Message.Digest()
+		if err != nil {
+			return DigestError
+		}
+	default:
+		return UnsupportedMessageTypeError
+	}
+
+	operatorInfo, ok := agg.GetOperatorInfoById(context.Background(), operatorId)
+	if !ok {
+		return OperatorNotFoundError
+	}
+
+	ok, err = signature.Verify(operatorInfo.Pubkeys.G2Pubkey, digest)
+	if err != nil {
+		return InvalidSignatureError
+	}
+	if !ok {
+		return InvalidSignatureError
+	}
+
+	return nil
 }
 
 func (agg *Aggregator) validateMessageTimestamp(messageTimestamp uint64) error {

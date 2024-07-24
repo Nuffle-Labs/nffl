@@ -11,6 +11,8 @@ package mocks
 import (
 	reflect "reflect"
 
+	contractBLSApkRegistry "github.com/Layr-Labs/eigensdk-go/contracts/bindings/BLSApkRegistry"
+	contractRegistryCoordinator "github.com/Layr-Labs/eigensdk-go/contracts/bindings/RegistryCoordinator"
 	contractSFFLOperatorSetUpdateRegistry "github.com/NethermindEth/near-sffl/contracts/bindings/SFFLOperatorSetUpdateRegistry"
 	contractSFFLTaskManager "github.com/NethermindEth/near-sffl/contracts/bindings/SFFLTaskManager"
 	types "github.com/ethereum/go-ethereum/core/types"
@@ -56,6 +58,22 @@ func (mr *MockAvsSubscribererMockRecorder) ParseCheckpointTaskResponded(arg0 any
 	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "ParseCheckpointTaskResponded", reflect.TypeOf((*MockAvsSubscriberer)(nil).ParseCheckpointTaskResponded), arg0)
 }
 
+// SubscribeToNewPubkeyRegistrations mocks base method.
+func (m *MockAvsSubscriberer) SubscribeToNewPubkeyRegistrations() (chan *contractBLSApkRegistry.ContractBLSApkRegistryNewPubkeyRegistration, event.Subscription, error) {
+	m.ctrl.T.Helper()
+	ret := m.ctrl.Call(m, "SubscribeToNewPubkeyRegistrations")
+	ret0, _ := ret[0].(chan *contractBLSApkRegistry.ContractBLSApkRegistryNewPubkeyRegistration)
+	ret1, _ := ret[1].(event.Subscription)
+	ret2, _ := ret[2].(error)
+	return ret0, ret1, ret2
+}
+
+// SubscribeToNewPubkeyRegistrations indicates an expected call of SubscribeToNewPubkeyRegistrations.
+func (mr *MockAvsSubscribererMockRecorder) SubscribeToNewPubkeyRegistrations() *gomock.Call {
+	mr.mock.ctrl.T.Helper()
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "SubscribeToNewPubkeyRegistrations", reflect.TypeOf((*MockAvsSubscriberer)(nil).SubscribeToNewPubkeyRegistrations))
+}
+
 // SubscribeToNewTasks mocks base method.
 func (m *MockAvsSubscriberer) SubscribeToNewTasks(arg0 chan *contractSFFLTaskManager.ContractSFFLTaskManagerCheckpointTaskCreated) (event.Subscription, error) {
 	m.ctrl.T.Helper()
@@ -84,6 +102,22 @@ func (m *MockAvsSubscriberer) SubscribeToOperatorSetUpdates(arg0 chan *contractS
 func (mr *MockAvsSubscribererMockRecorder) SubscribeToOperatorSetUpdates(arg0 any) *gomock.Call {
 	mr.mock.ctrl.T.Helper()
 	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "SubscribeToOperatorSetUpdates", reflect.TypeOf((*MockAvsSubscriberer)(nil).SubscribeToOperatorSetUpdates), arg0)
+}
+
+// SubscribeToOperatorSocketUpdates mocks base method.
+func (m *MockAvsSubscriberer) SubscribeToOperatorSocketUpdates() (chan *contractRegistryCoordinator.ContractRegistryCoordinatorOperatorSocketUpdate, event.Subscription, error) {
+	m.ctrl.T.Helper()
+	ret := m.ctrl.Call(m, "SubscribeToOperatorSocketUpdates")
+	ret0, _ := ret[0].(chan *contractRegistryCoordinator.ContractRegistryCoordinatorOperatorSocketUpdate)
+	ret1, _ := ret[1].(event.Subscription)
+	ret2, _ := ret[2].(error)
+	return ret0, ret1, ret2
+}
+
+// SubscribeToOperatorSocketUpdates indicates an expected call of SubscribeToOperatorSocketUpdates.
+func (mr *MockAvsSubscribererMockRecorder) SubscribeToOperatorSocketUpdates() *gomock.Call {
+	mr.mock.ctrl.T.Helper()
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "SubscribeToOperatorSocketUpdates", reflect.TypeOf((*MockAvsSubscriberer)(nil).SubscribeToOperatorSocketUpdates))
 }
 
 // SubscribeToTaskResponses mocks base method.
