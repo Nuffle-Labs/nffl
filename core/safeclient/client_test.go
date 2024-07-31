@@ -24,6 +24,7 @@ import (
 type MockNetwork struct {
 	blockTicker          *time.Ticker
 	blockNum             uint64
+	blockNumLock         sync.Mutex
 	blockSubscribers     []chan<- uint64
 	blockSubscribersLock sync.Mutex
 }
@@ -44,12 +45,14 @@ func NewMockNetwork(ctx context.Context, mockCtrl *gomock.Controller) *MockNetwo
 			case <-ctx.Done():
 				return
 			case <-mockNetwork.blockTicker.C:
+				mockNetwork.blockNumLock.Lock()
 				mockNetwork.blockNum++
+				mockNetwork.blockNumLock.Unlock()
+
+				mockNetwork.blockSubscribersLock.Lock()
 				for _, ch := range mockNetwork.blockSubscribers {
 					ch <- mockNetwork.blockNum
 				}
-
-				mockNetwork.blockSubscribersLock.Lock()
 				mockNetwork.blockSubscribers = nil
 				mockNetwork.blockSubscribersLock.Unlock()
 			}
@@ -72,11 +75,15 @@ func (m *MockNetwork) ResumeBlockProduction() {
 }
 
 func (m *MockNetwork) BlockNumber() uint64 {
+	m.blockNumLock.Lock()
+	defer m.blockNumLock.Unlock()
+
 	return m.blockNum
 }
 
 type MockEthClient struct {
 	*mocks.MockEthClient
+	stateLock            sync.Mutex
 	isClosed             bool
 	isPaused             bool
 	closeSubscribers     []chan<- bool
@@ -113,14 +120,23 @@ func (m *MockNetwork) SubscribeToBlocks() <-chan uint64 {
 }
 
 func (m *MockEthClient) ReopenConnection() {
+	m.stateLock.Lock()
+	defer m.stateLock.Unlock()
+
 	m.isClosed = false
 }
 
 func (m *MockEthClient) PauseHeaderSubscriptions() {
+	m.stateLock.Lock()
+	defer m.stateLock.Unlock()
+
 	m.isPaused = true
 }
 
 func (m *MockEthClient) ResumeHeaderSubscriptions() {
+	m.stateLock.Lock()
+	defer m.stateLock.Unlock()
+
 	m.isPaused = false
 }
 
@@ -143,7 +159,11 @@ func NewMockEthClientFromNetwork(ctx context.Context, mockCtrl *gomock.Controlle
 
 	mockClient.EXPECT().SubscribeNewHead(gomock.Any(), gomock.Any()).DoAndReturn(
 		func(ctx context.Context, ch chan<- *types.Header) (ethereum.Subscription, error) {
-			if mockClient.isClosed {
+			mockClient.stateLock.Lock()
+			isClosed := mockClient.isClosed
+			mockClient.stateLock.Unlock()
+
+			if isClosed {
 				return nil, errors.New("connection refused")
 			}
 
@@ -175,15 +195,20 @@ func NewMockEthClientFromNetwork(ctx context.Context, mockCtrl *gomock.Controlle
 							subErrCh <- errors.New("connection refused")
 						}
 					case blockNum := <-blockCh:
-						fmt.Println("header block", blockNum, "closed", mockClient.isClosed, "paused", mockClient.isPaused)
+						mockClient.stateLock.Lock()
+						isClosed := mockClient.isClosed
+						isPaused := mockClient.isPaused
+						mockClient.stateLock.Unlock()
+
+						fmt.Println("header block", blockNum, "closed", isClosed, "paused", isPaused)
 
 						blockCh = mockNetwork.SubscribeToBlocks()
 
-						if mockClient.isClosed {
+						if isClosed {
 							continue
 						}
 
-						if !mockClient.isPaused {
+						if !isPaused {
 							ch <- &types.Header{Number: big.NewInt(int64(blockNum))}
 						}
 					}
@@ -195,7 +220,10 @@ func NewMockEthClientFromNetwork(ctx context.Context, mockCtrl *gomock.Controlle
 
 	mockClient.EXPECT().SubscribeFilterLogs(gomock.Any(), gomock.Any(), gomock.Any()).DoAndReturn(
 		func(ctx context.Context, q ethereum.FilterQuery, ch chan<- types.Log) (ethereum.Subscription, error) {
-			if mockClient.isClosed {
+			mockClient.stateLock.Lock()
+			isClosed := mockClient.isClosed
+			mockClient.stateLock.Unlock()
+			if isClosed {
 				return nil, errors.New("connection refused")
 			}
 
@@ -234,7 +262,10 @@ func NewMockEthClientFromNetwork(ctx context.Context, mockCtrl *gomock.Controlle
 
 						blockCh = mockNetwork.SubscribeToBlocks()
 
-						if mockClient.isClosed {
+						mockClient.stateLock.Lock()
+						isClosed := mockClient.isClosed
+						mockClient.stateLock.Unlock()
+						if isClosed {
 							continue
 						}
 
@@ -250,6 +281,9 @@ func NewMockEthClientFromNetwork(ctx context.Context, mockCtrl *gomock.Controlle
 
 	mockClient.EXPECT().BlockNumber(gomock.Any()).DoAndReturn(
 		func(ctx context.Context) (uint64, error) {
+			mockNetwork.blockNumLock.Lock()
+			defer mockNetwork.blockNumLock.Unlock()
+
 			return mockNetwork.blockNum, nil
 		},
 	).AnyTimes()
@@ -389,6 +423,24 @@ func NewMockSafeClientControllable(ctx context.Context, mockCtrl *gomock.Control
 	return client, err
 }
 
+func TestConcurrentClose(t *testing.T) {
+	logger, err := logging.NewZapLogger("development")
+	assert.NoError(t, err)
+
+	client, err := safeclient.NewSafeEthClient("", logger, safeclient.WithCustomCreateClient(func(string, logging.Logger) (eth.Client, error) { return nil, nil }))
+	assert.NoError(t, err)
+
+	var wg sync.WaitGroup
+	for i := 1; i <= 10; i++ {
+		wg.Add(1)
+		go func() {
+			defer wg.Done()
+			client.Close()
+		}()
+	}
+	wg.Wait()
+}
+
 func TestSubscribeNewHead(t *testing.T) {
 	mockCtrl := gomock.NewController(t)
 	defer mockCtrl.Finish()
@@ -396,8 +448,7 @@ func TestSubscribeNewHead(t *testing.T) {
 	ctx, cancel := context.WithCancel(context.Background())
 	defer cancel()
 
-	logger, err := logging.NewZapLogger("development")
-	assert.NoError(t, err)
+	logger := logging.NewNoopLogger()
 
 	mockNetwork := NewMockNetwork(ctx, mockCtrl)
 
@@ -409,13 +460,17 @@ func TestSubscribeNewHead(t *testing.T) {
 	mockClient := client.Client.(*MockEthClient)
 
 	headCh := make(chan *types.Header)
-	flushHeadCh := func() {
-		select {
-		case <-headCh:
-		case <-time.After(100 * time.Millisecond):
+	flushHeadCh := func() int {
+		headCount := 0
+		for {
+			select {
+			case <-headCh:
+				headCount++
+			case <-time.After(2 * time.Second):
+				return headCount
+			}
 		}
 	}
-
 	_, err = client.SubscribeNewHead(ctx, headCh)
 	assert.NoError(t, err)
 
@@ -436,7 +491,8 @@ func TestSubscribeNewHead(t *testing.T) {
 
 	mockNetwork.PauseBlockProduction()
 	block := mockNetwork.BlockNumber()
-	flushHeadCh()
+	flushedHeadCount := flushHeadCh()
+	fmt.Println("flushed", flushedHeadCount)
 	mockNetwork.ResumeBlockProduction()
 
 	for i := block + 1; i <= block+3; i++ {
@@ -452,7 +508,8 @@ func TestSubscribeNewHead(t *testing.T) {
 
 	mockNetwork.PauseBlockProduction()
 	block = mockNetwork.BlockNumber()
-	flushHeadCh()
+	flushedHeadCount = flushHeadCh()
+	fmt.Println("flushed", flushedHeadCount)
 	mockNetwork.ResumeBlockProduction()
 
 	for i := block + 1; i <= block+3; i++ {
@@ -468,7 +525,8 @@ func TestSubscribeNewHead(t *testing.T) {
 
 	mockNetwork.PauseBlockProduction()
 	block = mockNetwork.BlockNumber()
-	flushHeadCh()
+	flushedHeadCount = flushHeadCh()
+	fmt.Println("flushed", flushedHeadCount)
 	mockNetwork.ResumeBlockProduction()
 
 	for i := block + 1; i <= block+3; i++ {
@@ -486,8 +544,7 @@ func TestSubscribeFilterLogs(t *testing.T) {
 	ctx, cancel := context.WithCancel(context.Background())
 	defer cancel()
 
-	logger, err := logging.NewZapLogger("development")
-	assert.NoError(t, err)
+	logger := logging.NewNoopLogger()
 
 	mockNetwork := NewMockNetwork(ctx, mockCtrl)
 
@@ -499,10 +556,15 @@ func TestSubscribeFilterLogs(t *testing.T) {
 	mockClient := client.Client.(*MockEthClient)
 
 	logCh := make(chan types.Log)
-	flushLogCh := func() {
-		select {
-		case <-logCh:
-		case <-time.After(100 * time.Millisecond):
+	flushLogCh := func() int {
+		logCount := 0
+		for {
+			select {
+			case <-logCh:
+				logCount++
+			case <-time.After(2 * time.Second):
+				return logCount
+			}
 		}
 	}
 
@@ -522,7 +584,9 @@ func TestSubscribeFilterLogs(t *testing.T) {
 
 	mockNetwork.PauseBlockProduction()
 	block := mockNetwork.BlockNumber()
-	flushLogCh()
+	fmt.Println("network paused", "block", block)
+	flushedLogCount := flushLogCh()
+	fmt.Println("flushed", flushedLogCount)
 	mockNetwork.ResumeBlockProduction()
 
 	for i := block + 1; i <= block+3; i++ {
@@ -538,7 +602,9 @@ func TestSubscribeFilterLogs(t *testing.T) {
 
 	mockNetwork.PauseBlockProduction()
 	block = mockNetwork.BlockNumber()
-	flushLogCh()
+	fmt.Println("Network paused at block number", block)
+	flushedLogCount = flushLogCh()
+	fmt.Println("flushLogCh", "flushed", flushedLogCount, "logs")
 	mockNetwork.ResumeBlockProduction()
 
 	for i := block + 1; i <= block+3; i++ {
@@ -556,8 +622,7 @@ func TestLogCache(t *testing.T) {
 	ctx, cancel := context.WithCancel(context.Background())
 	defer cancel()
 
-	logger, err := logging.NewZapLogger("development")
-	assert.NoError(t, err)
+	logger := logging.NewNoopLogger()
 
 	blockNum := uint64(0)
 	headerProxyC := make(chan *types.Header)
@@ -598,4 +663,102 @@ func TestLogCache(t *testing.T) {
 	assert.Equal(t, uint64(1), log.BlockNumber)
 	log = <-logCh
 	assert.Equal(t, uint64(2), log.BlockNumber)
+}
+
+func TestSubscribeFilterLogs_Unsubscribe(t *testing.T) {
+	logger, err := logging.NewZapLogger("development")
+	assert.NoError(t, err)
+
+	mockCtrl := gomock.NewController(t)
+	defer mockCtrl.Finish()
+
+	mockClient := mocks.NewMockEthClient(mockCtrl)
+	mockClient.EXPECT().BlockNumber(gomock.Any()).Return(uint64(1_000), nil)
+	mockClient.EXPECT().SubscribeFilterLogs(gomock.Any(), gomock.Any(), gomock.Any()).DoAndReturn(
+		func(ctx context.Context, query ethereum.FilterQuery, ch chan<- types.Log) (ethereum.Subscription, error) {
+			errChann := make(chan error)
+
+			sub := mocks.NewMockSubscription(mockCtrl)
+			sub.EXPECT().Unsubscribe().Do(func() { close(errChann) })
+			sub.EXPECT().Err().Return(errChann)
+
+			return sub, nil
+		},
+	)
+
+	client, err := safeclient.NewSafeEthClient("", logger, safeclient.WithCustomCreateClient(func(string, logging.Logger) (eth.Client, error) { return mockClient, nil }))
+	assert.NoError(t, err)
+	assert.NotNil(t, client)
+	defer client.Close()
+
+	filterQuery := ethereum.FilterQuery{
+		FromBlock: big.NewInt(900),
+		ToBlock:   big.NewInt(1_100),
+	}
+	logCh := make(chan types.Log)
+
+	sub, err := client.SubscribeFilterLogs(context.Background(), filterQuery, logCh)
+	assert.NoError(t, err)
+	assert.NotNil(t, sub)
+}
+
+func TestSubscribeFilterLogs_ErrorInSubscription_Resubscribe(t *testing.T) {
+	logger, err := logging.NewZapLogger("development")
+	assert.NoError(t, err)
+
+	mockCtrl := gomock.NewController(t)
+	defer mockCtrl.Finish()
+
+	mockClient := mocks.NewMockEthClient(mockCtrl)
+	mockClient.EXPECT().BlockNumber(gomock.Any()).Return(uint64(1_000), nil).Times(2)
+
+	var triggerError func()
+	mockClient.EXPECT().SubscribeFilterLogs(gomock.Any(), gomock.Any(), gomock.Any()).DoAndReturn(
+		func(ctx context.Context, query ethereum.FilterQuery, ch chan<- types.Log) (ethereum.Subscription, error) {
+			sub := mocks.NewMockSubscription(mockCtrl)
+			errChan := make(chan error)
+			triggerError = func() {
+				errChan <- errors.New("error")
+			}
+			sub.EXPECT().Unsubscribe().Do(func() { close(errChan) })
+			sub.EXPECT().Err().Return(errChan)
+
+			return sub, nil
+		},
+	).Times(2) // First subscription + one resubscription
+
+	client, err := safeclient.NewSafeEthClient("", logger, safeclient.WithCustomCreateClient(func(string, logging.Logger) (eth.Client, error) { return mockClient, nil }))
+	assert.NoError(t, err)
+	assert.NotNil(t, client)
+	defer client.Close()
+
+	filterQuery := ethereum.FilterQuery{
+		FromBlock: big.NewInt(900),
+		ToBlock:   big.NewInt(1_100),
+	}
+	logCh := make(chan types.Log)
+
+	sub, err := client.SubscribeFilterLogs(context.Background(), filterQuery, logCh)
+	assert.NoError(t, err)
+	assert.NotNil(t, sub)
+
+	triggerError()
+}
+
+func TestSafeSubscription_ConcurrentUnsubscribe(t *testing.T) {
+	mockCtrl := gomock.NewController(t)
+	sub := mocks.NewMockSubscription(mockCtrl)
+	sub.EXPECT().Unsubscribe().Times(1)
+
+	safeSub := safeclient.NewSafeSubscription(sub)
+
+	var wg sync.WaitGroup
+	for i := 1; i <= 10; i++ {
+		wg.Add(1)
+		go func() {
+			defer wg.Done()
+			safeSub.Unsubscribe()
+		}()
+	}
+	wg.Wait()
 }

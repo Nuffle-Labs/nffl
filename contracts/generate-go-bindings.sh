@@ -19,6 +19,7 @@ function create_binding {
     rm -rf tmp
 }
 
+(cd ./evm && npm ci)
 rm -rf bindings/*
 forge build --root ./evm
 

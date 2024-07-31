@@ -13,7 +13,7 @@ Please refer to [Overview](./overview.md) for an introduction.
 ## Operator Set Updates
 
 Operator set updates are block-based changes in the operator set which are used
-by the SFFL operators in order to update networks' operator sets.
+by the NFFL operators in order to update networks' operator sets.
 
 An operator set update is comprised of all the updates in operator weights in
 one block, and as such happens at most once a block. It also has an

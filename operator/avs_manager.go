@@ -7,7 +7,6 @@ import (
 	"math/big"
 	"time"
 
-	"github.com/Layr-Labs/eigensdk-go/chainio/clients"
 	"github.com/Layr-Labs/eigensdk-go/chainio/clients/elcontracts"
 	"github.com/Layr-Labs/eigensdk-go/chainio/clients/eth"
 	"github.com/Layr-Labs/eigensdk-go/chainio/txmgr"
@@ -61,7 +60,7 @@ type AvsManager struct {
 
 var _ AvsManagerer = (*AvsManager)(nil)
 
-func NewAvsManager(config *optypes.NodeConfig, ethRpcClient eth.Client, ethWsClient eth.Client, sdkClients *clients.Clients, txManager txmgr.TxManager, logger sdklogging.Logger) (*AvsManager, error) {
+func NewAvsManager(config *optypes.NodeConfig, ethRpcClient eth.Client, ethWsClient eth.Client, elChainReader *elcontracts.ELChainReader, elChainWriter *elcontracts.ELChainWriter, txManager txmgr.TxManager, logger sdklogging.Logger) (*AvsManager, error) {
 	avsWriter, err := chainio.BuildAvsWriter(
 		txManager, common.HexToAddress(config.AVSRegistryCoordinatorAddress),
 		common.HexToAddress(config.OperatorStateRetrieverAddress), ethRpcClient, logger,
@@ -92,8 +91,8 @@ func NewAvsManager(config *optypes.NodeConfig, ethRpcClient eth.Client, ethWsCli
 		avsReader:                    avsReader,
 		avsWriter:                    avsWriter,
 		avsSubscriber:                avsSubscriber,
-		eigenlayerReader:             sdkClients.ElChainReader,
-		eigenlayerWriter:             sdkClients.ElChainWriter,
+		eigenlayerReader:             elChainReader,
+		eigenlayerWriter:             elChainWriter,
 		checkpointTaskCreatedChan:    make(chan *taskmanager.ContractSFFLTaskManagerCheckpointTaskCreated),
 		operatorSetUpdateChan:        make(chan *opsetupdatereg.ContractSFFLOperatorSetUpdateRegistryOperatorSetUpdatedAtBlock),
 		operatorSetUpdateMessageChan: make(chan messages.OperatorSetUpdateMessage),
@@ -206,6 +205,10 @@ func (avsManager *AvsManager) DepositIntoStrategy(operatorAddr common.Address, s
 		return err
 	}
 	txOpts, err := avsManager.avsWriter.TxMgr.GetNoSendTxOpts()
+	if err != nil {
+		avsManager.logger.Error("Error getting tx options")
+		return err
+	}
 	tx, err := contractErc20Mock.Mint(txOpts, operatorAddr, amount)
 	if err != nil {
 		avsManager.logger.Error("Error assembling Mint tx")
@@ -260,7 +263,7 @@ func (avsManager *AvsManager) RegisterOperatorWithAvs(
 		return err
 	}
 
-	operatorId := eigentypes.OperatorIdFromPubkey(blsKeyPair.GetPubKeyG1())
+	operatorId := eigentypes.OperatorIdFromG1Pubkey(blsKeyPair.GetPubKeyG1())
 
 	sigValidForSeconds := int64(1_000_000)
 	operatorToAvsRegistrationSigExpiry := big.NewInt(int64(curBlock.Time()) + sigValidForSeconds)

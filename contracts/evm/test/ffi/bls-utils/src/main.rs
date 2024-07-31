@@ -120,9 +120,6 @@ impl Into<SolidityG2> for AffineG2 {
     }
 }
 
-#[derive(Copy, Clone)]
-struct CopiablePublicKeyG1(G1);
-
 impl Into<SolidityKeyPair> for KeyPair {
     fn into(self) -> SolidityKeyPair {
         let mut priv_key_bytes = [0; 32];

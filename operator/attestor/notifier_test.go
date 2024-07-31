@@ -26,7 +26,7 @@ func generateBlockData() consumer.BlockData {
 
 	return consumer.BlockData{
 		RollupId: randomRollupId,
-		Block:    *types.NewBlockWithHeader(&header),
+		Block:    types.NewBlockWithHeader(&header),
 	}
 }
 
@@ -37,11 +37,7 @@ func subscribe(notifier *Notifier, blocks []consumer.BlockData, subscribedWg *sy
 
 		go func(block consumer.BlockData, notifier *Notifier) {
 			predicate := func(mqBlock consumer.BlockData) bool {
-				if block.Block.Header().Number.Cmp(mqBlock.Block.Header().Number) != 0 {
-					return false
-				}
-
-				return true
+				return block.Block.Header().Number.Cmp(mqBlock.Block.Header().Number) == 0
 			}
 
 			blocksC, id := notifier.Subscribe(block.RollupId, predicate)
@@ -107,11 +103,7 @@ func TestNotifierSubscribeAndUnsubscribe(t *testing.T) {
 	notifier := NewNotifier()
 
 	predicate := func(mqBlock consumer.BlockData) bool {
-		if block.Block.Header().Number.Cmp(mqBlock.Block.Header().Number) != 0 {
-			return false
-		}
-
-		return true
+		return block.Block.Header().Number.Cmp(mqBlock.Block.Header().Number) == 0
 	}
 	_, id := notifier.Subscribe(block.RollupId, predicate)
 	assert.Equal(t, notifier.rollupIdsToSubscribers[block.RollupId].Len(), 1)

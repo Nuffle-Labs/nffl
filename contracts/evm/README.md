@@ -1,6 +1,6 @@
-## SFFL Foreign Contracts
+## NFFL Foreign Contracts
 
-This Foundry project contains SFFL's _foreign_ contracts, which store state
+This Foundry project contains NFFL's _foreign_ contracts, which store state
 roots for various rollups on request, allowing cross-chain messaging through
 verification of storage proofs.
 
@@ -12,7 +12,7 @@ storing the rollups' states.
 The Ethereum contracts properly manage the on-chain portion of the Eigenlayer
 AVS, providing a service manager that keeps track of the operator set and
 related functionalities. Besides the state root storage, it also includes
-periodic checkpoints tasks, in which the operators submit the current SFFL
+periodic checkpoints tasks, in which the operators submit the current NFFL
 state through aggregated messages, making it permanently available on Ethereum.
 
 The rollup contracts, in turn, only manage state root agreements. Since the

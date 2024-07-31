@@ -12,7 +12,7 @@ Please refer to [Overview](./overview.md) for an introduction.
 
 ## Terminology
 
-There are two types of units of work that SFFL Operators must complete:
+There are two types of units of work that NFFL Operators must complete:
 _Messages_ and _Tasks_.
 
 _Messages_ are:
@@ -36,15 +36,15 @@ _Tasks_ are:
 
 EigenLayer's implementation of a Task is really similar to the definition
 above. However, EigenLayer Task is not a good choice for keeping track of the
-work done by the SFFL nodes. The main job of the SFFL node is to agree on state
+work done by the NFFL nodes. The main job of the NFFL node is to agree on state
 root updates - i.e. block based progression of each participant network. If
-each of those updates was an (on-chain) Task, the SFFL would most likely not be
+each of those updates was an (on-chain) Task, the NFFL would most likely not be
 feasible in terms of operation cost and would also suffer a great blow in terms
 of a _faster_ finality.
 
 With this problem in mind, _Message_ was defined. It then enables high
 throughput and most importantly essentially off-chain operations. However, it's
-still necessary to formalize an on-chain unit of work - not only so the SFFL
+still necessary to formalize an on-chain unit of work - not only so the NFFL
 progress is available on-chain but also to allow for fair slashing and payment
 designs.
 
@@ -57,7 +57,7 @@ A Checkpoint Task is, essentially, comprised of the submission of a merkle root
 of the attested _Messages_ during a time range. Checkpoint Task are submitted
 at a regular cadence. Checkpoint Task not only provides a safe ledger to the
 AVS state, but also allows for establishing slashing and payment processes
-while keeping the SFFL cost of operation cheap.
+while keeping the NFFL cost of operation cheap.
 
 To facilitate the Checkpoint Task, the operators must then agree on all the
 Messages sent in that time period e.g. daily, and aggregate them into a [Sparse
@@ -67,9 +67,9 @@ non-membership for any Message. This way, any Message that should've been
 attested can be verified and any message that shouldn't have been attested can
 also be verified - leading to both punishments and also liveness tracking.
 
-## SFFL Messages
+## NFFL Messages
 
-There are two Messages in SFFL:
+There are two Messages in NFFL:
 
 * `StateRootUpdateMessage`: A state root update Message attests to the state
   root of a network at a specific block height and timestamp.

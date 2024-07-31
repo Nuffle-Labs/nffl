@@ -1,4 +1,4 @@
-FROM rust:1.78 AS builder
+FROM rust:1.79 AS builder
 WORKDIR /tmp/indexer
 
 # Copy from nearcore:
@@ -26,7 +26,7 @@ RUN cargo build --release -p indexer
 FROM debian:bookworm-slim as runtime
 WORKDIR /indexer-app
 
-RUN apt update && apt install -yy openssl ca-certificates jq netcat-traditional httpie
+RUN apt update && apt install -yy openssl ca-certificates jq curl
 
 COPY --from=builder /tmp/indexer/target/release/indexer .
 COPY ./indexer/entrypoint.sh ./entrypoint.sh
@@ -34,19 +34,14 @@ RUN chmod +x ./entrypoint.sh
 
 EXPOSE 3030
 
-HEALTHCHECK --interval=20s --timeout=30s --retries=2000 \
-  CMD nc -zv localhost 3030 && \
-      sh -c 'while true; do \
-        resp=$(http --ignore-stdin post http://localhost:3030 jsonrpc=2.0 method=status params:="[]" id=dontcare); \
-        if [ $? -ne 0 ]; then \
-          echo "Request failed with error: $resp" >&2; \
-          exit 1; \
-        fi; \
-        sync_status=$(echo $resp | jq -r ".result.sync_info.syncing"); \
-        if [ "$sync_status" = "false" ]; then \
-          exit 0; \
-        fi; \
-        sleep 1; \
-      done'
+HEALTHCHECK --interval=20s --timeout=30s --retries=10000 \
+  CMD (curl -f -s -X POST -H "Content-Type: application/json" \
+    -d '{"jsonrpc":"2.0","method":"block","params":{"finality":"optimistic"},"id":"dontcare"}' \
+    http://localhost:3030 | \
+  jq -es 'if . == [] then null else .[] | (now - (.result.header.timestamp / 1000000000)) < 10 end') && \
+  (curl -f -s -X POST -H "Content-Type: application/json" \
+    -d '{"jsonrpc":"2.0","method":"status","params":[],"id":"dontcare"}' \
+    http://localhost:3030 | \
+  jq -es 'if . == [] then null else .[] | .result.sync_info.syncing == false end')
 
 ENTRYPOINT [ "./entrypoint.sh" ]

@@ -25,14 +25,14 @@ import (
 
 var (
 	MessageAlreadyInitializedErrorFn = func(messageDigest coretypes.MessageDigest) error {
-		return fmt.Errorf("message %x already initialized", messageDigest)
+		return fmt.Errorf("message 0x%x already initialized", messageDigest)
 	}
 	MessageExpiredError    = fmt.Errorf("message expired")
 	MessageNotFoundErrorFn = func(messageDigest coretypes.MessageDigest) error {
-		return fmt.Errorf("message %x not initialized or already completed", messageDigest)
+		return fmt.Errorf("message 0x%x not initialized or already completed", messageDigest)
 	}
 	OperatorNotPartOfMessageQuorumErrorFn = func(operatorId eigentypes.OperatorId, messageDigest coretypes.MessageDigest) error {
-		return fmt.Errorf("operator %x not part of message %x's quorum", operatorId, messageDigest)
+		return fmt.Errorf("operator 0x%x not part of message 0x%x's quorum", operatorId, messageDigest)
 	}
 	SignatureVerificationError = func(err error) error {
 		return fmt.Errorf("Failed to verify signature: %w", err)
@@ -232,6 +232,7 @@ func (mbas *MessageBlsAggregatorService) handleSignedMessagePreThreshold(
 				return false
 			}
 		case <-messageExpiredTimer.C:
+			mbas.logger.Debug("Message expired", "messageDigest", messageDigest)
 			mbas.aggregatedResponsesC <- types.MessageBlsAggregationServiceResponse{
 				MessageBlsAggregation: messages.MessageBlsAggregation{
 					MessageDigest:  messageDigest,
@@ -273,6 +274,7 @@ func (mbas *MessageBlsAggregatorService) handleSignedMessageThresholdReached(
 				return
 			}
 		case <-thresholdReachedTimer.C:
+			mbas.logger.Debug("Message expired", "messageDigest", messageDigest)
 			mbas.aggregatedResponsesC <- mbas.getMessageBlsAggregationResponse(messageDigest, validationInfo, true)
 			return
 		}
@@ -347,14 +349,14 @@ func (mbas *MessageBlsAggregatorService) handleSignedMessageDigest(signedMessage
 	if !ok {
 		digestAggregatedOperators = AggregatedOperators{
 			// we've already verified that the operator is part of the task's quorum, so we don't need checks here
-			signersApkG2:               bls.NewZeroG2Point().Add(validationInfo.operatorsAvsStateDict[signedMessageDigest.OperatorId].Pubkeys.G2Pubkey),
+			signersApkG2:               bls.NewZeroG2Point().Add(validationInfo.operatorsAvsStateDict[signedMessageDigest.OperatorId].OperatorInfo.Pubkeys.G2Pubkey),
 			signersAggSigG1:            signedMessageDigest.BlsSignature,
 			signersOperatorIdsSet:      map[eigentypes.OperatorId]bool{signedMessageDigest.OperatorId: true},
 			signersTotalStakePerQuorum: validationInfo.operatorsAvsStateDict[signedMessageDigest.OperatorId].StakePerQuorum,
 		}
 	} else {
 		digestAggregatedOperators.signersAggSigG1.Add(signedMessageDigest.BlsSignature)
-		digestAggregatedOperators.signersApkG2.Add(validationInfo.operatorsAvsStateDict[signedMessageDigest.OperatorId].Pubkeys.G2Pubkey)
+		digestAggregatedOperators.signersApkG2.Add(validationInfo.operatorsAvsStateDict[signedMessageDigest.OperatorId].OperatorInfo.Pubkeys.G2Pubkey)
 		digestAggregatedOperators.signersOperatorIdsSet[signedMessageDigest.OperatorId] = true
 		for quorumNum, stake := range validationInfo.operatorsAvsStateDict[signedMessageDigest.OperatorId].StakePerQuorum {
 			if _, ok := digestAggregatedOperators.signersTotalStakePerQuorum[quorumNum]; !ok {
@@ -470,12 +472,12 @@ func (mbas *MessageBlsAggregatorService) verifySignature(
 ) error {
 	_, ok := operatorsAvsStateDict[signedMessageDigest.OperatorId]
 	if !ok {
-		mbas.logger.Warn("Operator not found. Skipping message", "operator", fmt.Sprintf("%#v", signedMessageDigest.OperatorId))
+		mbas.logger.Warn("Operator not found. Skipping message", "operator", signedMessageDigest.OperatorId)
 		return OperatorNotPartOfMessageQuorumErrorFn(signedMessageDigest.OperatorId, signedMessageDigest.MessageDigest)
 	}
 
 	// 0. verify that the msg actually came from the correct operator
-	operatorG2Pubkey := operatorsAvsStateDict[signedMessageDigest.OperatorId].Pubkeys.G2Pubkey
+	operatorG2Pubkey := operatorsAvsStateDict[signedMessageDigest.OperatorId].OperatorInfo.Pubkeys.G2Pubkey
 	if operatorG2Pubkey == nil {
 		mbas.logger.Fatal("Operator G2 pubkey not found")
 	}
@@ -527,7 +529,7 @@ func getG1PubkeysOfNonSigners(signersOperatorIdsSet map[eigentypes.OperatorId]bo
 	nonSignersG1Pubkeys := []*bls.G1Point{}
 	for operatorId, operator := range operatorAvsStateDict {
 		if _, operatorSigned := signersOperatorIdsSet[operatorId]; !operatorSigned {
-			nonSignersG1Pubkeys = append(nonSignersG1Pubkeys, operator.Pubkeys.G1Pubkey)
+			nonSignersG1Pubkeys = append(nonSignersG1Pubkeys, operator.OperatorInfo.Pubkeys.G1Pubkey)
 		}
 	}
 	return nonSignersG1Pubkeys

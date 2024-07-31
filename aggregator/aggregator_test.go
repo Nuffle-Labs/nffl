@@ -20,6 +20,7 @@ import (
 	aggmocks "github.com/NethermindEth/near-sffl/aggregator/mocks"
 	"github.com/NethermindEth/near-sffl/aggregator/types"
 	taskmanager "github.com/NethermindEth/near-sffl/contracts/bindings/SFFLTaskManager"
+	"github.com/NethermindEth/near-sffl/core"
 	chainiomocks "github.com/NethermindEth/near-sffl/core/chainio/mocks"
 	safeclientmocks "github.com/NethermindEth/near-sffl/core/safeclient/mocks"
 	coretypes "github.com/NethermindEth/near-sffl/core/types"
@@ -33,13 +34,14 @@ var MOCK_OPERATOR_BLS_PRIVATE_KEY, _ = bls.NewPrivateKey(MOCK_OPERATOR_BLS_PRIVA
 var MOCK_OPERATOR_KEYPAIR = bls.NewKeyPair(MOCK_OPERATOR_BLS_PRIVATE_KEY)
 var MOCK_OPERATOR_G1PUBKEY = MOCK_OPERATOR_KEYPAIR.GetPubKeyG1()
 var MOCK_OPERATOR_G2PUBKEY = MOCK_OPERATOR_KEYPAIR.GetPubKeyG2()
+var MOCK_OPERATOR_PUBKEYS = eigentypes.OperatorPubkeys{
+	G1Pubkey: MOCK_OPERATOR_G1PUBKEY,
+	G2Pubkey: MOCK_OPERATOR_G2PUBKEY,
+}
 var MOCK_OPERATOR_PUBKEY_DICT = map[eigentypes.OperatorId]types.OperatorInfo{
 	MOCK_OPERATOR_ID: {
-		OperatorPubkeys: eigentypes.OperatorPubkeys{
-			G1Pubkey: MOCK_OPERATOR_G1PUBKEY,
-			G2Pubkey: MOCK_OPERATOR_G2PUBKEY,
-		},
-		OperatorAddr: common.Address{},
+		OperatorPubkeys: MOCK_OPERATOR_PUBKEYS,
+		OperatorAddr:    common.Address{},
 	},
 }
 
@@ -54,13 +56,13 @@ func TestSendNewTask(t *testing.T) {
 	mockCtrl := gomock.NewController(t)
 	defer mockCtrl.Finish()
 
-	aggregator, mockAvsReaderer, mockAvsWriterer, mockTaskBlsAggService, _, _, _, _, mockClient, err := createMockAggregator(mockCtrl, MOCK_OPERATOR_PUBKEY_DICT)
+	aggregator, mockAvsReaderer, mockAvsWriterer, mockTaskBlsAggService, _, _, _, _, _, mockClient, err := createMockAggregator(mockCtrl, MOCK_OPERATOR_PUBKEY_DICT)
 	assert.Nil(t, err)
 
 	var TASK_INDEX = uint32(0)
 	var BLOCK_NUMBER = uint32(100)
-	var FROM_TIMESTAMP = uint64(3)
-	var TO_TIMESTAMP = uint64(4)
+	var FROM_TIMESTAMP = uint64(30_000)
+	var TO_TIMESTAMP = uint64(40_000)
 
 	mockClient.EXPECT().BlockNumber(context.Background()).Return(uint64(BLOCK_NUMBER), nil)
 	mockClient.EXPECT().BlockByNumber(context.Background(), big.NewInt(int64(BLOCK_NUMBER))).Return(
@@ -69,7 +71,11 @@ func TestSendNewTask(t *testing.T) {
 	)
 
 	mockAvsWriterer.EXPECT().SendNewCheckpointTask(
-		context.Background(), FROM_TIMESTAMP, TO_TIMESTAMP, types.TASK_QUORUM_THRESHOLD, coretypes.QUORUM_NUMBERS,
+		context.Background(),
+		FROM_TIMESTAMP,
+		TO_TIMESTAMP-uint64(types.MESSAGE_SUBMISSION_TIMEOUT.Seconds())-uint64(types.MESSAGE_BLS_AGGREGATION_TIMEOUT.Seconds()),
+		types.TASK_QUORUM_THRESHOLD,
+		coretypes.QUORUM_NUMBERS,
 	).Return(aggmocks.MockSendNewCheckpointTask(BLOCK_NUMBER, TASK_INDEX, FROM_TIMESTAMP, TO_TIMESTAMP))
 	mockAvsReaderer.EXPECT().GetLastCheckpointToTimestamp(context.Background()).Return(FROM_TIMESTAMP-1, nil)
 
@@ -87,7 +93,7 @@ func TestHandleStateRootUpdateAggregationReachedQuorum(t *testing.T) {
 	mockCtrl := gomock.NewController(t)
 	defer mockCtrl.Finish()
 
-	aggregator, _, _, _, _, _, mockMsgDb, _, _, err := createMockAggregator(mockCtrl, MOCK_OPERATOR_PUBKEY_DICT)
+	aggregator, _, _, _, _, _, _, mockMsgDb, _, _, err := createMockAggregator(mockCtrl, MOCK_OPERATOR_PUBKEY_DICT)
 	assert.Nil(t, err)
 
 	msg := messages.StateRootUpdateMessage{}
@@ -117,7 +123,7 @@ func TestHandleOperatorSetUpdateAggregationReachedQuorum(t *testing.T) {
 	mockCtrl := gomock.NewController(t)
 	defer mockCtrl.Finish()
 
-	aggregator, _, _, _, _, _, mockMsgDb, mockRollupBroadcaster, _, err := createMockAggregator(mockCtrl, MOCK_OPERATOR_PUBKEY_DICT)
+	aggregator, _, _, _, _, _, _, mockMsgDb, mockRollupBroadcaster, _, err := createMockAggregator(mockCtrl, MOCK_OPERATOR_PUBKEY_DICT)
 	assert.Nil(t, err)
 
 	msg := messages.OperatorSetUpdateMessage{}
@@ -149,9 +155,49 @@ func TestHandleOperatorSetUpdateAggregationReachedQuorum(t *testing.T) {
 	assert.NotContains(t, aggregator.operatorSetUpdates, msgDigest)
 }
 
+func TestExpiredStateRootUpdateMessage(t *testing.T) {
+	mockCtrl := gomock.NewController(t)
+	defer mockCtrl.Finish()
+
+	aggregator, _, _, _, _, _, _, _, _, _, err := createMockAggregator(mockCtrl, MOCK_OPERATOR_PUBKEY_DICT)
+	assert.NoError(t, err)
+
+	nowTimestamp := uint64(6000)
+	aggregator.clock = core.Clock{Now: func() time.Time { return time.Unix(int64(nowTimestamp), 0) }}
+	messageTimestamp := nowTimestamp - 60 - 1 // 60 seconds for message submission timeout and 1 second to be out of range
+
+	err = aggregator.ProcessSignedStateRootUpdateMessage(&messages.SignedStateRootUpdateMessage{
+		Message: messages.StateRootUpdateMessage{
+			Timestamp: messageTimestamp,
+		},
+	})
+
+	assert.Equal(t, MessageExpiredError, err)
+}
+
+func TestExpiredOperatorSetUpdate(t *testing.T) {
+	mockCtrl := gomock.NewController(t)
+	defer mockCtrl.Finish()
+
+	aggregator, _, _, _, _, _, _, _, _, _, err := createMockAggregator(mockCtrl, MOCK_OPERATOR_PUBKEY_DICT)
+	assert.NoError(t, err)
+
+	nowTimestamp := uint64(8000)
+	aggregator.clock = core.Clock{Now: func() time.Time { return time.Unix(int64(nowTimestamp), 0) }}
+	messageTimestamp := nowTimestamp - 60 - 1 // 60 seconds for message submission timeout and 1 second to be out of range
+
+	err = aggregator.ProcessSignedOperatorSetUpdateMessage(&messages.SignedOperatorSetUpdateMessage{
+		Message: messages.OperatorSetUpdateMessage{
+			Timestamp: messageTimestamp,
+		},
+	})
+
+	assert.Equal(t, MessageExpiredError, err)
+}
+
 func createMockAggregator(
 	mockCtrl *gomock.Controller, operatorPubkeyDict map[eigentypes.OperatorId]types.OperatorInfo,
-) (*Aggregator, *chainiomocks.MockAvsReaderer, *chainiomocks.MockAvsWriterer, *blsaggservmock.MockBlsAggregationService, *aggmocks.MockMessageBlsAggregationService, *aggmocks.MockMessageBlsAggregationService, *dbmocks.MockDatabaser, *aggmocks.MockRollupBroadcasterer, *safeclientmocks.MockSafeClient, error) {
+) (*Aggregator, *chainiomocks.MockAvsReaderer, *chainiomocks.MockAvsWriterer, *blsaggservmock.MockBlsAggregationService, *aggmocks.MockMessageBlsAggregationService, *aggmocks.MockMessageBlsAggregationService, *aggmocks.MockOperatorRegistrationsService, *dbmocks.MockDatabaser, *aggmocks.MockRollupBroadcasterer, *safeclientmocks.MockSafeClient, error) {
 	logger := sdklogging.NewNoopLogger()
 	mockAvsWriter := chainiomocks.NewMockAvsWriterer(mockCtrl)
 	mockAvsReader := chainiomocks.NewMockAvsReaderer(mockCtrl)
@@ -161,6 +207,7 @@ func createMockAggregator(
 	mockMsgDb := dbmocks.NewMockDatabaser(mockCtrl)
 	mockRollupBroadcaster := aggmocks.NewMockRollupBroadcasterer(mockCtrl)
 	mockClient := safeclientmocks.NewMockSafeClient(mockCtrl)
+	mockOperatorRegistrationsService := aggmocks.NewMockOperatorRegistrationsService(mockCtrl)
 
 	aggregator := &Aggregator{
 		logger:                                 logger,
@@ -169,6 +216,7 @@ func createMockAggregator(
 		taskBlsAggregationService:              mockTaskBlsAggregationService,
 		stateRootUpdateBlsAggregationService:   mockStateRootUpdateBlsAggregationService,
 		operatorSetUpdateBlsAggregationService: mockOperatorSetUpdateBlsAggregationService,
+		operatorRegistrationsService:           mockOperatorRegistrationsService,
 		msgDb:                                  mockMsgDb,
 		tasks:                                  make(map[coretypes.TaskIndex]taskmanager.CheckpointTask),
 		taskResponses:                          make(map[coretypes.TaskIndex]map[eigentypes.TaskResponseDigest]messages.CheckpointTaskResponse),
@@ -177,9 +225,8 @@ func createMockAggregator(
 		rollupBroadcaster:                      mockRollupBroadcaster,
 		httpClient:                             mockClient,
 		wsClient:                               mockClient,
-		rpcListener:                            &SelectiveRpcListener{},
-		restListener:                           &SelectiveRestListener{},
 		aggregatorListener:                     &SelectiveAggregatorListener{},
+		clock:                                  core.SystemClock,
 	}
-	return aggregator, mockAvsReader, mockAvsWriter, mockTaskBlsAggregationService, mockStateRootUpdateBlsAggregationService, mockOperatorSetUpdateBlsAggregationService, mockMsgDb, mockRollupBroadcaster, mockClient, nil
+	return aggregator, mockAvsReader, mockAvsWriter, mockTaskBlsAggregationService, mockStateRootUpdateBlsAggregationService, mockOperatorSetUpdateBlsAggregationService, mockOperatorRegistrationsService, mockMsgDb, mockRollupBroadcaster, mockClient, nil
 }

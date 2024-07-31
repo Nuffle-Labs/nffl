@@ -119,7 +119,11 @@ func NewConfig(ctx *cli.Context, configRaw ConfigRaw, logger sdklogging.Logger) 
 	if _, err := os.Stat(sfflDeploymentFilePath); errors.Is(err, os.ErrNotExist) {
 		panic("Path " + sfflDeploymentFilePath + " does not exist")
 	}
-	sdkutils.ReadJsonConfig(sfflDeploymentFilePath, &sfflDeploymentRaw)
+	err := sdkutils.ReadJsonConfig(sfflDeploymentFilePath, &sfflDeploymentRaw)
+	if err != nil {
+		logger.Error("Cannot read JSON config", "err", err)
+		return nil, err
+	}
 
 	ecdsaPrivateKeyString := ctx.GlobalString(EcdsaPrivateKeyFlag.Name)
 	if ecdsaPrivateKeyString[:2] == "0x" {

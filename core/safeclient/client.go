@@ -35,13 +35,13 @@ type SafeEthClient struct {
 	logger           logging.Logger
 	rpcUrl           string
 	closeC           chan struct{}
-	closed           bool
 	headerTimeout    time.Duration
 	logResubInterval time.Duration
 	blockChunkSize   uint64
 	blockMaxRange    uint64
 
 	createClient func(string, logging.Logger) (eth.Client, error)
+	onceClose    sync.Once
 }
 
 func NewSafeEthClient(rpcUrl string, logger logging.Logger, opts ...SafeEthClientOption) (*SafeEthClient, error) {
@@ -301,15 +301,11 @@ func (c *SafeEthClient) SubscribeFilterLogs(ctx context.Context, q ethereum.Filt
 }
 
 func (c *SafeEthClient) Close() {
-	if c.closed {
-		return
-	}
-
-	close(c.closeC)
-	c.wg.Wait()
-	c.logger.Info("SafeEthClient closed")
-
-	c.closed = true
+	c.onceClose.Do(func() {
+		close(c.closeC)
+		c.wg.Wait()
+		c.logger.Info("SafeEthClient closed")
+	})
 }
 
 func (c *SafeEthClient) SubscribeNewHead(ctx context.Context, ch chan<- *types.Header) (ethereum.Subscription, error) {

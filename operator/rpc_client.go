@@ -2,7 +2,6 @@ package operator
 
 import (
 	"errors"
-	"fmt"
 	"net"
 	"net/rpc"
 	"sync"
@@ -153,12 +152,10 @@ func isShutdownOrNetworkError(err error) bool {
 	return false
 }
 
-func (c *AggregatorRpcClient) handleRpcError(err error) error {
+func (c *AggregatorRpcClient) handleRpcError(err error) {
 	if isShutdownOrNetworkError(err) {
 		go c.handleRpcShutdown()
 	}
-
-	return nil
 }
 
 func (c *AggregatorRpcClient) handleRpcShutdown() {
@@ -276,7 +273,7 @@ func (c *AggregatorRpcClient) tryResendFromDeque() {
 
 			entry.Retries++
 			if entry.Retries >= MaxRetries {
-				c.logger.Error("Max retries reached, dropping message", "message", fmt.Sprintf("%#v", message))
+				c.logger.Error("Max retries reached, dropping message", "message", message)
 				continue
 			}
 
@@ -295,9 +292,10 @@ func (c *AggregatorRpcClient) sendOperatorMessage(sendCb func() error, message i
 
 	appendProtected := func() {
 		c.unsentMessagesLock.Lock()
+		defer c.unsentMessagesLock.Unlock()
+
 		c.unsentMessages = append(c.unsentMessages, unsentRpcMessage{Message: message})
 		c.listener.ObserveResendQueueSize(len(c.unsentMessages))
-		c.unsentMessagesLock.Unlock()
 	}
 
 	if c.rpcClient == nil {
@@ -336,7 +334,7 @@ func (c *AggregatorRpcClient) sendRequest(sendCb func() error) error {
 }
 
 func (c *AggregatorRpcClient) SendSignedCheckpointTaskResponseToAggregator(signedCheckpointTaskResponse *messages.SignedCheckpointTaskResponse) {
-	c.logger.Info("Sending signed task response header to aggregator", "signedCheckpointTaskResponse", fmt.Sprintf("%#v", signedCheckpointTaskResponse))
+	c.logger.Info("Sending signed task response header to aggregator", "signedCheckpointTaskResponse", signedCheckpointTaskResponse)
 
 	c.sendOperatorMessage(func() error {
 		var reply bool
@@ -358,7 +356,7 @@ func (c *AggregatorRpcClient) SendSignedCheckpointTaskResponseToAggregator(signe
 }
 
 func (c *AggregatorRpcClient) SendSignedStateRootUpdateToAggregator(signedStateRootUpdateMessage *messages.SignedStateRootUpdateMessage) {
-	c.logger.Info("Sending signed state root update message to aggregator", "signedStateRootUpdateMessage", fmt.Sprintf("%#v", signedStateRootUpdateMessage))
+	c.logger.Info("Sending signed state root update message to aggregator", "signedStateRootUpdateMessage", signedStateRootUpdateMessage)
 
 	c.sendOperatorMessage(func() error {
 		var reply bool
@@ -379,7 +377,7 @@ func (c *AggregatorRpcClient) SendSignedStateRootUpdateToAggregator(signedStateR
 }
 
 func (c *AggregatorRpcClient) SendSignedOperatorSetUpdateToAggregator(signedOperatorSetUpdateMessage *messages.SignedOperatorSetUpdateMessage) {
-	c.logger.Info("Sending operator set update message to aggregator", "signedOperatorSetUpdateMessage", fmt.Sprintf("%#v", signedOperatorSetUpdateMessage))
+	c.logger.Info("Sending operator set update message to aggregator", "signedOperatorSetUpdateMessage", signedOperatorSetUpdateMessage)
 
 	c.sendOperatorMessage(func() error {
 		var reply bool

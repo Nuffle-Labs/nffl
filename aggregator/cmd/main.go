@@ -8,9 +8,12 @@ import (
 	"os"
 
 	sdklogging "github.com/Layr-Labs/eigensdk-go/logging"
+	"github.com/prometheus/client_golang/prometheus"
 	"github.com/urfave/cli"
 
 	"github.com/NethermindEth/near-sffl/aggregator"
+	restserver "github.com/NethermindEth/near-sffl/aggregator/rest_server"
+	rpcserver "github.com/NethermindEth/near-sffl/aggregator/rpc_server"
 	"github.com/NethermindEth/near-sffl/core/config"
 )
 
@@ -64,10 +67,30 @@ func aggregatorMain(ctx *cli.Context) error {
 	}
 
 	bgCtx := context.Background()
-	agg, err := aggregator.NewAggregator(bgCtx, config, logger)
+	var optRegistry *prometheus.Registry
+	if config.EnableMetrics {
+		optRegistry = prometheus.NewRegistry()
+	}
+	agg, err := aggregator.NewAggregator(bgCtx, config, optRegistry, logger)
 	if err != nil {
 		return err
 	}
+
+	rpcServer := rpcserver.NewRpcServer(config.AggregatorServerIpPortAddr, agg, logger)
+	if optRegistry != nil {
+		if err = rpcServer.EnableMetrics(optRegistry); err != nil {
+			return err
+		}
+	}
+	go rpcServer.Start()
+
+	restServer := restserver.NewRestServer(config.AggregatorRestServerIpPortAddr, agg, logger)
+	if optRegistry != nil {
+		if err = restServer.EnableMetrics(optRegistry); err != nil {
+			return err
+		}
+	}
+	go restServer.Start()
 
 	err = agg.Start(bgCtx)
 	if err != nil {
