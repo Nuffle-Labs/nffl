@@ -79,13 +79,6 @@ func NewDatabase(dbPath string) (*Database, error) {
 
 	underlyingDb.SetMaxOpenConns(1)
 
-	underlyingDb, err := db.DB()
-	if err != nil {
-		return nil, err
-	}
-
-	underlyingDb.SetMaxOpenConns(1)
-
 	return &Database{
 		db:       db,
 		dbPath:   dbPath,
@@ -273,7 +266,7 @@ func (d *Database) FetchCheckpointMessages(fromTimestamp uint64, toTimestamp uin
 		return nil, errors.New("timestamp does not fit in int64")
 	}
 
-	if (toTimestamp < fromTimestamp) {
+	if toTimestamp < fromTimestamp {
 		return nil, errors.New("toTimestamp is less than fromTimestamp")
 	}
 
