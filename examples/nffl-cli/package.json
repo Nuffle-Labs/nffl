@@ -1,6 +1,6 @@
 {
   "private": true,
-  "name": "demo-nffl-cli",
+  "name": "nffl-cli",
   "version": "0.0.1",
   "main": "index.js",
   "scripts": {
@@ -17,6 +17,6 @@
     "rlp": "^3.0.0"
   },
   "bin": {
-    "demo-nffl-cli": "./index.js"
+    "nffl-cli": "./index.js"
   }
 }
