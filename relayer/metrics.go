@@ -21,6 +21,7 @@ type EventListener interface {
 	OnRetriesRequired(retries int)
 	OnInvalidNonce()
 	OnExpiredTx()
+	OnTimeoutTx()
 }
 
 type SelectiveListener struct {
@@ -30,6 +31,7 @@ type SelectiveListener struct {
 	OnRetriesRequiredCb    func(retries int)
 	OnInvalidNonceCb       func()
 	OnExpiredTxCb          func()
+	OnTimeoutTxCb          func()
 }
 
 func (l *SelectiveListener) OnBlockReceived() {
@@ -65,6 +67,12 @@ func (l *SelectiveListener) OnInvalidNonce() {
 func (l *SelectiveListener) OnExpiredTx() {
 	if l.OnExpiredTxCb != nil {
 		l.OnExpiredTxCb()
+	}
+}
+
+func (l *SelectiveListener) OnTimeoutTx() {
+	if l.OnTimeoutTxCb != nil {
+		l.OnTimeoutTxCb()
 	}
 }
 
@@ -147,6 +155,15 @@ func MakeRelayerMetrics(registry *prometheus.Registry) (EventListener, error) {
 		return nil, fmt.Errorf("error registering numExpiredTxs count: %w", err)
 	}
 
+	numTimeoutTxs := prometheus.NewCounter(prometheus.CounterOpts{
+		Namespace: RelayerNamespace,
+		Name:      "num_of_timeout_txs",
+		Help:      "Number of Timeout transactions",
+	})
+	if err := registry.Register(numTimeoutTxs); err != nil {
+		return nil, fmt.Errorf("error registering numTimeoutTxs count: %w", err)
+	}
+
 	return &SelectiveListener{
 		OnBlockReceivedCb: func() {
 			numBlocksReceived.Inc()
@@ -165,6 +182,9 @@ func MakeRelayerMetrics(registry *prometheus.Registry) (EventListener, error) {
 		},
 		OnExpiredTxCb: func() {
 			numExpiredTxs.Inc()
+		},
+		OnTimeoutTxCb: func() {
+			numTimeoutTxs.Inc()
 		},
 	}, nil
 }
