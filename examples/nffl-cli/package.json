@@ -2,21 +2,26 @@
   "private": true,
   "name": "nffl-cli",
   "version": "0.0.1",
-  "main": "index.js",
+  "main": "index.ts",
   "scripts": {
-    "test": "echo \"Error: no test specified\" && exit 1"
+    "typechain": "typechain --target ethers-v6 --out-dir typechain-types 'abi/*.json'"
   },
   "keywords": [],
   "author": "Near.org",
   "license": "MIT",
   "description": "",
   "dependencies": {
-    "bignumber.js": "^9.1.2",
     "commander": "^12.1.0",
     "ethers": "^6.13.1",
     "rlp": "^3.0.0"
   },
   "bin": {
     "nffl-cli": "./index.js"
+  },
+  "devDependencies": {
+    "@commander-js/extra-typings": "^12.1.0",
+    "@typechain/ethers-v6": "^0.5.1",
+    "@types/node": "^22.2.0",
+    "typechain": "^8.3.2"
   }
 }
