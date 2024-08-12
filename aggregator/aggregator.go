@@ -332,8 +332,6 @@ func (agg *Aggregator) sendAggregatedResponseToContract(blsAggServiceResp blsagg
 		return
 	}
 
-	agg.aggregatorListener.ObserveLastCheckpointTaskReferenceReceived(taskResponse.ReferenceTaskIndex)
-
 	agg.logger.Info("Threshold reached. Sending aggregated response onchain.",
 		"taskIndex", taskResponse.ReferenceTaskIndex,
 	)
@@ -429,8 +427,6 @@ func (agg *Aggregator) handleStateRootUpdateReachedQuorum(blsAggServiceResp blsa
 		return
 	}
 
-	agg.aggregatorListener.ObserveLastStateRootUpdateReceived(msg.RollupId, msg.BlockHeight)
-
 	if blsAggServiceResp.Err != nil {
 		agg.aggregatorListener.IncErroredSubmissions()
 		if errors.Is(blsAggServiceResp.Err, blsagg.MessageExpiredError) {
@@ -478,8 +474,6 @@ func (agg *Aggregator) handleOperatorSetUpdateReachedQuorum(ctx context.Context,
 		}()
 	}
 
-	agg.aggregatorListener.ObserveLastOperatorSetUpdateReceived(msg.Id)
-
 	if blsAggServiceResp.Err != nil {
 		agg.aggregatorListener.IncErroredSubmissions()
 		if errors.Is(blsAggServiceResp.Err, blsagg.MessageExpiredError) {
@@ -517,6 +511,8 @@ func (agg *Aggregator) ProcessSignedCheckpointTaskResponse(signedCheckpointTaskR
 		return err
 	}
 
+	agg.aggregatorListener.ObserveLastCheckpointTaskReferenceReceived(signedCheckpointTaskResponse.TaskResponse.ReferenceTaskIndex)
+
 	err = agg.taskBlsAggregationService.ProcessNewSignature(
 		context.Background(), signedCheckpointTaskResponse.TaskResponse,
 		&signedCheckpointTaskResponse.BlsSignature, signedCheckpointTaskResponse.OperatorId,
@@ -541,6 +537,8 @@ func (agg *Aggregator) ProcessSignedStateRootUpdateMessage(signedStateRootUpdate
 	if err != nil {
 		return err
 	}
+
+	agg.aggregatorListener.ObserveLastStateRootUpdateReceived(signedStateRootUpdateMessage.Message.RollupId, signedStateRootUpdateMessage.Message.BlockHeight)
 
 	err = agg.stateRootUpdateBlsAggregationService.InitializeMessageIfNotExists(
 		signedStateRootUpdateMessage.Message.Key(),
@@ -579,6 +577,8 @@ func (agg *Aggregator) ProcessSignedOperatorSetUpdateMessage(signedOperatorSetUp
 		agg.logger.Error("Failed to get operator set update block", "err", err)
 		return GetOperatorSetUpdateBlockError
 	}
+
+	agg.aggregatorListener.ObserveLastOperatorSetUpdateReceived(signedOperatorSetUpdateMessage.Message.Id)
 
 	err = agg.operatorSetUpdateBlsAggregationService.InitializeMessageIfNotExists(
 		signedOperatorSetUpdateMessage.Message.Key(),
