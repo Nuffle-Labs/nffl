@@ -131,13 +131,7 @@ type Aggregator struct {
 	operatorSetUpdateBlsAggregationService blsagg.MessageBlsAggregationService
 	tasks                                  map[coretypes.TaskIndex]taskmanager.CheckpointTask
 	tasksLock                              sync.RWMutex
-	taskResponses                          map[coretypes.TaskIndex]map[eigentypes.TaskResponseDigest]messages.CheckpointTaskResponse
-	taskResponsesLock                      sync.RWMutex
 	msgDb                                  database.Databaser
-	stateRootUpdates                       map[coretypes.MessageDigest]messages.StateRootUpdateMessage
-	stateRootUpdatesLock                   sync.RWMutex
-	operatorSetUpdates                     map[coretypes.MessageDigest]messages.OperatorSetUpdateMessage
-	operatorSetUpdatesLock                 sync.RWMutex
 }
 
 var _ core.Metricable = (*Aggregator)(nil)
@@ -242,9 +236,6 @@ func NewAggregator(
 		operatorSetUpdateBlsAggregationService: operatorSetUpdateBlsAggregationService,
 		msgDb:                                  msgDb,
 		tasks:                                  make(map[coretypes.TaskIndex]taskmanager.CheckpointTask),
-		taskResponses:                          make(map[coretypes.TaskIndex]map[eigentypes.TaskResponseDigest]messages.CheckpointTaskResponse),
-		stateRootUpdates:                       make(map[coretypes.MessageDigest]messages.StateRootUpdateMessage),
-		operatorSetUpdates:                     make(map[coretypes.MessageDigest]messages.OperatorSetUpdateMessage),
 		aggregatorListener:                     &SelectiveAggregatorListener{},
 	}
 
