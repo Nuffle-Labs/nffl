@@ -421,12 +421,6 @@ func (agg *Aggregator) sendNewCheckpointTask() {
 }
 
 func (agg *Aggregator) handleStateRootUpdateReachedQuorum(blsAggServiceResp blsagg.MessageBlsAggregationServiceResponse) {
-	msg, ok := blsAggServiceResp.Message.(messages.StateRootUpdateMessage)
-	if !ok {
-		agg.logger.Fatal("BlsAggregationServiceResponse contains a non-state root update message")
-		return
-	}
-
 	if blsAggServiceResp.Err != nil {
 		agg.aggregatorListener.IncErroredSubmissions()
 		if errors.Is(blsAggServiceResp.Err, blsagg.MessageExpiredError) {
@@ -437,8 +431,14 @@ func (agg *Aggregator) handleStateRootUpdateReachedQuorum(blsAggServiceResp blsa
 		return
 	}
 
+	if blsAggServiceResp.Message == nil {
+		agg.logger.Fatal("Non-errored BlsAggregationServiceResponse contains a nil message")
+		return
+	}
+
+	msg, ok := blsAggServiceResp.Message.(messages.StateRootUpdateMessage)
 	if !ok {
-		agg.logger.Error("Aggregator could not find matching message")
+		agg.logger.Fatal("BlsAggregationServiceResponse contains a non-state root update message")
 		return
 	}
 
@@ -459,21 +459,6 @@ func (agg *Aggregator) handleStateRootUpdateReachedQuorum(blsAggServiceResp blsa
 }
 
 func (agg *Aggregator) handleOperatorSetUpdateReachedQuorum(ctx context.Context, blsAggServiceResp blsagg.MessageBlsAggregationServiceResponse) {
-	msg, ok := blsAggServiceResp.Message.(messages.OperatorSetUpdateMessage)
-	if !ok {
-		agg.logger.Fatal("BlsAggregationServiceResponse contains a non-operator set update message")
-		return
-	}
-
-	if blsAggServiceResp.Finished {
-		defer func() {
-			if blsAggServiceResp.Err == nil {
-				signatureInfo := blsAggServiceResp.ExtractBindingRollup()
-				agg.rollupBroadcaster.BroadcastOperatorSetUpdate(ctx, msg, signatureInfo)
-			}
-		}()
-	}
-
 	if blsAggServiceResp.Err != nil {
 		agg.aggregatorListener.IncErroredSubmissions()
 		if errors.Is(blsAggServiceResp.Err, blsagg.MessageExpiredError) {
@@ -484,9 +469,22 @@ func (agg *Aggregator) handleOperatorSetUpdateReachedQuorum(ctx context.Context,
 		return
 	}
 
-	if !ok {
-		agg.logger.Error("Aggregator could not find matching message")
+	if blsAggServiceResp.Message == nil {
+		agg.logger.Fatal("Non-errored BlsAggregationServiceResponse contains a nil message")
 		return
+	}
+
+	msg, ok := blsAggServiceResp.Message.(messages.OperatorSetUpdateMessage)
+	if !ok {
+		agg.logger.Fatal("BlsAggregationServiceResponse contains a non-operator set update message")
+		return
+	}
+
+	if blsAggServiceResp.Finished {
+		defer func() {
+			signatureInfo := blsAggServiceResp.ExtractBindingRollup()
+			agg.rollupBroadcaster.BroadcastOperatorSetUpdate(ctx, msg, signatureInfo)
+		}()
 	}
 
 	agg.aggregatorListener.ObserveLastOperatorSetUpdateAggregated(msg.Id)
