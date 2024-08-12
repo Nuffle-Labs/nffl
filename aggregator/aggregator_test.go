@@ -60,7 +60,7 @@ func TestSendNewTask(t *testing.T) {
 	assert.Nil(t, err)
 
 	var TASK_INDEX = uint32(0)
-	var BLOCK_NUMBER = uint32(100)
+	var BLOCK_NUMBER = uint64(100)
 	var FROM_TIMESTAMP = uint64(30_000)
 	var TO_TIMESTAMP = uint64(40_000)
 
@@ -76,7 +76,7 @@ func TestSendNewTask(t *testing.T) {
 		TO_TIMESTAMP-uint64(types.MESSAGE_SUBMISSION_TIMEOUT.Seconds())-uint64(types.MESSAGE_BLS_AGGREGATION_TIMEOUT.Seconds()),
 		types.TASK_QUORUM_THRESHOLD,
 		coretypes.QUORUM_NUMBERS,
-	).Return(aggmocks.MockSendNewCheckpointTask(BLOCK_NUMBER, TASK_INDEX, FROM_TIMESTAMP, TO_TIMESTAMP))
+	).Return(aggmocks.MockSendNewCheckpointTask(uint32(BLOCK_NUMBER), TASK_INDEX, FROM_TIMESTAMP, TO_TIMESTAMP))
 	mockAvsReaderer.EXPECT().GetLastCheckpointToTimestamp(context.Background()).Return(FROM_TIMESTAMP-1, nil)
 
 	// 100 blocks, each takes 12 seconds. We hardcode for now since aggregator also hardcodes this value
@@ -112,19 +112,14 @@ func TestHandleStateRootUpdateAggregationReachedQuorum(t *testing.T) {
 		MessageBlsAggregation: messages.MessageBlsAggregation{
 			MessageDigest: msgDigest,
 		},
+		Message:  msg,
 		Finished: true,
 	}
-
-	aggregator.stateRootUpdates[msgDigest] = msg
 
 	mockMsgDb.EXPECT().StoreStateRootUpdate(msg)
 	mockMsgDb.EXPECT().StoreStateRootUpdateAggregation(msg, blsAggServiceResp.MessageBlsAggregation)
 
-	assert.Contains(t, aggregator.stateRootUpdates, msgDigest)
-
 	aggregator.handleStateRootUpdateReachedQuorum(blsAggServiceResp)
-
-	assert.NotContains(t, aggregator.stateRootUpdates, msgDigest)
 }
 
 func TestHandleOperatorSetUpdateAggregationReachedQuorum(t *testing.T) {
@@ -145,10 +140,9 @@ func TestHandleOperatorSetUpdateAggregationReachedQuorum(t *testing.T) {
 			SignersApkG2:        bls.NewZeroG2Point(),
 			SignersAggSigG1:     bls.NewZeroSignature(),
 		},
+		Message:  msg,
 		Finished: true,
 	}
-
-	aggregator.operatorSetUpdates[msgDigest] = msg
 
 	mockMsgDb.EXPECT().StoreOperatorSetUpdate(msg)
 	mockMsgDb.EXPECT().StoreOperatorSetUpdateAggregation(msg, blsAggServiceResp.MessageBlsAggregation)
@@ -156,14 +150,10 @@ func TestHandleOperatorSetUpdateAggregationReachedQuorum(t *testing.T) {
 	signatureInfo := blsAggServiceResp.ExtractBindingRollup()
 	mockRollupBroadcaster.EXPECT().BroadcastOperatorSetUpdate(context.Background(), msg, signatureInfo)
 
-	assert.Contains(t, aggregator.operatorSetUpdates, msgDigest)
-
 	aggregator.handleOperatorSetUpdateReachedQuorum(context.Background(), blsAggServiceResp)
-
-	assert.NotContains(t, aggregator.operatorSetUpdates, msgDigest)
 }
 
-func TestExpiredStateRootUpdateMessage(t *testing.T) {
+func TestTimeoutStateRootUpdateMessage(t *testing.T) {
 	mockCtrl := gomock.NewController(t)
 	defer mockCtrl.Finish()
 
@@ -180,10 +170,10 @@ func TestExpiredStateRootUpdateMessage(t *testing.T) {
 		},
 	})
 
-	assert.Equal(t, blsagg.MessageExpiredError, err)
+	assert.Equal(t, MessageTimeoutError, err)
 }
 
-func TestExpiredOperatorSetUpdate(t *testing.T) {
+func TestTimeoutOperatorSetUpdate(t *testing.T) {
 	mockCtrl := gomock.NewController(t)
 	defer mockCtrl.Finish()
 
@@ -200,7 +190,7 @@ func TestExpiredOperatorSetUpdate(t *testing.T) {
 		},
 	})
 
-	assert.Equal(t, blsagg.MessageExpiredError, err)
+	assert.Equal(t, MessageTimeoutError, err)
 }
 
 func createMockAggregator(
@@ -227,9 +217,6 @@ func createMockAggregator(
 		operatorRegistrationsService:           mockOperatorRegistrationsService,
 		msgDb:                                  mockMsgDb,
 		tasks:                                  make(map[coretypes.TaskIndex]taskmanager.CheckpointTask),
-		taskResponses:                          make(map[coretypes.TaskIndex]map[eigentypes.TaskResponseDigest]messages.CheckpointTaskResponse),
-		stateRootUpdates:                       make(map[coretypes.MessageDigest]messages.StateRootUpdateMessage),
-		operatorSetUpdates:                     make(map[coretypes.MessageDigest]messages.OperatorSetUpdateMessage),
 		rollupBroadcaster:                      mockRollupBroadcaster,
 		httpClient:                             mockClient,
 		wsClient:                               mockClient,

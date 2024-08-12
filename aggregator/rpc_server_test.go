@@ -75,11 +75,9 @@ func TestProcessSignedStateRootUpdateMessage(t *testing.T) {
 
 	signedMessage, err := createMockSignedStateRootUpdateMessage(message, *MOCK_OPERATOR_KEYPAIR)
 	assert.Nil(t, err)
-	messageDigest, err := signedMessage.Message.Digest()
-	assert.Nil(t, err)
 
-	mockMessageBlsAggServ.EXPECT().ProcessNewSignature(context.Background(), messageDigest, &signedMessage.BlsSignature, signedMessage.OperatorId)
-	mockMessageBlsAggServ.EXPECT().InitializeMessageIfNotExists(messageDigest, coretypes.QUORUM_NUMBERS, []eigentypes.QuorumThresholdPercentage{types.MESSAGE_AGGREGATION_QUORUM_THRESHOLD}, types.MESSAGE_TTL, types.MESSAGE_BLS_AGGREGATION_TIMEOUT, uint64(0))
+	mockMessageBlsAggServ.EXPECT().InitializeMessageIfNotExists(message.Key(), coretypes.QUORUM_NUMBERS, []eigentypes.QuorumThresholdPercentage{types.MESSAGE_AGGREGATION_QUORUM_THRESHOLD}, types.MESSAGE_TTL, types.MESSAGE_BLS_AGGREGATION_TIMEOUT, uint64(0))
+	mockMessageBlsAggServ.EXPECT().ProcessNewSignature(context.Background(), message, &signedMessage.BlsSignature, signedMessage.OperatorId)
 	mockOperatorRegistrationsServ.EXPECT().GetOperatorInfoById(context.Background(), signedMessage.OperatorId).Return(eigentypes.OperatorInfo{Pubkeys: MOCK_OPERATOR_PUBKEYS}, true)
 
 	err = aggregator.ProcessSignedStateRootUpdateMessage(signedMessage)
@@ -130,15 +128,12 @@ func TestProcessOperatorSetUpdateMessage(t *testing.T) {
 
 	signedMessage, err := createMockSignedOperatorSetUpdateMessage(message, *MOCK_OPERATOR_KEYPAIR)
 	assert.Nil(t, err)
-	messageDigest, err := signedMessage.Message.Digest()
-	assert.Nil(t, err)
 
 	ctx := context.Background()
 	mockAvsReader.EXPECT().GetOperatorSetUpdateBlock(ctx, uint64(1)).Return(uint32(10), nil)
 
-	mockMessageBlsAggServ.EXPECT().ProcessNewSignature(ctx, messageDigest,
-		&signedMessage.BlsSignature, signedMessage.OperatorId)
-	mockMessageBlsAggServ.EXPECT().InitializeMessageIfNotExists(messageDigest, coretypes.QUORUM_NUMBERS, []eigentypes.QuorumThresholdPercentage{types.MESSAGE_AGGREGATION_QUORUM_THRESHOLD}, types.MESSAGE_TTL, types.MESSAGE_BLS_AGGREGATION_TIMEOUT, uint64(9))
+	mockMessageBlsAggServ.EXPECT().InitializeMessageIfNotExists(message.Key(), coretypes.QUORUM_NUMBERS, []eigentypes.QuorumThresholdPercentage{types.MESSAGE_AGGREGATION_QUORUM_THRESHOLD}, types.MESSAGE_TTL, types.MESSAGE_BLS_AGGREGATION_TIMEOUT, uint64(9))
+	mockMessageBlsAggServ.EXPECT().ProcessNewSignature(ctx, message, &signedMessage.BlsSignature, signedMessage.OperatorId)
 	mockOperatorRegistrationsServ.EXPECT().GetOperatorInfoById(context.Background(), signedMessage.OperatorId).Return(eigentypes.OperatorInfo{Pubkeys: MOCK_OPERATOR_PUBKEYS}, true)
 
 	err = aggregator.ProcessSignedOperatorSetUpdateMessage(signedMessage)
