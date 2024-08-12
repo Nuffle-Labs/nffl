@@ -273,7 +273,7 @@ func (mbas *MessageBlsAggregatorService) handleSignedMessagePreThreshold(
 				Err:        MessageExpiredError,
 			}
 
-			return nil, true
+			return nil, false
 		}
 	}
 }
