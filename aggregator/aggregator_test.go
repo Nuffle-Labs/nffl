@@ -12,10 +12,10 @@ import (
 
 	"github.com/Layr-Labs/eigensdk-go/crypto/bls"
 	sdklogging "github.com/Layr-Labs/eigensdk-go/logging"
-	blsaggservmock "github.com/Layr-Labs/eigensdk-go/services/mocks/blsagg"
 	eigentypes "github.com/Layr-Labs/eigensdk-go/types"
 	gethtypes "github.com/ethereum/go-ethereum/core/types"
 
+	"github.com/NethermindEth/near-sffl/aggregator/blsagg"
 	dbmocks "github.com/NethermindEth/near-sffl/aggregator/database/mocks"
 	aggmocks "github.com/NethermindEth/near-sffl/aggregator/mocks"
 	"github.com/NethermindEth/near-sffl/aggregator/types"
@@ -80,11 +80,19 @@ func TestSendNewTask(t *testing.T) {
 	mockAvsReaderer.EXPECT().GetLastCheckpointToTimestamp(context.Background()).Return(FROM_TIMESTAMP-1, nil)
 
 	// 100 blocks, each takes 12 seconds. We hardcode for now since aggregator also hardcodes this value
-	taskTimeToExpiry := 100 * 12 * time.Second
+	taskTimeToExpiry := (100-15)*12*time.Second - 1*time.Minute
+	taskAggregationTimeout := 1 * time.Minute
 	// make sure that initializeNewTask was called on the blsAggService
 	// maybe there's a better way to do this? There's a saying "don't mock 3rd party code"
 	// see https://hynek.me/articles/what-to-mock-in-5-mins/
-	mockTaskBlsAggService.EXPECT().InitializeNewTask(TASK_INDEX, BLOCK_NUMBER, coretypes.QUORUM_NUMBERS, []eigentypes.QuorumThresholdPercentage{types.TASK_AGGREGATION_QUORUM_THRESHOLD}, taskTimeToExpiry)
+	mockTaskBlsAggService.EXPECT().InitializeMessageIfNotExists(
+		messages.CheckpointTaskResponse{ReferenceTaskIndex: TASK_INDEX}.Key(),
+		coretypes.QUORUM_NUMBERS,
+		[]eigentypes.QuorumThresholdPercentage{types.TASK_AGGREGATION_QUORUM_THRESHOLD},
+		taskTimeToExpiry,
+		taskAggregationTimeout,
+		BLOCK_NUMBER,
+	)
 
 	aggregator.sendNewCheckpointTask()
 }
@@ -100,7 +108,7 @@ func TestHandleStateRootUpdateAggregationReachedQuorum(t *testing.T) {
 	msgDigest, err := msg.Digest()
 	assert.Nil(t, err)
 
-	blsAggServiceResp := types.MessageBlsAggregationServiceResponse{
+	blsAggServiceResp := blsagg.MessageBlsAggregationServiceResponse{
 		MessageBlsAggregation: messages.MessageBlsAggregation{
 			MessageDigest: msgDigest,
 		},
@@ -130,7 +138,7 @@ func TestHandleOperatorSetUpdateAggregationReachedQuorum(t *testing.T) {
 	msgDigest, err := msg.Digest()
 	assert.Nil(t, err)
 
-	blsAggServiceResp := types.MessageBlsAggregationServiceResponse{
+	blsAggServiceResp := blsagg.MessageBlsAggregationServiceResponse{
 		MessageBlsAggregation: messages.MessageBlsAggregation{
 			MessageDigest:       msgDigest,
 			NonSignersPubkeysG1: make([]*bls.G1Point, 0),
@@ -172,7 +180,7 @@ func TestExpiredStateRootUpdateMessage(t *testing.T) {
 		},
 	})
 
-	assert.Equal(t, MessageExpiredError, err)
+	assert.Equal(t, blsagg.MessageExpiredError, err)
 }
 
 func TestExpiredOperatorSetUpdate(t *testing.T) {
@@ -192,16 +200,16 @@ func TestExpiredOperatorSetUpdate(t *testing.T) {
 		},
 	})
 
-	assert.Equal(t, MessageExpiredError, err)
+	assert.Equal(t, blsagg.MessageExpiredError, err)
 }
 
 func createMockAggregator(
 	mockCtrl *gomock.Controller, operatorPubkeyDict map[eigentypes.OperatorId]types.OperatorInfo,
-) (*Aggregator, *chainiomocks.MockAvsReaderer, *chainiomocks.MockAvsWriterer, *blsaggservmock.MockBlsAggregationService, *aggmocks.MockMessageBlsAggregationService, *aggmocks.MockMessageBlsAggregationService, *aggmocks.MockOperatorRegistrationsService, *dbmocks.MockDatabaser, *aggmocks.MockRollupBroadcasterer, *safeclientmocks.MockSafeClient, error) {
+) (*Aggregator, *chainiomocks.MockAvsReaderer, *chainiomocks.MockAvsWriterer, *aggmocks.MockMessageBlsAggregationService, *aggmocks.MockMessageBlsAggregationService, *aggmocks.MockMessageBlsAggregationService, *aggmocks.MockOperatorRegistrationsService, *dbmocks.MockDatabaser, *aggmocks.MockRollupBroadcasterer, *safeclientmocks.MockSafeClient, error) {
 	logger := sdklogging.NewNoopLogger()
 	mockAvsWriter := chainiomocks.NewMockAvsWriterer(mockCtrl)
 	mockAvsReader := chainiomocks.NewMockAvsReaderer(mockCtrl)
-	mockTaskBlsAggregationService := blsaggservmock.NewMockBlsAggregationService(mockCtrl)
+	mockTaskBlsAggregationService := aggmocks.NewMockMessageBlsAggregationService(mockCtrl)
 	mockStateRootUpdateBlsAggregationService := aggmocks.NewMockMessageBlsAggregationService(mockCtrl)
 	mockOperatorSetUpdateBlsAggregationService := aggmocks.NewMockMessageBlsAggregationService(mockCtrl)
 	mockMsgDb := dbmocks.NewMockDatabaser(mockCtrl)

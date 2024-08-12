@@ -39,15 +39,17 @@ func TestProcessSignedCheckpointTaskResponse(t *testing.T) {
 		ToTimestamp:   TO_NEAR_BLOCK,
 	}, *MOCK_OPERATOR_KEYPAIR)
 	assert.Nil(t, err)
-	signedCheckpointTaskResponseDigest, err := signedCheckpointTaskResponse.TaskResponse.Digest()
-	assert.Nil(t, err)
 
 	// TODO(samlaf): is this the right way to test writing to external service?
 	// or is there some wisdom to "don't mock 3rd party code"?
 	// see https://hynek.me/articles/what-to-mock-in-5-mins/
 	ctx := context.Background()
-	mockBlsAggServ.EXPECT().ProcessNewSignature(ctx, TASK_INDEX, signedCheckpointTaskResponseDigest,
-		&signedCheckpointTaskResponse.BlsSignature, signedCheckpointTaskResponse.OperatorId)
+	mockBlsAggServ.EXPECT().ProcessNewSignature(
+		ctx,
+		signedCheckpointTaskResponse.TaskResponse,
+		&signedCheckpointTaskResponse.BlsSignature,
+		signedCheckpointTaskResponse.OperatorId,
+	)
 	mockOperatorRegistrationsServ.EXPECT().GetOperatorInfoById(ctx, signedCheckpointTaskResponse.OperatorId).Return(eigentypes.OperatorInfo{Pubkeys: MOCK_OPERATOR_PUBKEYS}, true)
 
 	err = aggregator.ProcessSignedCheckpointTaskResponse(signedCheckpointTaskResponse)
