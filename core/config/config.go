@@ -19,26 +19,25 @@ import (
 // Config contains all of the configuration information for SFFL aggregators and challengers.
 // Operators use a separate config. (see config-files/operator.anvil.yaml)
 type Config struct {
-	EcdsaPrivateKey *ecdsa.PrivateKey
-	BlsPrivateKey   *bls.PrivateKey
+	EcdsaPrivateKey *ecdsa.PrivateKey `json:"-"`
+	BlsPrivateKey   *bls.PrivateKey   `json:"-"`
 	// we need the url for the eigensdk currently... eventually standardize api so as to
 	// only take an ethclient or an rpcUrl (and build the ethclient at each constructor site)
-	EthHttpRpcUrl                  string
-	EthWsRpcUrl                    string
-	RollupsInfo                    map[uint32]RollupInfo
-	OperatorStateRetrieverAddr     common.Address
-	SFFLRegistryCoordinatorAddr    common.Address
-	AggregatorServerIpPortAddr     string
-	AggregatorRestServerIpPortAddr string
-	AggregatorDatabasePath         string
-	AggregatorCheckpointInterval   time.Duration
-	RegisterOperatorOnStartup      bool
-	// json:"-" skips this field when marshaling (only used for logging to stdout), since SignerFn doesnt implement marshalJson
-	AggregatorAddress common.Address
+	EthHttpRpcUrl                  string                `json:"ethHttpRpcUrl"`
+	EthWsRpcUrl                    string                `json:"ethWsRpcUrl"`
+	RollupsInfo                    map[uint32]RollupInfo `json:"rollupsInfo"`
+	OperatorStateRetrieverAddr     common.Address        `json:"operatorStateRetrieverAddr"`
+	SFFLRegistryCoordinatorAddr    common.Address        `json:"sfflRegistryCoordinatorAddr"`
+	AggregatorServerIpPortAddr     string                `json:"aggregatorServerIpPortAddr"`
+	AggregatorRestServerIpPortAddr string                `json:"aggregatorRestServerIpPortAddr"`
+	AggregatorDatabasePath         string                `json:"aggregatorDatabasePath"`
+	AggregatorCheckpointInterval   time.Duration         `json:"aggregatorCheckpointInterval"`
+	RegisterOperatorOnStartup      bool                  `json:"registerOperatorOnStartup"`
+	AggregatorAddress              common.Address        `json:"aggregatorAddress"`
 
 	// metrics related
-	EnableMetrics        bool
-	MetricsIpPortAddress string
+	EnableMetrics        bool   `json:"enableMetrics"`
+	MetricsIpPortAddress string `json:"metricsIpPortAddress"`
 }
 
 // These are read from ConfigFileFlag
