@@ -35,7 +35,7 @@ const (
 	// this hardcoded here because it's also hardcoded in the contracts, but should
 	// ideally be fetched from the contracts
 	taskChallengeWindowBlock          = 100
-	taksResponseSubmissionBufferBlock = 15
+	taskResponseSubmissionBufferBlock = 15
 	taskAggregationTimeout            = 1 * time.Minute
 	blockTime                         = 12 * time.Second
 	avsName                           = "super-fast-finality-layer"
@@ -413,7 +413,7 @@ func (agg *Aggregator) sendNewCheckpointTask() {
 		quorumThresholds[i] = types.TASK_AGGREGATION_QUORUM_THRESHOLD
 	}
 
-	taskTimeToExpiry := (taskChallengeWindowBlock-taksResponseSubmissionBufferBlock)*blockTime - taskAggregationTimeout
+	taskTimeToExpiry := (taskChallengeWindowBlock-taskResponseSubmissionBufferBlock)*blockTime - taskAggregationTimeout
 	err = agg.taskBlsAggregationService.InitializeMessageIfNotExists(
 		messages.CheckpointTaskResponse{ReferenceTaskIndex: taskIndex}.Key(),
 		core.ConvertBytesToQuorumNumbers(newTask.QuorumNumbers),
