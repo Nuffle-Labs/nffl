@@ -306,6 +306,12 @@ func (mbas *MessageBlsAggregatorService) handleSignedMessageThresholdReached(
 		case signedMessage := <-signedMessageC:
 			mbas.logger.Debug("Message goroutine received new signed message", "key", messageKey)
 
+			if signedMessage.MessageDigest != messageDigest {
+				mbas.logger.Warn("Ignored signed message with non-majority digest", "expected", messageDigest, "got", signedMessage.MessageDigest)
+				signedMessage.SignatureVerificationErrorC <- nil
+				continue
+			}
+
 			err := mbas.handleSignedMessageDigest(signedMessage, validationInfo)
 			signedMessage.SignatureVerificationErrorC <- err
 			if err != nil {
