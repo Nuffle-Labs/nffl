@@ -41,6 +41,7 @@ type Database struct {
 }
 
 var _ core.Metricable = (*Database)(nil)
+var _ Databaser = (*Database)(nil)
 
 func NewDatabase(dbPath string) (*Database, error) {
 	logger := logger.New(
