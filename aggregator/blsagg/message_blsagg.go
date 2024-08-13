@@ -35,8 +35,10 @@ var (
 	SignatureVerificationError = func(err error) error {
 		return fmt.Errorf("Failed to verify signature: %w", err)
 	}
-	IncorrectSignatureError    = errors.New("Signature verification failed. Incorrect Signature.")
-	MessageDigestNotFoundError = errors.New("Message digest not found")
+	IncorrectSignatureError                   = errors.New("Signature verification failed. Incorrect Signature.")
+	MessageDigestNotFoundError                = errors.New("Message digest not found")
+	QuorumThresholdPercentageOutOfBoundsError = errors.New("Quorum threshold percentage out of bounds")
+	QuorumThresholdPercentageLessThan51Error  = errors.New("Quorum threshold percentage less than 51")
 )
 
 type MessageBlsAggregationStatus int32
@@ -158,6 +160,10 @@ func (mbas *MessageBlsAggregatorService) InitializeMessageIfNotExists(
 	aggregationTimeout time.Duration,
 	ethBlockNumber uint64,
 ) error {
+	if err := validateQuorumThresholdPercentages(quorumThresholdPercentages); err != nil {
+		return err
+	}
+
 	signedMessageC := mbas.initializeMessageChan(messageKey)
 	if signedMessageC == nil {
 		return nil
@@ -581,4 +587,16 @@ func getG1PubkeysOfNonSigners(signersOperatorIdsSet map[eigentypes.OperatorId]bo
 		}
 	}
 	return nonSignersG1Pubkeys
+}
+
+func validateQuorumThresholdPercentages(quorumThresholdPercentages []eigentypes.QuorumThresholdPercentage) error {
+	for _, percentage := range quorumThresholdPercentages {
+		if percentage > eigentypes.QuorumThresholdPercentage(100) {
+			return QuorumThresholdPercentageOutOfBoundsError
+		}
+		if percentage < eigentypes.QuorumThresholdPercentage(51) {
+			return QuorumThresholdPercentageLessThan51Error
+		}
+	}
+	return nil
 }
