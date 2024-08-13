@@ -453,7 +453,7 @@ func (mbas *MessageBlsAggregatorService) getMessageBlsAggregationResponse(messag
 			Message:               message,
 			MessageKey:            message.Key(),
 			Status:                MessageBlsAggregationStatusNone,
-			Finished:              false,
+			Finished:              forceFinished,
 			Err:                   MessageNotFoundErrorFn(messageDigest),
 		}
 	}
@@ -465,7 +465,7 @@ func (mbas *MessageBlsAggregatorService) getMessageBlsAggregationResponse(messag
 			Message:               message,
 			MessageKey:            message.Key(),
 			Status:                MessageBlsAggregationStatusNone,
-			Finished:              false,
+			Finished:              forceFinished,
 			Err:                   err,
 		}
 	}
@@ -485,7 +485,7 @@ func (mbas *MessageBlsAggregatorService) getMessageBlsAggregationResponse(messag
 			Message:               message,
 			MessageKey:            message.Key(),
 			Status:                MessageBlsAggregationStatusNone,
-			Finished:              false,
+			Finished:              forceFinished,
 			Err:                   err,
 		}
 	}
@@ -511,7 +511,7 @@ func (mbas *MessageBlsAggregatorService) getMessageBlsAggregationResponse(messag
 			Message:               message,
 			MessageKey:            message.Key(),
 			Status:                MessageBlsAggregationStatusNone,
-			Finished:              false,
+			Finished:              forceFinished,
 			Err:                   err,
 		}
 	}
