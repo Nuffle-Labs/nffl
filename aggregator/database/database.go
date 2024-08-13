@@ -148,11 +148,13 @@ func (d *Database) StoreStateRootUpdateAggregation(stateRootUpdateMessage messag
 	model := models.NewMessageBlsAggregationModel(aggregation)
 
 	err := d.db.
+		Unscoped().
 		Clauses(clause.OnConflict{UpdateAll: true}).
 		Model(&models.StateRootUpdateMessage{}).
 		Where("rollup_id = ?", stateRootUpdateMessage.RollupId).
 		Where("block_height = ?", stateRootUpdateMessage.BlockHeight).
 		Association("Aggregation").
+		Unscoped().
 		Replace(&model)
 	if err != nil {
 		return err
@@ -225,10 +227,12 @@ func (d *Database) StoreOperatorSetUpdateAggregation(operatorSetUpdateMessage me
 	model := models.NewMessageBlsAggregationModel(aggregation)
 
 	err := d.db.
+		Unscoped().
 		Clauses(clause.OnConflict{UpdateAll: true}).
 		Model(&models.OperatorSetUpdateMessage{}).
 		Where("update_id = ?", operatorSetUpdateMessage.Id).
 		Association("Aggregation").
+		Unscoped().
 		Replace(&model)
 	if err != nil {
 		return err
@@ -266,7 +270,7 @@ func (d *Database) FetchCheckpointMessages(fromTimestamp uint64, toTimestamp uin
 		return nil, errors.New("timestamp does not fit in int64")
 	}
 
-	if (toTimestamp < fromTimestamp) {
+	if toTimestamp < fromTimestamp {
 		return nil, errors.New("toTimestamp is less than fromTimestamp")
 	}
 
