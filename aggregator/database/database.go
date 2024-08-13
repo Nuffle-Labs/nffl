@@ -11,7 +11,6 @@ import (
 	"github.com/prometheus/client_golang/prometheus"
 	"gorm.io/driver/sqlite"
 	"gorm.io/gorm"
-	"gorm.io/gorm/clause"
 	"gorm.io/gorm/logger"
 
 	"github.com/NethermindEth/near-sffl/aggregator/database/models"
@@ -23,15 +22,16 @@ type Databaser interface {
 	core.Metricable
 
 	Close() error
-	StoreStateRootUpdate(stateRootUpdateMessage messages.StateRootUpdateMessage) error
+	StoreStateRootUpdate(stateRootUpdateMessage messages.StateRootUpdateMessage) (*models.StateRootUpdateMessage, error)
 	FetchStateRootUpdate(rollupId uint32, blockHeight uint64) (*messages.StateRootUpdateMessage, error)
-	StoreStateRootUpdateAggregation(stateRootUpdateMessage messages.StateRootUpdateMessage, aggregation messages.MessageBlsAggregation) error
+	StoreStateRootUpdateAggregation(stateRootUpdateMessage *models.StateRootUpdateMessage, aggregation messages.MessageBlsAggregation) error
 	FetchStateRootUpdateAggregation(rollupId uint32, blockHeight uint64) (*messages.MessageBlsAggregation, error)
-	StoreOperatorSetUpdate(operatorSetUpdateMessage messages.OperatorSetUpdateMessage) error
+	StoreOperatorSetUpdate(operatorSetUpdateMessage messages.OperatorSetUpdateMessage) (*models.OperatorSetUpdateMessage, error)
 	FetchOperatorSetUpdate(id uint64) (*messages.OperatorSetUpdateMessage, error)
-	StoreOperatorSetUpdateAggregation(operatorSetUpdateMessage messages.OperatorSetUpdateMessage, aggregation messages.MessageBlsAggregation) error
+	StoreOperatorSetUpdateAggregation(operatorSetUpdateMessage *models.OperatorSetUpdateMessage, aggregation messages.MessageBlsAggregation) error
 	FetchOperatorSetUpdateAggregation(id uint64) (*messages.MessageBlsAggregation, error)
 	FetchCheckpointMessages(fromTimestamp uint64, toTimestamp uint64) (*messages.CheckpointMessages, error)
+	DB() *gorm.DB
 }
 
 type Database struct {
@@ -41,6 +41,7 @@ type Database struct {
 }
 
 var _ core.Metricable = (*Database)(nil)
+var _ Databaser = (*Database)(nil)
 
 func NewDatabase(dbPath string) (*Database, error) {
 	logger := logger.New(
@@ -105,22 +106,25 @@ func (d *Database) EnableMetrics(registry *prometheus.Registry) error {
 	return nil
 }
 
-func (d *Database) StoreStateRootUpdate(stateRootUpdateMessage messages.StateRootUpdateMessage) error {
+func (d *Database) StoreStateRootUpdate(stateRootUpdateMessage messages.StateRootUpdateMessage) (*models.StateRootUpdateMessage, error) {
 	start := time.Now()
 	defer func() { d.listener.OnStore(time.Since(start)) }()
 
-	tx := d.db.
-		Clauses(clause.OnConflict{Columns: []clause.Column{{Name: "rollup_id"}, {Name: "block_height"}}, UpdateAll: true}).
-		Create(&models.StateRootUpdateMessage{
-			RollupId:            stateRootUpdateMessage.RollupId,
-			BlockHeight:         stateRootUpdateMessage.BlockHeight,
-			Timestamp:           stateRootUpdateMessage.Timestamp,
-			NearDaTransactionId: stateRootUpdateMessage.NearDaTransactionId[:],
-			NearDaCommitment:    stateRootUpdateMessage.NearDaCommitment[:],
-			StateRoot:           stateRootUpdateMessage.StateRoot[:],
-		})
+	model := models.StateRootUpdateMessage{
+		RollupId:            stateRootUpdateMessage.RollupId,
+		BlockHeight:         stateRootUpdateMessage.BlockHeight,
+		Timestamp:           stateRootUpdateMessage.Timestamp,
+		NearDaTransactionId: stateRootUpdateMessage.NearDaTransactionId[:],
+		NearDaCommitment:    stateRootUpdateMessage.NearDaCommitment[:],
+		StateRoot:           stateRootUpdateMessage.StateRoot[:],
+	}
 
-	return tx.Error
+	tx := d.db.
+		Where("rollup_id = ?", stateRootUpdateMessage.RollupId).
+		Where("block_height = ?", stateRootUpdateMessage.BlockHeight).
+		FirstOrCreate(&model)
+
+	return &model, tx.Error
 }
 
 func (d *Database) FetchStateRootUpdate(rollupId uint32, blockHeight uint64) (*messages.StateRootUpdateMessage, error) {
@@ -141,18 +145,17 @@ func (d *Database) FetchStateRootUpdate(rollupId uint32, blockHeight uint64) (*m
 	return &stateRootUpdateMessage, nil
 }
 
-func (d *Database) StoreStateRootUpdateAggregation(stateRootUpdateMessage messages.StateRootUpdateMessage, aggregation messages.MessageBlsAggregation) error {
+func (d *Database) StoreStateRootUpdateAggregation(stateRootUpdateMessage *models.StateRootUpdateMessage, aggregation messages.MessageBlsAggregation) error {
 	start := time.Now()
 	defer func() { d.listener.OnStore(time.Since(start)) }()
 
 	model := models.NewMessageBlsAggregationModel(aggregation)
 
 	err := d.db.
-		Clauses(clause.OnConflict{UpdateAll: true}).
-		Model(&models.StateRootUpdateMessage{}).
-		Where("rollup_id = ?", stateRootUpdateMessage.RollupId).
-		Where("block_height = ?", stateRootUpdateMessage.BlockHeight).
+		Unscoped().
+		Model(stateRootUpdateMessage).
 		Association("Aggregation").
+		Unscoped().
 		Replace(&model)
 	if err != nil {
 		return err
@@ -186,19 +189,21 @@ func (d *Database) FetchStateRootUpdateAggregation(rollupId uint32, blockHeight 
 	return &aggregation, nil
 }
 
-func (d *Database) StoreOperatorSetUpdate(operatorSetUpdateMessage messages.OperatorSetUpdateMessage) error {
+func (d *Database) StoreOperatorSetUpdate(operatorSetUpdateMessage messages.OperatorSetUpdateMessage) (*models.OperatorSetUpdateMessage, error) {
 	start := time.Now()
 	defer func() { d.listener.OnStore(time.Since(start)) }()
 
-	tx := d.db.
-		Clauses(clause.OnConflict{Columns: []clause.Column{{Name: "update_id"}}, UpdateAll: true}).
-		Create(&models.OperatorSetUpdateMessage{
-			UpdateId:  operatorSetUpdateMessage.Id,
-			Timestamp: operatorSetUpdateMessage.Timestamp,
-			Operators: operatorSetUpdateMessage.Operators,
-		})
+	model := models.OperatorSetUpdateMessage{
+		UpdateId:  operatorSetUpdateMessage.Id,
+		Timestamp: operatorSetUpdateMessage.Timestamp,
+		Operators: operatorSetUpdateMessage.Operators,
+	}
 
-	return tx.Error
+	tx := d.db.
+		Where("update_id = ?", operatorSetUpdateMessage.Id).
+		FirstOrCreate(&model)
+
+	return &model, tx.Error
 }
 
 func (d *Database) FetchOperatorSetUpdate(id uint64) (*messages.OperatorSetUpdateMessage, error) {
@@ -218,17 +223,17 @@ func (d *Database) FetchOperatorSetUpdate(id uint64) (*messages.OperatorSetUpdat
 	return &operatorSetUpdateMessage, nil
 }
 
-func (d *Database) StoreOperatorSetUpdateAggregation(operatorSetUpdateMessage messages.OperatorSetUpdateMessage, aggregation messages.MessageBlsAggregation) error {
+func (d *Database) StoreOperatorSetUpdateAggregation(operatorSetUpdateMessage *models.OperatorSetUpdateMessage, aggregation messages.MessageBlsAggregation) error {
 	start := time.Now()
 	defer func() { d.listener.OnStore(time.Since(start)) }()
 
 	model := models.NewMessageBlsAggregationModel(aggregation)
 
 	err := d.db.
-		Clauses(clause.OnConflict{UpdateAll: true}).
-		Model(&models.OperatorSetUpdateMessage{}).
-		Where("update_id = ?", operatorSetUpdateMessage.Id).
+		Unscoped().
+		Model(operatorSetUpdateMessage).
 		Association("Aggregation").
+		Unscoped().
 		Replace(&model)
 	if err != nil {
 		return err
@@ -332,4 +337,8 @@ func (d *Database) FetchCheckpointMessages(fromTimestamp uint64, toTimestamp uin
 	}
 
 	return result, nil
+}
+
+func (d *Database) DB() *gorm.DB {
+	return d.db
 }
