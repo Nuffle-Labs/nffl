@@ -10,6 +10,7 @@ import (
 	"go.uber.org/mock/gomock"
 
 	"github.com/NethermindEth/near-sffl/aggregator/database"
+	"github.com/NethermindEth/near-sffl/aggregator/database/models"
 	coretypes "github.com/NethermindEth/near-sffl/core/types"
 	"github.com/NethermindEth/near-sffl/core/types/messages"
 	"github.com/NethermindEth/near-sffl/tests"
@@ -43,7 +44,7 @@ func TestStoreAndFetchStateRootUpdate(t *testing.T) {
 		StateRoot:           tests.Keccak256(6),
 	}
 
-	err = db.StoreStateRootUpdate(value)
+	_, err = db.StoreStateRootUpdate(value)
 	assert.Nil(t, err)
 
 	entry, err := db.FetchStateRootUpdate(value.RollupId, value.BlockHeight)
@@ -81,7 +82,7 @@ func TestStoreAndFetchStateRootUpdateAggregation(t *testing.T) {
 		StateRoot:           tests.Keccak256(6),
 	}
 
-	err = db.StoreStateRootUpdate(msg)
+	msgModel, err := db.StoreStateRootUpdate(msg)
 	assert.Nil(t, err)
 
 	msgDigest, err := msg.Digest()
@@ -91,7 +92,7 @@ func TestStoreAndFetchStateRootUpdateAggregation(t *testing.T) {
 		MessageDigest: msgDigest,
 	}
 
-	err = db.StoreStateRootUpdateAggregation(msg, value)
+	err = db.StoreStateRootUpdateAggregation(msgModel, value)
 	assert.Nil(t, err)
 
 	entry, err := db.FetchStateRootUpdateAggregation(msg.RollupId, msg.BlockHeight)
@@ -99,6 +100,56 @@ func TestStoreAndFetchStateRootUpdateAggregation(t *testing.T) {
 	assert.NotNil(t, entry)
 
 	assert.Equal(t, *entry, value)
+}
+
+func TestStateRootUpdateAggregationReplace(t *testing.T) {
+	mockCtrl := gomock.NewController(t)
+	defer mockCtrl.Finish()
+
+	db, err := database.NewDatabase(":memory:")
+	assert.Nil(t, err)
+
+	msg := messages.StateRootUpdateMessage{
+		RollupId:            1,
+		BlockHeight:         2,
+		Timestamp:           3,
+		NearDaTransactionId: tests.Keccak256(4),
+		NearDaCommitment:    tests.Keccak256(5),
+		StateRoot:           tests.Keccak256(6),
+	}
+
+	msgModel, err := db.StoreStateRootUpdate(msg)
+	assert.Nil(t, err)
+
+	msgDigest, err := msg.Digest()
+	assert.Nil(t, err)
+
+	value := messages.MessageBlsAggregation{
+		MessageDigest: msgDigest,
+	}
+
+	err = db.StoreStateRootUpdateAggregation(msgModel, value)
+	assert.Nil(t, err)
+
+	msgModel, err = db.StoreStateRootUpdate(msg)
+	assert.Nil(t, err)
+
+	assert.Equal(t, msgModel.AggregationId, uint32(1))
+
+	err = db.StoreStateRootUpdateAggregation(msgModel, value)
+	assert.Nil(t, err)
+
+	msgModel, err = db.StoreStateRootUpdate(msg)
+	assert.Nil(t, err)
+
+	assert.Equal(t, msgModel.AggregationId, uint32(2))
+
+	err = db.StoreStateRootUpdateAggregation(msgModel, value)
+	assert.Nil(t, err)
+
+	var count int64
+	db.DB().Model(&models.MessageBlsAggregation{}).Count(&count)
+	assert.Equal(t, count, int64(1))
 }
 
 func TestFetchUnknownOperatorSetUpdate(t *testing.T) {
@@ -128,7 +179,7 @@ func TestStoreAndFetchOperatorSetUpdate(t *testing.T) {
 		},
 	}
 
-	err = db.StoreOperatorSetUpdate(value)
+	_, err = db.StoreOperatorSetUpdate(value)
 	assert.Nil(t, err)
 
 	entry, err := db.FetchOperatorSetUpdate(value.Id)
@@ -165,7 +216,7 @@ func TestStoreAndFetchOperatorSetUpdateAggregation(t *testing.T) {
 		},
 	}
 
-	err = db.StoreOperatorSetUpdate(msg)
+	msgModel, err := db.StoreOperatorSetUpdate(msg)
 	assert.Nil(t, err)
 
 	msgDigest, err := msg.Digest()
@@ -175,7 +226,7 @@ func TestStoreAndFetchOperatorSetUpdateAggregation(t *testing.T) {
 		MessageDigest: msgDigest,
 	}
 
-	err = db.StoreOperatorSetUpdateAggregation(msg, value)
+	err = db.StoreOperatorSetUpdateAggregation(msgModel, value)
 	assert.Nil(t, err)
 
 	entry, err := db.FetchOperatorSetUpdateAggregation(msg.Id)
@@ -183,6 +234,55 @@ func TestStoreAndFetchOperatorSetUpdateAggregation(t *testing.T) {
 	assert.NotNil(t, entry)
 
 	assert.Equal(t, *entry, value)
+}
+
+func TestOperatorSetUpdateAggregationReplace(t *testing.T) {
+	mockCtrl := gomock.NewController(t)
+	defer mockCtrl.Finish()
+
+	db, err := database.NewDatabase(":memory:")
+	assert.Nil(t, err)
+
+	msg := messages.OperatorSetUpdateMessage{
+		Id:        1,
+		Timestamp: 2,
+		Operators: []coretypes.RollupOperator{
+			{Pubkey: bls.NewG1Point(big.NewInt(3), big.NewInt(4)), Weight: big.NewInt(5)},
+		},
+	}
+
+	msgModel, err := db.StoreOperatorSetUpdate(msg)
+	assert.Nil(t, err)
+
+	msgDigest, err := msg.Digest()
+	assert.Nil(t, err)
+
+	value := messages.MessageBlsAggregation{
+		MessageDigest: msgDigest,
+	}
+
+	err = db.StoreOperatorSetUpdateAggregation(msgModel, value)
+	assert.Nil(t, err)
+
+	msgModel, err = db.StoreOperatorSetUpdate(msg)
+	assert.Nil(t, err)
+
+	assert.Equal(t, msgModel.AggregationId, uint32(1))
+
+	err = db.StoreOperatorSetUpdateAggregation(msgModel, value)
+	assert.Nil(t, err)
+
+	msgModel, err = db.StoreOperatorSetUpdate(msg)
+	assert.Nil(t, err)
+
+	assert.Equal(t, msgModel.AggregationId, uint32(2))
+
+	err = db.StoreOperatorSetUpdateAggregation(msgModel, value)
+	assert.Nil(t, err)
+
+	var count int64
+	db.DB().Model(&models.MessageBlsAggregation{}).Count(&count)
+	assert.Equal(t, count, int64(1))
 }
 
 func TestFetchCheckpointMessages(t *testing.T) {
@@ -254,28 +354,31 @@ func TestFetchCheckpointMessages(t *testing.T) {
 		MessageDigest: msgDigest4,
 	}
 
-	err = db.StoreStateRootUpdate(msg1)
+	var stateRootUpdateMsgModel *models.StateRootUpdateMessage
+	var operatorSetUpdateMsgModel *models.OperatorSetUpdateMessage
+
+	stateRootUpdateMsgModel, err = db.StoreStateRootUpdate(msg1)
 	assert.Nil(t, err)
 
-	err = db.StoreStateRootUpdateAggregation(msg1, aggregation1)
+	err = db.StoreStateRootUpdateAggregation(stateRootUpdateMsgModel, aggregation1)
 	assert.Nil(t, err)
 
-	err = db.StoreStateRootUpdate(msg2)
+	stateRootUpdateMsgModel, err = db.StoreStateRootUpdate(msg2)
 	assert.Nil(t, err)
 
-	err = db.StoreStateRootUpdateAggregation(msg2, aggregation2)
+	err = db.StoreStateRootUpdateAggregation(stateRootUpdateMsgModel, aggregation2)
 	assert.Nil(t, err)
 
-	err = db.StoreOperatorSetUpdate(msg3)
+	operatorSetUpdateMsgModel, err = db.StoreOperatorSetUpdate(msg3)
 	assert.Nil(t, err)
 
-	err = db.StoreOperatorSetUpdateAggregation(msg3, aggregation3)
+	err = db.StoreOperatorSetUpdateAggregation(operatorSetUpdateMsgModel, aggregation3)
 	assert.Nil(t, err)
 
-	err = db.StoreOperatorSetUpdate(msg4)
+	operatorSetUpdateMsgModel, err = db.StoreOperatorSetUpdate(msg4)
 	assert.Nil(t, err)
 
-	err = db.StoreOperatorSetUpdateAggregation(msg4, aggregation4)
+	err = db.StoreOperatorSetUpdateAggregation(operatorSetUpdateMsgModel, aggregation4)
 	assert.Nil(t, err)
 
 	result, err := db.FetchCheckpointMessages(0, 3)
@@ -361,7 +464,7 @@ func TestStoreStateRootUpdate_LargeMsgValues(t *testing.T) {
 		NearDaCommitment:    [32]byte{0xFF},
 		StateRoot:           [32]byte{0xFF},
 	}
-	err = db.StoreStateRootUpdate(msg)
+	_, err = db.StoreStateRootUpdate(msg)
 	assert.Nil(t, err)
 
 	stored, err := db.FetchStateRootUpdate(math.MaxUint32, math.MaxUint64)

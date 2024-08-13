@@ -454,12 +454,12 @@ func (agg *Aggregator) handleStateRootUpdateReachedQuorum(blsAggServiceResp blsa
 
 	agg.logger.Info("Storing state root update", "digest", blsAggServiceResp.MessageDigest, "status", blsAggServiceResp.Status)
 
-	err := agg.msgDb.StoreStateRootUpdate(msg)
+	msgModel, err := agg.msgDb.StoreStateRootUpdate(msg)
 	if err != nil {
 		agg.logger.Error("Aggregator could not store message")
 		return
 	}
-	err = agg.msgDb.StoreStateRootUpdateAggregation(msg, blsAggServiceResp.MessageBlsAggregation)
+	err = agg.msgDb.StoreStateRootUpdateAggregation(msgModel, blsAggServiceResp.MessageBlsAggregation)
 	if err != nil {
 		agg.logger.Error("Aggregator could not store message aggregation")
 		return
@@ -499,12 +499,12 @@ func (agg *Aggregator) handleOperatorSetUpdateReachedQuorum(ctx context.Context,
 
 	agg.logger.Info("Storing operator set update", "digest", blsAggServiceResp.MessageDigest, "status", blsAggServiceResp.Status)
 
-	err := agg.msgDb.StoreOperatorSetUpdate(msg)
+	msgModel, err := agg.msgDb.StoreOperatorSetUpdate(msg)
 	if err != nil {
 		agg.logger.Error("Aggregator could not store message")
 		return
 	}
-	err = agg.msgDb.StoreOperatorSetUpdateAggregation(msg, blsAggServiceResp.MessageBlsAggregation)
+	err = agg.msgDb.StoreOperatorSetUpdateAggregation(msgModel, blsAggServiceResp.MessageBlsAggregation)
 	if err != nil {
 		agg.logger.Error("Aggregator could not store message aggregation")
 		return

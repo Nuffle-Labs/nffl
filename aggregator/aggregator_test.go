@@ -17,6 +17,7 @@ import (
 
 	"github.com/NethermindEth/near-sffl/aggregator/blsagg"
 	dbmocks "github.com/NethermindEth/near-sffl/aggregator/database/mocks"
+	"github.com/NethermindEth/near-sffl/aggregator/database/models"
 	aggmocks "github.com/NethermindEth/near-sffl/aggregator/mocks"
 	"github.com/NethermindEth/near-sffl/aggregator/types"
 	taskmanager "github.com/NethermindEth/near-sffl/contracts/bindings/SFFLTaskManager"
@@ -116,8 +117,11 @@ func TestHandleStateRootUpdateAggregationReachedQuorum(t *testing.T) {
 		Finished: true,
 	}
 
-	mockMsgDb.EXPECT().StoreStateRootUpdate(msg)
-	mockMsgDb.EXPECT().StoreStateRootUpdateAggregation(msg, blsAggServiceResp.MessageBlsAggregation)
+	model := models.NewStateRootUpdateMessageModel(msg)
+
+	// get first return from StoreStateRootUpdate and use it as first argument on StoreStateRootUpdateAggregation
+	mockMsgDb.EXPECT().StoreStateRootUpdate(msg).Return(&model, nil)
+	mockMsgDb.EXPECT().StoreStateRootUpdateAggregation(&model, blsAggServiceResp.MessageBlsAggregation)
 
 	aggregator.handleStateRootUpdateReachedQuorum(blsAggServiceResp)
 }
@@ -144,8 +148,10 @@ func TestHandleOperatorSetUpdateAggregationReachedQuorum(t *testing.T) {
 		Finished: true,
 	}
 
-	mockMsgDb.EXPECT().StoreOperatorSetUpdate(msg)
-	mockMsgDb.EXPECT().StoreOperatorSetUpdateAggregation(msg, blsAggServiceResp.MessageBlsAggregation)
+	msgModel := models.NewOperatorSetUpdateMessageModel(msg)
+
+	mockMsgDb.EXPECT().StoreOperatorSetUpdate(msg).Return(&msgModel, nil)
+	mockMsgDb.EXPECT().StoreOperatorSetUpdateAggregation(&msgModel, blsAggServiceResp.MessageBlsAggregation)
 
 	signatureInfo := blsAggServiceResp.ExtractBindingRollup()
 	mockRollupBroadcaster.EXPECT().BroadcastOperatorSetUpdate(context.Background(), msg, signatureInfo)
