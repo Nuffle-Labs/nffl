@@ -12,7 +12,7 @@ import (
 // all operators in quorum0 must sign the task response in order for it to be accepted
 const TASK_QUORUM_THRESHOLD = eigentypes.QuorumThresholdPercentage(66)
 const MESSAGE_AGGREGATION_QUORUM_THRESHOLD = eigentypes.QuorumThresholdPercentage(66)
-const TASK_AGGREGATION_QUORUM_THRESHOLD = eigentypes.QuorumThresholdPercentage(100)
+const TASK_AGGREGATION_QUORUM_THRESHOLD = eigentypes.QuorumThresholdPercentage(66)
 
 const QUERY_FILTER_FROM_BLOCK = uint64(1)
 
