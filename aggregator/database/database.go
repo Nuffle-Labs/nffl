@@ -11,7 +11,6 @@ import (
 	"github.com/prometheus/client_golang/prometheus"
 	"gorm.io/driver/sqlite"
 	"gorm.io/gorm"
-	"gorm.io/gorm/clause"
 	"gorm.io/gorm/logger"
 
 	"github.com/NethermindEth/near-sffl/aggregator/database/models"
@@ -120,8 +119,9 @@ func (d *Database) StoreStateRootUpdate(stateRootUpdateMessage messages.StateRoo
 	}
 
 	tx := d.db.
-		Clauses(clause.OnConflict{Columns: []clause.Column{{Name: "rollup_id"}, {Name: "block_height"}}, UpdateAll: true}).
-		Create(&model)
+		Where("rollup_id = ?", stateRootUpdateMessage.RollupId).
+		Where("block_height = ?", stateRootUpdateMessage.BlockHeight).
+		FirstOrCreate(&model)
 
 	return &model, tx.Error
 }
@@ -199,8 +199,8 @@ func (d *Database) StoreOperatorSetUpdate(operatorSetUpdateMessage messages.Oper
 	}
 
 	tx := d.db.
-		Clauses(clause.OnConflict{Columns: []clause.Column{{Name: "update_id"}}, UpdateAll: true}).
-		Create(&model)
+		Where("update_id = ?", operatorSetUpdateMessage.Id).
+		FirstOrCreate(&model)
 
 	return &model, tx.Error
 }

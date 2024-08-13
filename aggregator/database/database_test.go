@@ -131,8 +131,18 @@ func TestStateRootUpdateAggregationReplace(t *testing.T) {
 	err = db.StoreStateRootUpdateAggregation(msgModel, value)
 	assert.Nil(t, err)
 
+	msgModel, err = db.StoreStateRootUpdate(msg)
+	assert.Nil(t, err)
+
+	assert.Equal(t, msgModel.AggregationId, uint32(1))
+
 	err = db.StoreStateRootUpdateAggregation(msgModel, value)
 	assert.Nil(t, err)
+
+	msgModel, err = db.StoreStateRootUpdate(msg)
+	assert.Nil(t, err)
+
+	assert.Equal(t, msgModel.AggregationId, uint32(2))
 
 	err = db.StoreStateRootUpdateAggregation(msgModel, value)
 	assert.Nil(t, err)
@@ -254,8 +264,18 @@ func TestOperatorSetUpdateAggregationReplace(t *testing.T) {
 	err = db.StoreOperatorSetUpdateAggregation(msgModel, value)
 	assert.Nil(t, err)
 
+	msgModel, err = db.StoreOperatorSetUpdate(msg)
+	assert.Nil(t, err)
+
+	assert.Equal(t, msgModel.AggregationId, uint32(1))
+
 	err = db.StoreOperatorSetUpdateAggregation(msgModel, value)
 	assert.Nil(t, err)
+
+	msgModel, err = db.StoreOperatorSetUpdate(msg)
+	assert.Nil(t, err)
+
+	assert.Equal(t, msgModel.AggregationId, uint32(2))
 
 	err = db.StoreOperatorSetUpdateAggregation(msgModel, value)
 	assert.Nil(t, err)
