@@ -31,6 +31,7 @@ type Databaser interface {
 	StoreOperatorSetUpdateAggregation(operatorSetUpdateMessage *models.OperatorSetUpdateMessage, aggregation messages.MessageBlsAggregation) error
 	FetchOperatorSetUpdateAggregation(id uint64) (*messages.MessageBlsAggregation, error)
 	FetchCheckpointMessages(fromTimestamp uint64, toTimestamp uint64) (*messages.CheckpointMessages, error)
+	DB() *gorm.DB
 }
 
 type Database struct {

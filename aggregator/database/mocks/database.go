@@ -15,6 +15,7 @@ import (
 	messages "github.com/NethermindEth/near-sffl/core/types/messages"
 	prometheus "github.com/prometheus/client_golang/prometheus"
 	gomock "go.uber.org/mock/gomock"
+	gorm "gorm.io/gorm"
 )
 
 // MockDatabaser is a mock of Databaser interface.
@@ -52,6 +53,20 @@ func (m *MockDatabaser) Close() error {
 func (mr *MockDatabaserMockRecorder) Close() *gomock.Call {
 	mr.mock.ctrl.T.Helper()
 	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "Close", reflect.TypeOf((*MockDatabaser)(nil).Close))
+}
+
+// DB mocks base method.
+func (m *MockDatabaser) DB() *gorm.DB {
+	m.ctrl.T.Helper()
+	ret := m.ctrl.Call(m, "DB")
+	ret0, _ := ret[0].(*gorm.DB)
+	return ret0
+}
+
+// DB indicates an expected call of DB.
+func (mr *MockDatabaserMockRecorder) DB() *gomock.Call {
+	mr.mock.ctrl.T.Helper()
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "DB", reflect.TypeOf((*MockDatabaser)(nil).DB))
 }
 
 // EnableMetrics mocks base method.
