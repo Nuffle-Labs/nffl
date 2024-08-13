@@ -72,7 +72,7 @@ func (msg StateRootUpdateMessage) AbiEncode() ([]byte, error) {
 	return bytes, nil
 }
 
-func (msg StateRootUpdateMessage) Digest() ([32]byte, error) {
+func (msg StateRootUpdateMessage) Digest() (coretypes.MessageDigest, error) {
 	data, err := msg.AbiEncode()
 	if err != nil {
 		return [32]byte{}, err
@@ -86,13 +86,13 @@ func (msg StateRootUpdateMessage) Digest() ([32]byte, error) {
 	return digest, nil
 }
 
-func (msg StateRootUpdateMessage) Key() [32]byte {
+func (msg StateRootUpdateMessage) Key() coretypes.MessageKey {
 	key := [32]byte{}
 
 	binary.BigEndian.PutUint32(key[20:24], msg.RollupId)
 	binary.BigEndian.PutUint64(key[24:32], msg.BlockHeight)
 
-	return key
+	return coretypes.MessageKey(key)
 }
 
 func (msg StateRootUpdateMessage) HasNearDaCommitment() bool {

@@ -17,6 +17,7 @@ type TaskIndex = uint32
 type RollupId = uint32
 type OperatorSetUpdateId = uint64
 type MessageDigest = [32]byte
+type MessageKey = [32]byte
 
 type RollupOperator struct {
 	Pubkey *bls.G1Point

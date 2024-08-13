@@ -114,7 +114,7 @@ func (msg OperatorSetUpdateMessage) AbiEncode() ([]byte, error) {
 	return bytes, nil
 }
 
-func (msg OperatorSetUpdateMessage) Digest() ([32]byte, error) {
+func (msg OperatorSetUpdateMessage) Digest() (coretypes.MessageDigest, error) {
 	data, err := msg.AbiEncode()
 	if err != nil {
 		return [32]byte{}, err
@@ -128,10 +128,10 @@ func (msg OperatorSetUpdateMessage) Digest() ([32]byte, error) {
 	return digest, nil
 }
 
-func (msg OperatorSetUpdateMessage) Key() [32]byte {
+func (msg OperatorSetUpdateMessage) Key() coretypes.MessageKey {
 	key := [32]byte{}
 
 	binary.BigEndian.PutUint64(key[24:32], msg.Id)
 
-	return key
+	return coretypes.MessageKey(key)
 }

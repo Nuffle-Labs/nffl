@@ -1,6 +1,7 @@
 package messages
 
 import (
+	"encoding/binary"
 	"errors"
 
 	"github.com/Layr-Labs/eigensdk-go/crypto/bls"
@@ -107,7 +108,7 @@ func (msg CheckpointTaskResponse) AbiEncode() ([]byte, error) {
 	return bytes, nil
 }
 
-func (msg CheckpointTaskResponse) Digest() ([32]byte, error) {
+func (msg CheckpointTaskResponse) Digest() (coretypes.MessageDigest, error) {
 	data, err := msg.AbiEncode()
 	if err != nil {
 		return [32]byte{}, err
@@ -119,4 +120,16 @@ func (msg CheckpointTaskResponse) Digest() ([32]byte, error) {
 	}
 
 	return digest, nil
+}
+
+func (msg CheckpointTaskResponse) Key() coretypes.MessageKey {
+	key := [32]byte{}
+
+	binary.BigEndian.PutUint32(key[28:32], msg.ReferenceTaskIndex)
+
+	return coretypes.MessageKey(key)
+}
+
+func CheckpointTaskResponseKeyToTaskIndex(key coretypes.MessageKey) coretypes.TaskIndex {
+	return coretypes.TaskIndex(binary.BigEndian.Uint32(key[28:32]))
 }
