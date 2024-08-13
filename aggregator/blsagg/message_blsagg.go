@@ -54,11 +54,16 @@ type MessageBlsAggregationServiceResponse struct {
 	messages.MessageBlsAggregation
 
 	MessageKey coretypes.MessageKey
-	Message    interface{}
+	Message    MessageBlsAggregationServiceMessage
 
 	Status   MessageBlsAggregationStatus
 	Finished bool
 	Err      error
+}
+
+type MessageBlsAggregationServiceMessage interface {
+	Digest() (coretypes.MessageDigest, error)
+	Key() coretypes.MessageKey
 }
 
 type AggregatedOperators struct {
@@ -85,11 +90,6 @@ type signedMessageDigestValidationInfo struct {
 	quorumThresholdPercentagesMap map[eigentypes.QuorumNum]eigentypes.QuorumThresholdPercentage
 	quorumNumbers                 []eigentypes.QuorumNum
 	ethBlockNumber                uint64
-}
-
-type MessageBlsAggregationServiceMessage interface {
-	Digest() (coretypes.MessageDigest, error)
-	Key() coretypes.MessageKey
 }
 
 type MessageBlsAggregationService interface {
