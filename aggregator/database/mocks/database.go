@@ -5,13 +5,13 @@
 //
 //	mockgen -destination=./mocks/database.go -package=mocks github.com/NethermindEth/near-sffl/aggregator/database Databaser
 //
-
 // Package mocks is a generated GoMock package.
 package mocks
 
 import (
 	reflect "reflect"
 
+	models "github.com/NethermindEth/near-sffl/aggregator/database/models"
 	messages "github.com/NethermindEth/near-sffl/core/types/messages"
 	prometheus "github.com/prometheus/client_golang/prometheus"
 	gomock "go.uber.org/mock/gomock"
@@ -144,11 +144,12 @@ func (mr *MockDatabaserMockRecorder) FetchStateRootUpdateAggregation(arg0, arg1 
 }
 
 // StoreOperatorSetUpdate mocks base method.
-func (m *MockDatabaser) StoreOperatorSetUpdate(arg0 messages.OperatorSetUpdateMessage) error {
+func (m *MockDatabaser) StoreOperatorSetUpdate(arg0 messages.OperatorSetUpdateMessage) (*models.OperatorSetUpdateMessage, error) {
 	m.ctrl.T.Helper()
 	ret := m.ctrl.Call(m, "StoreOperatorSetUpdate", arg0)
-	ret0, _ := ret[0].(error)
-	return ret0
+	ret0, _ := ret[0].(*models.OperatorSetUpdateMessage)
+	ret1, _ := ret[1].(error)
+	return ret0, ret1
 }
 
 // StoreOperatorSetUpdate indicates an expected call of StoreOperatorSetUpdate.
@@ -158,7 +159,7 @@ func (mr *MockDatabaserMockRecorder) StoreOperatorSetUpdate(arg0 any) *gomock.Ca
 }
 
 // StoreOperatorSetUpdateAggregation mocks base method.
-func (m *MockDatabaser) StoreOperatorSetUpdateAggregation(arg0 messages.OperatorSetUpdateMessage, arg1 messages.MessageBlsAggregation) error {
+func (m *MockDatabaser) StoreOperatorSetUpdateAggregation(arg0 *models.OperatorSetUpdateMessage, arg1 messages.MessageBlsAggregation) error {
 	m.ctrl.T.Helper()
 	ret := m.ctrl.Call(m, "StoreOperatorSetUpdateAggregation", arg0, arg1)
 	ret0, _ := ret[0].(error)
@@ -172,11 +173,12 @@ func (mr *MockDatabaserMockRecorder) StoreOperatorSetUpdateAggregation(arg0, arg
 }
 
 // StoreStateRootUpdate mocks base method.
-func (m *MockDatabaser) StoreStateRootUpdate(arg0 messages.StateRootUpdateMessage) error {
+func (m *MockDatabaser) StoreStateRootUpdate(arg0 messages.StateRootUpdateMessage) (*models.StateRootUpdateMessage, error) {
 	m.ctrl.T.Helper()
 	ret := m.ctrl.Call(m, "StoreStateRootUpdate", arg0)
-	ret0, _ := ret[0].(error)
-	return ret0
+	ret0, _ := ret[0].(*models.StateRootUpdateMessage)
+	ret1, _ := ret[1].(error)
+	return ret0, ret1
 }
 
 // StoreStateRootUpdate indicates an expected call of StoreStateRootUpdate.
@@ -186,7 +188,7 @@ func (mr *MockDatabaserMockRecorder) StoreStateRootUpdate(arg0 any) *gomock.Call
 }
 
 // StoreStateRootUpdateAggregation mocks base method.
-func (m *MockDatabaser) StoreStateRootUpdateAggregation(arg0 messages.StateRootUpdateMessage, arg1 messages.MessageBlsAggregation) error {
+func (m *MockDatabaser) StoreStateRootUpdateAggregation(arg0 *models.StateRootUpdateMessage, arg1 messages.MessageBlsAggregation) error {
 	m.ctrl.T.Helper()
 	ret := m.ctrl.Call(m, "StoreStateRootUpdateAggregation", arg0, arg1)
 	ret0, _ := ret[0].(error)
