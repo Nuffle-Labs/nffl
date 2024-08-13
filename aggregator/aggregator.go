@@ -14,11 +14,11 @@ import (
 	"github.com/Layr-Labs/eigensdk-go/logging"
 	"github.com/Layr-Labs/eigensdk-go/metrics"
 	"github.com/Layr-Labs/eigensdk-go/services/avsregistry"
-	blsagg "github.com/Layr-Labs/eigensdk-go/services/bls_aggregation"
 	"github.com/Layr-Labs/eigensdk-go/signerv2"
 	eigentypes "github.com/Layr-Labs/eigensdk-go/types"
 	"github.com/prometheus/client_golang/prometheus"
 
+	"github.com/NethermindEth/near-sffl/aggregator/blsagg"
 	"github.com/NethermindEth/near-sffl/aggregator/database"
 	"github.com/NethermindEth/near-sffl/aggregator/types"
 	taskmanager "github.com/NethermindEth/near-sffl/contracts/bindings/SFFLTaskManager"
@@ -34,9 +34,11 @@ const (
 	// number of blocks after which a task is considered expired
 	// this hardcoded here because it's also hardcoded in the contracts, but should
 	// ideally be fetched from the contracts
-	taskChallengeWindowBlock = 100
-	blockTimeSeconds         = 12 * time.Second
-	avsName                  = "super-fast-finality-layer"
+	taskChallengeWindowBlock          = 100
+	taksResponseSubmissionBufferBlock = 15
+	taskAggregationTimeout            = 1 * time.Minute
+	blockTime                         = 12 * time.Second
+	avsName                           = "super-fast-finality-layer"
 )
 
 var (
@@ -47,6 +49,7 @@ var (
 	OperatorNotFoundError          = errors.New("Operator not found")
 	InvalidSignatureError          = errors.New("Invalid signature")
 	UnsupportedMessageTypeError    = errors.New("Unsupported message type")
+	MessageTimeoutError            = errors.New("Message timeout")
 
 	// REST errors
 	StateRootUpdateNotFoundError = errors.New("StateRootUpdate not found")
@@ -123,18 +126,12 @@ type Aggregator struct {
 	aggregatorListener AggregatorEventListener
 
 	operatorRegistrationsService           OperatorRegistrationsService
-	taskBlsAggregationService              blsagg.BlsAggregationService
-	stateRootUpdateBlsAggregationService   MessageBlsAggregationService
-	operatorSetUpdateBlsAggregationService MessageBlsAggregationService
+	taskBlsAggregationService              blsagg.MessageBlsAggregationService
+	stateRootUpdateBlsAggregationService   blsagg.MessageBlsAggregationService
+	operatorSetUpdateBlsAggregationService blsagg.MessageBlsAggregationService
 	tasks                                  map[coretypes.TaskIndex]taskmanager.CheckpointTask
 	tasksLock                              sync.RWMutex
-	taskResponses                          map[coretypes.TaskIndex]map[eigentypes.TaskResponseDigest]messages.CheckpointTaskResponse
-	taskResponsesLock                      sync.RWMutex
 	msgDb                                  database.Databaser
-	stateRootUpdates                       map[coretypes.MessageDigest]messages.StateRootUpdateMessage
-	stateRootUpdatesLock                   sync.RWMutex
-	operatorSetUpdates                     map[coretypes.MessageDigest]messages.OperatorSetUpdateMessage
-	operatorSetUpdatesLock                 sync.RWMutex
 }
 
 var _ core.Metricable = (*Aggregator)(nil)
@@ -217,9 +214,9 @@ func NewAggregator(
 	}
 
 	avsRegistryService := avsregistry.NewAvsRegistryServiceChainCaller(avsReader, operatorRegistrationsService, logger)
-	taskBlsAggregationService := blsagg.NewBlsAggregatorService(avsRegistryService, logger)
-	stateRootUpdateBlsAggregationService := NewMessageBlsAggregatorService(avsRegistryService, ethHttpClient, logger)
-	operatorSetUpdateBlsAggregationService := NewMessageBlsAggregatorService(avsRegistryService, ethHttpClient, logger)
+	taskBlsAggregationService := blsagg.NewMessageBlsAggregatorService(avsRegistryService, ethHttpClient, logger)
+	stateRootUpdateBlsAggregationService := blsagg.NewMessageBlsAggregatorService(avsRegistryService, ethHttpClient, logger)
+	operatorSetUpdateBlsAggregationService := blsagg.NewMessageBlsAggregatorService(avsRegistryService, ethHttpClient, logger)
 
 	agg := &Aggregator{
 		config:                                 config,
@@ -239,9 +236,6 @@ func NewAggregator(
 		operatorSetUpdateBlsAggregationService: operatorSetUpdateBlsAggregationService,
 		msgDb:                                  msgDb,
 		tasks:                                  make(map[coretypes.TaskIndex]taskmanager.CheckpointTask),
-		taskResponses:                          make(map[coretypes.TaskIndex]map[eigentypes.TaskResponseDigest]messages.CheckpointTaskResponse),
-		stateRootUpdates:                       make(map[coretypes.MessageDigest]messages.StateRootUpdateMessage),
-		operatorSetUpdates:                     make(map[coretypes.MessageDigest]messages.OperatorSetUpdateMessage),
 		aggregatorListener:                     &SelectiveAggregatorListener{},
 	}
 
@@ -321,7 +315,13 @@ func (agg *Aggregator) Close() error {
 	return nil
 }
 
-func (agg *Aggregator) sendAggregatedResponseToContract(blsAggServiceResp blsagg.BlsAggregationServiceResponse) {
+func (agg *Aggregator) sendAggregatedResponseToContract(blsAggServiceResp blsagg.MessageBlsAggregationServiceResponse) {
+	defer func() {
+		agg.tasksLock.Lock()
+		delete(agg.tasks, messages.CheckpointTaskResponseKeyToTaskIndex(blsAggServiceResp.MessageKey))
+		agg.tasksLock.Unlock()
+	}()
+
 	if blsAggServiceResp.Err != nil {
 		agg.aggregatorListener.IncErroredSubmissions()
 		if strings.Contains(blsAggServiceResp.Err.Error(), "expired") {
@@ -332,25 +332,20 @@ func (agg *Aggregator) sendAggregatedResponseToContract(blsAggServiceResp blsagg
 		return
 	}
 
-	agg.aggregatorListener.ObserveLastCheckpointTaskReferenceReceived(blsAggServiceResp.TaskIndex)
-
-	agg.logger.Info("Threshold reached. Sending aggregated response onchain.",
-		"taskIndex", blsAggServiceResp.TaskIndex,
-	)
-	agg.tasksLock.RLock()
-	task := agg.tasks[blsAggServiceResp.TaskIndex]
-	agg.tasksLock.RUnlock()
-	agg.taskResponsesLock.RLock()
-	taskResponse := agg.taskResponses[blsAggServiceResp.TaskIndex][blsAggServiceResp.TaskResponseDigest]
-	agg.taskResponsesLock.RUnlock()
-
-	aggregation, err := messages.NewMessageBlsAggregationFromServiceResponse(uint64(task.TaskCreatedBlock), blsAggServiceResp)
-	if err != nil {
-		agg.logger.Error("Aggregator failed to format aggregation", "err", err)
+	taskResponse, ok := blsAggServiceResp.Message.(messages.CheckpointTaskResponse)
+	if !ok {
+		agg.logger.Fatal("BlsAggregationServiceResponse contains a non-task response message")
 		return
 	}
 
-	agg.aggregatorListener.ObserveLastCheckpointTaskReferenceAggregated(blsAggServiceResp.TaskIndex)
+	agg.logger.Info("Threshold reached. Sending aggregated response onchain.",
+		"taskIndex", taskResponse.ReferenceTaskIndex,
+	)
+	agg.tasksLock.RLock()
+	task := agg.tasks[taskResponse.ReferenceTaskIndex]
+	agg.tasksLock.RUnlock()
+
+	agg.aggregatorListener.ObserveLastCheckpointTaskReferenceAggregated(taskResponse.ReferenceTaskIndex)
 
 	currentBlock, err := agg.httpClient.BlockNumber(context.Background())
 	if err != nil {
@@ -363,7 +358,7 @@ func (agg *Aggregator) sendAggregatedResponseToContract(blsAggServiceResp blsagg
 		time.Sleep(20 * time.Second)
 	}
 
-	_, err = agg.avsWriter.SendAggregatedResponse(context.Background(), task, taskResponse, aggregation)
+	_, err = agg.avsWriter.SendAggregatedResponse(context.Background(), task, taskResponse, blsAggServiceResp.MessageBlsAggregation)
 	if err != nil {
 		agg.logger.Error("Aggregator failed to respond to task", "err", err)
 		return
@@ -415,34 +410,26 @@ func (agg *Aggregator) sendNewCheckpointTask() {
 	for i, _ := range newTask.QuorumNumbers {
 		quorumThresholds[i] = types.TASK_AGGREGATION_QUORUM_THRESHOLD
 	}
-	// TODO(samlaf): we use seconds for now, but we should ideally pass a blocknumber to the blsAggregationService
-	// and it should monitor the chain and only expire the task aggregation once the chain has reached that block number.
-	taskTimeToExpiry := taskChallengeWindowBlock * blockTimeSeconds
-	err = agg.taskBlsAggregationService.InitializeNewTask(taskIndex, newTask.TaskCreatedBlock, core.ConvertBytesToQuorumNumbers(newTask.QuorumNumbers), quorumThresholds, taskTimeToExpiry)
+
+	taskTimeToExpiry := (taskChallengeWindowBlock-taksResponseSubmissionBufferBlock)*blockTime - taskAggregationTimeout
+	err = agg.taskBlsAggregationService.InitializeMessageIfNotExists(
+		messages.CheckpointTaskResponse{ReferenceTaskIndex: taskIndex}.Key(),
+		core.ConvertBytesToQuorumNumbers(newTask.QuorumNumbers),
+		quorumThresholds,
+		taskTimeToExpiry,
+		taskAggregationTimeout,
+		uint64(newTask.TaskCreatedBlock),
+	)
 	if err != nil {
 		agg.logger.Error("Failed to initialize new task", "err", err)
 		return
 	}
 }
 
-func (agg *Aggregator) handleStateRootUpdateReachedQuorum(blsAggServiceResp types.MessageBlsAggregationServiceResponse) {
-	agg.stateRootUpdatesLock.RLock()
-	msg, ok := agg.stateRootUpdates[blsAggServiceResp.MessageDigest]
-	agg.stateRootUpdatesLock.RUnlock()
-
-	if blsAggServiceResp.Finished {
-		defer func() {
-			agg.stateRootUpdatesLock.Lock()
-			delete(agg.stateRootUpdates, blsAggServiceResp.MessageDigest)
-			agg.stateRootUpdatesLock.Unlock()
-		}()
-	}
-
-	agg.aggregatorListener.ObserveLastStateRootUpdateReceived(msg.RollupId, msg.BlockHeight)
-
+func (agg *Aggregator) handleStateRootUpdateReachedQuorum(blsAggServiceResp blsagg.MessageBlsAggregationServiceResponse) {
 	if blsAggServiceResp.Err != nil {
 		agg.aggregatorListener.IncErroredSubmissions()
-		if errors.Is(blsAggServiceResp.Err, MessageExpiredError) {
+		if errors.Is(blsAggServiceResp.Err, blsagg.MessageExpiredError) {
 			agg.aggregatorListener.IncExpiredMessages()
 		}
 
@@ -450,8 +437,14 @@ func (agg *Aggregator) handleStateRootUpdateReachedQuorum(blsAggServiceResp type
 		return
 	}
 
+	if blsAggServiceResp.Message == nil {
+		agg.logger.Fatal("Non-errored BlsAggregationServiceResponse contains a nil message")
+		return
+	}
+
+	msg, ok := blsAggServiceResp.Message.(messages.StateRootUpdateMessage)
 	if !ok {
-		agg.logger.Error("Aggregator could not find matching message")
+		agg.logger.Fatal("BlsAggregationServiceResponse contains a non-state root update message")
 		return
 	}
 
@@ -471,29 +464,10 @@ func (agg *Aggregator) handleStateRootUpdateReachedQuorum(blsAggServiceResp type
 	}
 }
 
-func (agg *Aggregator) handleOperatorSetUpdateReachedQuorum(ctx context.Context, blsAggServiceResp types.MessageBlsAggregationServiceResponse) {
-	agg.operatorSetUpdatesLock.RLock()
-	msg, ok := agg.operatorSetUpdates[blsAggServiceResp.MessageDigest]
-	agg.operatorSetUpdatesLock.RUnlock()
-
-	if blsAggServiceResp.Finished {
-		defer func() {
-			agg.operatorSetUpdatesLock.Lock()
-			delete(agg.operatorSetUpdates, blsAggServiceResp.MessageDigest)
-			agg.operatorSetUpdatesLock.Unlock()
-
-			if blsAggServiceResp.Err == nil {
-				signatureInfo := blsAggServiceResp.ExtractBindingRollup()
-				agg.rollupBroadcaster.BroadcastOperatorSetUpdate(ctx, msg, signatureInfo)
-			}
-		}()
-	}
-
-	agg.aggregatorListener.ObserveLastOperatorSetUpdateReceived(msg.Id)
-
+func (agg *Aggregator) handleOperatorSetUpdateReachedQuorum(ctx context.Context, blsAggServiceResp blsagg.MessageBlsAggregationServiceResponse) {
 	if blsAggServiceResp.Err != nil {
 		agg.aggregatorListener.IncErroredSubmissions()
-		if errors.Is(blsAggServiceResp.Err, MessageExpiredError) {
+		if errors.Is(blsAggServiceResp.Err, blsagg.MessageExpiredError) {
 			agg.aggregatorListener.IncExpiredMessages()
 		}
 
@@ -501,9 +475,22 @@ func (agg *Aggregator) handleOperatorSetUpdateReachedQuorum(ctx context.Context,
 		return
 	}
 
-	if !ok {
-		agg.logger.Error("Aggregator could not find matching message")
+	if blsAggServiceResp.Message == nil {
+		agg.logger.Fatal("Non-errored BlsAggregationServiceResponse contains a nil message")
 		return
+	}
+
+	msg, ok := blsAggServiceResp.Message.(messages.OperatorSetUpdateMessage)
+	if !ok {
+		agg.logger.Fatal("BlsAggregationServiceResponse contains a non-operator set update message")
+		return
+	}
+
+	if blsAggServiceResp.Finished {
+		defer func() {
+			signatureInfo := blsAggServiceResp.ExtractBindingRollup()
+			agg.rollupBroadcaster.BroadcastOperatorSetUpdate(ctx, msg, signatureInfo)
+		}()
 	}
 
 	agg.aggregatorListener.ObserveLastOperatorSetUpdateAggregated(msg.Id)
@@ -528,29 +515,15 @@ func (agg *Aggregator) ProcessSignedCheckpointTaskResponse(signedCheckpointTaskR
 		return err
 	}
 
-	taskIndex := signedCheckpointTaskResponse.TaskResponse.ReferenceTaskIndex
-	taskResponseDigest, err := signedCheckpointTaskResponse.TaskResponse.Digest()
-	if err != nil {
-		agg.logger.Error("Failed to get task response digest", "err", err)
-		return TaskResponseDigestError
-	}
+	agg.aggregatorListener.ObserveLastCheckpointTaskReferenceReceived(signedCheckpointTaskResponse.TaskResponse.ReferenceTaskIndex)
 
 	err = agg.taskBlsAggregationService.ProcessNewSignature(
-		context.Background(), taskIndex, taskResponseDigest,
+		context.Background(), signedCheckpointTaskResponse.TaskResponse,
 		&signedCheckpointTaskResponse.BlsSignature, signedCheckpointTaskResponse.OperatorId,
 	)
 	if err != nil {
 		return err
 	}
-
-	agg.taskResponsesLock.Lock()
-	if _, ok := agg.taskResponses[taskIndex]; !ok {
-		agg.taskResponses[taskIndex] = make(map[eigentypes.TaskResponseDigest]messages.CheckpointTaskResponse)
-	}
-	if _, ok := agg.taskResponses[taskIndex][taskResponseDigest]; !ok {
-		agg.taskResponses[taskIndex][taskResponseDigest] = signedCheckpointTaskResponse.TaskResponse
-	}
-	agg.taskResponsesLock.Unlock()
 
 	return nil
 }
@@ -569,14 +542,10 @@ func (agg *Aggregator) ProcessSignedStateRootUpdateMessage(signedStateRootUpdate
 		return err
 	}
 
-	messageDigest, err := signedStateRootUpdateMessage.Message.Digest()
-	if err != nil {
-		agg.logger.Error("Failed to get message digest", "err", err)
-		return DigestError
-	}
+	agg.aggregatorListener.ObserveLastStateRootUpdateReceived(signedStateRootUpdateMessage.Message.RollupId, signedStateRootUpdateMessage.Message.BlockHeight)
 
 	err = agg.stateRootUpdateBlsAggregationService.InitializeMessageIfNotExists(
-		messageDigest,
+		signedStateRootUpdateMessage.Message.Key(),
 		coretypes.QUORUM_NUMBERS,
 		[]eigentypes.QuorumThresholdPercentage{types.MESSAGE_AGGREGATION_QUORUM_THRESHOLD},
 		types.MESSAGE_TTL,
@@ -587,12 +556,8 @@ func (agg *Aggregator) ProcessSignedStateRootUpdateMessage(signedStateRootUpdate
 		return err
 	}
 
-	agg.stateRootUpdatesLock.Lock()
-	agg.stateRootUpdates[messageDigest] = signedStateRootUpdateMessage.Message
-	agg.stateRootUpdatesLock.Unlock()
-
 	err = agg.stateRootUpdateBlsAggregationService.ProcessNewSignature(
-		context.Background(), messageDigest,
+		context.Background(), signedStateRootUpdateMessage.Message,
 		&signedStateRootUpdateMessage.BlsSignature, signedStateRootUpdateMessage.OperatorId,
 	)
 	return err
@@ -611,20 +576,16 @@ func (agg *Aggregator) ProcessSignedOperatorSetUpdateMessage(signedOperatorSetUp
 		return err
 	}
 
-	messageDigest, err := signedOperatorSetUpdateMessage.Message.Digest()
-	if err != nil {
-		agg.logger.Error("Failed to get message digest", "err", err)
-		return DigestError
-	}
-
 	blockNumber, err := agg.avsReader.GetOperatorSetUpdateBlock(context.Background(), signedOperatorSetUpdateMessage.Message.Id)
 	if err != nil {
 		agg.logger.Error("Failed to get operator set update block", "err", err)
 		return GetOperatorSetUpdateBlockError
 	}
 
+	agg.aggregatorListener.ObserveLastOperatorSetUpdateReceived(signedOperatorSetUpdateMessage.Message.Id)
+
 	err = agg.operatorSetUpdateBlsAggregationService.InitializeMessageIfNotExists(
-		messageDigest,
+		signedOperatorSetUpdateMessage.Message.Key(),
 		coretypes.QUORUM_NUMBERS,
 		[]eigentypes.QuorumThresholdPercentage{types.MESSAGE_AGGREGATION_QUORUM_THRESHOLD},
 		types.MESSAGE_TTL,
@@ -635,12 +596,8 @@ func (agg *Aggregator) ProcessSignedOperatorSetUpdateMessage(signedOperatorSetUp
 		return err
 	}
 
-	agg.operatorSetUpdatesLock.Lock()
-	agg.operatorSetUpdates[messageDigest] = signedOperatorSetUpdateMessage.Message
-	agg.operatorSetUpdatesLock.Unlock()
-
 	err = agg.operatorSetUpdateBlsAggregationService.ProcessNewSignature(
-		context.Background(), messageDigest,
+		context.Background(), signedOperatorSetUpdateMessage.Message,
 		&signedOperatorSetUpdateMessage.BlsSignature, signedOperatorSetUpdateMessage.OperatorId,
 	)
 
@@ -766,7 +723,7 @@ func (agg *Aggregator) validateMessageTimestamp(messageTimestamp uint64) error {
 
 	// Prevent possible underflow (specially in testing)
 	if uint64(now) > uint64(timeoutInSeconds) && messageTimestamp < uint64(now)-uint64(timeoutInSeconds) {
-		return MessageExpiredError
+		return MessageTimeoutError
 	}
 
 	return nil

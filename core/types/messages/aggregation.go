@@ -5,7 +5,6 @@ import (
 	"sort"
 
 	"github.com/Layr-Labs/eigensdk-go/crypto/bls"
-	blsagg "github.com/Layr-Labs/eigensdk-go/services/bls_aggregation"
 
 	registryrollup "github.com/NethermindEth/near-sffl/contracts/bindings/SFFLRegistryRollup"
 	taskmanager "github.com/NethermindEth/near-sffl/contracts/bindings/SFFLTaskManager"
@@ -26,9 +25,9 @@ type MessageBlsAggregation struct {
 	NonSignerStakeIndices        [][]uint32
 }
 
-func NewMessageBlsAggregationFromServiceResponse(ethBlockNumber uint64, resp blsagg.BlsAggregationServiceResponse) (MessageBlsAggregation, error) {
-	nonSignersPubkeyHashes := make([][32]byte, 0, len(resp.NonSignersPubkeysG1))
-	for _, pubkey := range resp.NonSignersPubkeysG1 {
+func StandardizeMessageBlsAggregation(agg MessageBlsAggregation) (MessageBlsAggregation, error) {
+	nonSignersPubkeyHashes := make([][32]byte, 0, len(agg.NonSignersPubkeysG1))
+	for _, pubkey := range agg.NonSignersPubkeysG1 {
 		hash, err := core.HashBNG1Point(core.ConvertToBN254G1Point(pubkey))
 		if err != nil {
 			return MessageBlsAggregation{}, err
@@ -37,11 +36,11 @@ func NewMessageBlsAggregationFromServiceResponse(ethBlockNumber uint64, resp bls
 		nonSignersPubkeyHashes = append(nonSignersPubkeyHashes, hash)
 	}
 
-	nonSignersPubkeys := append([]*bls.G1Point{}, resp.NonSignersPubkeysG1...)
-	nonSignerQuorumBitmapIndices := append([]uint32{}, resp.NonSignerQuorumBitmapIndices...)
+	nonSignersPubkeys := append([]*bls.G1Point{}, agg.NonSignersPubkeysG1...)
+	nonSignerQuorumBitmapIndices := append([]uint32{}, agg.NonSignerQuorumBitmapIndices...)
 
-	nonSignerStakeIndices := make([][]uint32, 0, len(resp.NonSignerStakeIndices))
-	for _, nonSignerStakeIndex := range resp.NonSignerStakeIndices {
+	nonSignerStakeIndices := make([][]uint32, 0, len(agg.NonSignerStakeIndices))
+	for _, nonSignerStakeIndex := range agg.NonSignerStakeIndices {
 		nonSignerStakeIndices = append(nonSignerStakeIndices, append([]uint32{}, nonSignerStakeIndex...))
 	}
 
@@ -56,15 +55,15 @@ func NewMessageBlsAggregationFromServiceResponse(ethBlockNumber uint64, resp bls
 	sortByPubkeyHash(nonSignerQuorumBitmapIndices)
 
 	return MessageBlsAggregation{
-		EthBlockNumber:               uint64(ethBlockNumber),
-		MessageDigest:                resp.TaskResponseDigest,
+		EthBlockNumber:               agg.EthBlockNumber,
+		MessageDigest:                agg.MessageDigest,
 		NonSignersPubkeysG1:          nonSignersPubkeys,
-		QuorumApksG1:                 resp.QuorumApksG1,
-		SignersApkG2:                 resp.SignersApkG2,
-		SignersAggSigG1:              resp.SignersAggSigG1,
+		QuorumApksG1:                 agg.QuorumApksG1,
+		SignersApkG2:                 agg.SignersApkG2,
+		SignersAggSigG1:              agg.SignersAggSigG1,
 		NonSignerQuorumBitmapIndices: nonSignerQuorumBitmapIndices,
-		QuorumApkIndices:             resp.QuorumApkIndices,
-		TotalStakeIndices:            resp.TotalStakeIndices,
+		QuorumApkIndices:             agg.QuorumApkIndices,
+		TotalStakeIndices:            agg.TotalStakeIndices,
 		NonSignerStakeIndices:        nonSignerStakeIndices,
 	}, nil
 }

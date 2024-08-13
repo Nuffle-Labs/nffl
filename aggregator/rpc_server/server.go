@@ -7,6 +7,7 @@ import (
 	"strings"
 	"time"
 
+	"github.com/NethermindEth/near-sffl/aggregator/blsagg"
 	"github.com/NethermindEth/near-sffl/core"
 	"github.com/prometheus/client_golang/prometheus"
 
@@ -36,7 +37,7 @@ var (
 		aggregator.GetOperatorSetUpdateBlockError: OperatorSetUpdateBlockNotFoundError500,
 		aggregator.InvalidSignatureError:          InvalidSignatureError400,
 		aggregator.OperatorNotFoundError:          OperatorNotFoundError400,
-		aggregator.MessageExpiredError:            MessageExpiredError500,
+		blsagg.MessageExpiredError:                MessageExpiredError500,
 	}
 )
 
