@@ -275,6 +275,7 @@ func (mbas *MessageBlsAggregatorService) handleSignedMessagePreThreshold(
 				},
 				MessageKey: messageKey,
 				Message:    nil,
+				Status:     MessageBlsAggregationStatusNone,
 				Finished:   true,
 				Err:        MessageExpiredError,
 			}
@@ -450,6 +451,9 @@ func (mbas *MessageBlsAggregatorService) getMessageBlsAggregationResponse(messag
 		return MessageBlsAggregationServiceResponse{
 			MessageBlsAggregation: defaultAggregation,
 			Message:               message,
+			MessageKey:            message.Key(),
+			Status:                MessageBlsAggregationStatusNone,
+			Finished:              false,
 			Err:                   MessageNotFoundErrorFn(messageDigest),
 		}
 	}
@@ -459,6 +463,9 @@ func (mbas *MessageBlsAggregatorService) getMessageBlsAggregationResponse(messag
 		return MessageBlsAggregationServiceResponse{
 			MessageBlsAggregation: defaultAggregation,
 			Message:               message,
+			MessageKey:            message.Key(),
+			Status:                MessageBlsAggregationStatusNone,
+			Finished:              false,
 			Err:                   err,
 		}
 	}
@@ -476,6 +483,9 @@ func (mbas *MessageBlsAggregatorService) getMessageBlsAggregationResponse(messag
 		return MessageBlsAggregationServiceResponse{
 			MessageBlsAggregation: defaultAggregation,
 			Message:               message,
+			MessageKey:            message.Key(),
+			Status:                MessageBlsAggregationStatusNone,
+			Finished:              false,
 			Err:                   err,
 		}
 	}
@@ -499,6 +509,9 @@ func (mbas *MessageBlsAggregatorService) getMessageBlsAggregationResponse(messag
 		return MessageBlsAggregationServiceResponse{
 			MessageBlsAggregation: defaultAggregation,
 			Message:               message,
+			MessageKey:            message.Key(),
+			Status:                MessageBlsAggregationStatusNone,
+			Finished:              false,
 			Err:                   err,
 		}
 	}
@@ -511,6 +524,7 @@ func (mbas *MessageBlsAggregatorService) getMessageBlsAggregationResponse(messag
 		Finished:              fullStakeThresholdMet || forceFinished,
 		MessageBlsAggregation: aggregation,
 		Message:               message,
+		MessageKey:            message.Key(),
 	}
 }
 
