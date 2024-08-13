@@ -129,3 +129,7 @@ func (msg CheckpointTaskResponse) Key() coretypes.MessageKey {
 
 	return coretypes.MessageKey(key)
 }
+
+func CheckpointTaskResponseKeyToTaskIndex(key coretypes.MessageKey) coretypes.TaskIndex {
+	return coretypes.TaskIndex(binary.BigEndian.Uint32(key[28:32]))
+}

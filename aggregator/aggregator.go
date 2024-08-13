@@ -316,6 +316,12 @@ func (agg *Aggregator) Close() error {
 }
 
 func (agg *Aggregator) sendAggregatedResponseToContract(blsAggServiceResp blsagg.MessageBlsAggregationServiceResponse) {
+	defer func() {
+		agg.tasksLock.Lock()
+		delete(agg.tasks, messages.CheckpointTaskResponseKeyToTaskIndex(blsAggServiceResp.MessageKey))
+		agg.tasksLock.Unlock()
+	}()
+
 	if blsAggServiceResp.Err != nil {
 		agg.aggregatorListener.IncErroredSubmissions()
 		if strings.Contains(blsAggServiceResp.Err.Error(), "expired") {
