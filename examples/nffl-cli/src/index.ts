@@ -16,6 +16,7 @@ program
     .requiredOption("--rpc-url <url>", "RPC URL")
     .requiredOption("--contract-address <address>", "Address of the target contract")
     .requiredOption("--storage-key <hex>", "Storage key")
+    .requiredOption("--block-height <number>", "Block height")
     .action(getStorageProof);
 
 program

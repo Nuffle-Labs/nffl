@@ -15,11 +15,11 @@ export interface GetProofResponse {
     }[];
 }
 
-export async function getProof(provider: ethers.JsonRpcProvider, contractAddress: string, storageKey: string): Promise<GetProofResponse> {
+export async function getProof(provider: ethers.JsonRpcProvider, contractAddress: string, storageKey: string, blockHeight: bigint): Promise<GetProofResponse> {
     return await provider.send("eth_getProof", [
         contractAddress,
         [storageKey],
-        "latest",
+        blockHeight,
     ]);
 }
 
@@ -31,8 +31,8 @@ export interface VerifiedStorage {
     storageTrieWitness: string;
 }
 
-export async function verifyStorage(provider: ethers.JsonRpcProvider, contractAddress: string, storageKey: string): Promise<VerifiedStorage> {
-    const proof = await getProof(provider, contractAddress, storageKey);
+export async function verifyStorage(provider: ethers.JsonRpcProvider, contractAddress: string, storageKey: string, blockHeight: bigint): Promise<VerifiedStorage> {
+    const proof = await getProof(provider, contractAddress, storageKey, blockHeight);
 
     return {
         target: contractAddress,

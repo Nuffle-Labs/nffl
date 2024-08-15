@@ -13,7 +13,8 @@ Get the proof for a storage slot of a target contract from the source chain.
 ts-node index.ts storage-proof\
  --rpc-url https://sepolia.optimism.io\
  --contract-address 0xB90101779CC5EB84162f72A80e44307752b778b6\
- --storage-key 0x0000000000000000000000000000000000000000000000000000000000000000
+ --storage-key 0x0000000000000000000000000000000000000000000000000000000000000000\
+ --block-height 14095733
 ```
 
 ### `update-state-root`
