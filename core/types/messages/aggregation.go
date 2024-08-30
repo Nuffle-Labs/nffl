@@ -1,7 +1,7 @@
 package messages
 
 import (
-	"bytes"
+	"math/big"
 	"sort"
 
 	"github.com/Layr-Labs/eigensdk-go/crypto/bls"
@@ -26,33 +26,44 @@ type MessageBlsAggregation struct {
 }
 
 func StandardizeMessageBlsAggregation(agg MessageBlsAggregation) (MessageBlsAggregation, error) {
-	nonSignersPubkeyHashes := make([][32]byte, 0, len(agg.NonSignersPubkeysG1))
-	for _, pubkey := range agg.NonSignersPubkeysG1 {
+	type indexAndHash struct {
+		index uint32
+		hash  [32]byte
+	}
+
+	nonSignersPubkeyHashes := make([]indexAndHash, 0, len(agg.NonSignersPubkeysG1))
+	for i, pubkey := range agg.NonSignersPubkeysG1 {
 		hash, err := core.HashBNG1Point(core.ConvertToBN254G1Point(pubkey))
 		if err != nil {
 			return MessageBlsAggregation{}, err
 		}
 
-		nonSignersPubkeyHashes = append(nonSignersPubkeyHashes, hash)
-	}
-
-	nonSignersPubkeys := append([]*bls.G1Point{}, agg.NonSignersPubkeysG1...)
-	nonSignerQuorumBitmapIndices := append([]uint32{}, agg.NonSignerQuorumBitmapIndices...)
-
-	nonSignerStakeIndices := make([][]uint32, 0, len(agg.NonSignerStakeIndices))
-	for _, nonSignerStakeIndex := range agg.NonSignerStakeIndices {
-		nonSignerStakeIndices = append(nonSignerStakeIndices, append([]uint32{}, nonSignerStakeIndex...))
-	}
-
-	sortByPubkeyHash := func(arr any) {
-		sort.Slice(arr, func(i, j int) bool {
-			return bytes.Compare(nonSignersPubkeyHashes[i][:], nonSignersPubkeyHashes[j][:]) == -1
+		nonSignersPubkeyHashes = append(nonSignersPubkeyHashes, indexAndHash{
+			index: uint32(i),
+			hash:  hash,
 		})
 	}
 
-	sortByPubkeyHash(nonSignersPubkeys)
-	sortByPubkeyHash(nonSignerStakeIndices)
-	sortByPubkeyHash(nonSignerQuorumBitmapIndices)
+	sort.SliceStable(nonSignersPubkeyHashes, func(i, j int) bool {
+		a := new(big.Int).SetBytes(nonSignersPubkeyHashes[i].hash[:])
+		b := new(big.Int).SetBytes(nonSignersPubkeyHashes[j].hash[:])
+		return a.Cmp(b) == -1
+	})
+
+	nonSignersPubkeys := make([]*bls.G1Point, 0, len(agg.NonSignersPubkeysG1))
+	for _, indexAndHash := range nonSignersPubkeyHashes {
+		nonSignersPubkeys = append(nonSignersPubkeys, agg.NonSignersPubkeysG1[indexAndHash.index])
+	}
+
+	nonSignerQuorumBitmapIndices := make([]uint32, 0, len(agg.NonSignerQuorumBitmapIndices))
+	for _, indexAndHash := range nonSignersPubkeyHashes {
+		nonSignerQuorumBitmapIndices = append(nonSignerQuorumBitmapIndices, agg.NonSignerQuorumBitmapIndices[indexAndHash.index])
+	}
+
+	nonSignerStakeIndices := make([][]uint32, 0, len(agg.NonSignerStakeIndices))
+	for _, indexAndHash := range nonSignersPubkeyHashes {
+		nonSignerStakeIndices = append(nonSignerStakeIndices, append([]uint32{}, agg.NonSignerStakeIndices[indexAndHash.index]...))
+	}
 
 	return MessageBlsAggregation{
 		EthBlockNumber:               agg.EthBlockNumber,
