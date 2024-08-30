@@ -1,9 +1,6 @@
 package messages
 
 import (
-	"bytes"
-	"sort"
-
 	"github.com/Layr-Labs/eigensdk-go/crypto/bls"
 
 	registryrollup "github.com/NethermindEth/near-sffl/contracts/bindings/SFFLRegistryRollup"
@@ -23,49 +20,6 @@ type MessageBlsAggregation struct {
 	QuorumApkIndices             []uint32
 	TotalStakeIndices            []uint32
 	NonSignerStakeIndices        [][]uint32
-}
-
-func StandardizeMessageBlsAggregation(agg MessageBlsAggregation) (MessageBlsAggregation, error) {
-	nonSignersPubkeyHashes := make([][32]byte, 0, len(agg.NonSignersPubkeysG1))
-	for _, pubkey := range agg.NonSignersPubkeysG1 {
-		hash, err := core.HashBNG1Point(core.ConvertToBN254G1Point(pubkey))
-		if err != nil {
-			return MessageBlsAggregation{}, err
-		}
-
-		nonSignersPubkeyHashes = append(nonSignersPubkeyHashes, hash)
-	}
-
-	nonSignersPubkeys := append([]*bls.G1Point{}, agg.NonSignersPubkeysG1...)
-	nonSignerQuorumBitmapIndices := append([]uint32{}, agg.NonSignerQuorumBitmapIndices...)
-
-	nonSignerStakeIndices := make([][]uint32, 0, len(agg.NonSignerStakeIndices))
-	for _, nonSignerStakeIndex := range agg.NonSignerStakeIndices {
-		nonSignerStakeIndices = append(nonSignerStakeIndices, append([]uint32{}, nonSignerStakeIndex...))
-	}
-
-	sortByPubkeyHash := func(arr any) {
-		sort.Slice(arr, func(i, j int) bool {
-			return bytes.Compare(nonSignersPubkeyHashes[i][:], nonSignersPubkeyHashes[j][:]) == -1
-		})
-	}
-
-	sortByPubkeyHash(nonSignersPubkeys)
-	sortByPubkeyHash(nonSignerStakeIndices)
-	sortByPubkeyHash(nonSignerQuorumBitmapIndices)
-
-	return MessageBlsAggregation{
-		EthBlockNumber:               agg.EthBlockNumber,
-		MessageDigest:                agg.MessageDigest,
-		NonSignersPubkeysG1:          nonSignersPubkeys,
-		QuorumApksG1:                 agg.QuorumApksG1,
-		SignersApkG2:                 agg.SignersApkG2,
-		SignersAggSigG1:              agg.SignersAggSigG1,
-		NonSignerQuorumBitmapIndices: nonSignerQuorumBitmapIndices,
-		QuorumApkIndices:             agg.QuorumApkIndices,
-		TotalStakeIndices:            agg.TotalStakeIndices,
-		NonSignerStakeIndices:        nonSignerStakeIndices,
-	}, nil
 }
 
 func (msg MessageBlsAggregation) ExtractBindingMainnet() taskmanager.IBLSSignatureCheckerNonSignerStakesAndSignature {

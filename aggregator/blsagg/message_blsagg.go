@@ -7,6 +7,7 @@ import (
 	"errors"
 	"fmt"
 	"math/big"
+	"sort"
 	"sync"
 	"time"
 
@@ -483,6 +484,18 @@ func (mbas *MessageBlsAggregatorService) getMessageBlsAggregationResponse(messag
 		}
 	}
 
+	sort.SliceStable(nonSignersOperatorIds, func(i, j int) bool {
+		a := new(big.Int).SetBytes(nonSignersOperatorIds[i][:])
+		b := new(big.Int).SetBytes(nonSignersOperatorIds[j][:])
+		return a.Cmp(b) == -1
+	})
+
+	nonSignersG1Pubkeys := []*bls.G1Point{}
+	for _, operatorId := range nonSignersOperatorIds {
+		operator := validationInfo.operatorsAvsStateDict[operatorId]
+		nonSignersG1Pubkeys = append(nonSignersG1Pubkeys, operator.OperatorInfo.Pubkeys.G1Pubkey)
+	}
+
 	indices, err := mbas.avsRegistryService.GetCheckSignaturesIndices(&bind.CallOpts{}, uint32(validationInfo.ethBlockNumber), validationInfo.quorumNumbers, nonSignersOperatorIds)
 	if err != nil {
 		mbas.logger.Error("Failed to get check signatures indices", "err", err)
@@ -496,20 +509,18 @@ func (mbas *MessageBlsAggregatorService) getMessageBlsAggregationResponse(messag
 		}
 	}
 
-	aggregation, err := messages.StandardizeMessageBlsAggregation(
-		messages.MessageBlsAggregation{
-			EthBlockNumber:               uint64(validationInfo.ethBlockNumber),
-			MessageDigest:                messageDigest,
-			NonSignersPubkeysG1:          getG1PubkeysOfNonSigners(digestAggregatedOperators.signersOperatorIdsSet, validationInfo.operatorsAvsStateDict),
-			QuorumApksG1:                 validationInfo.quorumApksG1,
-			SignersApkG2:                 digestAggregatedOperators.signersApkG2,
-			SignersAggSigG1:              digestAggregatedOperators.signersAggSigG1,
-			NonSignerQuorumBitmapIndices: indices.NonSignerQuorumBitmapIndices,
-			QuorumApkIndices:             indices.QuorumApkIndices,
-			TotalStakeIndices:            indices.TotalStakeIndices,
-			NonSignerStakeIndices:        indices.NonSignerStakeIndices,
-		},
-	)
+	aggregation := messages.MessageBlsAggregation{
+		EthBlockNumber:               uint64(validationInfo.ethBlockNumber),
+		MessageDigest:                messageDigest,
+		NonSignersPubkeysG1:          nonSignersG1Pubkeys,
+		QuorumApksG1:                 validationInfo.quorumApksG1,
+		SignersApkG2:                 digestAggregatedOperators.signersApkG2,
+		SignersAggSigG1:              digestAggregatedOperators.signersAggSigG1,
+		NonSignerQuorumBitmapIndices: indices.NonSignerQuorumBitmapIndices,
+		QuorumApkIndices:             indices.QuorumApkIndices,
+		TotalStakeIndices:            indices.TotalStakeIndices,
+		NonSignerStakeIndices:        indices.NonSignerStakeIndices,
+	}
 	if err != nil {
 		mbas.logger.Error("Failed to format aggregation", "err", err)
 		return MessageBlsAggregationServiceResponse{
@@ -597,16 +608,6 @@ func checkIfFullStakeThresholdMet(
 		}
 	}
 	return true
-}
-
-func getG1PubkeysOfNonSigners(signersOperatorIdsSet map[eigentypes.OperatorId]bool, operatorAvsStateDict map[eigentypes.OperatorId]eigentypes.OperatorAvsState) []*bls.G1Point {
-	nonSignersG1Pubkeys := []*bls.G1Point{}
-	for operatorId, operator := range operatorAvsStateDict {
-		if _, operatorSigned := signersOperatorIdsSet[operatorId]; !operatorSigned {
-			nonSignersG1Pubkeys = append(nonSignersG1Pubkeys, operator.OperatorInfo.Pubkeys.G1Pubkey)
-		}
-	}
-	return nonSignersG1Pubkeys
 }
 
 func validateQuorumThresholdPercentages(quorumThresholdPercentages []eigentypes.QuorumThresholdPercentage) error {
