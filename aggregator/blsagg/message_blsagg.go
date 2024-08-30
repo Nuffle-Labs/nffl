@@ -509,20 +509,18 @@ func (mbas *MessageBlsAggregatorService) getMessageBlsAggregationResponse(messag
 		}
 	}
 
-	aggregation, err := messages.StandardizeMessageBlsAggregation(
-		messages.MessageBlsAggregation{
-			EthBlockNumber:               uint64(validationInfo.ethBlockNumber),
-			MessageDigest:                messageDigest,
-			NonSignersPubkeysG1:          nonSignersG1Pubkeys,
-			QuorumApksG1:                 validationInfo.quorumApksG1,
-			SignersApkG2:                 digestAggregatedOperators.signersApkG2,
-			SignersAggSigG1:              digestAggregatedOperators.signersAggSigG1,
-			NonSignerQuorumBitmapIndices: indices.NonSignerQuorumBitmapIndices,
-			QuorumApkIndices:             indices.QuorumApkIndices,
-			TotalStakeIndices:            indices.TotalStakeIndices,
-			NonSignerStakeIndices:        indices.NonSignerStakeIndices,
-		},
-	)
+	aggregation := messages.MessageBlsAggregation{
+		EthBlockNumber:               uint64(validationInfo.ethBlockNumber),
+		MessageDigest:                messageDigest,
+		NonSignersPubkeysG1:          nonSignersG1Pubkeys,
+		QuorumApksG1:                 validationInfo.quorumApksG1,
+		SignersApkG2:                 digestAggregatedOperators.signersApkG2,
+		SignersAggSigG1:              digestAggregatedOperators.signersAggSigG1,
+		NonSignerQuorumBitmapIndices: indices.NonSignerQuorumBitmapIndices,
+		QuorumApkIndices:             indices.QuorumApkIndices,
+		TotalStakeIndices:            indices.TotalStakeIndices,
+		NonSignerStakeIndices:        indices.NonSignerStakeIndices,
+	}
 	if err != nil {
 		mbas.logger.Error("Failed to format aggregation", "err", err)
 		return MessageBlsAggregationServiceResponse{
