@@ -124,9 +124,9 @@ tests-contract: ## runs all forge tests
 near-da-rpc-sys:
 	rm -rf relayer/libs && \
 	mkdir relayer/libs && \
-	git clone https://github.com/taco-paco/rollup-data-availability.git && \
+	git clone https://github.com/near/rollup-data-availability.git && \
 	cd rollup-data-availability && \
-	git checkout c9ec12924b27e37b8c40e7ab1a051a64b363cfd6 && \
+	git checkout 6b7d76a28d7e3315c8b1c0f805cd665fc85dfd23 && \
 	make da-rpc-sys && \
 	cp gopkg/da-rpc/lib/* ../relayer/libs && \
 	cd .. && \

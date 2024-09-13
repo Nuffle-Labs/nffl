@@ -38,7 +38,7 @@ the Relayer role can be fulfilled by a decentralised network.
 
 Independent of what the Relayer implementation looks like, the Relayer needs to
 pay $NEAR to submit blocks to
-[NEAR DA](https://github.com/near/rollup-data-availability). The rewards for the
+[NEAR DA](https://github.com/Nuffle-Labs/data-availability). The rewards for the
 Relayer at the least need to compensate the Relayer's fee expenditure.
 
 In this specific case, it should be a reasonable approach that each network
