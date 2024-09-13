@@ -946,4 +946,34 @@ contract SFFLTaskManagerTest is TestUtils {
         assertFalse(success);
         assertEq(signatoryRecordHash, expectedSignatoryRecordHash);
     }
+
+    function test_setAggregator() public {
+        address newAggregator = addr("newAggregator");
+
+        vm.prank(addr("owner"));
+        taskManager.setAggregator(newAggregator);
+
+        assertEq(taskManager.aggregator(), newAggregator);
+    }
+
+    function test_setAggregator_RevertWhen_CallerNotOwner() public {
+        vm.expectRevert("Ownable: caller is not the owner");
+
+        taskManager.setAggregator(addr("newAggregator"));
+    }
+
+    function test_setGenerator() public {
+        address newGenerator = addr("newGenerator");
+
+        vm.prank(addr("owner"));
+        taskManager.setGenerator(newGenerator);
+
+        assertEq(taskManager.generator(), newGenerator);
+    }
+
+    function test_setGenerator_RevertWhen_CallerNotOwner() public {
+        vm.expectRevert("Ownable: caller is not the owner");
+
+        taskManager.setGenerator(addr("newGenerator"));
+    }
 }
