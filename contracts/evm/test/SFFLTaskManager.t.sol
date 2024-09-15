@@ -38,6 +38,7 @@ contract SFFLTaskManagerTest is TestUtils {
     uint32 public constant TASK_RESPONSE_WINDOW_BLOCK = 30;
     address public aggregator;
     address public generator;
+    address owner;
     uint32 public thresholdDenominator;
 
     event CheckpointTaskCreated(uint32 indexed taskIndex, Checkpoint.Task task);
@@ -52,6 +53,7 @@ contract SFFLTaskManagerTest is TestUtils {
 
         aggregator = addr("aggregator");
         generator = addr("generator");
+        owner = addr("owner");
 
         address impl = address(new SFFLTaskManagerHarness(registryCoordinator, TASK_RESPONSE_WINDOW_BLOCK));
 
@@ -59,9 +61,7 @@ contract SFFLTaskManagerTest is TestUtils {
             deployProxy(
                 impl,
                 address(proxyAdmin),
-                abi.encodeWithSelector(
-                    taskManager.initialize.selector, pauserRegistry, registryCoordinatorOwner, aggregator, generator
-                )
+                abi.encodeWithSelector(taskManager.initialize.selector, pauserRegistry, owner, aggregator, generator)
             )
         );
 
@@ -950,7 +950,7 @@ contract SFFLTaskManagerTest is TestUtils {
     function test_setAggregator() public {
         address newAggregator = addr("newAggregator");
 
-        vm.prank(addr("owner"));
+        vm.prank(owner);
         taskManager.setAggregator(newAggregator);
 
         assertEq(taskManager.aggregator(), newAggregator);
@@ -965,7 +965,7 @@ contract SFFLTaskManagerTest is TestUtils {
     function test_setGenerator() public {
         address newGenerator = addr("newGenerator");
 
-        vm.prank(addr("owner"));
+        vm.prank(owner);
         taskManager.setGenerator(newGenerator);
 
         assertEq(taskManager.generator(), newGenerator);
