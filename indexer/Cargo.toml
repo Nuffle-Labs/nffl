@@ -26,12 +26,12 @@ tracing = { version = "0.1.36", features = ["std"] }
 thiserror = "1.0.56"
 anyhow = "1.0.79"
 
-near-indexer = { git = "https://github.com/near/nearcore", rev = "1877e3dd2bf69908aa092e4d412eb417b8084c15" }
-near-client = { git = "https://github.com/near/nearcore", rev = "1877e3dd2bf69908aa092e4d412eb417b8084c15" }
-near-o11y = { git = "https://github.com/near/nearcore", rev = "1877e3dd2bf69908aa092e4d412eb417b8084c15" }
-near-client-primitives = { git = "https://github.com/near/nearcore", rev = "1877e3dd2bf69908aa092e4d412eb417b8084c15" }
+near-indexer = { git = "https://github.com/near/nearcore", rev = "b3d767e7664d8e123a35313ccc66c8ac1afb2058" }
+near-client = { git = "https://github.com/near/nearcore", rev = "b3d767e7664d8e123a35313ccc66c8ac1afb2058" }
+near-o11y = { git = "https://github.com/near/nearcore", rev = "b3d767e7664d8e123a35313ccc66c8ac1afb2058" }
+near-client-primitives = { git = "https://github.com/near/nearcore", rev = "b3d767e7664d8e123a35313ccc66c8ac1afb2058" }
 borsh = { version = "1.0.0", features = ["derive", "rc"] }
 serde_yaml = "0.9.34"
 
 [dev-dependencies]
-near-crypto = { git = "https://github.com/near/nearcore", rev = "1877e3dd2bf69908aa092e4d412eb417b8084c15" }
+near-crypto = { git = "https://github.com/near/nearcore", rev = "b3d767e7664d8e123a35313ccc66c8ac1afb2058" }
