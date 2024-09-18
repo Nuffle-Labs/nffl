@@ -7,25 +7,21 @@ if ! command -v rclone &> /dev/null; then
     exit 1
 fi
 
-if [ -z "$NEAR_HOME_DIR" ]; then
-    if [ ! -f .env ]; then
-        # Script should be in setup/operator/scripts
-        cd "$(dirname "$0")"
-
-        if [ ! -f ../.env ]; then
-            echo ".env file not found. Please create .env file and try again."
-            exit 1
-        fi
-
-        source ../.env
-    else
-        source .env
+source_if_exists() {
+    if [ -f "$1" ]; then
+        source "$1"
     fi
-fi
+}
 
 if [ -z "$NEAR_HOME_DIR" ]; then
-    echo "NEAR_HOME_DIR is not set. Please set NEAR_HOME_DIR and try again."
-    exit 1
+    # script should be in setup/operator/scripts
+    source_if_exists "$(dirname "$0")/../.env"
+    source_if_exists .env
+
+    if [ -z "$NEAR_HOME_DIR" ]; then
+        echo "NEAR_HOME_DIR is not set. Please set NEAR_HOME_DIR and try again."
+        exit 1
+    fi
 fi
 
 # Steps from https://near-nodes.io/intro/node-data-snapshots
