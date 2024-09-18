@@ -1,5 +1,7 @@
 #!/bin/bash
 
+set -e
+
 if ! command -v rclone &> /dev/null; then
     echo "rclone could not be found. Please install rclone and try again."
     exit 1
