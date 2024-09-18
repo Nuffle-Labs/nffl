@@ -14,6 +14,13 @@ source ../.env
 mkdir -p ~/.config/rclone
 touch ~/.config/rclone/rclone.conf
 
+echo -n "Proceed with syncing to ${NEAR_HOME_DIR}/data? [y/N] "
+read -r response
+if [[ ! "$response" =~ ^[Yy]$ ]]; then
+    echo "Sync cancelled."
+    exit 0
+fi
+
 RCLONE_CONFIG="
 [near_cf]
 type = s3
