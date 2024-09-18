@@ -56,4 +56,4 @@ rclone copy --no-check-certificate --progress --transfers=6 --checkers=6 \
   "near_cf://near-protocol-public/backups/${chain:?}/${kind:?}/${latest:?}" \
   "${NEAR_HOME_DIR}/data"
 
-echo "Copying complete"
+echo "Syncing complete"
