@@ -64,7 +64,7 @@ impl Relayer {
                             self.metrics.num_blocks_received.inc();
                             blocks.push(block);
                         },
-                        Err(e) => {g
+                        Err(e) => {
                             error!("Error receiving block: {:?}", e);
                         }
                     }
