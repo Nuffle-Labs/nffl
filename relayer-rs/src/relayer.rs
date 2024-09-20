@@ -3,32 +3,35 @@ use crate::metrics::RelayerMetrics;
 use anyhow::Result;
 use ethers::prelude::*;
 use prometheus::Registry;
-use std::sync::Arc;
+use std::{path::PathBuf, sync::Arc};
 use std::time::Duration;
 use tokio::time;
 use tracing::{error, info};
+use near_da_rpc::*;
+use rlp;
 
-const NAMESPACE_ID: u64 = 1;
+const NAMESPACE_ID: u8 = 1;
 const SUBMIT_BLOCK_INTERVAL: Duration = Duration::from_millis(2500);
 const SUBMIT_BLOCK_RETRY_TIMEOUT: Duration = Duration::from_secs(2);
 const SUBMIT_BLOCK_RETRIES: usize = 3;
 
 pub struct Relayer {
     rpc_client: Provider<Ws>,
-    near_da_client: Arc<NearDAClient>,
+    near_da_client: near_da_rpc::near::Client,
     metrics: Arc<RelayerMetrics>,
 }
 
 impl Relayer {
     pub fn new(config: RelayerConfig) -> Result<Self> {
         let rpc_client = Provider::<Ws>::connect(&config.rpc_url)?;
-        let near_client = Arc::new(NearDAClient::new(
-            &config.key_path,
-            &config.da_account_id,
-            &config.network,
-            NAMESPACE_ID,
-        )?);
-
+        let config = near_da_rpc::near::config::Config {
+            key: near_da_rpc::near::config::KeyType::File(PathBuf::from(config.key_path)),  
+            contract: config.da_account_id,
+            network: near_da_rpc::near::config::Network::Custom(config.network),
+            namespace: Some(near_da_primitives::Namespace::new(NAMESPACE_ID, 1)),
+            mode: near_da_primitives::Mode::Standard,
+        };
+        let near_da_client = near_da_rpc::near::Client::new(&config);
         let registry = Registry::new();
         let metrics = RelayerMetrics::new(&registry)?;
 
@@ -75,9 +78,8 @@ impl Relayer {
 
     async fn submit_encoded_blocks(&self, encoded_blocks: &[u8]) -> Result<()> {
         let start_time = std::time::Instant::now();
-
         for i in 0..SUBMIT_BLOCK_RETRIES {
-            match self.near_da_client.force_submit(encoded_blocks).await {
+            match self.near_da_client.submit(Blob::from(encoded_blocks.to_vec())).await {
                 Ok(out) => {
                     self.metrics.submission_duration_ms.observe(start_time.elapsed().as_millis() as f64);
                     self.metrics.retries_histogram.observe(i as f64);
@@ -99,6 +101,6 @@ impl Relayer {
         }
 
         self.metrics.num_da_submissions_failed.inc();
-        anyhow::bail!("Failed to submit blocks to NEAR after retries")
+        Err(anyhow::anyhow!("Failed to submit blocks to NEAR after retries"))
     }
 }
