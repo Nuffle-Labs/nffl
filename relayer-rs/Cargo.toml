@@ -4,11 +4,20 @@ version = "0.1.0"
 edition = "2021"
 
 [dependencies]
+alloy = { version = "0.3.6", features = [    "full",
+    "node-bindings",
+    "rpc-types-debug",
+    "rpc-types-trace",
+    "json-rpc",
+    "rpc-client"]}
+alloy-primitives = "0.8.3"
+alloy-rpc-client = "0.3.6"
+alloy-rpc-types = "0.3.6"
+alloy-transport-ws = "0.3.6"
+alloy-rlp = "0.3.8"
 near-da-rpc = { git = "https://github.com/Nuffle-Labs/data-availability", branch = "main" }
 near-da-primitives = { git = "https://github.com/Nuffle-Labs/data-availability", branch = "main" }
-rlp = "0.6.1"
 tokio = { version = "1.30", features = ["full"] }
-ethers = { version = "2.0", features = ["ws"] }
 prometheus = "0.13"
 warp = "0.3"
 serde = { version = "1.0", features = ["derive"] }

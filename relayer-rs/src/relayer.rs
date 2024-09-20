@@ -1,14 +1,17 @@
 use crate::config::RelayerConfig;
 use crate::metrics::RelayerMetrics;
+use alloy::pubsub::PubSubFrontend;
 use anyhow::Result;
-use ethers::prelude::*;
+use alloy_rpc_client::{RpcClient, ClientBuilder};
+use alloy_rpc_types::{Block, BlockId, BlockNumberOrTag};
+use alloy_transport_ws::{WsConnect};
 use prometheus::Registry;
 use std::{path::PathBuf, sync::Arc};
 use std::time::Duration;
 use tokio::time;
 use tracing::{error, info};
 use near_da_rpc::*;
-use rlp;
+use alloy::providers::{Provider, ProviderBuilder, RootProvider};
 
 const NAMESPACE_ID: u8 = 1;
 const SUBMIT_BLOCK_INTERVAL: Duration = Duration::from_millis(2500);
@@ -16,14 +19,16 @@ const SUBMIT_BLOCK_RETRY_TIMEOUT: Duration = Duration::from_secs(2);
 const SUBMIT_BLOCK_RETRIES: usize = 3;
 
 pub struct Relayer {
-    rpc_client: Provider<Ws>,
+    provider: Arc<RootProvider<PubSubFrontend>>,
     near_da_client: near_da_rpc::near::Client,
     metrics: Arc<RelayerMetrics>,
 }
 
 impl Relayer {
     pub async fn new(config: RelayerConfig) -> Result<Self> {
-        let rpc_client = Provider::<Ws>::connect(&config.rpc_url).await?;
+        let ws = WsConnect::new(&config.rpc_url);
+        let provider = ProviderBuilder::new().on_ws(ws).await?;
+
         let config = near_da_rpc::near::config::Config {
             key: near_da_rpc::near::config::KeyType::File(PathBuf::from(config.key_path)),  
             contract: config.da_account_id,
@@ -36,24 +41,33 @@ impl Relayer {
         let metrics = RelayerMetrics::new(&registry)?;
 
         Ok(Self {
-            rpc_client,
+            provider: Arc::new(provider),
             near_da_client,
             metrics,
         })
     }
 
     pub async fn start(&mut self) -> Result<()> {
-        let mut block_stream = self.rpc_client.subscribe_blocks().await?;
         let mut interval = time::interval(SUBMIT_BLOCK_INTERVAL);
 
         let mut blocks = Vec::new();
+         // Subscribe to blocks.
+        let subscription = self.provider.subscribe_blocks().await?;
+        let mut stream = subscription.into_stream().take(2);
 
         loop {
             tokio::select! {
                 Some(block) = block_stream.next() => {
-                    info!("Received rollup block header: {:?}", block.number);
-                    self.metrics.num_blocks_received.inc();
-                    blocks.push(block);
+                    match block {
+                        Ok(block) => {
+                            info!("Received rollup block header: {:?}", block.number);
+                            self.metrics.num_blocks_received.inc();
+                            blocks.push(block);
+                        },
+                        Err(e) => {g
+                            error!("Error receiving block: {:?}", e);
+                        }
+                    }
                 }
                 _ = interval.tick() => {
                     if !blocks.is_empty() {
@@ -67,10 +81,10 @@ impl Relayer {
         }
     }
 
-    async fn handle_blocks(&self, blocks: &[Block<TxHash>]) -> Result<()> {
+    async fn handle_blocks(&self, blocks: &[Block]) -> Result<()> {
         info!("Submitting blocks to NEAR: {:?}", blocks.iter().map(|b| b.number).collect::<Vec<_>>());
 
-        let encoded_blocks = rlp::encode_list(blocks);
+        let encoded_blocks = alloy_rlp::encode_list(blocks);
         self.submit_encoded_blocks(&encoded_blocks).await?;
 
         Ok(())
