@@ -18,6 +18,12 @@ impl RelayerMetrics {
             "The number of blocks received from rollup",
         )?;
         registry.register(Box::new(num_blocks_received.clone()))?;
+        registry.register(Box::new(num_da_submissions_failed.clone()))?;
+        registry.register(Box::new(submission_duration_ms.clone()))?;
+        registry.register(Box::new(retries_histogram.clone()))?;
+        registry.register(Box::new(num_of_invalid_nonces.clone()))?;
+        registry.register(Box::new(num_of_expired_txs.clone()))?;
+        registry.register(Box::new(num_of_timeout_txs.clone()))?;
 
         // ... Initialize other metrics similarly ...
 
