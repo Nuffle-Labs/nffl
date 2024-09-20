@@ -15,14 +15,14 @@ const SUBMIT_BLOCK_RETRIES: usize = 3;
 
 pub struct Relayer {
     rpc_client: Provider<Ws>,
-    near_client: Arc<near_sdk::NearClient>,
+    near_da_client: Arc<NearDAClient>,
     metrics: Arc<RelayerMetrics>,
 }
 
 impl Relayer {
     pub fn new(config: RelayerConfig) -> Result<Self> {
         let rpc_client = Provider::<Ws>::connect(&config.rpc_url)?;
-        let near_client = Arc::new(near_sdk::NearClient::new(
+        let near_client = Arc::new(NearDAClient::new(
             &config.key_path,
             &config.da_account_id,
             &config.network,
@@ -34,7 +34,7 @@ impl Relayer {
 
         Ok(Self {
             rpc_client,
-            near_client,
+            near_da_client,
             metrics,
         })
     }
@@ -77,7 +77,7 @@ impl Relayer {
         let start_time = std::time::Instant::now();
 
         for i in 0..SUBMIT_BLOCK_RETRIES {
-            match self.near_client.force_submit(encoded_blocks).await {
+            match self.near_da_client.force_submit(encoded_blocks).await {
                 Ok(out) => {
                     self.metrics.submission_duration_ms.observe(start_time.elapsed().as_millis() as f64);
                     self.metrics.retries_histogram.observe(i as f64);
