@@ -12,7 +12,7 @@ async fn main() -> Result<()> {
     tracing::subscriber::set_global_default(subscriber)?;
 
     let config = config::load_config()?;
-    let mut relayer = Relayer::new(config)?;
+    let mut relayer = Relayer::new(config).await?;
     relayer.start().await?;
 
     Ok(())

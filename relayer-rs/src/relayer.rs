@@ -22,8 +22,8 @@ pub struct Relayer {
 }
 
 impl Relayer {
-    pub fn new(config: RelayerConfig) -> Result<Self> {
-        let rpc_client = Provider::<Ws>::connect(&config.rpc_url)?;
+    pub async fn new(config: RelayerConfig) -> Result<Self> {
+        let rpc_client = Provider::<Ws>::connect(&config.rpc_url).await?;
         let config = near_da_rpc::near::config::Config {
             key: near_da_rpc::near::config::KeyType::File(PathBuf::from(config.key_path)),  
             contract: config.da_account_id,
