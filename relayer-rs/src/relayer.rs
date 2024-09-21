@@ -25,14 +25,14 @@ pub struct Relayer {
 }
 
 impl Relayer {
-    pub async fn new(config: RelayerConfig) -> Result<Self> {
+    pub async fn new(config: &RelayerConfig) -> Result<Self> {
         let ws = WsConnect::new(&config.rpc_url);
         let provider = ProviderBuilder::new().on_ws(ws).await?;
 
         let config = near_da_rpc::near::config::Config {
-            key: near_da_rpc::near::config::KeyType::File(PathBuf::from(config.key_path)),  
-            contract: config.da_account_id,
-            network: near_da_rpc::near::config::Network::Custom(config.network),
+            key: near_da_rpc::near::config::KeyType::File(PathBuf::from(config.key_path.clone())),  
+            contract: config.da_account_id.clone(),
+            network: near_da_rpc::near::config::Network::Custom(config.network.clone()),
             namespace: Some(near_da_primitives::Namespace::new(NAMESPACE_ID, 1)),
             mode: near_da_primitives::Mode::Standard,
         };
