@@ -1,10 +1,8 @@
 use crate::config::RelayerConfig;
 use crate::metrics::RelayerMetrics;
 use alloy::pubsub::PubSubFrontend;
-use alloy_rlp::Encodable;
 use anyhow::Result;
-use alloy_rpc_client::{RpcClient, ClientBuilder};
-use alloy_rpc_types::{Block, BlockId, BlockNumberOrTag};
+use alloy_rpc_types::{Block};
 use alloy_transport_ws::{WsConnect};
 use prometheus::Registry;
 use std::{path::PathBuf, sync::Arc};
@@ -13,7 +11,7 @@ use tokio::time;
 use tracing::{error, info};
 use near_da_rpc::*;
 use alloy::providers::{Provider, ProviderBuilder, RootProvider};
-use futures_util::{stream, StreamExt};
+use futures_util::{StreamExt};
 
 const NAMESPACE_ID: u8 = 1;
 const SUBMIT_BLOCK_INTERVAL: Duration = Duration::from_millis(2500);
