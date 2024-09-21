@@ -1,6 +1,7 @@
 use crate::config::RelayerConfig;
 use crate::metrics::RelayerMetrics;
 use alloy::pubsub::PubSubFrontend;
+use alloy_rlp::Encodable;
 use anyhow::Result;
 use alloy_rpc_client::{RpcClient, ClientBuilder};
 use alloy_rpc_types::{Block, BlockId, BlockNumberOrTag};
@@ -12,6 +13,7 @@ use tokio::time;
 use tracing::{error, info};
 use near_da_rpc::*;
 use alloy::providers::{Provider, ProviderBuilder, RootProvider};
+use futures_util::{stream, StreamExt};
 
 const NAMESPACE_ID: u8 = 1;
 const SUBMIT_BLOCK_INTERVAL: Duration = Duration::from_millis(2500);
@@ -53,21 +55,14 @@ impl Relayer {
         let mut blocks = Vec::new();
          // Subscribe to blocks.
         let subscription = self.provider.subscribe_blocks().await?;
-        let mut stream = subscription.into_stream().take(2);
+        let mut stream = subscription.into_stream();
 
         loop {
             tokio::select! {
-                Some(block) = block_stream.next() => {
-                    match block {
-                        Ok(block) => {
-                            info!("Received rollup block header: {:?}", block.number);
-                            self.metrics.num_blocks_received.inc();
-                            blocks.push(block);
-                        },
-                        Err(e) => {
-                            error!("Error receiving block: {:?}", e);
-                        }
-                    }
+                Some(block) = stream.next() => {
+                    info!("Received rollup block header: {:?}", block.header.number);
+                    self.metrics.num_blocks_received.inc();
+                    blocks.push(block);
                 }
                 _ = interval.tick() => {
                     if !blocks.is_empty() {
@@ -82,15 +77,15 @@ impl Relayer {
     }
 
     async fn handle_blocks(&self, blocks: &[Block]) -> Result<()> {
-        info!("Submitting blocks to NEAR: {:?}", blocks.iter().map(|b| b.number).collect::<Vec<_>>());
-
-        let encoded_blocks = alloy_rlp::encode_list(blocks);
-        self.submit_encoded_blocks(&encoded_blocks).await?;
+        info!("Submitting blocks to NEAR: {:?}", blocks.iter().map(|b| b.header.number).collect::<Vec<_>>());
+        let serialized_blocks = serde_json::to_vec(blocks)?;
+        let encoded_blocks = alloy_rlp::encode(&serialized_blocks);
+        self.submit_encoded_blocks(encoded_blocks).await?;
 
         Ok(())
     }
 
-    async fn submit_encoded_blocks(&self, encoded_blocks: &[u8]) -> Result<()> {
+    async fn submit_encoded_blocks(&self, encoded_blocks: Vec<u8>) -> Result<()> {
         let start_time = std::time::Instant::now();
         for i in 0..SUBMIT_BLOCK_RETRIES {
             match self.near_da_client.submit(Blob::from(encoded_blocks.to_vec())).await {
