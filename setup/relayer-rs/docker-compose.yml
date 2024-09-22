@@ -5,7 +5,7 @@ networks:
     driver: bridge
 
 services:
-  relayer_421614_rs:
+  relayer_431614_rs:
     build:
       context: ../../relayer-rs
       dockerfile: Dockerfile
@@ -21,13 +21,13 @@ services:
       - --rpc-url
       - wss://arbitrum-sepolia-rpc.publicnode.com
       - --da-account-id
-      - sfrelayer421614-1.testnet
+      - sfrelayer431614-2.testnet
       - --key-path
-      - /root/.near-credentials/${NEAR_CHAIN_ID}/sfrelayer421614-1.testnet.json
+      - /root/.near-credentials/${NEAR_CHAIN_ID}/sfrelayer431614-2.testnet.json
       - --network
       - ${NEAR_RPC_URL}
       - --metrics-ip-port-address
-      - near-sffl-relayer-rs-421614:9093
+      - near-sffl-relayer-rs-431614:9093
     restart: unless-stopped
     logging:
       driver: "json-file"
@@ -40,7 +40,7 @@ services:
     build:
       context: ../../relayer-rs
       dockerfile: Dockerfile
-    container_name: near-sffl-relayer-rs-11155420
+    container_name: near-sffl-relayer-rs-21155420
     volumes:
       - ${NEAR_KEYS_DIR}:/root/.near-credentials
     networks:
@@ -52,13 +52,13 @@ services:
       - --rpc-url
       - wss://optimism-sepolia-rpc.publicnode.com
       - --da-account-id
-      - sfrelayer11155420-1.testnet
+      - sfrelayer21155420-2.testnet
       - --key-path
-      - /root/.near-credentials/${NEAR_CHAIN_ID}/sfrelayer11155420-1.testnet.json
+      - /root/.near-credentials/${NEAR_CHAIN_ID}/sfrelayer21155420-2.testnet.json
       - --network
       - ${NEAR_RPC_URL}
       - --metrics-ip-port-address
-      - near-sffl-relayer-rs-11155420:9094
+      - near-sffl-relayer-rs-21155420:9094
     restart: unless-stopped
     logging:
       driver: "json-file"
