@@ -5,7 +5,6 @@ use clap::{Command, Arg};
 use prometheus::Registry;
 use std::path::PathBuf;
 use tracing_subscriber::FmtSubscriber;
-use crate::metrics::RelayerMetrics;
 
 mod config;
 mod metrics;
