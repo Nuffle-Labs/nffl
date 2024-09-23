@@ -1,0 +1,13 @@
+[package]
+name = "near-lake"
+version = "0.0.1"
+edition = "2021"
+
+
+[dependencies]
+near-lake-framework = "0.7.9"
+anyhow = "1.0"
+futures = "0.3"
+tokio = { version = "1.38.0", features = ["rt-multi-thread", "macros"] }
+tokio-stream = "0.1.16"
+near-lake-primitives = "0.8.0-beta.3"
