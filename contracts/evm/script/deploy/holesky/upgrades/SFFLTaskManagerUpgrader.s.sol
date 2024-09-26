@@ -20,7 +20,7 @@ contract SFFLTaskManagerUpgrader is Script, Utils {
     TransparentUpgradeableProxy public sfflTaskManagerProxy;
     address public sfflTaskManagerImpl;
 
-    string public constant SFFL_DEPLOYMENT_FILE = "sffl_deployment_output";
+    string public constant SFFL_DEPLOYMENT_FILE = "sffl_avs_deployment_output";
 
     function run() external {
         _readSFFLDeployedContracts();
