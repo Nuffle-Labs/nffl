@@ -10,7 +10,7 @@ extended finality time.
 
 In order to solve this problem, the Nuffle Fast Finality Layer (NFFL, formerly SFFL) was
 designed. Through it, various chains can, while supplying block data to
-[NEAR DA](https://github.com/near/rollup-data-availability), rely on the
+[NEAR DA](https://github.com/Nuffle-Labs/data-availability), rely on the
 economic security of an [EigenLayer](https://www.eigenlayer.xyz) AVS to provide
 a faster block finality to various protocols and use-cases while also including
 an additional public DA layer into their stack.
