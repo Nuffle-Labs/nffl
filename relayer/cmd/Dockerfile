@@ -4,10 +4,10 @@ FROM rust:1.77 AS near-da-builder
 RUN cargo install --force cbindgen
 
 WORKDIR /near-da
-RUN git clone https://github.com/taco-paco/rollup-data-availability.git
+RUN git clone https://github.com/near/rollup-data-availability.git
 
 WORKDIR /near-da/rollup-data-availability
-RUN git checkout c9ec12924b27e37b8c40e7ab1a051a64b363cfd6
+RUN git checkout 6b7d76a28d7e3315c8b1c0f805cd665fc85dfd23
 
 # Build & copy libnear_da_rpc_sys static library for relayer compilation
 RUN make da-rpc-sys
