@@ -3,6 +3,7 @@ use std::fmt::Formatter;
 use std::{fmt, sync};
 use tokio::sync::Mutex;
 use near_indexer::{near_primitives::{hash::CryptoHash, types::ShardId, views::{BlockView, ExecutionOutcomeWithIdView, ReceiptView, StateChangeWithCauseView}}, IndexerChunkView, StreamerMessage};
+use tokio::sync::mpsc::Receiver;
 
 pub(crate) type ProtectedQueue<T> = sync::Arc<Mutex<VecDeque<T>>>;
 
@@ -25,6 +26,24 @@ pub struct IndexerShardWithTxHashes {
     pub chunk: Option<IndexerChunkView>,
     pub receipt_execution_outcomes: Vec<IndexerExecutionOutcomeWithReceiptAndTxHash>,
     pub state_changes: Vec<StateChangeWithCauseView>,
+}
+
+
+pub enum IndexerStream {
+    StreamerMessage(Receiver<StreamerMessage>),
+    BlockWithTxHashes(Receiver<BlockWithTxHashes>),
+}
+
+impl From<Receiver<StreamerMessage>> for IndexerStream {
+    fn from(value: Receiver<StreamerMessage>) -> Self {
+        IndexerStream::StreamerMessage(value)
+    }
+}
+
+impl From<Receiver<BlockWithTxHashes>> for IndexerStream {
+    fn from(value: Receiver<BlockWithTxHashes>) -> Self {
+        IndexerStream::BlockWithTxHashes(value)
+    }
 }
 
 #[derive(Clone, Debug, serde::Serialize, serde::Deserialize)]

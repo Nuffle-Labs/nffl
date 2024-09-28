@@ -30,6 +30,8 @@ pub enum Error {
     ActixErrorKind(std::io::ErrorKind),
     #[error{"0"}]
     JoinError(#[from] tokio::task::JoinError),
+    #[error("Indexer not initialized")]
+    IndexerNotInitialized,
 }
 
 impl<T> From<SendError<T>> for Error {

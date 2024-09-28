@@ -1,14 +1,17 @@
 use reqwest::Client;
 use tokio::sync::mpsc;
-use near_indexer::StreamerMessage;
 use tracing::{info, error};
 
+use crate::types::BlockWithTxHashes;
+
 const FASTNEAR_ENDPOINT: &str = "https://testnet.neardata.xyz/v0/last_block/final";
+
 
 #[derive(Debug)]
 pub struct FastNearIndexer {
     client: Client,
 }
+
 
 impl FastNearIndexer {
     pub fn new() -> Self {
@@ -17,7 +20,7 @@ impl FastNearIndexer {
         }
     }
 
-    pub fn stream_latest_blocks(&self) -> mpsc::Receiver<StreamerMessage> {
+    pub fn stream_latest_blocks(&self) -> mpsc::Receiver<BlockWithTxHashes> {
         let (sender, receiver) = mpsc::channel(100);
         let client = self.client.clone();
 
@@ -25,7 +28,7 @@ impl FastNearIndexer {
             loop {
                 match client.get(FASTNEAR_ENDPOINT).send().await.and_then(|resp| resp.error_for_status()) {
                     Ok(response) => {
-                        if let Ok(block) = response.json::<StreamerMessage>().await {
+                        if let Ok(block) = response.json::<BlockWithTxHashes>().await {
                             if sender.send(block.clone()).await.is_err() {
                                 error!(target: "fastnear_indexer", "Failed to send block to channel");
                                 break;
