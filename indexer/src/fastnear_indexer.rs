@@ -1,11 +1,9 @@
 use reqwest::Client;
 use tokio::sync::mpsc;
 use near_indexer::StreamerMessage;
-// const VERSION: &str = "v0";
-// const NETWORK: &str = "testnet";
-// const HEIGHT: u64 = 100000000;
-// const LATEST: bool = true;
-const FASTNEAR_ENDPOINT: &str = "https://testnet.neardata.xyz/v0/block/latest";
+use tracing::{info, error};
+
+const FASTNEAR_ENDPOINT: &str = "https://testnet.neardata.xyz/v0/last_block/final";
 
 #[derive(Debug)]
 pub struct FastNearIndexer {
@@ -20,23 +18,24 @@ impl FastNearIndexer {
     }
 
     pub fn stream_latest_blocks(&self) -> mpsc::Receiver<StreamerMessage> {
-        println!("Starting to stream latest blocks");
         let (sender, receiver) = mpsc::channel(100);
         let client = self.client.clone();
 
         tokio::spawn(async move {
             loop {
-                match client.get(FASTNEAR_ENDPOINT).send().await {
+                match client.get(FASTNEAR_ENDPOINT).send().await.and_then(|resp| resp.error_for_status()) {
                     Ok(response) => {
                         if let Ok(block) = response.json::<StreamerMessage>().await {
-                            println!("Received block: {:?}", block);
-                            if sender.send(block).await.is_err() {
-                                println!("Error sending block to channel");
+                            if sender.send(block.clone()).await.is_err() {
+                                error!(target: "fastnear_indexer", "Failed to send block to channel");
                                 break;
                             }
+                            info!(target: "fastnear_indexer", "Successfully fetched and sent latest block with id: {}", block.block.header.height);
+                        } else {
+                            error!(target: "fastnear_indexer", "Failed to deserialize response into StreamerMessage");
                         }
                     }
-                    Err(e) => eprintln!("Error fetching latest block: {:?}", e),
+                    Err(e) => error!(target: "fastnear_indexer", "Error fetching latest block: {:?}", e),
                 }
                 tokio::time::sleep(std::time::Duration::from_secs(1)).await;
             }
