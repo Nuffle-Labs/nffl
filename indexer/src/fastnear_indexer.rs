@@ -20,6 +20,7 @@ impl FastNearIndexer {
     }
 
     pub fn stream_latest_blocks(&self) -> mpsc::Receiver<StreamerMessage> {
+        println!("Starting to stream latest blocks");
         let (sender, receiver) = mpsc::channel(100);
         let client = self.client.clone();
 
@@ -28,7 +29,9 @@ impl FastNearIndexer {
                 match client.get(FASTNEAR_ENDPOINT).send().await {
                     Ok(response) => {
                         if let Ok(block) = response.json::<StreamerMessage>().await {
+                            println!("Received block: {:?}", block);
                             if sender.send(block).await.is_err() {
+                                println!("Error sending block to channel");
                                 break;
                             }
                         }

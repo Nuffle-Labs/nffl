@@ -30,8 +30,12 @@ near-indexer = { git = "https://github.com/near/nearcore", rev = "b3d767e7664d8e
 near-client = { git = "https://github.com/near/nearcore", rev = "b3d767e7664d8e123a35313ccc66c8ac1afb2058" }
 near-o11y = { git = "https://github.com/near/nearcore", rev = "b3d767e7664d8e123a35313ccc66c8ac1afb2058" }
 near-client-primitives = { git = "https://github.com/near/nearcore", rev = "b3d767e7664d8e123a35313ccc66c8ac1afb2058" }
+reqwest = { version = "0.12.7", features = ["json"] }
 borsh = { version = "1.0.0", features = ["derive", "rc"] }
 serde_yaml = "0.9.34"
 
 [dev-dependencies]
 near-crypto = { git = "https://github.com/near/nearcore", rev = "b3d767e7664d8e123a35313ccc66c8ac1afb2058" }
+
+[features]
+use_fastnear = []

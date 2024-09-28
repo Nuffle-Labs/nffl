@@ -4,20 +4,23 @@ use std::collections::HashMap;
 use tokio::{sync::mpsc::Receiver, task::JoinHandle};
 
 use crate::{block_listener::BlockListener, errors::Result, metrics::Metricable, types};
+use crate::fastnear_indexer::FastNearIndexer;
 
 pub struct IndexerWrapper {
     indexer: near_indexer::Indexer,
     block_listener: BlockListener,
+    fastnear_indexer: FastNearIndexer,
 }
 
 impl IndexerWrapper {
     pub fn new(config: near_indexer::IndexerConfig, addresses_to_rollup_ids: HashMap<AccountId, u32>) -> Self {
         let indexer = near_indexer::Indexer::new(config).expect("Indexer::new()");
         let block_listener = BlockListener::new(addresses_to_rollup_ids);
-
+        let fastnear_indexer = FastNearIndexer::new();
         Self {
             indexer,
             block_listener,
+            fastnear_indexer,
         }
     }
 
@@ -31,7 +34,12 @@ impl IndexerWrapper {
     }
 
     pub fn run(self) -> (JoinHandle<()>, Receiver<types::CandidateData>) {
-        let indexer_stream = self.indexer.streamer();
+        // let indexer_stream = if cfg!(feature = "use_fastnear") {
+        //     self.fastnear_indexer.stream_latest_blocks()
+        // } else {
+        //     self.indexer.streamer()
+        // };
+        let indexer_stream = self.fastnear_indexer.stream_latest_blocks();
         self.block_listener.run(indexer_stream)
     }
 }
