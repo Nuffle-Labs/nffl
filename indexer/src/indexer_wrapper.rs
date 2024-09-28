@@ -34,12 +34,11 @@ impl IndexerWrapper {
     }
 
     pub fn run(self) -> (JoinHandle<()>, Receiver<types::CandidateData>) {
-        // let indexer_stream = if cfg!(feature = "use_fastnear") {
-        //     self.fastnear_indexer.stream_latest_blocks()
-        // } else {
-        //     self.indexer.streamer()
-        // };
-        let indexer_stream = self.fastnear_indexer.stream_latest_blocks();
+        let indexer_stream = if cfg!(feature = "use_fastnear") {
+            self.fastnear_indexer.stream_latest_blocks()
+        } else {
+            self.indexer.streamer()
+        };
         self.block_listener.run(indexer_stream)
     }
 }
