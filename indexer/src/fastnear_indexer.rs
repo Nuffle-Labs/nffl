@@ -35,7 +35,7 @@ impl FastNearIndexer {
     ///
     /// A new `FastNearIndexer` instance.
     pub(crate) fn new(addresses_to_rollup_ids: HashMap<AccountId, u32>) -> Self {
-        debug!(target: "fastNearIndexer", "Creating new FastNearIndexer");
+        debug!(target: "fastnear_indexer", "Creating new FastNearIndexer");
         Self {
             client: Client::new(),
             addresses_to_rollup_ids,
@@ -48,7 +48,7 @@ impl FastNearIndexer {
     ///
     /// A `Receiver<PublishData>` for consuming the processed blockchain data.
     pub fn run(&self) -> Receiver<PublishData> {
-        info!(target: "fastNearIndexer", "Starting FastNearIndexer");
+        info!(target: "fastnear_indexer", "Starting FastNearIndexer");
         let block_receiver = self.stream_latest_blocks();
         let (publish_sender, publish_receiver) = mpsc::channel(100);
         
@@ -73,11 +73,11 @@ impl FastNearIndexer {
         publish_sender: Sender<PublishData>,
         addresses_to_rollup_ids: HashMap<AccountId, u32>,
     ) {
-        debug!(target: "fastNearIndexer", "Starting block processing");
+        debug!(target: "fastnear_indexer", "Starting block processing");
         while let Some(block) = block_receiver.recv().await {
-            trace!(target: "fastNearIndexer", "Received block: {:?}", block.block.header.height);
+            trace!(target: "fastnear_indexer", "Received block: {:?}", block.block.header.height);
             if let Err(e) = Self::parse_and_publish_block(block, &publish_sender, &addresses_to_rollup_ids).await {
-                error!(target: "fastNearIndexer", "Error parsing and publishing block: {:?}", e);
+                error!(target: "fastnear_indexer", "Error parsing and publishing block: {:?}", e);
             }
         }
     }
@@ -98,15 +98,15 @@ impl FastNearIndexer {
         publish_sender: &Sender<PublishData>,
         addresses_to_rollup_ids: &HashMap<AccountId, u32>,
     ) -> Result<(), Error> {
-        debug!(target: "fastNearIndexer", "Parsing block: {:?}", block.block.header.height);
+        debug!(target: "fastnear_indexer", "Parsing block: {:?}", block.block.header.height);
         for shard in block.shards {
             for receipt_execution_outcome in shard.receipt_execution_outcomes {
                 let receiver_id = &receipt_execution_outcome.receipt.receiver_id;
                 
                 if let Some(rollup_id) = addresses_to_rollup_ids.get(receiver_id) {
-                    trace!(target: "fastNearIndexer", "Processing receipt for rollup_id: {}", rollup_id);
+                    trace!(target: "fastnear_indexer", "Processing receipt for rollup_id: {}", rollup_id);
                     if !Self::is_successful_execution(&receipt_execution_outcome) {
-                        trace!(target: "fastNearIndexer", "Skipping unsuccessful execution for rollup_id: {}", rollup_id);
+                        trace!(target: "fastnear_indexer", "Skipping unsuccessful execution for rollup_id: {}", rollup_id);
                         continue;
                     }
 
@@ -122,7 +122,7 @@ impl FastNearIndexer {
                             tx_hash,
                             block_hash: block.block.header.hash,
                         };
-                        debug!(target: "fastNearIndexer", "Sending candidate data for rollup_id: {}", rollup_id);
+                        debug!(target: "fastnear_indexer", "Sending candidate data for rollup_id: {}", rollup_id);
                         Self::send(&candidate_data, publish_sender).await?;
                     }
                 }
@@ -138,7 +138,7 @@ impl FastNearIndexer {
     ///
     /// A `Receiver<BlockWithTxHashes>` for consuming the latest blocks.
     pub fn stream_latest_blocks(&self) -> mpsc::Receiver<BlockWithTxHashes> {
-        info!(target: "fastNearIndexer", "Starting block stream");
+        info!(target: "fastnear_indexer", "Starting block stream");
         let (block_sender, block_receiver) = mpsc::channel(100);
         let client = self.client.clone();
 
@@ -147,12 +147,12 @@ impl FastNearIndexer {
                 match Self::fetch_latest_block(&client).await {
                     Ok(block) => {
                         if block_sender.send(block.clone()).await.is_err() {
-                            error!(target: "fastNearIndexer", "Failed to send block to channel");
+                            error!(target: "fastnear_indexer", "Failed to send block to channel");
                             break;
                         }
-                        info!(target: "fastNearIndexer", "Successfully fetched and sent latest block with id: {}", block.block.header.height);
+                        info!(target: "fastnear_indexer", "Successfully fetched and sent latest block with id: {}", block.block.header.height);
                     }
-                    Err(e) => error!(target: "fastNearIndexer", "Error fetching latest block: {:?}", e),
+                    Err(e) => error!(target: "fastnear_indexer", "Error fetching latest block: {:?}", e),
                 }
                 tokio::time::sleep(std::time::Duration::from_secs(1)).await;
             }
@@ -171,16 +171,12 @@ impl FastNearIndexer {
     ///
     /// A `Result` containing the `BlockWithTxHashes` or an `Error`.
     async fn fetch_latest_block(client: &Client) -> Result<BlockWithTxHashes, Error> {
-        debug!(target: "fastNearIndexer", "Fetching latest block");
+        debug!(target: "fastnear_indexer", "Fetching latest block");
         let response = client.get(FASTNEAR_ENDPOINT)
             .send()
             .await
+            .and_then(|r| r.error_for_status())
             .map_err(|e| Error::NetworkError(e.to_string()))?;
-
-        if !response.status().is_success() {
-            error!(target: "fastNearIndexer", "API request failed with status: {}", response.status());
-            return Err(Error::ApiError(format!("API request failed with status: {}", response.status())));
-        }
 
         response.json::<BlockWithTxHashes>()
             .await
@@ -198,7 +194,7 @@ impl FastNearIndexer {
     ///
     /// A `Result` indicating success or containing an `Error`.
     async fn send(candidate_data: &PartialCandidateDataWithBlockTxHash, sender: &Sender<PublishData>) -> Result<(), Error> {
-        trace!(target: "fastNearIndexer", "Sending candidate data: {:?}", candidate_data);
+        trace!(target: "fastnear_indexer", "Sending candidate data: {:?}", candidate_data);
         for data in candidate_data.clone().payloads {
             let publish_data = PublishData {
                 publish_options: PublishOptions {
@@ -233,7 +229,7 @@ impl FastNearIndexer {
             receipt_execution_outcome.execution_outcome.outcome.status,
             ExecutionStatusView::SuccessValue(ref value) if value.is_empty()
         );
-        trace!(target: "fastNearIndexer", "Execution successful: {}", is_successful);
+        trace!(target: "fastnear_indexer", "Execution successful: {}", is_successful);
         is_successful
     }
 
@@ -248,7 +244,7 @@ impl FastNearIndexer {
     ///
     /// An `Option<PartialCandidateData>` containing the filtered and mapped data, if any.
     fn receipt_filter_map(receipt_enum_view: ReceiptEnumView, rollup_id: u32) -> Option<PartialCandidateData> {
-        trace!(target: "fastNearIndexer", "Filtering receipt for rollup_id: {}", rollup_id);
+        trace!(target: "fastnear_indexer", "Filtering receipt for rollup_id: {}", rollup_id);
         let payloads = match receipt_enum_view {
             ReceiptEnumView::Action { actions, .. } => {
                 actions.into_iter()
@@ -259,7 +255,7 @@ impl FastNearIndexer {
         };
 
         if payloads.is_empty() {
-            trace!(target: "fastNearIndexer", "No payloads found for rollup_id: {}", rollup_id);
+            trace!(target: "fastnear_indexer", "No payloads found for rollup_id: {}", rollup_id);
             return None;
         }
 
@@ -281,11 +277,11 @@ impl FastNearIndexer {
     fn extract_args(action: ActionView) -> Option<Vec<u8>> {
         match action {
             ActionView::FunctionCall { method_name, args, .. } if method_name == "submit" => {
-                trace!(target: "fastNearIndexer", "Extracted args for 'submit' method");
+                trace!(target: "fastnear_indexer", "Extracted args for 'submit' method");
                 Some(args.into())
             },
             _ => {
-                trace!(target: "fastNearIndexer", "Skipped non-'submit' method");
+                trace!(target: "fastnear_indexer", "Skipped non-'submit' method");
                 None
             },
         }
