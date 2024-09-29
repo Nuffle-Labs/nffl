@@ -45,7 +45,7 @@ fn run(home_dir: std::path::PathBuf, config: RunConfigArgs) -> Result<()> {
     // TODO: refactor
     let block_res = system.block_on(async move {
         let validated_stream: Receiver<PublishData>;
-        if cfg!(feature = "fastnear") {
+        if cfg!(feature = "use_fastnear") {
             let fastnear_indexer = FastNearIndexer::new(addresses_to_rollup_ids);
             validated_stream = fastnear_indexer.run();
         } else {
