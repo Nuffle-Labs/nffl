@@ -13,7 +13,18 @@ pub(crate) struct CandidateData {
     pub transaction: near_indexer::IndexerTransactionWithOutcome,
     pub payloads: Vec<Vec<u8>>,
 }
-
+#[derive(Clone, Debug)]
+pub (crate) struct PartialCandidateData {
+    pub rollup_id: u32,
+    pub payloads: Vec<Vec<u8>>,
+}
+#[derive(Clone, Debug)]
+pub(crate) struct PartialCandidateDataWithBlockTxHash {
+    pub rollup_id: u32,
+    pub payloads: Vec<Vec<u8>>,
+    pub tx_hash: CryptoHash,
+    pub block_hash: CryptoHash,
+}
 #[derive(Debug, serde::Serialize, serde::Deserialize, Clone)]
 pub struct BlockWithTxHashes {
     pub block: BlockView,

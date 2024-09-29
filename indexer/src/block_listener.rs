@@ -17,7 +17,7 @@ use tracing::info;
 use crate::{
     errors::Result,
     metrics::{make_block_listener_metrics, BlockEventListener, Metricable},
-    types::{self, CandidateData, IndexerStream},
+    types::{self, CandidateData},
     INDEXER,
 };
 
@@ -239,21 +239,11 @@ impl BlockListener {
     }
 
     /// Filters indexer stream and returns receiving channel.
-    pub(crate) fn run(&self, indexer_stream: IndexerStream) -> (JoinHandle<()>, Receiver<CandidateData>) {
-        match indexer_stream {
-            IndexerStream::BlockWithTxHashes(streamer) => {
-                let (candidates_sender, candidates_receiver) = mpsc::channel(1000);
-                let handle = actix::spawn(Self::process_stream(self.clone(), streamer, candidates_sender));
+    pub(crate) fn run(&self, streamer: Receiver<StreamerMessage>) -> (JoinHandle<()>, Receiver<CandidateData>) {
+        let (candidates_sender, candidates_receiver) = mpsc::channel(1000);
+        let handle = actix::spawn(Self::process_stream(self.clone(), streamer, candidates_sender));
 
-                (handle, candidates_receiver)
-            }
-            IndexerStream::StreamerMessage(receiver) => {
-                let (candidates_sender, candidates_receiver) = mpsc::channel(1000);
-                let handle = actix::spawn(Self::process_stream(self.clone(), receiver, candidates_sender));
-
-                (handle, candidates_receiver)
-            }
-        }
+        (handle, candidates_receiver)
     }
 
     #[cfg(test)]
