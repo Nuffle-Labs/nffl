@@ -159,6 +159,7 @@ export interface SFFLRegistryRollupInterface extends Interface {
       | "paused()"
       | "pauserRegistry"
       | "renounceOwnership"
+      | "setAggregator"
       | "setInitialOperatorSet"
       | "setPauserRegistry"
       | "setQuorumThreshold"
@@ -243,6 +244,10 @@ export interface SFFLRegistryRollupInterface extends Interface {
   encodeFunctionData(
     functionFragment: "renounceOwnership",
     values?: undefined
+  ): string;
+  encodeFunctionData(
+    functionFragment: "setAggregator",
+    values: [AddressLike]
   ): string;
   encodeFunctionData(
     functionFragment: "setInitialOperatorSet",
@@ -341,6 +346,10 @@ export interface SFFLRegistryRollupInterface extends Interface {
   ): Result;
   decodeFunctionResult(
     functionFragment: "renounceOwnership",
+    data: BytesLike
+  ): Result;
+  decodeFunctionResult(
+    functionFragment: "setAggregator",
     data: BytesLike
   ): Result;
   decodeFunctionResult(
@@ -588,6 +597,12 @@ export interface SFFLRegistryRollup extends BaseContract {
 
   renounceOwnership: TypedContractMethod<[], [void], "nonpayable">;
 
+  setAggregator: TypedContractMethod<
+    [_aggregator: AddressLike],
+    [void],
+    "nonpayable"
+  >;
+
   setInitialOperatorSet: TypedContractMethod<
     [
       operators: RollupOperators.OperatorStruct[],
@@ -737,6 +752,9 @@ export interface SFFLRegistryRollup extends BaseContract {
   getFunction(
     nameOrSignature: "renounceOwnership"
   ): TypedContractMethod<[], [void], "nonpayable">;
+  getFunction(
+    nameOrSignature: "setAggregator"
+  ): TypedContractMethod<[_aggregator: AddressLike], [void], "nonpayable">;
   getFunction(
     nameOrSignature: "setInitialOperatorSet"
   ): TypedContractMethod<
