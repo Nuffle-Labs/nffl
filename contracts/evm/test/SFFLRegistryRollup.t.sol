@@ -640,4 +640,19 @@ contract SFFLRegistryRollupTest is TestUtils {
         vm.expectRevert("Signature is invalid");
         registry.updateStateRoot(message, signatureInfo);
     }
+
+    function test_setAggregator() public {
+        address newAggregator = addr("newAggregator");
+
+        vm.prank(addr("owner"));
+        registry.setAggregator(newAggregator);
+
+        assertEq(registry.aggregator(), newAggregator);
+    }
+
+    function test_setAggregator_RevertWhen_CallerNotOwner() public {
+        vm.expectRevert("Ownable: caller is not the owner");
+
+        registry.setAggregator(addr("newAggregator"));
+    }
 }

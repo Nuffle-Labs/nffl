@@ -1,4 +1,4 @@
-package aggregator
+package blsagg
 
 // BLS aggregator service for SFFL messages, based on eigensdk-go's blsagg
 
@@ -7,6 +7,7 @@ import (
 	"errors"
 	"fmt"
 	"math/big"
+	"sort"
 	"sync"
 	"time"
 
@@ -14,11 +15,9 @@ import (
 	"github.com/Layr-Labs/eigensdk-go/crypto/bls"
 	"github.com/Layr-Labs/eigensdk-go/logging"
 	"github.com/Layr-Labs/eigensdk-go/services/avsregistry"
-	blsagg "github.com/Layr-Labs/eigensdk-go/services/bls_aggregation"
 	eigentypes "github.com/Layr-Labs/eigensdk-go/types"
 	"github.com/ethereum/go-ethereum/accounts/abi/bind"
 
-	"github.com/NethermindEth/near-sffl/aggregator/types"
 	coretypes "github.com/NethermindEth/near-sffl/core/types"
 	"github.com/NethermindEth/near-sffl/core/types/messages"
 )
@@ -37,8 +36,36 @@ var (
 	SignatureVerificationError = func(err error) error {
 		return fmt.Errorf("Failed to verify signature: %w", err)
 	}
-	IncorrectSignatureError = errors.New("Signature verification failed. Incorrect Signature.")
+	IncorrectSignatureError                   = errors.New("Signature verification failed. Incorrect Signature.")
+	MessageDigestNotFoundError                = errors.New("Message digest not found")
+	QuorumThresholdPercentageOutOfBoundsError = errors.New("Quorum threshold percentage out of bounds")
+	QuorumThresholdPercentageLessThan51Error  = errors.New("Quorum threshold percentage less than 51")
 )
+
+type MessageBlsAggregationStatus int32
+
+const (
+	MessageBlsAggregationStatusNone MessageBlsAggregationStatus = iota
+	MessageBlsAggregationStatusFullStakeThresholdMet
+	MessageBlsAggregationStatusThresholdNotReached
+	MessageBlsAggregationStatusThresholdReached
+)
+
+type MessageBlsAggregationServiceResponse struct {
+	messages.MessageBlsAggregation
+
+	MessageKey coretypes.MessageKey
+	Message    MessageBlsAggregationServiceMessage
+
+	Status   MessageBlsAggregationStatus
+	Finished bool
+	Err      error
+}
+
+type MessageBlsAggregationServiceMessage interface {
+	Digest() (coretypes.MessageDigest, error)
+	Key() coretypes.MessageKey
+}
 
 type AggregatedOperators struct {
 	signersApkG2               *bls.G2Point
@@ -47,7 +74,8 @@ type AggregatedOperators struct {
 	signersOperatorIdsSet      map[eigentypes.OperatorId]bool
 }
 
-type SignedMessageDigest struct {
+type SignedMessage struct {
+	Message                     MessageBlsAggregationServiceMessage
 	MessageDigest               coretypes.MessageDigest
 	BlsSignature                *bls.Signature
 	OperatorId                  eigentypes.OperatorId
@@ -67,7 +95,7 @@ type signedMessageDigestValidationInfo struct {
 
 type MessageBlsAggregationService interface {
 	InitializeMessageIfNotExists(
-		messageDigest coretypes.MessageDigest,
+		messageKey coretypes.MessageKey,
 		quorumNumbers []eigentypes.QuorumNum,
 		quorumThresholdPercentages []eigentypes.QuorumThresholdPercentage,
 		timeToExpiry time.Duration,
@@ -77,64 +105,68 @@ type MessageBlsAggregationService interface {
 
 	ProcessNewSignature(
 		ctx context.Context,
-		messageDigest coretypes.MessageDigest,
+		message MessageBlsAggregationServiceMessage,
 		blsSignature *bls.Signature,
 		operatorId eigentypes.OperatorId,
 	) error
 
-	GetResponseChannel() <-chan types.MessageBlsAggregationServiceResponse
+	GetResponseChannel() <-chan MessageBlsAggregationServiceResponse
 }
 
 type MessageBlsAggregatorService struct {
-	aggregatedResponsesC   chan types.MessageBlsAggregationServiceResponse
-	signedMessageDigestsCs map[coretypes.MessageDigest]chan SignedMessageDigest
-	messageChansLock       sync.RWMutex
-	avsRegistryService     avsregistry.AvsRegistryService
-	ethClient              eth.Client
-	logger                 logging.Logger
+	aggregatedResponsesC chan MessageBlsAggregationServiceResponse
+	signedMessageCs      map[coretypes.MessageKey]chan SignedMessage
+	messageChansLock     sync.RWMutex
+	avsRegistryService   avsregistry.AvsRegistryService
+	ethClient            eth.Client
+	logger               logging.Logger
 }
 
 var _ MessageBlsAggregationService = (*MessageBlsAggregatorService)(nil)
 
 func NewMessageBlsAggregatorService(avsRegistryService avsregistry.AvsRegistryService, ethClient eth.Client, logger logging.Logger) *MessageBlsAggregatorService {
 	return &MessageBlsAggregatorService{
-		aggregatedResponsesC:   make(chan types.MessageBlsAggregationServiceResponse),
-		signedMessageDigestsCs: make(map[coretypes.MessageDigest]chan SignedMessageDigest),
-		messageChansLock:       sync.RWMutex{},
-		avsRegistryService:     avsRegistryService,
-		ethClient:              ethClient,
-		logger:                 logger,
+		aggregatedResponsesC: make(chan MessageBlsAggregationServiceResponse),
+		signedMessageCs:      make(map[coretypes.MessageKey]chan SignedMessage),
+		messageChansLock:     sync.RWMutex{},
+		avsRegistryService:   avsRegistryService,
+		ethClient:            ethClient,
+		logger:               logger,
 	}
 }
 
-func (mbas *MessageBlsAggregatorService) GetResponseChannel() <-chan types.MessageBlsAggregationServiceResponse {
+func (mbas *MessageBlsAggregatorService) GetResponseChannel() <-chan MessageBlsAggregationServiceResponse {
 	return mbas.aggregatedResponsesC
 }
 
-func (mbas *MessageBlsAggregatorService) initializeMessageChan(messageDigest coretypes.MessageDigest) chan SignedMessageDigest {
+func (mbas *MessageBlsAggregatorService) initializeMessageChan(messageKey coretypes.MessageKey) chan SignedMessage {
 	mbas.messageChansLock.Lock()
 	defer mbas.messageChansLock.Unlock()
 
-	if _, taskExists := mbas.signedMessageDigestsCs[messageDigest]; taskExists {
+	if _, taskExists := mbas.signedMessageCs[messageKey]; taskExists {
 		return nil
 	}
 
-	signedMessageDigestsC := make(chan SignedMessageDigest)
-	mbas.signedMessageDigestsCs[messageDigest] = signedMessageDigestsC
+	signedMessageC := make(chan SignedMessage)
+	mbas.signedMessageCs[messageKey] = signedMessageC
 
-	return signedMessageDigestsC
+	return signedMessageC
 }
 
 func (mbas *MessageBlsAggregatorService) InitializeMessageIfNotExists(
-	messageDigest coretypes.MessageDigest,
+	messageKey coretypes.MessageKey,
 	quorumNumbers []eigentypes.QuorumNum,
 	quorumThresholdPercentages []eigentypes.QuorumThresholdPercentage,
 	timeToExpiry time.Duration,
 	aggregationTimeout time.Duration,
 	ethBlockNumber uint64,
 ) error {
-	signedMessageDigestsC := mbas.initializeMessageChan(messageDigest)
-	if signedMessageDigestsC == nil {
+	if err := validateQuorumThresholdPercentages(quorumThresholdPercentages); err != nil {
+		return err
+	}
+
+	signedMessageC := mbas.initializeMessageChan(messageKey)
+	if signedMessageC == nil {
 		return nil
 	}
 
@@ -144,11 +176,11 @@ func (mbas *MessageBlsAggregatorService) InitializeMessageIfNotExists(
 	}
 
 	go mbas.singleMessageAggregatorGoroutineFunc(
-		messageDigest,
+		messageKey,
 		validationInfo,
 		timeToExpiry,
 		aggregationTimeout,
-		signedMessageDigestsC,
+		signedMessageC,
 	)
 
 	return nil
@@ -156,21 +188,27 @@ func (mbas *MessageBlsAggregatorService) InitializeMessageIfNotExists(
 
 func (mbas *MessageBlsAggregatorService) ProcessNewSignature(
 	ctx context.Context,
-	messageDigest coretypes.MessageDigest,
+	message MessageBlsAggregationServiceMessage,
 	blsSignature *bls.Signature,
 	operatorId eigentypes.OperatorId,
 ) error {
 	mbas.messageChansLock.RLock()
-	messageC, taskInitialized := mbas.signedMessageDigestsCs[messageDigest]
+	messageC, taskInitialized := mbas.signedMessageCs[message.Key()]
 	mbas.messageChansLock.RUnlock()
 
 	if !taskInitialized {
-		return MessageNotFoundErrorFn(messageDigest)
+		return MessageNotFoundErrorFn(message.Key())
 	}
 	signatureVerificationErrorC := make(chan error)
 
+	messageDigest, err := message.Digest()
+	if err != nil {
+		return MessageDigestNotFoundError
+	}
+
 	select {
-	case messageC <- SignedMessageDigest{
+	case messageC <- SignedMessage{
+		Message:                     message,
 		MessageDigest:               messageDigest,
 		BlsSignature:                blsSignature,
 		OperatorId:                  operatorId,
@@ -183,99 +221,113 @@ func (mbas *MessageBlsAggregatorService) ProcessNewSignature(
 }
 
 func (mbas *MessageBlsAggregatorService) singleMessageAggregatorGoroutineFunc(
-	messageDigest coretypes.MessageDigest,
+	messageKey coretypes.MessageKey,
 	validationInfo *signedMessageDigestValidationInfo,
 	timeToExpiry time.Duration,
 	aggregationTimeout time.Duration,
-	signedMessageDigestsC <-chan SignedMessageDigest,
+	signedMessageC <-chan SignedMessage,
 ) {
-	defer mbas.closeMessageGoroutine(messageDigest)
+	defer mbas.closeMessageGoroutine(messageKey)
 
-	shouldWaitForFullStake := mbas.handleSignedMessagePreThreshold(messageDigest, validationInfo, timeToExpiry, signedMessageDigestsC)
-
+	message, shouldWaitForFullStake := mbas.handleSignedMessagePreThreshold(messageKey, validationInfo, timeToExpiry, signedMessageC)
 	if shouldWaitForFullStake {
-		mbas.handleSignedMessageThresholdReached(messageDigest, validationInfo, signedMessageDigestsC, aggregationTimeout)
+		mbas.handleSignedMessageThresholdReached(message, validationInfo, signedMessageC, aggregationTimeout)
 	}
 }
 
 func (mbas *MessageBlsAggregatorService) handleSignedMessagePreThreshold(
-	messageDigest coretypes.MessageDigest,
+	messageKey coretypes.MessageKey,
 	validationInfo *signedMessageDigestValidationInfo,
 	timeToExpiry time.Duration,
-	signedMessageDigestsC <-chan SignedMessageDigest,
-) bool {
+	signedMessageC <-chan SignedMessage,
+) (MessageBlsAggregationServiceMessage, bool) {
 	messageExpiredTimer := time.NewTimer(timeToExpiry)
 	defer messageExpiredTimer.Stop()
 
 	for {
 		select {
-		case signedMessageDigest := <-signedMessageDigestsC:
-			mbas.logger.Debug("Message goroutine received new signed message digest", "messageDigest", messageDigest)
+		case signedMessage := <-signedMessageC:
+			mbas.logger.Debug("Message goroutine received new signed message", "key", messageKey)
 
-			err := mbas.handleSignedMessageDigest(signedMessageDigest, validationInfo)
-			signedMessageDigest.SignatureVerificationErrorC <- err
+			err := mbas.handleSignedMessageDigest(signedMessage, validationInfo)
+			signedMessage.SignatureVerificationErrorC <- err
 			if err != nil {
 				continue
 			}
 
-			aggregation := mbas.getMessageBlsAggregationResponse(messageDigest, validationInfo, false)
+			aggregation := mbas.getMessageBlsAggregationResponse(signedMessage.Message, signedMessage.MessageDigest, validationInfo, false)
 
-			if aggregation.Status == types.MessageBlsAggregationStatusThresholdNotReached {
+			if aggregation.Status == MessageBlsAggregationStatusThresholdNotReached {
 				continue
 			}
 
 			mbas.aggregatedResponsesC <- aggregation
 
-			if aggregation.Status == types.MessageBlsAggregationStatusThresholdReached {
-				return true
-			} else if aggregation.Status == types.MessageBlsAggregationStatusFullStakeThresholdMet {
-				return false
+			if aggregation.Status == MessageBlsAggregationStatusThresholdReached {
+				return signedMessage.Message, true
+			} else if aggregation.Status == MessageBlsAggregationStatusFullStakeThresholdMet {
+				return signedMessage.Message, false
 			}
 		case <-messageExpiredTimer.C:
-			mbas.logger.Debug("Message expired", "messageDigest", messageDigest)
-			mbas.aggregatedResponsesC <- types.MessageBlsAggregationServiceResponse{
+			mbas.logger.Debug("Message expired", "key", messageKey)
+			mbas.aggregatedResponsesC <- MessageBlsAggregationServiceResponse{
 				MessageBlsAggregation: messages.MessageBlsAggregation{
-					MessageDigest:  messageDigest,
 					EthBlockNumber: validationInfo.ethBlockNumber,
 				},
-				Finished: true,
-				Err:      MessageExpiredError,
+				MessageKey: messageKey,
+				Message:    nil,
+				Status:     MessageBlsAggregationStatusNone,
+				Finished:   true,
+				Err:        MessageExpiredError,
 			}
 
-			return false
+			return nil, false
 		}
 	}
 }
 
 func (mbas *MessageBlsAggregatorService) handleSignedMessageThresholdReached(
-	messageDigest coretypes.MessageDigest,
+	message MessageBlsAggregationServiceMessage,
 	validationInfo *signedMessageDigestValidationInfo,
-	signedMessageDigestsC <-chan SignedMessageDigest,
+	signedMessageC <-chan SignedMessage,
 	aggregationTimeout time.Duration,
 ) {
 	thresholdReachedTimer := time.NewTimer(aggregationTimeout)
 	defer thresholdReachedTimer.Stop()
 
+	messageKey := message.Key()
+	messageDigest, err := message.Digest()
+	if err != nil {
+		mbas.logger.Fatal("Failed to get message digest, should be unreachable", "err", err)
+		return
+	}
+
 	for {
 		select {
-		case signedMessageDigest := <-signedMessageDigestsC:
-			mbas.logger.Debug("Message goroutine received new signed message digest", "messageDigest", messageDigest)
+		case signedMessage := <-signedMessageC:
+			mbas.logger.Debug("Message goroutine received new signed message", "key", messageKey)
 
-			err := mbas.handleSignedMessageDigest(signedMessageDigest, validationInfo)
-			signedMessageDigest.SignatureVerificationErrorC <- err
+			if signedMessage.MessageDigest != messageDigest {
+				mbas.logger.Warn("Ignored signed message with non-majority digest", "expected", messageDigest, "got", signedMessage.MessageDigest)
+				signedMessage.SignatureVerificationErrorC <- nil
+				continue
+			}
+
+			err := mbas.handleSignedMessageDigest(signedMessage, validationInfo)
+			signedMessage.SignatureVerificationErrorC <- err
 			if err != nil {
 				continue
 			}
 
-			aggregation := mbas.getMessageBlsAggregationResponse(messageDigest, validationInfo, false)
+			aggregation := mbas.getMessageBlsAggregationResponse(signedMessage.Message, signedMessage.MessageDigest, validationInfo, false)
 			mbas.aggregatedResponsesC <- aggregation
 
-			if aggregation.Status == types.MessageBlsAggregationStatusFullStakeThresholdMet {
+			if aggregation.Status == MessageBlsAggregationStatusFullStakeThresholdMet {
 				return
 			}
 		case <-thresholdReachedTimer.C:
-			mbas.logger.Debug("Message expired", "messageDigest", messageDigest)
-			mbas.aggregatedResponsesC <- mbas.getMessageBlsAggregationResponse(messageDigest, validationInfo, true)
+			mbas.logger.Debug("Message expired", "key", messageKey)
+			mbas.aggregatedResponsesC <- mbas.getMessageBlsAggregationResponse(message, messageDigest, validationInfo, true)
 			return
 		}
 	}
@@ -339,26 +391,31 @@ const (
 	SignedMessageHandlingResultError
 )
 
-func (mbas *MessageBlsAggregatorService) handleSignedMessageDigest(signedMessageDigest SignedMessageDigest, validationInfo *signedMessageDigestValidationInfo) error {
-	err := mbas.verifySignature(signedMessageDigest, validationInfo.operatorsAvsStateDict)
+func (mbas *MessageBlsAggregatorService) handleSignedMessageDigest(signedMessage SignedMessage, validationInfo *signedMessageDigestValidationInfo) error {
+	err := mbas.verifySignature(signedMessage, validationInfo.operatorsAvsStateDict)
 	if err != nil {
 		return err
 	}
 
-	digestAggregatedOperators, ok := validationInfo.aggregatedOperatorsDict[signedMessageDigest.MessageDigest]
+	digest, err := signedMessage.Message.Digest()
+	if err != nil {
+		return err
+	}
+
+	digestAggregatedOperators, ok := validationInfo.aggregatedOperatorsDict[digest]
 	if !ok {
 		digestAggregatedOperators = AggregatedOperators{
 			// we've already verified that the operator is part of the task's quorum, so we don't need checks here
-			signersApkG2:               bls.NewZeroG2Point().Add(validationInfo.operatorsAvsStateDict[signedMessageDigest.OperatorId].OperatorInfo.Pubkeys.G2Pubkey),
-			signersAggSigG1:            signedMessageDigest.BlsSignature,
-			signersOperatorIdsSet:      map[eigentypes.OperatorId]bool{signedMessageDigest.OperatorId: true},
-			signersTotalStakePerQuorum: validationInfo.operatorsAvsStateDict[signedMessageDigest.OperatorId].StakePerQuorum,
+			signersApkG2:               bls.NewZeroG2Point().Add(validationInfo.operatorsAvsStateDict[signedMessage.OperatorId].OperatorInfo.Pubkeys.G2Pubkey),
+			signersAggSigG1:            signedMessage.BlsSignature,
+			signersOperatorIdsSet:      map[eigentypes.OperatorId]bool{signedMessage.OperatorId: true},
+			signersTotalStakePerQuorum: validationInfo.operatorsAvsStateDict[signedMessage.OperatorId].StakePerQuorum,
 		}
 	} else {
-		digestAggregatedOperators.signersAggSigG1.Add(signedMessageDigest.BlsSignature)
-		digestAggregatedOperators.signersApkG2.Add(validationInfo.operatorsAvsStateDict[signedMessageDigest.OperatorId].OperatorInfo.Pubkeys.G2Pubkey)
-		digestAggregatedOperators.signersOperatorIdsSet[signedMessageDigest.OperatorId] = true
-		for quorumNum, stake := range validationInfo.operatorsAvsStateDict[signedMessageDigest.OperatorId].StakePerQuorum {
+		digestAggregatedOperators.signersAggSigG1.Add(signedMessage.BlsSignature)
+		digestAggregatedOperators.signersApkG2.Add(validationInfo.operatorsAvsStateDict[signedMessage.OperatorId].OperatorInfo.Pubkeys.G2Pubkey)
+		digestAggregatedOperators.signersOperatorIdsSet[signedMessage.OperatorId] = true
+		for quorumNum, stake := range validationInfo.operatorsAvsStateDict[signedMessage.OperatorId].StakePerQuorum {
 			if _, ok := digestAggregatedOperators.signersTotalStakePerQuorum[quorumNum]; !ok {
 				digestAggregatedOperators.signersTotalStakePerQuorum[quorumNum] = big.NewInt(0)
 			}
@@ -367,30 +424,30 @@ func (mbas *MessageBlsAggregatorService) handleSignedMessageDigest(signedMessage
 	}
 	// update the aggregatedOperatorsDict. Note that we need to assign the whole struct value at once,
 	// because of https://github.com/golang/go/issues/3117
-	validationInfo.aggregatedOperatorsDict[signedMessageDigest.MessageDigest] = digestAggregatedOperators
+	validationInfo.aggregatedOperatorsDict[digest] = digestAggregatedOperators
 
 	return nil
 }
 
-func (mbas *MessageBlsAggregatorService) getMessageBlsAggregationStatus(messageDigest coretypes.MessageDigest, validationInfo *signedMessageDigestValidationInfo) (types.MessageBlsAggregationStatus, error) {
+func (mbas *MessageBlsAggregatorService) getMessageBlsAggregationStatus(messageDigest coretypes.MessageDigest, validationInfo *signedMessageDigestValidationInfo) (MessageBlsAggregationStatus, error) {
 	digestAggregatedOperators, ok := validationInfo.aggregatedOperatorsDict[messageDigest]
 	if !ok {
-		return types.MessageBlsAggregationStatusNone, MessageNotFoundErrorFn(messageDigest)
+		return MessageBlsAggregationStatusNone, MessageNotFoundErrorFn(messageDigest)
 	}
 
 	fullStakeThresholdMet := checkIfFullStakeThresholdMet(digestAggregatedOperators.signersTotalStakePerQuorum, validationInfo.totalStakePerQuorum)
 	if fullStakeThresholdMet {
-		return types.MessageBlsAggregationStatusFullStakeThresholdMet, nil
+		return MessageBlsAggregationStatusFullStakeThresholdMet, nil
 	}
 
 	if checkIfStakeThresholdsMet(digestAggregatedOperators.signersTotalStakePerQuorum, validationInfo.totalStakePerQuorum, validationInfo.quorumThresholdPercentagesMap) {
-		return types.MessageBlsAggregationStatusThresholdReached, nil
+		return MessageBlsAggregationStatusThresholdReached, nil
 	}
 
-	return types.MessageBlsAggregationStatusThresholdNotReached, nil
+	return MessageBlsAggregationStatusThresholdNotReached, nil
 }
 
-func (mbas *MessageBlsAggregatorService) getMessageBlsAggregationResponse(messageDigest coretypes.MessageDigest, validationInfo *signedMessageDigestValidationInfo, forceFinished bool) types.MessageBlsAggregationServiceResponse {
+func (mbas *MessageBlsAggregatorService) getMessageBlsAggregationResponse(message MessageBlsAggregationServiceMessage, messageDigest coretypes.MessageDigest, validationInfo *signedMessageDigestValidationInfo, forceFinished bool) MessageBlsAggregationServiceResponse {
 	defaultAggregation := messages.MessageBlsAggregation{
 		MessageDigest:  messageDigest,
 		EthBlockNumber: validationInfo.ethBlockNumber,
@@ -398,16 +455,24 @@ func (mbas *MessageBlsAggregatorService) getMessageBlsAggregationResponse(messag
 
 	digestAggregatedOperators, ok := validationInfo.aggregatedOperatorsDict[messageDigest]
 	if !ok {
-		return types.MessageBlsAggregationServiceResponse{
+		return MessageBlsAggregationServiceResponse{
 			MessageBlsAggregation: defaultAggregation,
+			Message:               message,
+			MessageKey:            message.Key(),
+			Status:                MessageBlsAggregationStatusNone,
+			Finished:              forceFinished,
 			Err:                   MessageNotFoundErrorFn(messageDigest),
 		}
 	}
 
 	status, err := mbas.getMessageBlsAggregationStatus(messageDigest, validationInfo)
 	if err != nil {
-		return types.MessageBlsAggregationServiceResponse{
+		return MessageBlsAggregationServiceResponse{
 			MessageBlsAggregation: defaultAggregation,
+			Message:               message,
+			MessageKey:            message.Key(),
+			Status:                MessageBlsAggregationStatusNone,
+			Finished:              forceFinished,
 			Err:                   err,
 		}
 	}
@@ -419,74 +484,94 @@ func (mbas *MessageBlsAggregatorService) getMessageBlsAggregationResponse(messag
 		}
 	}
 
+	sort.SliceStable(nonSignersOperatorIds, func(i, j int) bool {
+		a := new(big.Int).SetBytes(nonSignersOperatorIds[i][:])
+		b := new(big.Int).SetBytes(nonSignersOperatorIds[j][:])
+		return a.Cmp(b) == -1
+	})
+
+	nonSignersG1Pubkeys := []*bls.G1Point{}
+	for _, operatorId := range nonSignersOperatorIds {
+		operator := validationInfo.operatorsAvsStateDict[operatorId]
+		nonSignersG1Pubkeys = append(nonSignersG1Pubkeys, operator.OperatorInfo.Pubkeys.G1Pubkey)
+	}
+
 	indices, err := mbas.avsRegistryService.GetCheckSignaturesIndices(&bind.CallOpts{}, uint32(validationInfo.ethBlockNumber), validationInfo.quorumNumbers, nonSignersOperatorIds)
 	if err != nil {
 		mbas.logger.Error("Failed to get check signatures indices", "err", err)
-		return types.MessageBlsAggregationServiceResponse{
+		return MessageBlsAggregationServiceResponse{
 			MessageBlsAggregation: defaultAggregation,
+			Message:               message,
+			MessageKey:            message.Key(),
+			Status:                MessageBlsAggregationStatusNone,
+			Finished:              forceFinished,
 			Err:                   err,
 		}
 	}
 
-	aggregation, err := messages.NewMessageBlsAggregationFromServiceResponse(
-		validationInfo.ethBlockNumber,
-		blsagg.BlsAggregationServiceResponse{
-			TaskResponseDigest:           messageDigest,
-			NonSignersPubkeysG1:          getG1PubkeysOfNonSigners(digestAggregatedOperators.signersOperatorIdsSet, validationInfo.operatorsAvsStateDict),
-			QuorumApksG1:                 validationInfo.quorumApksG1,
-			SignersApkG2:                 digestAggregatedOperators.signersApkG2,
-			SignersAggSigG1:              digestAggregatedOperators.signersAggSigG1,
-			NonSignerQuorumBitmapIndices: indices.NonSignerQuorumBitmapIndices,
-			QuorumApkIndices:             indices.QuorumApkIndices,
-			TotalStakeIndices:            indices.TotalStakeIndices,
-			NonSignerStakeIndices:        indices.NonSignerStakeIndices,
-		},
-	)
+	aggregation := messages.MessageBlsAggregation{
+		EthBlockNumber:               uint64(validationInfo.ethBlockNumber),
+		MessageDigest:                messageDigest,
+		NonSignersPubkeysG1:          nonSignersG1Pubkeys,
+		QuorumApksG1:                 validationInfo.quorumApksG1,
+		SignersApkG2:                 digestAggregatedOperators.signersApkG2,
+		SignersAggSigG1:              digestAggregatedOperators.signersAggSigG1,
+		NonSignerQuorumBitmapIndices: indices.NonSignerQuorumBitmapIndices,
+		QuorumApkIndices:             indices.QuorumApkIndices,
+		TotalStakeIndices:            indices.TotalStakeIndices,
+		NonSignerStakeIndices:        indices.NonSignerStakeIndices,
+	}
 	if err != nil {
 		mbas.logger.Error("Failed to format aggregation", "err", err)
-		return types.MessageBlsAggregationServiceResponse{
+		return MessageBlsAggregationServiceResponse{
 			MessageBlsAggregation: defaultAggregation,
+			Message:               message,
+			MessageKey:            message.Key(),
+			Status:                MessageBlsAggregationStatusNone,
+			Finished:              forceFinished,
 			Err:                   err,
 		}
 	}
 
-	fullStakeThresholdMet := status == types.MessageBlsAggregationStatusFullStakeThresholdMet
+	fullStakeThresholdMet := status == MessageBlsAggregationStatusFullStakeThresholdMet
 
-	return types.MessageBlsAggregationServiceResponse{
+	return MessageBlsAggregationServiceResponse{
 		Err:                   nil,
 		Status:                status,
 		Finished:              fullStakeThresholdMet || forceFinished,
 		MessageBlsAggregation: aggregation,
+		Message:               message,
+		MessageKey:            message.Key(),
 	}
 }
 
 func (mbas *MessageBlsAggregatorService) closeMessageGoroutine(messageDigest coretypes.MessageDigest) {
 	mbas.messageChansLock.Lock()
-	delete(mbas.signedMessageDigestsCs, messageDigest)
+	delete(mbas.signedMessageCs, messageDigest)
 	mbas.messageChansLock.Unlock()
 }
 
 func (mbas *MessageBlsAggregatorService) verifySignature(
-	signedMessageDigest SignedMessageDigest,
+	signedMessage SignedMessage,
 	operatorsAvsStateDict map[eigentypes.OperatorId]eigentypes.OperatorAvsState,
 ) error {
-	_, ok := operatorsAvsStateDict[signedMessageDigest.OperatorId]
+	_, ok := operatorsAvsStateDict[signedMessage.OperatorId]
 	if !ok {
-		mbas.logger.Warn("Operator not found. Skipping message", "operator", signedMessageDigest.OperatorId)
-		return OperatorNotPartOfMessageQuorumErrorFn(signedMessageDigest.OperatorId, signedMessageDigest.MessageDigest)
+		mbas.logger.Warn("Operator not found. Skipping message", "operator", signedMessage.OperatorId)
+		return OperatorNotPartOfMessageQuorumErrorFn(signedMessage.OperatorId, signedMessage.MessageDigest)
 	}
 
 	// 0. verify that the msg actually came from the correct operator
-	operatorG2Pubkey := operatorsAvsStateDict[signedMessageDigest.OperatorId].OperatorInfo.Pubkeys.G2Pubkey
+	operatorG2Pubkey := operatorsAvsStateDict[signedMessage.OperatorId].OperatorInfo.Pubkeys.G2Pubkey
 	if operatorG2Pubkey == nil {
 		mbas.logger.Fatal("Operator G2 pubkey not found")
 	}
 	mbas.logger.Debug("Verifying signed message digest signature",
 		"operatorG2Pubkey", operatorG2Pubkey,
-		"messageDigest", signedMessageDigest.MessageDigest,
-		"blsSignature", signedMessageDigest.BlsSignature,
+		"messageDigest", signedMessage.MessageDigest,
+		"blsSignature", signedMessage.BlsSignature,
 	)
-	signatureVerified, err := signedMessageDigest.BlsSignature.Verify(operatorG2Pubkey, signedMessageDigest.MessageDigest)
+	signatureVerified, err := signedMessage.BlsSignature.Verify(operatorG2Pubkey, signedMessage.MessageDigest)
 	if err != nil {
 		mbas.logger.Error(SignatureVerificationError(err).Error())
 		return SignatureVerificationError(err)
@@ -525,12 +610,14 @@ func checkIfFullStakeThresholdMet(
 	return true
 }
 
-func getG1PubkeysOfNonSigners(signersOperatorIdsSet map[eigentypes.OperatorId]bool, operatorAvsStateDict map[eigentypes.OperatorId]eigentypes.OperatorAvsState) []*bls.G1Point {
-	nonSignersG1Pubkeys := []*bls.G1Point{}
-	for operatorId, operator := range operatorAvsStateDict {
-		if _, operatorSigned := signersOperatorIdsSet[operatorId]; !operatorSigned {
-			nonSignersG1Pubkeys = append(nonSignersG1Pubkeys, operator.OperatorInfo.Pubkeys.G1Pubkey)
+func validateQuorumThresholdPercentages(quorumThresholdPercentages []eigentypes.QuorumThresholdPercentage) error {
+	for _, percentage := range quorumThresholdPercentages {
+		if percentage > eigentypes.QuorumThresholdPercentage(100) {
+			return QuorumThresholdPercentageOutOfBoundsError
+		}
+		if percentage < eigentypes.QuorumThresholdPercentage(51) {
+			return QuorumThresholdPercentageLessThan51Error
 		}
 	}
-	return nonSignersG1Pubkeys
+	return nil
 }

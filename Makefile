@@ -26,7 +26,10 @@ deploy-eigenlayer-contracts-to-anvil-and-save-state: ## Deploy eigenlayer
 deploy-sffl-contracts-to-anvil-and-save-state: ## Deploy avs
 	./tests/anvil/deploy-avs-save-anvil-state.sh
 
-deploy-all-to-anvil-and-save-state: deploy-eigenlayer-contracts-to-anvil-and-save-state deploy-sffl-contracts-to-anvil-and-save-state ## deploy eigenlayer, shared avs contracts, and inc-sq contracts
+deploy-rollup-sffl-contracts-to-anvil-and-save-state: ## Deploy rollup contracts
+	./tests/anvil/deploy-rollup-avs-save-anvil-state.sh
+
+deploy-all-to-anvil-and-save-state: deploy-eigenlayer-contracts-to-anvil-and-save-state deploy-sffl-contracts-to-anvil-and-save-state deploy-rollup-sffl-contracts-to-anvil-and-save-state ## deploy eigenlayer and avs contracts
 
 start-anvil-chain-with-el-and-avs-deployed: ## starts anvil from a saved state file (with el and avs contracts deployed)
 	./tests/anvil/start-anvil-chain-with-el-and-avs-deployed.sh
@@ -121,9 +124,9 @@ tests-contract: ## runs all forge tests
 near-da-rpc-sys:
 	rm -rf relayer/libs && \
 	mkdir relayer/libs && \
-	git clone https://github.com/taco-paco/rollup-data-availability.git && \
+	git clone https://github.com/near/rollup-data-availability.git && \
 	cd rollup-data-availability && \
-	git checkout c9ec12924b27e37b8c40e7ab1a051a64b363cfd6 && \
+	git checkout 6b7d76a28d7e3315c8b1c0f805cd665fc85dfd23 && \
 	make da-rpc-sys && \
 	cp gopkg/da-rpc/lib/* ../relayer/libs && \
 	cd .. && \

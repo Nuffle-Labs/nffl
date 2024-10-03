@@ -161,6 +161,14 @@ contract SFFLRegistryRollup is Initializable, OwnableUpgradeable, Pausable, SFFL
     }
 
     /**
+     * @notice Sets the aggregator address
+     * @param _aggregator New aggregator address
+     */
+    function setAggregator(address _aggregator) external onlyOwner {
+        aggregator = _aggregator;
+    }
+
+    /**
      * @notice Sets the operator set quorum weight threshold
      * @param newQuorumThreshold New quorum threshold, based on
      * THRESHOLD_DENOMINATOR

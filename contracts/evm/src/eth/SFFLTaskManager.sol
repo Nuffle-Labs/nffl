@@ -341,6 +341,22 @@ contract SFFLTaskManager is Initializable, OwnableUpgradeable, Pausable, BLSSign
         return (true, hashOfNonSigners);
     }
 
+    /**
+     * @notice Sets the aggregator address
+     * @param _aggregator New aggregator address
+     */
+    function setAggregator(address _aggregator) external onlyOwner {
+        aggregator = _aggregator;
+    }
+
+    /**
+     * @notice Sets the task generator address
+     * @param _generator New task generator address
+     */
+    function setGenerator(address _generator) external onlyOwner {
+        generator = _generator;
+    }
+
     function _validateChallenge(
         Checkpoint.Task calldata, /* task */
         Checkpoint.TaskResponse calldata /* taskResponse */

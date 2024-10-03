@@ -5,7 +5,6 @@
 //
 //	mockgen -destination=./mocks/eth_client.go -package=mocks github.com/Layr-Labs/eigensdk-go/chainio/clients/eth Client
 //
-
 // Package mocks is a generated GoMock package.
 package mocks
 

@@ -6,6 +6,7 @@ import (
 	"net/rpc"
 	"strings"
 
+	"github.com/NethermindEth/near-sffl/aggregator/blsagg"
 	"github.com/NethermindEth/near-sffl/core"
 	"github.com/prometheus/client_golang/prometheus"
 
@@ -19,11 +20,12 @@ import (
 var (
 	TaskNotFoundError400                     = errors.New("400. Task not found")
 	OperatorNotPartOfTaskQuorum400           = errors.New("400. Operator not part of quorum")
+	OperatorNotFoundError400                 = errors.New("400. Operator not found")
 	TaskResponseDigestNotFoundError500       = errors.New("500. Failed to get task response digest")
 	MessageDigestNotFoundError500            = errors.New("500. Failed to get message digest")
 	OperatorSetUpdateBlockNotFoundError500   = errors.New("500. Failed to get operator set update block")
 	UnknownErrorWhileVerifyingSignature400   = errors.New("400. Failed to verify signature")
-	SignatureVerificationFailed400           = errors.New("400. Signature verification failed")
+	InvalidSignatureError400                 = errors.New("400. Invalid signature")
 	CallToGetCheckSignaturesIndicesFailed500 = errors.New("500. Failed to get check signatures indices")
 	MessageExpiredError500                   = errors.New("500. Message expired")
 	UnknownError400                          = errors.New("400. Unknown error")
@@ -32,7 +34,9 @@ var (
 		aggregator.DigestError:                    MessageDigestNotFoundError500,
 		aggregator.TaskResponseDigestError:        TaskResponseDigestNotFoundError500,
 		aggregator.GetOperatorSetUpdateBlockError: OperatorSetUpdateBlockNotFoundError500,
-		aggregator.MessageExpiredError:            MessageExpiredError500,
+		aggregator.InvalidSignatureError:          InvalidSignatureError400,
+		aggregator.OperatorNotFoundError:          OperatorNotFoundError400,
+		blsagg.MessageExpiredError:                MessageExpiredError500,
 	}
 )
 
