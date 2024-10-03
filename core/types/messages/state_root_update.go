@@ -3,6 +3,7 @@ package messages
 import (
 	"bytes"
 	"encoding/binary"
+	"errors"
 
 	"github.com/Layr-Labs/eigensdk-go/crypto/bls"
 	eigentypes "github.com/Layr-Labs/eigensdk-go/types"
@@ -26,6 +27,18 @@ type SignedStateRootUpdateMessage struct {
 	Message      StateRootUpdateMessage
 	BlsSignature bls.Signature
 	OperatorId   eigentypes.OperatorId
+}
+
+func (s *SignedStateRootUpdateMessage) IsValid() error {
+	if s == nil {
+		return errors.New("SignedStateRootUpdateMessage is nil")
+	}
+
+	if s.BlsSignature.G1Point == nil {
+		return errors.New("BlsSignature.G1Point is nil")
+	}
+
+	return nil
 }
 
 func NewStateRootUpdateMessageFromBinding(binding servicemanager.StateRootUpdateMessage) StateRootUpdateMessage {
@@ -59,7 +72,7 @@ func (msg StateRootUpdateMessage) AbiEncode() ([]byte, error) {
 	return bytes, nil
 }
 
-func (msg StateRootUpdateMessage) Digest() ([32]byte, error) {
+func (msg StateRootUpdateMessage) Digest() (coretypes.MessageDigest, error) {
 	data, err := msg.AbiEncode()
 	if err != nil {
 		return [32]byte{}, err
@@ -73,13 +86,13 @@ func (msg StateRootUpdateMessage) Digest() ([32]byte, error) {
 	return digest, nil
 }
 
-func (msg StateRootUpdateMessage) Key() [32]byte {
+func (msg StateRootUpdateMessage) Key() coretypes.MessageKey {
 	key := [32]byte{}
 
 	binary.BigEndian.PutUint32(key[20:24], msg.RollupId)
 	binary.BigEndian.PutUint64(key[24:32], msg.BlockHeight)
 
-	return key
+	return coretypes.MessageKey(key)
 }
 
 func (msg StateRootUpdateMessage) HasNearDaCommitment() bool {

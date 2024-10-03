@@ -26,7 +26,7 @@ func generateBlockData() consumer.BlockData {
 
 	return consumer.BlockData{
 		RollupId: randomRollupId,
-		Block:    *types.NewBlockWithHeader(&header),
+		Block:    types.NewBlockWithHeader(&header),
 	}
 }
 

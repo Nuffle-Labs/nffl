@@ -3,7 +3,7 @@ The purpose of this indexer is to retrieve valid submissions to near da contract
 
 ## How to setup
 
-For testing purposes the [following contract](https://github.com/near/rollup-data-availability/tree/main/contracts/blob-store) was used. 
+For testing purposes the [following contract](https://github.com/Nuffle-Labs/data-availability/tree/main/contracts/blob-store) was used. 
 
 ### Localnet
 

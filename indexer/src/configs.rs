@@ -1,6 +1,8 @@
+use near_config_utils::DownloadConfigType;
 use near_indexer::near_primitives::types::{AccountId, Gas};
 use std::collections::HashMap;
 use std::net::SocketAddr;
+use std::str::FromStr;
 
 use crate::errors::{Error, Result};
 
@@ -86,6 +88,30 @@ pub(crate) struct InitConfigParams {
     pub args: Option<InitConfigArgs>,
 }
 
+mod download_config_type_option_serde {
+    use super::*;
+    use serde::{Deserialize, Deserializer, Serializer};
+
+    pub fn serialize<S>(value: &Option<DownloadConfigType>, serializer: S) -> Result<S::Ok, S::Error>
+    where
+        S: Serializer,
+    {
+        match value {
+            Some(v) => serializer.serialize_str(&v.to_string()),
+            None => serializer.serialize_none(),
+        }
+    }
+
+    pub fn deserialize<'de, D>(deserializer: D) -> Result<Option<DownloadConfigType>, D::Error>
+    where
+        D: Deserializer<'de>,
+    {
+        let s: Option<String> = Option::deserialize(deserializer)?;
+        s.map(|s| DownloadConfigType::from_str(&s).map_err(serde::de::Error::custom))
+            .transpose()
+    }
+}
+
 #[derive(clap::Parser, Deserialize, Debug)]
 #[group(id = "config_args", conflicts_with = "config_path")]
 pub(crate) struct InitConfigArgs {
@@ -117,8 +143,9 @@ pub(crate) struct InitConfigArgs {
     #[clap(long)]
     pub download_records_url: Option<String>,
     #[clap(long)]
+    #[serde(with = "download_config_type_option_serde")]
     /// Download the verified NEAR config file automatically.
-    pub download_config: bool,
+    pub download_config: Option<DownloadConfigType>,
     /// Specify a custom download URL for the config file.
     #[clap(long)]
     pub download_config_url: Option<String>,

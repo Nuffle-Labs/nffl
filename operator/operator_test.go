@@ -165,7 +165,7 @@ func TestOperator(t *testing.T) {
 		avsManager.operatorSetUpdateChan <- operatorSetUpdate
 		mockConsumer.MockReceiveBlockData(consumer.BlockData{
 			RollupId: signedStateRootUpdateMessage.Message.RollupId,
-			Block:    *block,
+			Block:    block,
 		})
 
 		time.Sleep(1 * time.Second)
