@@ -105,7 +105,7 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "e01ed3140b2f8d422c68afa1ed2e85d996ea619c988ac834d255db32138655cb"
 dependencies = [
  "quote",
- "syn 2.0.77",
+ "syn 2.0.79",
 ]
 
 [[package]]
@@ -244,7 +244,7 @@ dependencies = [
  "actix-router",
  "proc-macro2",
  "quote",
- "syn 2.0.77",
+ "syn 2.0.79",
 ]
 
 [[package]]
@@ -255,7 +255,7 @@ checksum = "b6ac1e58cded18cb28ddc17143c4dea5345b3ad575e14f32f66e4054a56eb271"
 dependencies = [
  "proc-macro2",
  "quote",
- "syn 2.0.77",
+ "syn 2.0.79",
 ]
 
 [[package]]
@@ -349,9 +349,9 @@ checksum = "5c6cb57a04249c6480766f7f7cef5467412af1490f8d1e243141daddada3264f"
 
 [[package]]
 name = "amq-protocol"
-version = "7.2.1"
+version = "7.2.2"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "0f0234884b3641db74d22ccc20fc2594db5f23d7d41ade5c93d7ee33d200960c"
+checksum = "e3a41c091e49edfcc098b4f90d4d7706a8cf9158034e84ebfee7ff346092f67c"
 dependencies = [
  "amq-protocol-tcp",
  "amq-protocol-types",
@@ -363,9 +363,9 @@ dependencies = [
 
 [[package]]
 name = "amq-protocol-tcp"
-version = "7.2.1"
+version = "7.2.2"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "265dca43d9dbb3d5bbb0b3ef1b0cd9044ce3aa5d697d5b66cde974d1f6063f09"
+checksum = "3ed7a4a662472f88823ed2fc81babb0b00562f2c54284e3e7bffc02b6df649bf"
 dependencies = [
  "amq-protocol-uri",
  "tcp-stream",
@@ -374,9 +374,9 @@ dependencies = [
 
 [[package]]
 name = "amq-protocol-types"
-version = "7.2.1"
+version = "7.2.2"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "c7412353b58923fa012feb9a64ccc0c811747babee2e5a2fd63eb102dc8054c3"
+checksum = "bd6484fdc918c1b6e2ae8eda2914d19a5873e1975f93ad8d33d6a24d1d98df05"
 dependencies = [
  "cookie-factory",
  "nom",
@@ -386,9 +386,9 @@ dependencies = [
 
 [[package]]
 name = "amq-protocol-uri"
-version = "7.2.1"
+version = "7.2.2"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "2be91352c805d5704784e079117d5291fd5bf2569add53c914ebce6d1a795d33"
+checksum = "7f7f2da69e0e1182765bf33407cd8a843f20791b5af2b57a2645818c4776c56c"
 dependencies = [
  "amq-protocol-types",
  "percent-encoding",
@@ -516,7 +516,7 @@ checksum = "965c2d33e53cb6b267e148a4cb0760bc01f4904c1cd4bb4002a085bb016d1490"
 dependencies = [
  "proc-macro2",
  "quote",
- "syn 2.0.77",
+ "syn 2.0.79",
  "synstructure",
 ]
 
@@ -528,7 +528,7 @@ checksum = "7b18050c2cd6fe86c3a76584ef5e0baf286d038cda203eb6223df2cc413565f7"
 dependencies = [
  "proc-macro2",
  "quote",
- "syn 2.0.77",
+ "syn 2.0.79",
 ]
 
 [[package]]
@@ -661,9 +661,9 @@ dependencies = [
 
 [[package]]
 name = "async-stream"
-version = "0.3.5"
+version = "0.3.6"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "cd56dd203fef61ac097dd65721a419ddccb106b2d2b70ba60a6b529f03961a51"
+checksum = "0b5a71a6f37880a80d1d7f19efd781e4b5de42c88f0722cc13bcb6cc2cfe8476"
 dependencies = [
  "async-stream-impl",
  "futures-core",
@@ -672,13 +672,13 @@ dependencies = [
 
 [[package]]
 name = "async-stream-impl"
-version = "0.3.5"
+version = "0.3.6"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "16e62a023e7c117e27523144c5d2459f4397fcc3cab0085af8e2224f643a0193"
+checksum = "c7c24de15d275a1ecfd47a380fb4d5ec9bfe0933f309ed5e705b775596a3574d"
 dependencies = [
  "proc-macro2",
  "quote",
- "syn 2.0.77",
+ "syn 2.0.79",
 ]
 
 [[package]]
@@ -689,13 +689,13 @@ checksum = "8b75356056920673b02621b35afd0f7dda9306d03c79a30f5c56c44cf256e3de"
 
 [[package]]
 name = "async-trait"
-version = "0.1.82"
+version = "0.1.83"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "a27b8a3a6e1a44fa4c8baf1f653e4172e81486d4941f2237e20dc2d0cf4ddff1"
+checksum = "721cae7de5c34fbb2acd27e21e6d2cf7b886dce0c27388d46c4e6c47ea4318dd"
 dependencies = [
  "proc-macro2",
  "quote",
- "syn 2.0.77",
+ "syn 2.0.79",
 ]
 
 [[package]]
@@ -722,9 +722,9 @@ dependencies = [
 
 [[package]]
 name = "autocfg"
-version = "1.3.0"
+version = "1.4.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "0c4b4d0bd25bd0b74681c0ad21497610ce1b7c91b1022cd21c80c6fbdd9476b0"
+checksum = "ace50bade8e6234aa140d9a2f552bbee1db4d353f69b8217bc503490fc1a9f26"
 
 [[package]]
 name = "awc"
@@ -902,7 +902,7 @@ dependencies = [
  "regex",
  "rustc-hash",
  "shlex",
- "syn 2.0.77",
+ "syn 2.0.79",
 ]
 
 [[package]]
@@ -1069,7 +1069,7 @@ dependencies = [
  "proc-macro-crate 3.2.0",
  "proc-macro2",
  "quote",
- "syn 2.0.77",
+ "syn 2.0.79",
  "syn_derive",
 ]
 
@@ -1158,9 +1158,9 @@ checksum = "1fd0f2584146f6f2ef48085050886acf353beff7305ebd1ae69500e27c67f64b"
 
 [[package]]
 name = "bytes"
-version = "1.7.1"
+version = "1.7.2"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "8318a53db07bb3f8dca91a600466bdb3f2eaadeedfdbcf02e1accbad9271ba50"
+checksum = "428d9aa8fbc0670b7b8d6030a7fadd0f86151cae55e4dbbece15f3780a3dfaf3"
 
 [[package]]
 name = "bytesize"
@@ -1202,9 +1202,9 @@ dependencies = [
 
 [[package]]
 name = "cc"
-version = "1.1.19"
+version = "1.1.24"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "2d74707dde2ba56f86ae90effb3b43ddd369504387e718014de010cec7959800"
+checksum = "812acba72f0a070b003d3697490d2b55b837230ae7c6c6497f05cc2ddbb8d938"
 dependencies = [
  "jobserver",
  "libc",
@@ -1276,9 +1276,9 @@ dependencies = [
 
 [[package]]
 name = "clap"
-version = "4.5.17"
+version = "4.5.19"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "3e5a21b8495e732f1b3c364c9949b201ca7bae518c502c80256c96ad79eaf6ac"
+checksum = "7be5744db7978a28d9df86a214130d106a89ce49644cbc4e3f0c22c3fba30615"
 dependencies = [
  "clap_builder",
  "clap_derive",
@@ -1286,9 +1286,9 @@ dependencies = [
 
 [[package]]
 name = "clap_builder"
-version = "4.5.17"
+version = "4.5.19"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "8cf2dd12af7a047ad9d6da2b6b249759a22a7abc0f474c1dae1777afa4b21a73"
+checksum = "a5fbc17d3ef8278f55b282b2a2e75ae6f6c7d4bb70ed3d0382375104bfafdb4b"
 dependencies = [
  "anstream",
  "anstyle",
@@ -1298,14 +1298,14 @@ dependencies = [
 
 [[package]]
 name = "clap_derive"
-version = "4.5.13"
+version = "4.5.18"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "501d359d5f3dcaf6ecdeee48833ae73ec6e42723a1e52419c79abf9507eec0a0"
+checksum = "4ac6a0c7b1a9e9a5186361f67dfa1b88213572f427fb9ab038efb2bd8c582dab"
 dependencies = [
  "heck 0.5.0",
  "proc-macro2",
  "quote",
- "syn 2.0.77",
+ "syn 2.0.79",
 ]
 
 [[package]]
@@ -1694,7 +1694,7 @@ checksum = "f46882e17999c6cc590af592290432be3bce0428cb0d5f8b6715e4dc7b383eb3"
 dependencies = [
  "proc-macro2",
  "quote",
- "syn 2.0.77",
+ "syn 2.0.79",
 ]
 
 [[package]]
@@ -1718,7 +1718,7 @@ dependencies = [
  "proc-macro2",
  "quote",
  "strsim",
- "syn 2.0.77",
+ "syn 2.0.79",
 ]
 
 [[package]]
@@ -1729,7 +1729,7 @@ checksum = "d336a2a514f6ccccaa3e09b02d41d35330c07ddf03a62165fcec10bb561c7806"
 dependencies = [
  "darling_core",
  "quote",
- "syn 2.0.77",
+ "syn 2.0.79",
 ]
 
 [[package]]
@@ -1814,7 +1814,7 @@ checksum = "8034092389675178f570469e6c3b0465d3d30b4505c294a6550db47f3c17ad18"
 dependencies = [
  "proc-macro2",
  "quote",
- "syn 2.0.77",
+ "syn 2.0.79",
 ]
 
 [[package]]
@@ -1835,7 +1835,7 @@ checksum = "62d671cc41a825ebabc75757b62d3d168c577f9149b2d49ece1dad1f72119d25"
 dependencies = [
  "proc-macro2",
  "quote",
- "syn 2.0.77",
+ "syn 2.0.79",
 ]
 
 [[package]]
@@ -1846,7 +1846,7 @@ checksum = "67e77553c4162a157adbf834ebae5b415acbecbeafc7a74b0e886657506a7611"
 dependencies = [
  "proc-macro2",
  "quote",
- "syn 2.0.77",
+ "syn 2.0.79",
 ]
 
 [[package]]
@@ -1859,7 +1859,7 @@ dependencies = [
  "proc-macro2",
  "quote",
  "rustc_version 0.4.1",
- "syn 2.0.77",
+ "syn 2.0.79",
 ]
 
 [[package]]
@@ -1928,7 +1928,7 @@ checksum = "97369cbbc041bc366949bc74d34658d6cda5621039731c6310521892a3a20ae0"
 dependencies = [
  "proc-macro2",
  "quote",
- "syn 2.0.77",
+ "syn 2.0.79",
 ]
 
 [[package]]
@@ -2074,7 +2074,7 @@ checksum = "f282cfdfe92516eb26c2af8589c274c7c17681f5ecc03c18255fe741c6aa64eb"
 dependencies = [
  "proc-macro2",
  "quote",
- "syn 2.0.77",
+ "syn 2.0.79",
 ]
 
 [[package]]
@@ -2095,7 +2095,7 @@ dependencies = [
  "darling",
  "proc-macro2",
  "quote",
- "syn 2.0.77",
+ "syn 2.0.79",
 ]
 
 [[package]]
@@ -2231,9 +2231,9 @@ checksum = "b3ea1ec5f8307826a5b71094dd91fc04d4ae75d5709b20ad351c7fb4815c86ec"
 
 [[package]]
 name = "flate2"
-version = "1.0.33"
+version = "1.0.34"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "324a1be68054ef05ad64b861cc9eaf1d623d2d8cb25b4bf2cb9cdd902b4bf253"
+checksum = "a1b589b4dc103969ad3cf85c950899926ec64300a1a46d76c03a6072957036f0"
 dependencies = [
  "crc32fast",
  "miniz_oxide",
@@ -2370,7 +2370,7 @@ checksum = "87750cf4b7a4c0625b1529e4c543c2182106e4dedc60a2a6455e00d212c489ac"
 dependencies = [
  "proc-macro2",
  "quote",
- "syn 2.0.77",
+ "syn 2.0.79",
 ]
 
 [[package]]
@@ -2462,7 +2462,7 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "4271d37baee1b8c7e4b708028c57d816cf9d2434acb33a549475f78c181f6253"
 dependencies = [
  "fallible-iterator",
- "indexmap 2.5.0",
+ "indexmap 2.6.0",
  "stable_deref_trait",
 ]
 
@@ -2490,7 +2490,7 @@ dependencies = [
  "futures-sink",
  "futures-util",
  "http 0.2.12",
- "indexmap 2.5.0",
+ "indexmap 2.6.0",
  "slab",
  "tokio",
  "tokio-util",
@@ -2533,6 +2533,12 @@ dependencies = [
  "ahash 0.8.11",
  "allocator-api2",
 ]
+
+[[package]]
+name = "hashbrown"
+version = "0.15.0"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "1e087f84d4f86bf4b218b927129862374b72199ae7d8657835f1e89000eea4fb"
 
 [[package]]
 name = "heck"
@@ -2620,9 +2626,9 @@ dependencies = [
 
 [[package]]
 name = "httparse"
-version = "1.9.4"
+version = "1.9.5"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "0fcc0b4a115bf80b728eb8ea024ad5bd707b615bfed49e0665b6e0f86fd082d9"
+checksum = "7d71d3574edd2771538b901e6549113b4006ece66150fb69c0fb6d9a2adae946"
 
 [[package]]
 name = "httpdate"
@@ -2753,6 +2759,7 @@ dependencies = [
  "lapin",
  "near-client",
  "near-client-primitives",
+ "near-config-utils",
  "near-crypto",
  "near-indexer",
  "near-o11y",
@@ -2781,12 +2788,12 @@ dependencies = [
 
 [[package]]
 name = "indexmap"
-version = "2.5.0"
+version = "2.6.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "68b900aa2f7301e21c36462b170ee99994de34dff39a4a6a528e80e7376d07e5"
+checksum = "707907fe3c25f5424cce2cb7e1cbcafee6bdbe735ca90ef77c29e84591e5b9da"
 dependencies = [
  "equivalent",
- "hashbrown 0.14.5",
+ "hashbrown 0.15.0",
  "serde",
 ]
 
@@ -2967,9 +2974,9 @@ checksum = "884e2677b40cc8c339eaefcb701c32ef1fd2493d71118dc0ca4b6a736c93bd67"
 
 [[package]]
 name = "libc"
-version = "0.2.158"
+version = "0.2.159"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "d8adc4bb1803a324070e64a98ae98f38934d91957a99cfb3a43dcbc01bc56439"
+checksum = "561d97a539a36e26a9a5fad1ea11a3039a67714694aaa379433e580854bc3dc5"
 
 [[package]]
 name = "libloading"
@@ -3093,9 +3100,9 @@ dependencies = [
 
 [[package]]
 name = "lz4-sys"
-version = "1.11.0"
+version = "1.11.1+lz4-1.10.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "fcb44a01837a858d47e5a630d2ccf304c8efcc4b83b8f9f75b7a9ee4fcc6e57d"
+checksum = "6bd8c0d6c6ed0cd30b3652886bb8711dc4bb01d637a68105a3d5158039b418e6"
 dependencies = [
  "cc",
  "libc",
@@ -3153,7 +3160,7 @@ checksum = "5cf92c10c7e361d6b99666ec1c6f9805b0bea2c3bd8c78dc6fe98ac5bd78db11"
 dependencies = [
  "proc-macro2",
  "quote",
- "syn 2.0.77",
+ "syn 2.0.79",
 ]
 
 [[package]]
@@ -3321,8 +3328,8 @@ dependencies = [
 
 [[package]]
 name = "near-async"
-version = "2.2.1-rc.1"
-source = "git+https://github.com/near/nearcore?rev=b3d767e7664d8e123a35313ccc66c8ac1afb2058#b3d767e7664d8e123a35313ccc66c8ac1afb2058"
+version = "2.3.0-rc.1"
+source = "git+https://github.com/near/nearcore?rev=93073d762ff377382ebf54e7cbff448b492e72c6#93073d762ff377382ebf54e7cbff448b492e72c6"
 dependencies = [
  "actix",
  "derive_more",
@@ -3341,26 +3348,26 @@ dependencies = [
 
 [[package]]
 name = "near-async-derive"
-version = "2.2.1-rc.1"
-source = "git+https://github.com/near/nearcore?rev=b3d767e7664d8e123a35313ccc66c8ac1afb2058#b3d767e7664d8e123a35313ccc66c8ac1afb2058"
+version = "2.3.0-rc.1"
+source = "git+https://github.com/near/nearcore?rev=93073d762ff377382ebf54e7cbff448b492e72c6#93073d762ff377382ebf54e7cbff448b492e72c6"
 dependencies = [
  "proc-macro2",
  "quote",
- "syn 2.0.77",
+ "syn 2.0.79",
 ]
 
 [[package]]
 name = "near-cache"
-version = "2.2.1-rc.1"
-source = "git+https://github.com/near/nearcore?rev=b3d767e7664d8e123a35313ccc66c8ac1afb2058#b3d767e7664d8e123a35313ccc66c8ac1afb2058"
+version = "2.3.0-rc.1"
+source = "git+https://github.com/near/nearcore?rev=93073d762ff377382ebf54e7cbff448b492e72c6#93073d762ff377382ebf54e7cbff448b492e72c6"
 dependencies = [
  "lru 0.12.4",
 ]
 
 [[package]]
 name = "near-chain"
-version = "2.2.1-rc.1"
-source = "git+https://github.com/near/nearcore?rev=b3d767e7664d8e123a35313ccc66c8ac1afb2058#b3d767e7664d8e123a35313ccc66c8ac1afb2058"
+version = "2.3.0-rc.1"
+source = "git+https://github.com/near/nearcore?rev=93073d762ff377382ebf54e7cbff448b492e72c6#93073d762ff377382ebf54e7cbff448b492e72c6"
 dependencies = [
  "actix",
  "assert_matches",
@@ -3388,6 +3395,7 @@ dependencies = [
  "near-performance-metrics-macros",
  "near-pool",
  "near-primitives",
+ "near-schema-checker-lib",
  "near-store",
  "near-vm-runner",
  "node-runtime",
@@ -3396,6 +3404,7 @@ dependencies = [
  "rand",
  "rand_chacha",
  "rayon",
+ "serde",
  "strum",
  "tempfile",
  "thiserror",
@@ -3406,8 +3415,8 @@ dependencies = [
 
 [[package]]
 name = "near-chain-configs"
-version = "2.2.1-rc.1"
-source = "git+https://github.com/near/nearcore?rev=b3d767e7664d8e123a35313ccc66c8ac1afb2058#b3d767e7664d8e123a35313ccc66c8ac1afb2058"
+version = "2.3.0-rc.1"
+source = "git+https://github.com/near/nearcore?rev=93073d762ff377382ebf54e7cbff448b492e72c6#93073d762ff377382ebf54e7cbff448b492e72c6"
 dependencies = [
  "anyhow",
  "bytesize",
@@ -3420,7 +3429,6 @@ dependencies = [
  "near-primitives",
  "near-time",
  "num-rational",
- "once_cell",
  "serde",
  "serde_json",
  "sha2",
@@ -3431,8 +3439,8 @@ dependencies = [
 
 [[package]]
 name = "near-chain-primitives"
-version = "2.2.1-rc.1"
-source = "git+https://github.com/near/nearcore?rev=b3d767e7664d8e123a35313ccc66c8ac1afb2058#b3d767e7664d8e123a35313ccc66c8ac1afb2058"
+version = "2.3.0-rc.1"
+source = "git+https://github.com/near/nearcore?rev=93073d762ff377382ebf54e7cbff448b492e72c6#93073d762ff377382ebf54e7cbff448b492e72c6"
 dependencies = [
  "near-crypto",
  "near-primitives",
@@ -3444,8 +3452,8 @@ dependencies = [
 
 [[package]]
 name = "near-chunks"
-version = "2.2.1-rc.1"
-source = "git+https://github.com/near/nearcore?rev=b3d767e7664d8e123a35313ccc66c8ac1afb2058#b3d767e7664d8e123a35313ccc66c8ac1afb2058"
+version = "2.3.0-rc.1"
+source = "git+https://github.com/near/nearcore?rev=93073d762ff377382ebf54e7cbff448b492e72c6#93073d762ff377382ebf54e7cbff448b492e72c6"
 dependencies = [
  "actix",
  "borsh 1.5.1",
@@ -3467,7 +3475,6 @@ dependencies = [
  "near-pool",
  "near-primitives",
  "near-store",
- "once_cell",
  "rand",
  "reed-solomon-erasure",
  "strum",
@@ -3477,8 +3484,8 @@ dependencies = [
 
 [[package]]
 name = "near-chunks-primitives"
-version = "2.2.1-rc.1"
-source = "git+https://github.com/near/nearcore?rev=b3d767e7664d8e123a35313ccc66c8ac1afb2058#b3d767e7664d8e123a35313ccc66c8ac1afb2058"
+version = "2.3.0-rc.1"
+source = "git+https://github.com/near/nearcore?rev=93073d762ff377382ebf54e7cbff448b492e72c6#93073d762ff377382ebf54e7cbff448b492e72c6"
 dependencies = [
  "near-chain-primitives",
  "near-primitives",
@@ -3486,8 +3493,8 @@ dependencies = [
 
 [[package]]
 name = "near-client"
-version = "2.2.1-rc.1"
-source = "git+https://github.com/near/nearcore?rev=b3d767e7664d8e123a35313ccc66c8ac1afb2058#b3d767e7664d8e123a35313ccc66c8ac1afb2058"
+version = "2.3.0-rc.1"
+source = "git+https://github.com/near/nearcore?rev=93073d762ff377382ebf54e7cbff448b492e72c6#93073d762ff377382ebf54e7cbff448b492e72c6"
 dependencies = [
  "actix",
  "actix-rt",
@@ -3544,8 +3551,8 @@ dependencies = [
 
 [[package]]
 name = "near-client-primitives"
-version = "2.2.1-rc.1"
-source = "git+https://github.com/near/nearcore?rev=b3d767e7664d8e123a35313ccc66c8ac1afb2058#b3d767e7664d8e123a35313ccc66c8ac1afb2058"
+version = "2.3.0-rc.1"
+source = "git+https://github.com/near/nearcore?rev=93073d762ff377382ebf54e7cbff448b492e72c6#93073d762ff377382ebf54e7cbff448b492e72c6"
 dependencies = [
  "actix",
  "chrono",
@@ -3566,8 +3573,8 @@ dependencies = [
 
 [[package]]
 name = "near-config-utils"
-version = "2.2.1-rc.1"
-source = "git+https://github.com/near/nearcore?rev=b3d767e7664d8e123a35313ccc66c8ac1afb2058#b3d767e7664d8e123a35313ccc66c8ac1afb2058"
+version = "2.3.0-rc.1"
+source = "git+https://github.com/near/nearcore?rev=93073d762ff377382ebf54e7cbff448b492e72c6#93073d762ff377382ebf54e7cbff448b492e72c6"
 dependencies = [
  "anyhow",
  "json_comments",
@@ -3577,8 +3584,8 @@ dependencies = [
 
 [[package]]
 name = "near-crypto"
-version = "2.2.1-rc.1"
-source = "git+https://github.com/near/nearcore?rev=b3d767e7664d8e123a35313ccc66c8ac1afb2058#b3d767e7664d8e123a35313ccc66c8ac1afb2058"
+version = "2.3.0-rc.1"
+source = "git+https://github.com/near/nearcore?rev=93073d762ff377382ebf54e7cbff448b492e72c6#93073d762ff377382ebf54e7cbff448b492e72c6"
 dependencies = [
  "blake2",
  "borsh 1.5.1",
@@ -3589,8 +3596,8 @@ dependencies = [
  "hex",
  "near-account-id",
  "near-config-utils",
+ "near-schema-checker-lib",
  "near-stdx",
- "once_cell",
  "primitive-types",
  "rand",
  "secp256k1",
@@ -3602,8 +3609,8 @@ dependencies = [
 
 [[package]]
 name = "near-dyn-configs"
-version = "2.2.1-rc.1"
-source = "git+https://github.com/near/nearcore?rev=b3d767e7664d8e123a35313ccc66c8ac1afb2058#b3d767e7664d8e123a35313ccc66c8ac1afb2058"
+version = "2.3.0-rc.1"
+source = "git+https://github.com/near/nearcore?rev=93073d762ff377382ebf54e7cbff448b492e72c6#93073d762ff377382ebf54e7cbff448b492e72c6"
 dependencies = [
  "anyhow",
  "near-chain-configs",
@@ -3611,7 +3618,6 @@ dependencies = [
  "near-o11y",
  "near-primitives",
  "near-time",
- "once_cell",
  "prometheus",
  "serde",
  "serde_json",
@@ -3622,8 +3628,8 @@ dependencies = [
 
 [[package]]
 name = "near-epoch-manager"
-version = "2.2.1-rc.1"
-source = "git+https://github.com/near/nearcore?rev=b3d767e7664d8e123a35313ccc66c8ac1afb2058#b3d767e7664d8e123a35313ccc66c8ac1afb2058"
+version = "2.3.0-rc.1"
+source = "git+https://github.com/near/nearcore?rev=93073d762ff377382ebf54e7cbff448b492e72c6#93073d762ff377382ebf54e7cbff448b492e72c6"
 dependencies = [
  "borsh 1.5.1",
  "itertools 0.10.5",
@@ -3633,12 +3639,14 @@ dependencies = [
  "near-crypto",
  "near-o11y",
  "near-primitives",
+ "near-schema-checker-lib",
  "near-store",
+ "num-bigint 0.3.3",
  "num-rational",
- "once_cell",
  "primitive-types",
  "rand",
  "rand_hc",
+ "serde",
  "serde_json",
  "smart-default",
  "tracing",
@@ -3646,23 +3654,23 @@ dependencies = [
 
 [[package]]
 name = "near-fmt"
-version = "2.2.1-rc.1"
-source = "git+https://github.com/near/nearcore?rev=b3d767e7664d8e123a35313ccc66c8ac1afb2058#b3d767e7664d8e123a35313ccc66c8ac1afb2058"
+version = "2.3.0-rc.1"
+source = "git+https://github.com/near/nearcore?rev=93073d762ff377382ebf54e7cbff448b492e72c6#93073d762ff377382ebf54e7cbff448b492e72c6"
 dependencies = [
  "near-primitives-core",
 ]
 
 [[package]]
 name = "near-indexer"
-version = "2.2.1-rc.1"
-source = "git+https://github.com/near/nearcore?rev=b3d767e7664d8e123a35313ccc66c8ac1afb2058#b3d767e7664d8e123a35313ccc66c8ac1afb2058"
+version = "2.3.0-rc.1"
+source = "git+https://github.com/near/nearcore?rev=93073d762ff377382ebf54e7cbff448b492e72c6#93073d762ff377382ebf54e7cbff448b492e72c6"
 dependencies = [
  "actix",
  "anyhow",
  "futures",
- "lazy_static",
  "near-chain-configs",
  "near-client",
+ "near-config-utils",
  "near-crypto",
  "near-dyn-configs",
  "near-indexer-primitives",
@@ -3672,7 +3680,6 @@ dependencies = [
  "near-store",
  "nearcore",
  "node-runtime",
- "once_cell",
  "rocksdb",
  "serde",
  "serde_json",
@@ -3682,8 +3689,8 @@ dependencies = [
 
 [[package]]
 name = "near-indexer-primitives"
-version = "2.2.1-rc.1"
-source = "git+https://github.com/near/nearcore?rev=b3d767e7664d8e123a35313ccc66c8ac1afb2058#b3d767e7664d8e123a35313ccc66c8ac1afb2058"
+version = "2.3.0-rc.1"
+source = "git+https://github.com/near/nearcore?rev=93073d762ff377382ebf54e7cbff448b492e72c6#93073d762ff377382ebf54e7cbff448b492e72c6"
 dependencies = [
  "near-primitives",
  "serde",
@@ -3692,8 +3699,8 @@ dependencies = [
 
 [[package]]
 name = "near-jsonrpc"
-version = "2.2.1-rc.1"
-source = "git+https://github.com/near/nearcore?rev=b3d767e7664d8e123a35313ccc66c8ac1afb2058#b3d767e7664d8e123a35313ccc66c8ac1afb2058"
+version = "2.3.0-rc.1"
+source = "git+https://github.com/near/nearcore?rev=93073d762ff377382ebf54e7cbff448b492e72c6#93073d762ff377382ebf54e7cbff448b492e72c6"
 dependencies = [
  "actix",
  "actix-cors",
@@ -3712,8 +3719,6 @@ dependencies = [
  "near-network",
  "near-o11y",
  "near-primitives",
- "near-rpc-error-macro",
- "once_cell",
  "serde",
  "serde_json",
  "serde_with",
@@ -3724,8 +3729,8 @@ dependencies = [
 
 [[package]]
 name = "near-jsonrpc-client"
-version = "2.2.1-rc.1"
-source = "git+https://github.com/near/nearcore?rev=b3d767e7664d8e123a35313ccc66c8ac1afb2058#b3d767e7664d8e123a35313ccc66c8ac1afb2058"
+version = "2.3.0-rc.1"
+source = "git+https://github.com/near/nearcore?rev=93073d762ff377382ebf54e7cbff448b492e72c6#93073d762ff377382ebf54e7cbff448b492e72c6"
 dependencies = [
  "actix-http",
  "awc",
@@ -3738,15 +3743,15 @@ dependencies = [
 
 [[package]]
 name = "near-jsonrpc-primitives"
-version = "2.2.1-rc.1"
-source = "git+https://github.com/near/nearcore?rev=b3d767e7664d8e123a35313ccc66c8ac1afb2058#b3d767e7664d8e123a35313ccc66c8ac1afb2058"
+version = "2.3.0-rc.1"
+source = "git+https://github.com/near/nearcore?rev=93073d762ff377382ebf54e7cbff448b492e72c6#93073d762ff377382ebf54e7cbff448b492e72c6"
 dependencies = [
  "arbitrary",
  "near-chain-configs",
  "near-client-primitives",
  "near-crypto",
  "near-primitives",
- "near-rpc-error-macro",
+ "near-schema-checker-lib",
  "serde",
  "serde_json",
  "thiserror",
@@ -3755,8 +3760,8 @@ dependencies = [
 
 [[package]]
 name = "near-mainnet-res"
-version = "2.2.1-rc.1"
-source = "git+https://github.com/near/nearcore?rev=b3d767e7664d8e123a35313ccc66c8ac1afb2058#b3d767e7664d8e123a35313ccc66c8ac1afb2058"
+version = "2.3.0-rc.1"
+source = "git+https://github.com/near/nearcore?rev=93073d762ff377382ebf54e7cbff448b492e72c6#93073d762ff377382ebf54e7cbff448b492e72c6"
 dependencies = [
  "near-account-id",
  "near-chain-configs",
@@ -3766,8 +3771,8 @@ dependencies = [
 
 [[package]]
 name = "near-network"
-version = "2.2.1-rc.1"
-source = "git+https://github.com/near/nearcore?rev=b3d767e7664d8e123a35313ccc66c8ac1afb2058#b3d767e7664d8e123a35313ccc66c8ac1afb2058"
+version = "2.3.0-rc.1"
+source = "git+https://github.com/near/nearcore?rev=93073d762ff377382ebf54e7cbff448b492e72c6#93073d762ff377382ebf54e7cbff448b492e72c6"
 dependencies = [
  "actix",
  "anyhow",
@@ -3793,12 +3798,12 @@ dependencies = [
  "near-performance-metrics",
  "near-performance-metrics-macros",
  "near-primitives",
+ "near-schema-checker-lib",
  "near-store",
- "once_cell",
  "opentelemetry",
  "parking_lot 0.12.3",
  "pin-project",
- "protobuf 3.5.1",
+ "protobuf 3.6.0",
  "protobuf-codegen",
  "rand",
  "rayon",
@@ -3818,15 +3823,14 @@ dependencies = [
 
 [[package]]
 name = "near-o11y"
-version = "2.2.1-rc.1"
-source = "git+https://github.com/near/nearcore?rev=b3d767e7664d8e123a35313ccc66c8ac1afb2058#b3d767e7664d8e123a35313ccc66c8ac1afb2058"
+version = "2.3.0-rc.1"
+source = "git+https://github.com/near/nearcore?rev=93073d762ff377382ebf54e7cbff448b492e72c6#93073d762ff377382ebf54e7cbff448b492e72c6"
 dependencies = [
  "actix",
  "base64 0.21.7",
  "clap",
  "near-crypto",
  "near-primitives-core",
- "once_cell",
  "opentelemetry",
  "opentelemetry-otlp",
  "opentelemetry-semantic-conventions",
@@ -3844,13 +3848,14 @@ dependencies = [
 
 [[package]]
 name = "near-parameters"
-version = "2.2.1-rc.1"
-source = "git+https://github.com/near/nearcore?rev=b3d767e7664d8e123a35313ccc66c8ac1afb2058#b3d767e7664d8e123a35313ccc66c8ac1afb2058"
+version = "2.3.0-rc.1"
+source = "git+https://github.com/near/nearcore?rev=93073d762ff377382ebf54e7cbff448b492e72c6#93073d762ff377382ebf54e7cbff448b492e72c6"
 dependencies = [
  "borsh 1.5.1",
  "enum-map",
  "near-account-id",
  "near-primitives-core",
+ "near-schema-checker-lib",
  "num-rational",
  "serde",
  "serde_repr",
@@ -3861,15 +3866,14 @@ dependencies = [
 
 [[package]]
 name = "near-performance-metrics"
-version = "2.2.1-rc.1"
-source = "git+https://github.com/near/nearcore?rev=b3d767e7664d8e123a35313ccc66c8ac1afb2058#b3d767e7664d8e123a35313ccc66c8ac1afb2058"
+version = "2.3.0-rc.1"
+source = "git+https://github.com/near/nearcore?rev=93073d762ff377382ebf54e7cbff448b492e72c6#93073d762ff377382ebf54e7cbff448b492e72c6"
 dependencies = [
  "actix",
  "bitflags 1.3.2",
  "bytes",
  "futures",
  "libc",
- "once_cell",
  "tokio",
  "tokio-util",
  "tracing",
@@ -3877,33 +3881,33 @@ dependencies = [
 
 [[package]]
 name = "near-performance-metrics-macros"
-version = "2.2.1-rc.1"
-source = "git+https://github.com/near/nearcore?rev=b3d767e7664d8e123a35313ccc66c8ac1afb2058#b3d767e7664d8e123a35313ccc66c8ac1afb2058"
+version = "2.3.0-rc.1"
+source = "git+https://github.com/near/nearcore?rev=93073d762ff377382ebf54e7cbff448b492e72c6#93073d762ff377382ebf54e7cbff448b492e72c6"
 dependencies = [
  "quote",
- "syn 2.0.77",
+ "syn 2.0.79",
 ]
 
 [[package]]
 name = "near-pool"
-version = "2.2.1-rc.1"
-source = "git+https://github.com/near/nearcore?rev=b3d767e7664d8e123a35313ccc66c8ac1afb2058#b3d767e7664d8e123a35313ccc66c8ac1afb2058"
+version = "2.3.0-rc.1"
+source = "git+https://github.com/near/nearcore?rev=93073d762ff377382ebf54e7cbff448b492e72c6#93073d762ff377382ebf54e7cbff448b492e72c6"
 dependencies = [
  "borsh 1.5.1",
  "near-crypto",
  "near-o11y",
  "near-primitives",
- "once_cell",
  "rand",
 ]
 
 [[package]]
 name = "near-primitives"
-version = "2.2.1-rc.1"
-source = "git+https://github.com/near/nearcore?rev=b3d767e7664d8e123a35313ccc66c8ac1afb2058#b3d767e7664d8e123a35313ccc66c8ac1afb2058"
+version = "2.3.0-rc.1"
+source = "git+https://github.com/near/nearcore?rev=93073d762ff377382ebf54e7cbff448b492e72c6#93073d762ff377382ebf54e7cbff448b492e72c6"
 dependencies = [
  "arbitrary",
  "base64 0.21.7",
+ "bitvec",
  "borsh 1.5.1",
  "bytes",
  "bytesize",
@@ -3918,12 +3922,10 @@ dependencies = [
  "near-fmt",
  "near-parameters",
  "near-primitives-core",
- "near-rpc-error-macro",
+ "near-schema-checker-lib",
  "near-stdx",
- "near-structs-checker-lib",
  "near-time",
  "num-rational",
- "once_cell",
  "ordered-float",
  "primitive-types",
  "rand",
@@ -3942,8 +3944,8 @@ dependencies = [
 
 [[package]]
 name = "near-primitives-core"
-version = "2.2.1-rc.1"
-source = "git+https://github.com/near/nearcore?rev=b3d767e7664d8e123a35313ccc66c8ac1afb2058#b3d767e7664d8e123a35313ccc66c8ac1afb2058"
+version = "2.3.0-rc.1"
+source = "git+https://github.com/near/nearcore?rev=93073d762ff377382ebf54e7cbff448b492e72c6#93073d762ff377382ebf54e7cbff448b492e72c6"
 dependencies = [
  "arbitrary",
  "base64 0.21.7",
@@ -3952,7 +3954,7 @@ dependencies = [
  "derive_more",
  "enum-map",
  "near-account-id",
- "near-structs-checker-lib",
+ "near-schema-checker-lib",
  "num-rational",
  "serde",
  "serde_repr",
@@ -3962,8 +3964,8 @@ dependencies = [
 
 [[package]]
 name = "near-rosetta-rpc"
-version = "2.2.1-rc.1"
-source = "git+https://github.com/near/nearcore?rev=b3d767e7664d8e123a35313ccc66c8ac1afb2058#b3d767e7664d8e123a35313ccc66c8ac1afb2058"
+version = "2.3.0-rc.1"
+source = "git+https://github.com/near/nearcore?rev=93073d762ff377382ebf54e7cbff448b492e72c6#93073d762ff377382ebf54e7cbff448b492e72c6"
 dependencies = [
  "actix",
  "actix-cors",
@@ -3992,34 +3994,33 @@ dependencies = [
 ]
 
 [[package]]
-name = "near-rpc-error-core"
-version = "2.2.1-rc.1"
-source = "git+https://github.com/near/nearcore?rev=b3d767e7664d8e123a35313ccc66c8ac1afb2058#b3d767e7664d8e123a35313ccc66c8ac1afb2058"
+name = "near-schema-checker-core"
+version = "2.3.0-rc.1"
+source = "git+https://github.com/near/nearcore?rev=93073d762ff377382ebf54e7cbff448b492e72c6#93073d762ff377382ebf54e7cbff448b492e72c6"
+
+[[package]]
+name = "near-schema-checker-lib"
+version = "2.3.0-rc.1"
+source = "git+https://github.com/near/nearcore?rev=93073d762ff377382ebf54e7cbff448b492e72c6#93073d762ff377382ebf54e7cbff448b492e72c6"
 dependencies = [
- "quote",
- "serde",
- "syn 2.0.77",
+ "near-schema-checker-core",
+ "near-schema-checker-macro",
 ]
 
 [[package]]
-name = "near-rpc-error-macro"
-version = "2.2.1-rc.1"
-source = "git+https://github.com/near/nearcore?rev=b3d767e7664d8e123a35313ccc66c8ac1afb2058#b3d767e7664d8e123a35313ccc66c8ac1afb2058"
-dependencies = [
- "near-rpc-error-core",
- "serde",
- "syn 2.0.77",
-]
+name = "near-schema-checker-macro"
+version = "2.3.0-rc.1"
+source = "git+https://github.com/near/nearcore?rev=93073d762ff377382ebf54e7cbff448b492e72c6#93073d762ff377382ebf54e7cbff448b492e72c6"
 
 [[package]]
 name = "near-stdx"
-version = "2.2.1-rc.1"
-source = "git+https://github.com/near/nearcore?rev=b3d767e7664d8e123a35313ccc66c8ac1afb2058#b3d767e7664d8e123a35313ccc66c8ac1afb2058"
+version = "2.3.0-rc.1"
+source = "git+https://github.com/near/nearcore?rev=93073d762ff377382ebf54e7cbff448b492e72c6#93073d762ff377382ebf54e7cbff448b492e72c6"
 
 [[package]]
 name = "near-store"
-version = "2.2.1-rc.1"
-source = "git+https://github.com/near/nearcore?rev=b3d767e7664d8e123a35313ccc66c8ac1afb2058#b3d767e7664d8e123a35313ccc66c8ac1afb2058"
+version = "2.3.0-rc.1"
+source = "git+https://github.com/near/nearcore?rev=93073d762ff377382ebf54e7cbff448b492e72c6#93073d762ff377382ebf54e7cbff448b492e72c6"
 dependencies = [
  "actix",
  "actix-rt",
@@ -4040,11 +4041,11 @@ dependencies = [
  "near-o11y",
  "near-parameters",
  "near-primitives",
+ "near-schema-checker-lib",
  "near-stdx",
  "near-time",
  "near-vm-runner",
  "num_cpus",
- "once_cell",
  "rand",
  "rayon",
  "reed-solomon-erasure",
@@ -4061,28 +4062,9 @@ dependencies = [
 ]
 
 [[package]]
-name = "near-structs-checker-core"
-version = "2.2.1-rc.1"
-source = "git+https://github.com/near/nearcore?rev=b3d767e7664d8e123a35313ccc66c8ac1afb2058#b3d767e7664d8e123a35313ccc66c8ac1afb2058"
-
-[[package]]
-name = "near-structs-checker-lib"
-version = "2.2.1-rc.1"
-source = "git+https://github.com/near/nearcore?rev=b3d767e7664d8e123a35313ccc66c8ac1afb2058#b3d767e7664d8e123a35313ccc66c8ac1afb2058"
-dependencies = [
- "near-structs-checker-core",
- "near-structs-checker-macro",
-]
-
-[[package]]
-name = "near-structs-checker-macro"
-version = "2.2.1-rc.1"
-source = "git+https://github.com/near/nearcore?rev=b3d767e7664d8e123a35313ccc66c8ac1afb2058#b3d767e7664d8e123a35313ccc66c8ac1afb2058"
-
-[[package]]
 name = "near-telemetry"
-version = "2.2.1-rc.1"
-source = "git+https://github.com/near/nearcore?rev=b3d767e7664d8e123a35313ccc66c8ac1afb2058#b3d767e7664d8e123a35313ccc66c8ac1afb2058"
+version = "2.3.0-rc.1"
+source = "git+https://github.com/near/nearcore?rev=93073d762ff377382ebf54e7cbff448b492e72c6#93073d762ff377382ebf54e7cbff448b492e72c6"
 dependencies = [
  "actix",
  "awc",
@@ -4092,7 +4074,6 @@ dependencies = [
  "near-performance-metrics",
  "near-performance-metrics-macros",
  "near-time",
- "once_cell",
  "openssl",
  "serde",
  "serde_json",
@@ -4101,10 +4082,9 @@ dependencies = [
 
 [[package]]
 name = "near-time"
-version = "2.2.1-rc.1"
-source = "git+https://github.com/near/nearcore?rev=b3d767e7664d8e123a35313ccc66c8ac1afb2058#b3d767e7664d8e123a35313ccc66c8ac1afb2058"
+version = "2.3.0-rc.1"
+source = "git+https://github.com/near/nearcore?rev=93073d762ff377382ebf54e7cbff448b492e72c6#93073d762ff377382ebf54e7cbff448b492e72c6"
 dependencies = [
- "once_cell",
  "serde",
  "time",
  "tokio",
@@ -4112,8 +4092,8 @@ dependencies = [
 
 [[package]]
 name = "near-vm-compiler"
-version = "2.2.1-rc.1"
-source = "git+https://github.com/near/nearcore?rev=b3d767e7664d8e123a35313ccc66c8ac1afb2058#b3d767e7664d8e123a35313ccc66c8ac1afb2058"
+version = "2.3.0-rc.1"
+source = "git+https://github.com/near/nearcore?rev=93073d762ff377382ebf54e7cbff448b492e72c6#93073d762ff377382ebf54e7cbff448b492e72c6"
 dependencies = [
  "enumset",
  "finite-wasm",
@@ -4128,14 +4108,13 @@ dependencies = [
 
 [[package]]
 name = "near-vm-compiler-singlepass"
-version = "2.2.1-rc.1"
-source = "git+https://github.com/near/nearcore?rev=b3d767e7664d8e123a35313ccc66c8ac1afb2058#b3d767e7664d8e123a35313ccc66c8ac1afb2058"
+version = "2.3.0-rc.1"
+source = "git+https://github.com/near/nearcore?rev=93073d762ff377382ebf54e7cbff448b492e72c6#93073d762ff377382ebf54e7cbff448b492e72c6"
 dependencies = [
  "dynasm 2.0.0",
  "dynasmrt 2.0.0",
  "enumset",
  "finite-wasm",
- "lazy_static",
  "memoffset 0.8.0",
  "more-asserts",
  "near-vm-compiler",
@@ -4149,14 +4128,13 @@ dependencies = [
 
 [[package]]
 name = "near-vm-engine"
-version = "2.2.1-rc.1"
-source = "git+https://github.com/near/nearcore?rev=b3d767e7664d8e123a35313ccc66c8ac1afb2058#b3d767e7664d8e123a35313ccc66c8ac1afb2058"
+version = "2.3.0-rc.1"
+source = "git+https://github.com/near/nearcore?rev=93073d762ff377382ebf54e7cbff448b492e72c6#93073d762ff377382ebf54e7cbff448b492e72c6"
 dependencies = [
  "backtrace",
  "cfg-if 1.0.0",
  "enumset",
  "finite-wasm",
- "lazy_static",
  "more-asserts",
  "near-vm-compiler",
  "near-vm-types",
@@ -4172,8 +4150,8 @@ dependencies = [
 
 [[package]]
 name = "near-vm-runner"
-version = "2.2.1-rc.1"
-source = "git+https://github.com/near/nearcore?rev=b3d767e7664d8e123a35313ccc66c8ac1afb2058#b3d767e7664d8e123a35313ccc66c8ac1afb2058"
+version = "2.3.0-rc.1"
+source = "git+https://github.com/near/nearcore?rev=93073d762ff377382ebf54e7cbff448b492e72c6#93073d762ff377382ebf54e7cbff448b492e72c6"
 dependencies = [
  "anyhow",
  "blst",
@@ -4188,6 +4166,7 @@ dependencies = [
  "near-o11y",
  "near-parameters",
  "near-primitives-core",
+ "near-schema-checker-lib",
  "near-stdx",
  "near-vm-compiler",
  "near-vm-compiler-singlepass",
@@ -4195,12 +4174,12 @@ dependencies = [
  "near-vm-types",
  "near-vm-vm",
  "num-rational",
- "once_cell",
  "parity-wasm 0.41.0",
  "parity-wasm 0.42.2",
  "prefix-sum-vec",
  "prometheus",
  "pwasm-utils",
+ "rayon",
  "ripemd",
  "rustix 0.38.37",
  "serde",
@@ -4227,8 +4206,8 @@ dependencies = [
 
 [[package]]
 name = "near-vm-types"
-version = "2.2.1-rc.1"
-source = "git+https://github.com/near/nearcore?rev=b3d767e7664d8e123a35313ccc66c8ac1afb2058#b3d767e7664d8e123a35313ccc66c8ac1afb2058"
+version = "2.3.0-rc.1"
+source = "git+https://github.com/near/nearcore?rev=93073d762ff377382ebf54e7cbff448b492e72c6#93073d762ff377382ebf54e7cbff448b492e72c6"
 dependencies = [
  "indexmap 1.9.3",
  "num-traits",
@@ -4238,8 +4217,8 @@ dependencies = [
 
 [[package]]
 name = "near-vm-vm"
-version = "2.2.1-rc.1"
-source = "git+https://github.com/near/nearcore?rev=b3d767e7664d8e123a35313ccc66c8ac1afb2058#b3d767e7664d8e123a35313ccc66c8ac1afb2058"
+version = "2.3.0-rc.1"
+source = "git+https://github.com/near/nearcore?rev=93073d762ff377382ebf54e7cbff448b492e72c6#93073d762ff377382ebf54e7cbff448b492e72c6"
 dependencies = [
  "backtrace",
  "cc",
@@ -4259,19 +4238,18 @@ dependencies = [
 
 [[package]]
 name = "near-wallet-contract"
-version = "2.2.1-rc.1"
-source = "git+https://github.com/near/nearcore?rev=b3d767e7664d8e123a35313ccc66c8ac1afb2058#b3d767e7664d8e123a35313ccc66c8ac1afb2058"
+version = "2.3.0-rc.1"
+source = "git+https://github.com/near/nearcore?rev=93073d762ff377382ebf54e7cbff448b492e72c6#93073d762ff377382ebf54e7cbff448b492e72c6"
 dependencies = [
  "anyhow",
  "near-primitives-core",
  "near-vm-runner",
- "once_cell",
 ]
 
 [[package]]
 name = "nearcore"
-version = "2.2.1-rc.1"
-source = "git+https://github.com/near/nearcore?rev=b3d767e7664d8e123a35313ccc66c8ac1afb2058#b3d767e7664d8e123a35313ccc66c8ac1afb2058"
+version = "2.3.0-rc.1"
+source = "git+https://github.com/near/nearcore?rev=93073d762ff377382ebf54e7cbff448b492e72c6#93073d762ff377382ebf54e7cbff448b492e72c6"
 dependencies = [
  "actix",
  "actix-rt",
@@ -4314,7 +4292,6 @@ dependencies = [
  "near-vm-runner",
  "node-runtime",
  "num-rational",
- "once_cell",
  "rand",
  "rayon",
  "regex",
@@ -4360,8 +4337,8 @@ dependencies = [
 
 [[package]]
 name = "node-runtime"
-version = "2.2.1-rc.1"
-source = "git+https://github.com/near/nearcore?rev=b3d767e7664d8e123a35313ccc66c8ac1afb2058#b3d767e7664d8e123a35313ccc66c8ac1afb2058"
+version = "2.3.0-rc.1"
+source = "git+https://github.com/near/nearcore?rev=93073d762ff377382ebf54e7cbff448b492e72c6#93073d762ff377382ebf54e7cbff448b492e72c6"
 dependencies = [
  "borsh 1.5.1",
  "near-crypto",
@@ -4374,7 +4351,6 @@ dependencies = [
  "near-wallet-contract",
  "num-bigint 0.3.3",
  "num-traits",
- "once_cell",
  "rand",
  "rayon",
  "serde_json",
@@ -4505,7 +4481,7 @@ checksum = "a6a622008b6e321afc04970976f62ee297fdbaa6f95318ca343e3eebb9648441"
 dependencies = [
  "crc32fast",
  "hashbrown 0.14.5",
- "indexmap 2.5.0",
+ "indexmap 2.6.0",
  "memchr",
 ]
 
@@ -4529,9 +4505,12 @@ dependencies = [
 
 [[package]]
 name = "once_cell"
-version = "1.19.0"
+version = "1.20.1"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "3fdb12b2476b595f9358c5161aa467c2438859caa136dec86c26fdd2efe17b92"
+checksum = "82881c4be219ab5faaf2ad5e5e5ecdff8c66bd7402ca3160975c93b24961afd1"
+dependencies = [
+ "portable-atomic",
+]
 
 [[package]]
 name = "openssl"
@@ -4556,7 +4535,7 @@ checksum = "a948666b637a0f465e8564c73e89d4dde00d72d4d473cc972f390fc3dcee7d9c"
 dependencies = [
  "proc-macro2",
  "quote",
- "syn 2.0.77",
+ "syn 2.0.79",
 ]
 
 [[package]]
@@ -4663,9 +4642,9 @@ dependencies = [
 
 [[package]]
 name = "ordered-float"
-version = "4.2.2"
+version = "4.3.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "4a91171844676f8c7990ce64959210cd2eaef32c2612c50f9fae9f8aaa6065a6"
+checksum = "44d501f1a72f71d3c063a6bbc8f7271fa73aa09fe5d6283b6571e2ed176a2537"
 dependencies = [
  "borsh 1.5.1",
  "num-traits",
@@ -4879,7 +4858,7 @@ checksum = "1e401f977ab385c9e4e3ab30627d6f26d00e2c73eef317493c4ec6d468726cf8"
 dependencies = [
  "cfg-if 1.0.0",
  "libc",
- "redox_syscall 0.5.4",
+ "redox_syscall 0.5.7",
  "smallvec",
  "windows-targets 0.52.6",
 ]
@@ -4949,7 +4928,7 @@ checksum = "2f38a4412a78282e09a2cf38d195ea5420d15ba0602cb375210efbc877243965"
 dependencies = [
  "proc-macro2",
  "quote",
- "syn 2.0.77",
+ "syn 2.0.79",
 ]
 
 [[package]]
@@ -5019,9 +4998,9 @@ dependencies = [
 
 [[package]]
 name = "pkg-config"
-version = "0.3.30"
+version = "0.3.31"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "d231b230927b5e4ad203db57bbcbee2802f6bce620b1e4a9024a07d94e2907ec"
+checksum = "953ec861398dccce10c670dfeaf3ec4911ca479e9c02154b3a215178c5f566f2"
 
 [[package]]
 name = "polling"
@@ -5055,6 +5034,12 @@ dependencies = [
 ]
 
 [[package]]
+name = "portable-atomic"
+version = "1.9.0"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "cc9c68a3f6da06753e9335d63e27f6b9754dd1920d941135b7ea8224f141adb2"
+
+[[package]]
 name = "powerfmt"
 version = "0.2.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -5082,7 +5067,7 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "479cf940fbbb3426c32c5d5176f62ad57549a0bb84773423ba8be9d089f5faba"
 dependencies = [
  "proc-macro2",
- "syn 2.0.77",
+ "syn 2.0.79",
 ]
 
 [[package]]
@@ -5181,7 +5166,7 @@ dependencies = [
  "itertools 0.12.1",
  "proc-macro2",
  "quote",
- "syn 2.0.77",
+ "syn 2.0.79",
 ]
 
 [[package]]
@@ -5192,9 +5177,9 @@ checksum = "106dd99e98437432fed6519dedecfade6a06a73bb7b2a1e019fdd2bee5778d94"
 
 [[package]]
 name = "protobuf"
-version = "3.5.1"
+version = "3.6.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "0bcc343da15609eaecd65f8aa76df8dc4209d325131d8219358c0aaaebab0bf6"
+checksum = "3018844a02746180074f621e847703737d27d89d7f0721a7a4da317f88b16385"
 dependencies = [
  "once_cell",
  "protobuf-support",
@@ -5203,13 +5188,13 @@ dependencies = [
 
 [[package]]
 name = "protobuf-codegen"
-version = "3.5.1"
+version = "3.6.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "c4d0cde5642ea4df842b13eb9f59ea6fafa26dcb43e3e1ee49120e9757556189"
+checksum = "411c15a212b4de05eb8bc989fd066a74c86bd3c04e27d6e86bd7703b806d7734"
 dependencies = [
  "anyhow",
  "once_cell",
- "protobuf 3.5.1",
+ "protobuf 3.6.0",
  "protobuf-parse",
  "regex",
  "tempfile",
@@ -5218,14 +5203,14 @@ dependencies = [
 
 [[package]]
 name = "protobuf-parse"
-version = "3.5.1"
+version = "3.6.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "1b0e9b447d099ae2c4993c0cbb03c7a9d6c937b17f2d56cfc0b1550e6fcfdb76"
+checksum = "06f45f16b522d92336e839b5e40680095a045e36a1e7f742ba682ddc85236772"
 dependencies = [
  "anyhow",
- "indexmap 2.5.0",
+ "indexmap 2.6.0",
  "log",
- "protobuf 3.5.1",
+ "protobuf 3.6.0",
  "protobuf-support",
  "tempfile",
  "thiserror",
@@ -5234,9 +5219,9 @@ dependencies = [
 
 [[package]]
 name = "protobuf-support"
-version = "3.5.1"
+version = "3.6.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "f0766e3675a627c327e4b3964582594b0e8741305d628a98a5de75a1d15f99b9"
+checksum = "faf96d872914fcda2b66d66ea3fff2be7c66865d31c7bb2790cff32c0e714880"
 dependencies = [
  "thiserror",
 ]
@@ -5403,9 +5388,9 @@ dependencies = [
 
 [[package]]
 name = "redox_syscall"
-version = "0.5.4"
+version = "0.5.7"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "0884ad60e090bf1345b93da0a5de8923c93884cd03f40dfcfddd3b4bee661853"
+checksum = "9b6dfecf2c74bce2466cabf93f6664d6998a69eb21e39f4207930065b27b771f"
 dependencies = [
  "bitflags 2.6.0",
 ]
@@ -5449,14 +5434,14 @@ dependencies = [
 
 [[package]]
 name = "regex"
-version = "1.10.6"
+version = "1.11.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "4219d74c6b67a3654a9fbebc4b419e22126d13d2f3c4a07ee0cb61ff79a79619"
+checksum = "38200e5ee88914975b69f657f0801b6f6dccafd44fd9326302a4aaeecfacb1d8"
 dependencies = [
  "aho-corasick",
  "memchr",
- "regex-automata 0.4.7",
- "regex-syntax 0.8.4",
+ "regex-automata 0.4.8",
+ "regex-syntax 0.8.5",
 ]
 
 [[package]]
@@ -5470,13 +5455,13 @@ dependencies = [
 
 [[package]]
 name = "regex-automata"
-version = "0.4.7"
+version = "0.4.8"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "38caf58cc5ef2fed281f89292ef23f6365465ed9a41b7a7754eb4e26496c92df"
+checksum = "368758f23274712b504848e9d5a6f010445cc8b87a7cdb4d7cbee666c1288da3"
 dependencies = [
  "aho-corasick",
  "memchr",
- "regex-syntax 0.8.4",
+ "regex-syntax 0.8.5",
 ]
 
 [[package]]
@@ -5493,9 +5478,9 @@ checksum = "f162c6dd7b008981e4d40210aca20b4bd0f9b60ca9271061b07f78537722f2e1"
 
 [[package]]
 name = "regex-syntax"
-version = "0.8.4"
+version = "0.8.5"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "7a66a03ae7c801facd77a29370b4faec201768915ac14a721ba36f20bc9c209b"
+checksum = "2b15c43186be67a4fd63bee50d0303afffcef381492ebe2c5d87f324e1b8815c"
 
 [[package]]
 name = "region"
@@ -5795,7 +5780,7 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "e5bfb394eeed242e909609f56089eecfe5fda225042e8b171791b9c95f5931e5"
 dependencies = [
  "openssl-probe",
- "rustls-pemfile 2.1.3",
+ "rustls-pemfile 2.2.0",
  "rustls-pki-types",
  "schannel",
  "security-framework",
@@ -5812,19 +5797,18 @@ dependencies = [
 
 [[package]]
 name = "rustls-pemfile"
-version = "2.1.3"
+version = "2.2.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "196fe16b00e106300d3e45ecfcb764fa292a535d7326a29a5875c579c7417425"
+checksum = "dce314e5fee3f39953d46bb63bb8a46d40c2f8fb7cc5a3b6cab2bde9721d6e50"
 dependencies = [
- "base64 0.22.1",
  "rustls-pki-types",
 ]
 
 [[package]]
 name = "rustls-pki-types"
-version = "1.8.0"
+version = "1.9.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "fc0a2ce646f8655401bb81e7927b812614bd5d91dbc968696be50603510fcaf0"
+checksum = "0e696e35370c65c9c541198af4543ccd580cf17fc25d8e05c5a242b202488c55"
 
 [[package]]
 name = "rustls-webpki"
@@ -5941,9 +5925,9 @@ dependencies = [
 
 [[package]]
 name = "security-framework-sys"
-version = "2.11.1"
+version = "2.12.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "75da29fe9b9b08fe9d6b22b5b4bcbc75d8db3aa31e639aa56bb62e9d46bfceaf"
+checksum = "ea4a292869320c0272d7bc55a5a6aafaff59b4f63404a003887b679a2e05b4b6"
 dependencies = [
  "core-foundation-sys",
  "libc",
@@ -6018,7 +6002,7 @@ checksum = "243902eda00fad750862fc144cea25caca5e20d615af0a81bee94ca738f1df1f"
 dependencies = [
  "proc-macro2",
  "quote",
- "syn 2.0.77",
+ "syn 2.0.79",
 ]
 
 [[package]]
@@ -6050,7 +6034,7 @@ checksum = "6c64451ba24fc7a6a2d60fc75dd9c83c90903b19028d4eff35e88fc1e86564e9"
 dependencies = [
  "proc-macro2",
  "quote",
- "syn 2.0.77",
+ "syn 2.0.79",
 ]
 
 [[package]]
@@ -6067,15 +6051,15 @@ dependencies = [
 
 [[package]]
 name = "serde_with"
-version = "3.9.0"
+version = "3.10.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "69cecfa94848272156ea67b2b1a53f20fc7bc638c4a46d2f8abde08f05f4b857"
+checksum = "9720086b3357bcb44fce40117d769a4d068c70ecfa190850a980a71755f66fcc"
 dependencies = [
  "base64 0.22.1",
  "chrono",
  "hex",
  "indexmap 1.9.3",
- "indexmap 2.5.0",
+ "indexmap 2.6.0",
  "serde",
  "serde_derive",
  "serde_json",
@@ -6085,14 +6069,14 @@ dependencies = [
 
 [[package]]
 name = "serde_with_macros"
-version = "3.9.0"
+version = "3.10.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "a8fee4991ef4f274617a51ad4af30519438dacb2f56ac773b08a1922ff743350"
+checksum = "5f1abbfe725f27678f4663bcacb75a83e829fd464c25d78dd038a3a29e307cec"
 dependencies = [
  "darling",
  "proc-macro2",
  "quote",
- "syn 2.0.77",
+ "syn 2.0.79",
 ]
 
 [[package]]
@@ -6101,7 +6085,7 @@ version = "0.9.34+deprecated"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "6a8b1a1a2ebf674015cc02edccce75287f1a0130d394307b36743c2f5d504b47"
 dependencies = [
- "indexmap 2.5.0",
+ "indexmap 2.6.0",
  "itoa",
  "ryu",
  "serde",
@@ -6172,9 +6156,9 @@ checksum = "77549399552de45a898a580c1b41d445bf730df867cc44e6c0233bbc4b8329de"
 
 [[package]]
 name = "simdutf8"
-version = "0.1.4"
+version = "0.1.5"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "f27f6278552951f1f2b8cf9da965d10969b2efdea95a6ec47987ab46edfe263a"
+checksum = "e3a9fe34e3e7a50316060351f37187a3f546bce95496156754b601a5fa71b76e"
 
 [[package]]
 name = "simple_asn1"
@@ -6359,9 +6343,9 @@ dependencies = [
 
 [[package]]
 name = "syn"
-version = "2.0.77"
+version = "2.0.79"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "9f35bcdf61fd8e7be6caf75f429fdca8beb3ed76584befb503b1569faee373ed"
+checksum = "89132cd0bf050864e1d38dc3bbc07a0eb8e7530af26344d3d2bbbef83499f590"
 dependencies = [
  "proc-macro2",
  "quote",
@@ -6377,7 +6361,7 @@ dependencies = [
  "proc-macro-error",
  "proc-macro2",
  "quote",
- "syn 2.0.77",
+ "syn 2.0.79",
 ]
 
 [[package]]
@@ -6394,7 +6378,7 @@ checksum = "c8af7666ab7b6390ab78131fb5b0fce11d6b7a6951602017c35fa82800708971"
 dependencies = [
  "proc-macro2",
  "quote",
- "syn 2.0.77",
+ "syn 2.0.79",
 ]
 
 [[package]]
@@ -6460,14 +6444,14 @@ dependencies = [
  "cfg-if 1.0.0",
  "p12-keystore",
  "rustls-connector",
- "rustls-pemfile 2.1.3",
+ "rustls-pemfile 2.2.0",
 ]
 
 [[package]]
 name = "tempfile"
-version = "3.12.0"
+version = "3.13.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "04cbcdd0c794ebb0d4cf35e88edd2f7d2c4c3e9a5a6dab322839b321c6a87a64"
+checksum = "f0f2c9fc62d0beef6951ccffd757e241266a2c833136efbe35af6cd2567dca5b"
 dependencies = [
  "cfg-if 1.0.0",
  "fastrand 2.1.1",
@@ -6478,22 +6462,22 @@ dependencies = [
 
 [[package]]
 name = "thiserror"
-version = "1.0.63"
+version = "1.0.64"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "c0342370b38b6a11b6cc11d6a805569958d54cfa061a29969c3b5ce2ea405724"
+checksum = "d50af8abc119fb8bb6dbabcfa89656f46f84aa0ac7688088608076ad2b459a84"
 dependencies = [
  "thiserror-impl",
 ]
 
 [[package]]
 name = "thiserror-impl"
-version = "1.0.63"
+version = "1.0.64"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "a4558b58466b9ad7ca0f102865eccc95938dca1a74a856f2b57b6629050da261"
+checksum = "08904e7672f5eb876eaaf87e0ce17857500934f4981c4a0ab2b4aa98baac7fc3"
 dependencies = [
  "proc-macro2",
  "quote",
- "syn 2.0.77",
+ "syn 2.0.79",
 ]
 
 [[package]]
@@ -6618,7 +6602,7 @@ checksum = "693d596312e88961bc67d7f1f97af8a70227d9f90c31bba5806eec004978d752"
 dependencies = [
  "proc-macro2",
  "quote",
- "syn 2.0.77",
+ "syn 2.0.79",
 ]
 
 [[package]]
@@ -6697,11 +6681,11 @@ checksum = "0dd7358ecb8fc2f8d014bf86f6f638ce72ba252a2c3a2572f2a795f1d23efb41"
 
 [[package]]
 name = "toml_edit"
-version = "0.22.20"
+version = "0.22.22"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "583c44c02ad26b0c3f3066fe629275e50627026c51ac2e595cca4c230ce1ce1d"
+checksum = "4ae48d6208a266e853d946088ed816055e556cc6028c5e8e2b84d9fa5dd7c7f5"
 dependencies = [
- "indexmap 2.5.0",
+ "indexmap 2.6.0",
  "toml_datetime",
  "winnow",
 ]
@@ -6797,7 +6781,7 @@ checksum = "34704c8d6ebcbc939824180af020566b01a7c01f80641264eba0999f6c2b6be7"
 dependencies = [
  "proc-macro2",
  "quote",
- "syn 2.0.77",
+ "syn 2.0.79",
 ]
 
 [[package]]
@@ -6892,9 +6876,9 @@ dependencies = [
 
 [[package]]
 name = "unicode-bidi"
-version = "0.3.15"
+version = "0.3.17"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "08f95100a766bf4f8f28f90d77e0a5461bbdb219042e7679bebe79004fed8d75"
+checksum = "5ab17db44d7388991a428b2ee655ce0c212e862eff1768a455c58f9aad6e7893"
 
 [[package]]
 name = "unicode-ident"
@@ -6904,18 +6888,18 @@ checksum = "e91b56cd4cadaeb79bbf1a5645f6b4f8dc5bde8834ad5894a8db35fda9efa1fe"
 
 [[package]]
 name = "unicode-normalization"
-version = "0.1.23"
+version = "0.1.24"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "a56d1686db2308d901306f92a263857ef59ea39678a5458e7cb17f01415101f5"
+checksum = "5033c97c4262335cded6d6fc3e5c18ab755e1a3dc96376350f3d8e9f009ad956"
 dependencies = [
  "tinyvec",
 ]
 
 [[package]]
 name = "unicode-width"
-version = "0.1.13"
+version = "0.1.14"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "0336d538f7abc86d282a4189614dfaa90810dfc2c6f6427eaf88e16311dd225d"
+checksum = "7dd6e30e90baa6f72411720665d41d89b9a3d039dc45b8faea1ddd07f617f6af"
 
 [[package]]
 name = "unsafe-libyaml"
@@ -7031,7 +7015,7 @@ dependencies = [
  "once_cell",
  "proc-macro2",
  "quote",
- "syn 2.0.77",
+ "syn 2.0.79",
  "wasm-bindgen-shared",
 ]
 
@@ -7065,7 +7049,7 @@ checksum = "afc340c74d9005395cf9dd098506f7f44e38f2b4a21c6aaacf9a105ea5e1e836"
 dependencies = [
  "proc-macro2",
  "quote",
- "syn 2.0.77",
+ "syn 2.0.79",
  "wasm-bindgen-backend",
  "wasm-bindgen-shared",
 ]
@@ -7096,9 +7080,9 @@ dependencies = [
 
 [[package]]
 name = "wasm-streams"
-version = "0.4.0"
+version = "0.4.1"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "b65dc4c90b63b118468cf747d8bf3566c1913ef60be765b5730ead9e0a3ba129"
+checksum = "4e072d4e72f700fb3443d8fe94a39315df013eef1104903cdb0a2abd322bbecd"
 dependencies = [
  "futures-util",
  "js-sys",
@@ -7313,7 +7297,7 @@ version = "0.115.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "e06c0641a4add879ba71ccb3a1e4278fd546f76f1eafb21d8f7b07733b547cd5"
 dependencies = [
- "indexmap 2.5.0",
+ "indexmap 2.6.0",
  "semver 1.0.23",
 ]
 
@@ -7338,7 +7322,7 @@ dependencies = [
  "bumpalo",
  "cfg-if 1.0.0",
  "fxprof-processed-profile",
- "indexmap 2.5.0",
+ "indexmap 2.6.0",
  "libc",
  "log",
  "object 0.32.2",
@@ -7417,7 +7401,7 @@ dependencies = [
  "anyhow",
  "cranelift-entity",
  "gimli 0.28.1",
- "indexmap 2.5.0",
+ "indexmap 2.6.0",
  "log",
  "object 0.32.2",
  "serde",
@@ -7483,7 +7467,7 @@ dependencies = [
  "anyhow",
  "cc",
  "cfg-if 1.0.0",
- "indexmap 2.5.0",
+ "indexmap 2.6.0",
  "libc",
  "log",
  "mach",
@@ -7523,7 +7507,7 @@ checksum = "09b5575a75e711ca6c36bb9ad647c93541cdc8e34218031acba5da3f35919dd3"
 dependencies = [
  "proc-macro2",
  "quote",
- "syn 2.0.77",
+ "syn 2.0.79",
 ]
 
 [[package]]
@@ -7587,9 +7571,9 @@ dependencies = [
 
 [[package]]
 name = "wildmatch"
-version = "2.3.4"
+version = "2.4.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "3928939971918220fed093266b809d1ee4ec6c1a2d72692ff6876898f3b16c19"
+checksum = "68ce1ab1f8c62655ebe1350f589c61e505cf94d385bc6a12899442d9081e71fd"
 
 [[package]]
 name = "winapi"
@@ -7772,9 +7756,9 @@ checksum = "589f6da84c646204747d1270a2a5661ea66ed1cced2631d546fdfb155959f9ec"
 
 [[package]]
 name = "winnow"
-version = "0.6.18"
+version = "0.6.20"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "68a9bda4691f099d435ad181000724da8e5899daa10713c2d432552b9ccd3a6f"
+checksum = "36c1fec1a2bb5866f07c25f68c26e565c4c200aebb96d7e55710c19d3e8ac49b"
 dependencies = [
  "memchr",
 ]
@@ -7865,7 +7849,7 @@ checksum = "fa4f8080344d4671fb4e831a13ad1e68092748387dfc4f55e356242fae12ce3e"
 dependencies = [
  "proc-macro2",
  "quote",
- "syn 2.0.77",
+ "syn 2.0.79",
 ]
 
 [[package]]
@@ -7885,7 +7869,7 @@ checksum = "ce36e65b0d2999d2aafac989fb249189a141aee1f53c612c1f37d72631959f69"
 dependencies = [
  "proc-macro2",
  "quote",
- "syn 2.0.77",
+ "syn 2.0.79",
 ]
 
 [[package]]
