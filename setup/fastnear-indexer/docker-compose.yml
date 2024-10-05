@@ -46,6 +46,8 @@ services:
       - da.testnet
       - --rollup-ids
       - "2"
+      - --rmq-address
+      - "amqp://rmq:5672"
     entrypoint: ["/indexer-app/indexer"]
     restart: unless-stopped
     networks:
