@@ -1,4 +1,4 @@
-use prometheus::{Counter, Encoder, Histogram, HistogramOpts, IntCounter, Registry};
+use prometheus::{Encoder, Histogram, HistogramOpts, IntCounter, Registry};
 use std::sync::Arc;
 use tokio::time::Duration;
 use warp::Filter;
