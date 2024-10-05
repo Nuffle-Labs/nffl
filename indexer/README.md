@@ -22,3 +22,15 @@ $ cargo run --release -- --home-dir ~/.near/localnet/ run --da-contract-id "da.t
 Now the node have started, and we listen to "submit" method in DA contract.
 
 Use [near-cli](https://github.com/near/near-shell) to "submit" calldata. 
+
+### FastNear Mode
+
+To run the Indexer using FastNear endpoints, use the following command:
+
+```bash
+$  cargo run --features use_fastnear -p indexer --release -- --home-dir ~/.near/testnet run --da-contract-ids da.testnet --rollup-ids 2
+```
+
+This command will start the indexer using FastNEAR endpoints to fetch NEAR blocks more efficiently. The `--features use_fastnear` flag enables the FastNEAR mode.
+
+Note: FastNEAR will only work with NEAR mainnet and testnet. For local testing it is recommended to use a local NEAR node.
