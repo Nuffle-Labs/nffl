@@ -35,14 +35,18 @@ services:
       - "127.0.0.1:3030:3030"
       - "127.0.0.1:9092:9092"
     environment:
-      - CHAIN_ID=${NEAR_CHAIN_ID}
+      - CHAIN_ID=${NEAR_CHAIN_ID:-testnet}
     volumes:
       - ./:/fastnear-indexer/
       - ${NEAR_HOME_DIR:-~/.near}:/root/.near
       - ${NEAR_KEYS_DIR:-~/.near-credentials}:/root/.near-credentials
     command:
-      - --config
-      - /fastnear-indexer/config/indexer.yaml
+      - run
+      - --da-contract-ids
+      - da.testnet
+      - --rollup-ids
+      - "2"
+    entrypoint: ["/indexer-app/indexer"]
     restart: unless-stopped
     networks:
       - fastnear

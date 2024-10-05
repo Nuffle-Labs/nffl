@@ -110,7 +110,7 @@ fn main() -> Result<()> {
     let env_filter = near_o11y::tracing_subscriber::EnvFilter::new(
         "nearcore=info,publisher=info,indexer=info,candidates_validator=info,\
          metrics=info,tokio_reactor=info,near=info,stats=info,telemetry=info,\
-         near-performance-metrics=info,fastnear_indexer=info,fastnear_indexer=debug, fastnear_indexer=trace",
+         near-performance-metrics=info,fastnear_indexer=info",
     );
     let _subscriber = near_o11y::default_subscriber(env_filter, &Default::default()).global();
     let opts: Opts = Opts::parse();

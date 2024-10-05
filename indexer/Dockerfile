@@ -14,14 +14,14 @@ RUN apt-get update -qq && \
         llvm \
         clang
 
-COPY ./indexer/Cargo.toml .
+COPY ./Cargo.toml .
 RUN mkdir ./src && echo "fn main() {}" > ./src/main.rs
-RUN cargo build --release -p indexer
+RUN cargo build --release -p indexer --features use_fastnear
 
-COPY ./indexer .
+COPY . .
 RUN touch ./src/main.rs
 
-RUN cargo build --release -p indexer
+RUN cargo build --release -p indexer --features use_fastnear
 
 FROM debian:bookworm-slim as runtime
 WORKDIR /indexer-app
@@ -29,7 +29,7 @@ WORKDIR /indexer-app
 RUN apt update && apt install -yy openssl ca-certificates jq curl
 
 COPY --from=builder /tmp/indexer/target/release/indexer .
-COPY ./indexer/entrypoint.sh ./entrypoint.sh
+COPY entrypoint.sh ./entrypoint.sh
 RUN chmod +x ./entrypoint.sh
 
 EXPOSE 3030
