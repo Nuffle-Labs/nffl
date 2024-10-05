@@ -38,8 +38,8 @@ services:
       - CHAIN_ID=${NEAR_CHAIN_ID}
     volumes:
       - ./:/fastnear-indexer/
-      - ${NEAR_HOME_DIR}:/root/.near
-      - ${NEAR_KEYS_DIR}:/root/.near-credentials
+      - ${NEAR_HOME_DIR:-~/.near}:/root/.near
+      - ${NEAR_KEYS_DIR:-~/.near-credentials}:/root/.near-credentials
     command:
       - --config
       - /fastnear-indexer/config/indexer.yaml
