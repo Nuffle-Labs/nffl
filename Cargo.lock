@@ -6556,6 +6556,36 @@ dependencies = [
 ]
 
 [[package]]
+name = "operator-rs"
+version = "0.1.0"
+dependencies = [
+ "alloy",
+ "alloy-primitives",
+ "alloy-rlp",
+ "alloy-rpc-client",
+ "alloy-rpc-types",
+ "alloy-transport-ws",
+ "anyhow",
+ "bincode",
+ "clap",
+ "eyre",
+ "futures-util",
+ "hex",
+ "near-da-primitives",
+ "near-da-rpc",
+ "prometheus",
+ "rand 0.8.5",
+ "serde",
+ "serde_json",
+ "serde_yaml",
+ "tempfile",
+ "tokio",
+ "tracing",
+ "tracing-subscriber",
+ "warp",
+]
+
+[[package]]
 name = "ordered-float"
 version = "4.2.2"
 source = "registry+https://github.com/rust-lang/crates.io-index"

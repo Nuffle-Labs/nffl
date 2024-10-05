@@ -6,6 +6,7 @@ members = [
     "indexer",
     "contracts/evm/test/ffi/bls-utils",
     "relayer-rs",
+    "operator-rs",
 ]
 
 [workspace.package]
