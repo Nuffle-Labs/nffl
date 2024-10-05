@@ -102,7 +102,7 @@ impl FastNearIndexer {
         for shard in block.shards {
             for receipt_execution_outcome in shard.receipt_execution_outcomes {
                 let receiver_id = &receipt_execution_outcome.receipt.receiver_id;
-                
+                debug!(target: "fastnear_indexer", "Processing receipt for receiver_id: {}", receiver_id);
                 if let Some(rollup_id) = addresses_to_rollup_ids.get(receiver_id) {
                     trace!(target: "fastnear_indexer", "Processing receipt for rollup_id: {}", rollup_id);
                     if !Self::is_successful_execution(&receipt_execution_outcome) {
