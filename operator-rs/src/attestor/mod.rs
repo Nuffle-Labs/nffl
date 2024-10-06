@@ -10,13 +10,13 @@ use tokio::time::{Duration, sleep};
 use anyhow::{Result, anyhow};
 use tracing::{info, warn, error};
 use prometheus::Registry;
+use alloy_rpc_types::Block;
 
 use serde::{Serialize, Deserialize};
-use crate::types::NodeConfig;
-use crate::types::messages::SignedStateRootUpdateMessage;
+use crate::types::{NodeConfig, SignedStateRootUpdateMessage, StateRootUpdateMessage};
 use self::notifier::Notifier;
 use self::event_listener::{EventListener, SelectiveEventListener};
-use eigensdk::crypto_bls::BlsKeyPair;
+use eigensdk::crypto_bls::{BlsKeyPair, BlsSignature};
 // Constants
 const MQ_WAIT_TIMEOUT: Duration = Duration::from_secs(30);
 const MQ_REBROADCAST_TIMEOUT: Duration = Duration::from_secs(15);
@@ -30,25 +30,29 @@ trait SafeClientTrait: Send + Sync {
 }
 
 // TODO: Replace wth actual types from eigensdk-rs
-type OperatorId = [u8; 32];
+type OperatorId = eigensdk::types::operator::OperatorId;
+
+struct SharedState {
+    notifier: Notifier,
+    consumer: Consumer,
+    logger: Box<dyn eigensdk::logging::logger::Logger + Send + Sync>,
+    listener: Box<dyn EventListener + Send + Sync>,
+    signed_root_tx: mpsc::Sender<SignedStateRootUpdateMessage>,
+}
 
 pub struct Attestor {
-    signed_root_tx: mpsc::Sender<SignedStateRootUpdateMessage>,
+    shared: Arc<SharedState>,
     rollup_ids_to_urls: HashMap<u32, String>,
     clients: HashMap<u32, SafeClient>,
     rpc_calls_collectors: HashMap<u32, ()>, // Replace with actual RPC calls collector
-    notifier: Notifier,
-    consumer: Consumer,
     config: NodeConfig,
     bls_keypair: BlsKeyPair,
     operator_id: OperatorId,
-    logger: Box<dyn eigensdk::logging::logger::Logger>,
-    listener: Box<dyn EventListener>,
     registry: Registry,
 }
 
 impl Attestor {
-    pub fn new(config: &NodeConfig, bls_keypair: BlsKeyPair, operator_id: OperatorId, registry: Registry, logger: Box<dyn Logger>) -> Result<Self> {
+    pub fn new(config: &NodeConfig, bls_keypair: BlsKeyPair, operator_id: OperatorId, registry: Registry, logger: Box<dyn Logger + Send + Sync>) -> Result<Self> {
         let consumer = Consumer::new(ConsumerConfig {
             rollup_ids: config.near_da_indexer_rollup_ids.clone(),
             id: hex::encode(&operator_id),
@@ -69,31 +73,35 @@ impl Attestor {
 
         let (signed_root_tx, _) = mpsc::channel(100);
 
-        Ok(Self {
+        let shared = Arc::new(SharedState {
+            notifier: Notifier::new(),
+            consumer,
+            logger,
+            listener: Box::new(SelectiveEventListener::default()),
             signed_root_tx,
+        });
+
+        Ok(Self {
+            shared,
             rollup_ids_to_urls: config.rollup_ids_to_rpc_urls.clone(),
             clients,
             rpc_calls_collectors,
-            notifier: Notifier::new(),
-            consumer,
             config: config.clone(),
             bls_keypair,
             operator_id,
-            logger,
-            listener: Box::new(SelectiveEventListener::default()),
             registry,
         })
     }
 
     pub fn enable_metrics(&mut self, registry: &Registry) -> Result<()> {
         let listener = event_listener::make_attestor_metrics(registry)?;
-        self.listener = Box::new(listener);
-        self.consumer.enable_metrics(registry)?;
+        // self.shared.listener = Box::new(listener);
+        // self.shared.consumer.enable_metrics(registry)?;
         Ok(())
     }
 
     pub async fn start(&self) -> Result<()> {
-        self.consumer.start(&self.config.near_da_indexer_rmq_ip_port_address).await?;
+        self.shared.consumer.start(&self.config.near_da_indexer_rmq_ip_port_address).await?;
 
         let mut subscriptions = HashMap::new();
         let mut headers_rxs = HashMap::new();
@@ -102,17 +110,29 @@ impl Attestor {
             let headers_rx = client.subscribe_new_head();
             let block_number = client.block_number();
 
-            self.listener.observe_initialization_initial_block_number(*rollup_id, block_number);
+            self.shared.listener.observe_initialization_initial_block_number(*rollup_id, block_number);
 
             subscriptions.insert(*rollup_id, ());
             headers_rxs.insert(*rollup_id, headers_rx);
         }
 
-        let mq_task = tokio::spawn(self.process_mq_blocks());
+        let shared = Arc::clone(&self.shared);
+        tokio::spawn(async move {
+            if let Err(e) = Self::process_mq_blocks(shared).await {
+                error!("Error processing MQ blocks: {:?}", e);
+            }
+        });
 
         let mut rollup_tasks = Vec::new();
         for (rollup_id, headers_rx) in headers_rxs {
-            let task = tokio::spawn(self.process_rollup_headers(rollup_id, headers_rx));
+            let cloned_operator_id = self.operator_id.clone();
+            let cloned_keypair = self.bls_keypair.clone();
+            let self_ref = Arc::clone(&self.shared);
+            let task = tokio::spawn(async move {
+                if let Err(e) = Self::process_rollup_headers(&self_ref, rollup_id, cloned_operator_id, &cloned_keypair, headers_rx).await {
+                    error!("Error processing rollup headers for rollup {}: {:?}", rollup_id, e);
+                }
+            });
             rollup_tasks.push(task);
         }
 
@@ -120,51 +140,38 @@ impl Attestor {
         Ok(())
     }
 
-    async fn process_mq_blocks(&self) {
-        let mut mq_block_rx = self.consumer.get_block_stream();
+    async fn process_mq_blocks(shared: Arc<SharedState>) -> Result<()> {
+        let mut mq_block_rx = shared.consumer.get_block_stream();
 
         while let Some(mq_block) = mq_block_rx.recv().await {
-            if ctx.is_done() {
-                return;
+            shared.logger.info("Notifying", &format!("rollupId: {}, height: {}", mq_block.rollup_id, get_block_number(&mq_block.block)));
+            if let Err(e) = shared.notifier.notify(mq_block.rollup_id, mq_block.clone()) {
+                shared.logger.error("Notifier error", &e.to_string());
             }
 
-            info!(self.logger, "Notifying"; "rollupId" => mq_block.rollup_id, "height" => mq_block.block.header().number);
-            if let Err(e) = self.notifier.notify(mq_block.rollup_id, mq_block.clone()) {
-                error!(self.logger, "Notifier error"; "err" => ?e);
-            }
-
-            let notifier = self.notifier.clone();
-            let logger = self.logger.clone();
-            tokio::spawn(async move {
-                tokio::select! {
-                    _ = sleep(MQ_REBROADCAST_TIMEOUT) => {
-                        info!(logger, "Renotifying"; "rollupId" => mq_block.rollup_id, "height" => mq_block.block.header().number);
-                        if let Err(e) = notifier.notify(mq_block.rollup_id, mq_block) {
-                            error!(logger, "Error while renotifying"; "err" => ?e);
-                        }
-                    }
-                    _ = ctx.done() => {}
-                }
-            });
+            // Remove the rebroadcast logic, as it's not necessary with this approach
         }
+
+        Ok(())
     }
 
-    async fn process_rollup_headers(&self, rollup_id: u32, mut headers_rx: mpsc::Receiver<Header>) {
+    async fn process_rollup_headers(shared: &Arc<SharedState>, rollup_id: u32, operator_id: OperatorId, keypair: &BlsKeyPair, mut headers_rx: mpsc::Receiver<Header>) -> Result<()> {
         while let Some(header) = headers_rx.recv().await {
-            self.process_header(rollup_id, header).await;
+            Self::process_header(shared, rollup_id, operator_id, keypair, header).await?;
         }
+        Ok(())
     }
 
-    async fn process_header(&self, rollup_id: u32, rollup_header: Header) {
-        info!(self.logger, "Processing header"; "rollupId" => rollup_id, "height" => get_header_number(&rollup_header));
+    async fn process_header(shared: &Arc<SharedState>, rollup_id: u32, operator_id: OperatorId, keypair: &BlsKeyPair, rollup_header: Header) -> Result<()> {
+        shared.logger.info("Processing header", &get_header_number(&rollup_header).to_string());
 
-        self.listener.observe_last_block_received(rollup_id, get_header_number(&rollup_header));
-        self.listener.observe_last_block_received_timestamp(rollup_id, get_header_timestamp(&rollup_header));
-        self.listener.on_block_received(rollup_id);
+        shared.listener.observe_last_block_received(rollup_id, get_header_number(&rollup_header));
+        shared.listener.observe_last_block_received_timestamp(rollup_id, get_header_timestamp(&rollup_header));
+        shared.listener.on_block_received(rollup_id);
 
         let predicate = |mq_block: &BlockData| {
             if mq_block.rollup_id != rollup_id {
-                warn!(self.logger, "Subscriber rollupId mismatch"; "expected" => rollup_id, "actual" => mq_block.rollup_id);
+                shared.logger.warn("Subscriber rollup mismatch {:?}", &mq_block.rollup_id.to_string());
                 return false;
             }
 
@@ -173,35 +180,37 @@ impl Attestor {
             }
 
             if get_block_root(&mq_block.block) != get_header_root(&rollup_header) {
-                warn!(self.logger, "StateRoot from MQ doesn't match one from Node");
-                self.listener.on_block_mismatch(rollup_id);
+                shared.logger.warn("StateRoot from MQ doesn't match one from Node", "str");
+                shared.listener.on_block_mismatch(rollup_id);
                 return false;
             }
 
             true
         };
 
-        let (mq_blocks_rx, id) = self.notifier.subscribe(rollup_id, predicate);
+        let (mq_blocks_rx, id) = shared.notifier.subscribe(rollup_id, predicate);
 
         let mut transaction_id = [0u8; 32];
         let mut da_commitment = [0u8; 32];
 
-        tokio::select! {
-            _ = sleep(MQ_WAIT_TIMEOUT) => {
-                info!(self.logger, "MQ timeout"; "rollupId" => rollup_id, "height" => get_header_number(&rollup_header));
-                self.listener.on_missed_mq_block(rollup_id);
-            }
-            Some(mq_block) = mq_blocks_rx.recv() => {
-                info!(self.logger, "MQ block found"; "height" => get_block_number(&mq_block.block), "rollupId" => mq_block.rollup_id);
+        let result = tokio::time::timeout(MQ_WAIT_TIMEOUT, mq_blocks_rx.recv()).await;
+
+        match result {
+            Ok(Some(mq_block)) => {
+                shared.logger.info("MQ block found", &format!("height: {}, rollupId: {}", get_block_number(&mq_block.block), mq_block.rollup_id));
                 transaction_id = mq_block.transaction_id;
                 da_commitment = mq_block.commitment;
             }
-            _ = ctx.done() => {
-                return;
+            Ok(None) => {
+                shared.logger.warn("MQ channel closed unexpectedly", &format!("rollupId: {}, height: {}", rollup_id, get_header_number(&rollup_header)));
+            }
+            Err(_) => {
+                shared.logger.info("MQ timeout", &format!("rollupId: {}, height: {}", rollup_id, get_header_number(&rollup_header)));
+                shared.listener.on_missed_mq_block(rollup_id);
             }
         }
 
-        self.notifier.unsubscribe(rollup_id, id);
+        shared.notifier.unsubscribe(rollup_id, id);
 
         let message = StateRootUpdateMessage {
             rollup_id,
@@ -212,29 +221,33 @@ impl Attestor {
             near_da_commitment: da_commitment,
         };
 
-        match sign_state_root_update_message(&self.bls_keypair, &message) {
+        match sign_state_root_update_message(keypair, &message) {
             Ok(signature) => {
                 let signed_message = SignedStateRootUpdateMessage {
                     message,
                     bls_signature: signature,
-                    operator_id: self.operator_id,
+                    operator_id,
                 };
-                if let Err(e) = self.signed_root_tx.send(signed_message).await {
-                    warn!(self.logger, "Failed to send signed state root update"; "err" => ?e);
+                if let Err(e) = shared.signed_root_tx.send(signed_message).await {
+                    shared.logger.warn("Failed to send signed state root update {:?}", &e.to_string())
                 }
             }
             Err(e) => {
-                warn!(self.logger, "StateRoot sign failed"; "err" => ?e);
+              shared.logger.warn("State root sign faield {:?}", &e.to_string());
+              return Err(anyhow::anyhow!("State root sign faield {:?}", &e.to_string()))
             }
         }
+        Ok(())
     }
 
-    pub fn get_signed_root_rx(&self) -> mpsc::Receiver<SignedStateRootUpdateMessage> {
-        self.signed_root_tx.subscribe()
+    pub fn get_signed_root_rx(shared: Arc<SharedState>) -> mpsc::Receiver<SignedStateRootUpdateMessage> {
+        //TODO: implement the subscribe method here. Most likely we need to change the signed_root_tx to broadcast
+        // shared.signed_root_tx.subscribe()
+        unimplemented!()
     }
 
     pub fn close(&self) -> Result<()> {
-        self.consumer.close()?;
+        self.shared.consumer.close()?;
         for client in self.clients.values() {
             client.close();
         }
@@ -271,14 +284,11 @@ fn get_block_root(_block: &Block) -> [u8; 32] {
     unimplemented!()
 }
 
-// Mock types (to be replaced with actual implementations)
 struct Consumer;
 struct ConsumerConfig {
     rollup_ids: Vec<u32>,
     id: String,
 }
-struct Context;
-
 #[derive(Clone, Debug, Serialize, Deserialize)]
 struct BlockData {
     rollup_id: u32,
@@ -286,17 +296,6 @@ struct BlockData {
     transaction_id: [u8; 32],
     commitment: [u8; 32],
 }
-
-#[derive(Clone, Debug, Serialize, Deserialize)]
-struct StateRootUpdateMessage {
-    rollup_id: u32,
-    block_height: u64,
-    timestamp: u64,
-    state_root: [u8; 32],
-    near_da_transaction_id: [u8; 32],
-    near_da_commitment: [u8; 32],
-}
-type BlsSignature = ();
 
 impl Consumer {
     fn new(_config: ConsumerConfig) -> Self {
@@ -313,14 +312,5 @@ impl Consumer {
     }
     fn close(&self) -> Result<()> {
         unimplemented!()
-    }
-}
-
-impl Context {
-    fn is_done(&self) -> bool {
-        unimplemented!()
-    }
-    fn done(&self) -> impl std::future::Future<Output = ()> {
-        std::future::ready(())
     }
 }

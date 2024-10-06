@@ -1,4 +1,5 @@
 use std::collections::HashMap;
+use eigensdk::{crypto_bls::BlsSignature, types::operator::OperatorId};
 use serde::{Deserialize, Serialize};
 
 #[derive(Debug, Clone, Deserialize, Serialize)]
@@ -23,4 +24,21 @@ pub struct NodeConfig {
     pub near_da_indexer_rollup_ids: Vec<u32>,
     pub rollup_ids_to_rpc_urls: HashMap<u32, String>,
     pub task_response_wait_ms: u32,
+}
+#[derive(Clone, Debug)]
+
+pub struct SignedStateRootUpdateMessage {
+    pub message: StateRootUpdateMessage,
+    pub bls_signature: BlsSignature,
+    pub operator_id: OperatorId,
+}
+
+#[derive(Clone, Debug, Serialize, Deserialize)]
+pub struct StateRootUpdateMessage {
+    pub rollup_id: u32,
+    pub block_height: u64,
+    pub timestamp: u64,
+    pub state_root: [u8; 32],
+    pub near_da_transaction_id: [u8; 32],
+    pub near_da_commitment: [u8; 32],
 }
