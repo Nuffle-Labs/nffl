@@ -33,7 +33,7 @@ trait SafeClientTrait: Send + Sync {
 type OperatorId = eigensdk::types::operator::OperatorId;
 
 struct SharedState {
-    notifier: Notifier,
+    notifier: Arc<Notifier>,
     consumer: Consumer,
     logger: Box<dyn eigensdk::logging::logger::Logger + Send + Sync>,
     listener: Box<dyn EventListener + Send + Sync>,
@@ -74,7 +74,7 @@ impl Attestor {
         let (signed_root_tx, _) = mpsc::channel(100);
 
         let shared = Arc::new(SharedState {
-            notifier: Notifier::new(),
+            notifier: Arc::new(Notifier::new()),
             consumer,
             logger,
             listener: Box::new(SelectiveEventListener::default()),
@@ -163,38 +163,40 @@ impl Attestor {
     }
 
     async fn process_header(shared: &Arc<SharedState>, rollup_id: u32, operator_id: OperatorId, keypair: &BlsKeyPair, rollup_header: Header) -> Result<()> {
-        shared.logger.info("Processing header", &get_header_number(&rollup_header).to_string());
-
-        shared.listener.observe_last_block_received(rollup_id, get_header_number(&rollup_header));
-        shared.listener.observe_last_block_received_timestamp(rollup_id, get_header_timestamp(&rollup_header));
+        let header_number = get_header_number(&rollup_header);
+        let header_timestamp = get_header_timestamp(&rollup_header);
+        let header_root = get_header_root(&rollup_header);
+    
+        shared.logger.info("Processing header", &header_number.to_string());
+    
+        shared.listener.observe_last_block_received(rollup_id, header_number);
+        shared.listener.observe_last_block_received_timestamp(rollup_id, header_timestamp);
         shared.listener.on_block_received(rollup_id);
-
-        let predicate = |mq_block: &BlockData| {
+    
+        let predicate = move |mq_block: &BlockData| {
             if mq_block.rollup_id != rollup_id {
-                shared.logger.warn("Subscriber rollup mismatch {:?}", &mq_block.rollup_id.to_string());
                 return false;
             }
-
-            if get_header_number(&rollup_header) != get_block_number(&mq_block.block) {
+    
+            if header_number != get_block_number(&mq_block.block) {
                 return false;
             }
-
-            if get_block_root(&mq_block.block) != get_header_root(&rollup_header) {
-                shared.logger.warn("StateRoot from MQ doesn't match one from Node", "str");
-                shared.listener.on_block_mismatch(rollup_id);
+    
+            if get_block_root(&mq_block.block) != header_root {
                 return false;
             }
-
+    
             true
         };
-
-        let (mq_blocks_rx, id) = shared.notifier.subscribe(rollup_id, predicate);
-
+    
+        let notifier = Arc::clone(&shared.notifier);
+        let (mut mq_blocks_rx, id) = notifier.subscribe(rollup_id, predicate);
+    
         let mut transaction_id = [0u8; 32];
         let mut da_commitment = [0u8; 32];
-
+    
         let result = tokio::time::timeout(MQ_WAIT_TIMEOUT, mq_blocks_rx.recv()).await;
-
+    
         match result {
             Ok(Some(mq_block)) => {
                 shared.logger.info("MQ block found", &format!("height: {}, rollupId: {}", get_block_number(&mq_block.block), mq_block.rollup_id));
@@ -202,25 +204,25 @@ impl Attestor {
                 da_commitment = mq_block.commitment;
             }
             Ok(None) => {
-                shared.logger.warn("MQ channel closed unexpectedly", &format!("rollupId: {}, height: {}", rollup_id, get_header_number(&rollup_header)));
+                shared.logger.warn("MQ channel closed unexpectedly", &format!("rollupId: {}, height: {}", rollup_id, header_number));
             }
             Err(_) => {
-                shared.logger.info("MQ timeout", &format!("rollupId: {}, height: {}", rollup_id, get_header_number(&rollup_header)));
+                shared.logger.info("MQ timeout", &format!("rollupId: {}, height: {}", rollup_id, header_number));
                 shared.listener.on_missed_mq_block(rollup_id);
             }
         }
-
-        shared.notifier.unsubscribe(rollup_id, id);
-
+    
+        notifier.unsubscribe(rollup_id, id);
+    
         let message = StateRootUpdateMessage {
             rollup_id,
-            block_height: get_header_number(&rollup_header),
-            timestamp: get_header_timestamp(&rollup_header),
-            state_root: get_header_root(&rollup_header),
+            block_height: header_number,
+            timestamp: header_timestamp,
+            state_root: header_root,
             near_da_transaction_id: transaction_id,
             near_da_commitment: da_commitment,
         };
-
+    
         match sign_state_root_update_message(keypair, &message) {
             Ok(signature) => {
                 let signed_message = SignedStateRootUpdateMessage {
@@ -229,12 +231,12 @@ impl Attestor {
                     operator_id,
                 };
                 if let Err(e) = shared.signed_root_tx.send(signed_message).await {
-                    shared.logger.warn("Failed to send signed state root update {:?}", &e.to_string())
+                    shared.logger.warn("Failed to send signed state root update", &e.to_string());
                 }
             }
             Err(e) => {
-              shared.logger.warn("State root sign faield {:?}", &e.to_string());
-              return Err(anyhow::anyhow!("State root sign faield {:?}", &e.to_string()))
+                shared.logger.warn("State root sign failed", &e.to_string());
+                return Err(anyhow::anyhow!("State root sign failed: {}", e));
             }
         }
         Ok(())
