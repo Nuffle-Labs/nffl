@@ -4,11 +4,11 @@ version = "0.1.0"
 edition = "2021"
 
 [dependencies]
-alloy = { version = "0.3.6", features = ["full", "node-bindings", "rpc-types-debug", "rpc-types-trace", "json-rpc", "rpc-client"] }
+alloy = { version = "0.4.2", features = ["full", "node-bindings", "rpc-types-debug", "rpc-types-trace", "json-rpc", "rpc-client", "serde"] }
 alloy-primitives = "0.8.3"
-alloy-rpc-client = "0.3.6"
-alloy-rpc-types = "0.3.6"
-alloy-transport-ws = "0.3.6"
+alloy-rpc-client = "0.4.2"
+alloy-rpc-types = "0.4.2"
+alloy-transport-ws = "0.4.2"
 alloy-rlp = "0.3.8"
 near-da-rpc = { git = "https://github.com/Nuffle-Labs/data-availability", branch = "main" }
 near-da-primitives = { git = "https://github.com/Nuffle-Labs/data-availability", branch = "main" }
@@ -29,3 +29,5 @@ tempfile = "3.10.0"
 hex = "0.4"
 rand = "0.8"
 eigensdk = { version = "0.1.0", features = ["full", "types", "crypto-bls", "utils"] }
+borsh = "1.5.1"
+lapin = "2.3.1"

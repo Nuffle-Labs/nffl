@@ -3,7 +3,7 @@ use std::sync::{Arc, Mutex};
 use tokio::sync::mpsc;
 use anyhow::{Result, anyhow};
 
-use super::BlockData;
+use crate::types::BlockData;
 
 type BlockPredicate = Arc<dyn Fn(&BlockData) -> bool + Send + Sync>;
 

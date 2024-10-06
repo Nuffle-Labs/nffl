@@ -1,5 +1,7 @@
 mod notifier;
 mod event_listener;
+use crate::consumer::Consumer;
+use crate::consumer::config::ConsumerConfig;
 
 use std::collections::HashMap;
 use std::sync::Arc;
@@ -11,9 +13,10 @@ use anyhow::{Result, anyhow};
 use tracing::{info, warn, error};
 use prometheus::Registry;
 use alloy_rpc_types::Block;
+use tokio::sync::Mutex;
 
 use serde::{Serialize, Deserialize};
-use crate::types::{NodeConfig, SignedStateRootUpdateMessage, StateRootUpdateMessage};
+use crate::types::{BlockData, NodeConfig, SignedStateRootUpdateMessage, StateRootUpdateMessage};
 use self::notifier::Notifier;
 use self::event_listener::{EventListener, SelectiveEventListener};
 use eigensdk::crypto_bls::{BlsKeyPair, BlsSignature};
@@ -34,7 +37,7 @@ type OperatorId = eigensdk::types::operator::OperatorId;
 
 struct SharedState {
     notifier: Arc<Notifier>,
-    consumer: Consumer,
+    consumer: Mutex<Consumer>,
     logger: Box<dyn eigensdk::logging::logger::Logger + Send + Sync>,
     listener: Box<dyn EventListener + Send + Sync>,
     signed_root_tx: mpsc::Sender<SignedStateRootUpdateMessage>,
@@ -75,7 +78,7 @@ impl Attestor {
 
         let shared = Arc::new(SharedState {
             notifier: Arc::new(Notifier::new()),
-            consumer,
+            consumer: Mutex::new(consumer),
             logger,
             listener: Box::new(SelectiveEventListener::default()),
             signed_root_tx,
@@ -101,7 +104,18 @@ impl Attestor {
     }
 
     pub async fn start(&self) -> Result<()> {
-        self.shared.consumer.start(&self.config.near_da_indexer_rmq_ip_port_address).await?;
+        let addr = self.config.near_da_indexer_rmq_ip_port_address.clone();
+        
+        let shared = Arc::clone(&self.shared);
+        tokio::spawn(async move {
+            loop {
+                let mut consumer = shared.consumer.lock().await;
+                if let Err(e) = consumer.start(&addr).await {
+                    error!("Consumer error: {:?}", e);
+                    tokio::time::sleep(Duration::from_secs(5)).await;
+                }
+            }
+        });
 
         let mut subscriptions = HashMap::new();
         let mut headers_rxs = HashMap::new();
@@ -141,18 +155,33 @@ impl Attestor {
     }
 
     async fn process_mq_blocks(shared: Arc<SharedState>) -> Result<()> {
-        let mut mq_block_rx = shared.consumer.get_block_stream();
-
-        while let Some(mq_block) = mq_block_rx.recv().await {
-            shared.logger.info("Notifying", &format!("rollupId: {}, height: {}", mq_block.rollup_id, get_block_number(&mq_block.block)));
-            if let Err(e) = shared.notifier.notify(mq_block.rollup_id, mq_block.clone()) {
-                shared.logger.error("Notifier error", &e.to_string());
+        loop {
+            let consumer = shared.consumer.lock().await;
+            let mut mq_block_rx = consumer.get_block_stream();
+            drop(consumer); // Release the lock
+            
+            loop {
+                match mq_block_rx.recv().await {
+                    Ok(mq_block) => {
+                        shared.logger.info("Notifying", &format!("rollupId: {}, height: {}", mq_block.rollup_id, get_block_number(&mq_block.block)));
+                        if let Err(e) = shared.notifier.notify(mq_block.rollup_id, mq_block) {
+                            shared.logger.error("Notifier error", &e.to_string());
+                        }
+                    },
+                    Err(tokio::sync::broadcast::error::RecvError::Closed) => {
+                        shared.logger.warn("MQ block channel closed {:?}", "test");
+                        break; // Break the inner loop to reconnect
+                    },
+                    Err(tokio::sync::broadcast::error::RecvError::Lagged(skipped)) => {
+                        shared.logger.warn("Skipped {:?} messages due to slow processing", &skipped.to_string());
+                        // Continue processing
+                    }
+                }
             }
-
-            // Remove the rebroadcast logic, as it's not necessary with this approach
+            
+            // If we've broken out of the inner loop, wait a bit before trying to reconnect
+            tokio::time::sleep(Duration::from_secs(5)).await;
         }
-
-        Ok(())
     }
 
     async fn process_rollup_headers(shared: &Arc<SharedState>, rollup_id: u32, operator_id: OperatorId, keypair: &BlsKeyPair, mut headers_rx: mpsc::Receiver<Header>) -> Result<()> {
@@ -248,8 +277,9 @@ impl Attestor {
         unimplemented!()
     }
 
-    pub fn close(&self) -> Result<()> {
-        self.shared.consumer.close()?;
+    pub async fn close(&self) -> Result<()> {
+        let mut consumer = self.shared.consumer.lock().await;
+        consumer.close().await?;
         for client in self.clients.values() {
             client.close();
         }
@@ -284,35 +314,4 @@ fn get_block_number(_block: &Block) -> u64 {
 
 fn get_block_root(_block: &Block) -> [u8; 32] {
     unimplemented!()
-}
-
-struct Consumer;
-struct ConsumerConfig {
-    rollup_ids: Vec<u32>,
-    id: String,
-}
-#[derive(Clone, Debug, Serialize, Deserialize)]
-struct BlockData {
-    rollup_id: u32,
-    block: Block,
-    transaction_id: [u8; 32],
-    commitment: [u8; 32],
-}
-
-impl Consumer {
-    fn new(_config: ConsumerConfig) -> Self {
-        unimplemented!()
-    }
-    async fn start(&self, _address: &str) -> Result<()> {
-        unimplemented!()
-    }
-    fn get_block_stream(&self) -> mpsc::Receiver<BlockData> {
-        unimplemented!()
-    }
-    fn enable_metrics(&self, _registry: &Registry) -> Result<()> {
-        unimplemented!()
-    }
-    fn close(&self) -> Result<()> {
-        unimplemented!()
-    }
 }
