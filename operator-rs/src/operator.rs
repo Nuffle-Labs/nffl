@@ -61,7 +61,7 @@ mod mock {
 }
 
 use mock::*;
-use types::NodeConfig;
+use crate::types::NodeConfig;
 
 pub struct Operator {
     config: NodeConfig,

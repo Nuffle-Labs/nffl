@@ -3,6 +3,8 @@ mod event_listener;
 
 use std::collections::HashMap;
 use std::sync::Arc;
+use alloy_rlp::Header;
+use eigensdk::logging::logger::Logger;
 use tokio::sync::mpsc;
 use tokio::time::{Duration, sleep};
 use anyhow::{Result, anyhow};
@@ -10,11 +12,11 @@ use tracing::{info, warn, error};
 use prometheus::Registry;
 
 use serde::{Serialize, Deserialize};
-use crate::operator::types::NodeConfig;
+use crate::types::NodeConfig;
 use crate::types::messages::SignedStateRootUpdateMessage;
 use self::notifier::Notifier;
 use self::event_listener::{EventListener, SelectiveEventListener};
-
+use eigensdk::crypto_bls::BlsKeyPair;
 // Constants
 const MQ_WAIT_TIMEOUT: Duration = Duration::from_secs(30);
 const MQ_REBROADCAST_TIMEOUT: Duration = Duration::from_secs(15);
@@ -26,9 +28,8 @@ trait SafeClientTrait: Send + Sync {
     fn block_number(&self) -> u64;
     fn close(&self);
 }
-type Header = ();
-type Block = ();
-type BlsKeyPair = ();
+
+// TODO: Replace wth actual types from eigensdk-rs
 type OperatorId = [u8; 32];
 
 pub struct Attestor {
@@ -41,13 +42,13 @@ pub struct Attestor {
     config: NodeConfig,
     bls_keypair: BlsKeyPair,
     operator_id: OperatorId,
-    logger: tracing::Logger,
+    logger: Box<dyn eigensdk::logging::logger::Logger>,
     listener: Box<dyn EventListener>,
     registry: Registry,
 }
 
 impl Attestor {
-    pub fn new(config: &NodeConfig, bls_keypair: BlsKeyPair, operator_id: OperatorId, registry: Registry) -> Result<Self> {
+    pub fn new(config: &NodeConfig, bls_keypair: BlsKeyPair, operator_id: OperatorId, registry: Registry, logger: Box<dyn Logger>) -> Result<Self> {
         let consumer = Consumer::new(ConsumerConfig {
             rollup_ids: config.near_da_indexer_rollup_ids.clone(),
             id: hex::encode(&operator_id),
@@ -78,7 +79,7 @@ impl Attestor {
             config: config.clone(),
             bls_keypair,
             operator_id,
-            logger: tracing::logger(),
+            logger,
             listener: Box::new(SelectiveEventListener::default()),
             registry,
         })
@@ -91,8 +92,8 @@ impl Attestor {
         Ok(())
     }
 
-    pub async fn start(&self, ctx: &mut Context) -> Result<()> {
-        self.consumer.start(ctx, &self.config.near_da_indexer_rmq_ip_port_address).await?;
+    pub async fn start(&self) -> Result<()> {
+        self.consumer.start(&self.config.near_da_indexer_rmq_ip_port_address).await?;
 
         let mut subscriptions = HashMap::new();
         let mut headers_rxs = HashMap::new();
@@ -107,17 +108,19 @@ impl Attestor {
             headers_rxs.insert(*rollup_id, headers_rx);
         }
 
-        tokio::spawn(self.process_mq_blocks(ctx.clone()));
+        let mq_task = tokio::spawn(self.process_mq_blocks());
 
-        for rollup_id in self.clients.keys() {
-            let headers_rx = headers_rxs.remove(rollup_id).unwrap();
-            tokio::spawn(self.process_rollup_headers(*rollup_id, headers_rx, ctx.clone()));
+        let mut rollup_tasks = Vec::new();
+        for (rollup_id, headers_rx) in headers_rxs {
+            let task = tokio::spawn(self.process_rollup_headers(rollup_id, headers_rx));
+            rollup_tasks.push(task);
         }
 
+        // You might want to store these JoinHandles somewhere if you need to cancel them later
         Ok(())
     }
 
-    async fn process_mq_blocks(&self, mut ctx: Context) {
+    async fn process_mq_blocks(&self) {
         let mut mq_block_rx = self.consumer.get_block_stream();
 
         while let Some(mq_block) = mq_block_rx.recv().await {
@@ -146,17 +149,13 @@ impl Attestor {
         }
     }
 
-    async fn process_rollup_headers(&self, rollup_id: u32, mut headers_rx: mpsc::Receiver<Header>, mut ctx: Context) {
+    async fn process_rollup_headers(&self, rollup_id: u32, mut headers_rx: mpsc::Receiver<Header>) {
         while let Some(header) = headers_rx.recv().await {
-            if ctx.is_done() {
-                return;
-            }
-
-            self.process_header(rollup_id, header, ctx.clone()).await;
+            self.process_header(rollup_id, header).await;
         }
     }
 
-    async fn process_header(&self, rollup_id: u32, rollup_header: Header, ctx: Context) {
+    async fn process_header(&self, rollup_id: u32, rollup_header: Header) {
         info!(self.logger, "Processing header"; "rollupId" => rollup_id, "height" => get_header_number(&rollup_header));
 
         self.listener.observe_last_block_received(rollup_id, get_header_number(&rollup_header));
@@ -303,7 +302,7 @@ impl Consumer {
     fn new(_config: ConsumerConfig) -> Self {
         unimplemented!()
     }
-    async fn start(&self, _ctx: &mut Context, _address: &str) -> Result<()> {
+    async fn start(&self, _address: &str) -> Result<()> {
         unimplemented!()
     }
     fn get_block_stream(&self) -> mpsc::Receiver<BlockData> {
