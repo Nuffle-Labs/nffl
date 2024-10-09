@@ -8,7 +8,15 @@ sol!(
     #[sol(rpc)]
     #[derive(Debug, Serialize, Deserialize)]
     SendLibraryAbi,
-    "abi/SendLibrary.json"
+    "abi/ArbitrumSendLibUln302.json"
+);
+
+sol!(
+    #[allow(missing_docs)]
+    #[sol(rpc)]
+    #[derive(Debug, Serialize, Deserialize)]
+    ReceiveLibraryAbi,
+    "abi/ArbitrumReceiveLibUln302.json"
 );
 
 sol!(
@@ -16,5 +24,5 @@ sol!(
     #[sol(rpc)]
     #[derive(Debug, Serialize, Deserialize)]
     L0V2EndpointAbi,
-    "abi/L0V2Endpoint.json"
+    "abi/ArbitrumL0V2Endpoint.json"
 );
