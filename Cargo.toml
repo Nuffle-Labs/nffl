@@ -5,6 +5,7 @@ resolver = "2"
 members = [
     "indexer",
     "contracts/evm/test/ffi/bls-utils",
+    "workers",
 ]
 
 [workspace.package]
