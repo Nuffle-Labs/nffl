@@ -16,8 +16,12 @@ pub struct DVNConfig {
     l0_endpoint_addr: String,
     /// The SendLib Ultra Light Node 302 address.
     sendlib_uln302_addr: String,
+    /// The ReceiveLib Ultra Light Node 302 address.
+    receivelib_uln302_addr: String,
     /// The SendLib Ultra Light Node 301 address.
     sendlib_uln301_addr: String,
+    /// The ReceiveLib Ultra Light Node 301 address.
+    receivelib_uln301_addr: String,
     /// The Ethereum network ID.
     network_id: u64,
     /// Own DVN address. Used to check when the DVN is assigned to a task.
@@ -45,9 +49,19 @@ impl DVNConfig {
         Ok(self.sendlib_uln302_addr.parse::<Address>()?)
     }
 
+    /// Get the ReceiveLib ULN302 address.
+    pub fn receivelib_uln302_addr(&self) -> Result<Address> {
+        Ok(self.receivelib_uln302_addr.parse::<Address>()?)
+    }
+
     /// Get the SendLib ULN301 address.
     pub fn sendlib_uln301_addr(&self) -> Result<Address> {
         Ok(self.sendlib_uln301_addr.parse::<Address>()?)
+    }
+
+    /// Get the ReceiveLib ULN301 address.
+    pub fn receivelib_uln301_addr(&self) -> Result<Address> {
+        Ok(self.receivelib_uln301_addr.parse::<Address>()?)
     }
 
     /// Get the EID as U256.
@@ -69,7 +83,9 @@ impl DVNConfig {
             http_rpc_url: std::env::var("HTTP_RPC_URL").unwrap_or_else(|_| Default::default()),
             l0_endpoint_addr: std::env::var("L0_ENDPOINT_ADDR").unwrap_or_else(|_| Default::default()),
             sendlib_uln302_addr: std::env::var("SENDLIB_ULN302_ADDR").unwrap_or_else(|_| Default::default()),
+            receivelib_uln302_addr: std::env::var("RECEIVELIB_ULN302_ADDR").unwrap_or_else(|_| Default::default()),
             sendlib_uln301_addr: std::env::var("SENDLIB_ULN301_ADDR").unwrap_or_else(|_| Default::default()),
+            receivelib_uln301_addr: std::env::var("RECEIVELIB_ULN301_ADDR").unwrap_or_else(|_| Default::default()),
             network_id: std::env::var("NETWORK_EID")
                 .unwrap_or_else(|_| "0".to_string())
                 .parse::<u64>()?,

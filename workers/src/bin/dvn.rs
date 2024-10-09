@@ -27,10 +27,12 @@ async fn main() -> Result<()> {
     let http_provider = utils::get_http_provider(&config)?;
 
     // Get the relevant contract ABI.
-    let sendlib_abi = utils::get_sendlib_abi()?;
+    let sendlib_abi = utils::get_abi_from_path("./abi/ArbitrumSendLibUln302.json")?;
+    let receivelib_abi = utils::get_abi_from_path("./abi/ArbitrumReceiveLibUln302.json")?;
 
     // Create a contract instance.
-    let sendlib_contract = utils::create_contract_instance(&config, http_provider, sendlib_abi)?;
+    let sendlib_contract = utils::create_contract_instance(&config, http_provider.clone(), sendlib_abi)?;
+    let receivelib_contract = utils::create_contract_instance(&config, http_provider, receivelib_abi)?;
 
     info!("Listening to chain events...");
 
@@ -57,15 +59,19 @@ async fn main() -> Result<()> {
 
                             let required_confirmations = utils::get_confirmations(&config, &sendlib_contract).await?;
 
-                            //let already_verified = utils::get_verified(&config, &sendlib_contract, required_confirmations).await?;
-                            //
-                            //if already_verified {
-                            //    debug!("Packet has been verified. Listening for more packets...");
-                            //} else {
-                            //    debug!("Packet has not been verified. Calling verification.");
-                            //}
-                            // TODO: idempotency check again
+                            let already_verified = utils::get_verified(&config, &receivelib_contract, required_confirmations).await?;
 
+                            loop {
+                                if already_verified {
+                                    debug!("Packet has been verified. Listening for more packets...");
+
+                                } else {
+                                    debug!("Packet has not been verified. Calling verification.");
+                                    //utils::verify();
+                                    // TODO: idempotency check again
+                                    let already_verified = utils::get_verified(&config, &receivelib_contract, required_confirmations).await?;
+                                }
+                            }
                         }
                     },
                     Err(e) => {

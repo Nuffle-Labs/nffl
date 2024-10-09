@@ -17,7 +17,9 @@ use eyre::Result;
 use sha3::{Digest, Keccak256};
 use tracing::debug;
 
+/// Alias for a contract instance in the Ethereum network.
 pub type ContractInst = ContractInstance<Http<Client>, RootProvider<Http<Client>>, Ethereum>;
+/// Alias for an HTTP provider.
 pub type HttpProvider = RootProvider<Http<Client>>;
 
 /// Create the subscriptions for the DVN workflow.
@@ -57,9 +59,9 @@ pub async fn build_subscriptions(
 }
 
 /// Load the MessageLib ABI.
-pub fn get_sendlib_abi() -> Result<JsonAbi> {
+pub fn get_abi_from_path(path: &str) -> Result<JsonAbi> {
     // Get the SendLib ABI
-    let artifact = std::fs::read("./abi/SendLibrary.json")?;
+    let artifact = std::fs::read(path)?;
     let json: serde_json::Value = serde_json::from_slice(&artifact)?;
     // SAFETY: Assume `unwrap` is safe since the key is always present
     let abi_value = json.get("abi").unwrap();
@@ -85,15 +87,6 @@ pub fn create_contract_instance(config: &DVNConfig, http_provider: HttpProvider,
 
 /// Get the number of required confirmations by the ULN.
 pub async fn get_confirmations(config: &DVNConfig, contract: &ContractInst) -> Result<U256> {
-    // FIXME: there an error returned by the server:
-    //     Error: server returned an error response: error code 3: execution reverted, data: "0xce2c3751"
-    // which decodes (https://www.4byte.directory/signatures/?bytes4_signature=0xce2c3751) to:
-    //     LZ_ULN_AtLeastOneDVN()
-
-    debug!("Getting confirmations required by the ULN.");
-    debug!("Contract address: {:?}", config.sendlib_uln302_addr()?);
-    debug!("Contract address: {:?}", config.eid());
-
     // Call the `getUlnConfig` function on the contract
     let uln_config = contract
         .function(
@@ -127,12 +120,12 @@ pub async fn get_confirmations(config: &DVNConfig, contract: &ContractInst) -> R
 
 /// Idempotent check to see if there's work to do for the DVN.
 pub async fn get_verified(config: &DVNConfig, contract: &ContractInst, required_confirmations: U256) -> Result<bool> {
-    // Call the `verified` function on the contract
-    let uln302 = contract
+    // Call the `_verified` function on the 302 contract
+    let receive_uln302 = contract
         .function(
             "_verified",
             &[
-                DynSolValue::Address(config.sendlib_uln301_addr()?),
+                DynSolValue::Address(config.receivelib_uln302_addr()?),
                 // HeaderHash
                 // PayloadHash
                 DynSolValue::Uint(required_confirmations, 32),
@@ -141,20 +134,20 @@ pub async fn get_verified(config: &DVNConfig, contract: &ContractInst, required_
         .call()
         .await?;
 
-    let uln302_state = if uln302[0].as_bool().unwrap() {
-        debug!("Packet already verified, DVN workflow can stop.");
+    let uln302_state = if receive_uln302[0].as_bool().unwrap() {
+        debug!("Packet already verified (by Uln302), DVN workflow can stop.");
         true
     } else {
         debug!("Packet hasn't been verified. Call `verify`.");
         false
     };
 
-    // Call the `_verified` function on the contract
+    // Call the `_verified` function on the 301 contract
     let uln301 = contract
         .function(
             "_verified",
             &[
-                DynSolValue::Address(config.sendlib_uln301_addr()?),
+                DynSolValue::Address(config.receivelib_uln301_addr()?),
                 // HeaderHash
                 // PayloadHash
                 DynSolValue::Uint(required_confirmations, 32),
@@ -164,7 +157,7 @@ pub async fn get_verified(config: &DVNConfig, contract: &ContractInst, required_
         .await?;
 
     let uln301_state = if uln301[0].as_bool().unwrap() {
-        debug!("Packet already verified, DVN workflow can stop.");
+        debug!("Packet already verified (by Uln301), DVN workflow can stop.");
         true
     } else {
         debug!("Packet hasn't been verified. Call `verify`.");
@@ -221,7 +214,7 @@ mod tests {
         // Set up
         let config = config::DVNConfig::load_from_env()?;
         let http_provider = get_http_provider(&config)?;
-        let sendlib_abi = get_sendlib_abi()?;
+        let sendlib_abi = get_abi_from_path("./abi/ArbitrumSendLibUln302.json")?;
         let sendlib_contract = create_contract_instance(&config, http_provider, sendlib_abi)?;
 
         // Query contract value
@@ -229,6 +222,23 @@ mod tests {
 
         // Check the value is what we expect
         assert_eq!(required_confirmations, U256::from(20));
+
+        Ok(())
+    }
+
+    #[tokio::test]
+    async fn test_get_verified() -> Result<()> {
+        // Set up
+        let config = config::DVNConfig::load_from_env()?;
+        let http_provider = get_http_provider(&config)?;
+        let receivelib_abi = get_abi_from_path("./abi/ArbitrumReceiveLib302.json")?;
+        let receivelib_contract = create_contract_instance(&config, http_provider, receivelib_abi)?;
+
+        // Query contract value
+        let is_verified = get_verified(&config, &receivelib_contract, U256::from(20)).await?;
+
+        // Check the value is what we expect
+        assert!(is_verified);
 
         Ok(())
     }
