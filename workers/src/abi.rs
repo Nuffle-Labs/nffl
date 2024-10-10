@@ -1,4 +1,6 @@
-//! Types create from the JSON ABI files. For example, to be able to decode the logs' data, or call contracts' methods.
+//! Types create from the JSON ABI files.
+//!
+//! For example, to be able to decode the logs' data, or call contracts' methods.
 
 use alloy::sol;
 use serde::{Deserialize, Serialize};
