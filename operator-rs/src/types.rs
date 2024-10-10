@@ -4,9 +4,8 @@ use eigensdk::{crypto_bls::BlsSignature, types::operator::OperatorId};
 use serde::{Deserialize, Serialize};
 use alloy_rpc_types::Block;
 
-#[derive(Debug, Clone, Deserialize, Serialize)]
-pub struct NodeConfig {
-    /// Used to set the logger level (true = info, false = debug)
+#[derive(Debug, Serialize, Deserialize, Clone)]
+pub struct NFFLNodeConfig {
     pub production: bool,
     pub operator_address: String,
     pub operator_state_retriever_address: String,
@@ -27,8 +26,8 @@ pub struct NodeConfig {
     pub rollup_ids_to_rpc_urls: HashMap<u32, String>,
     pub task_response_wait_ms: u32,
 }
-#[derive(Clone, Debug)]
 
+#[derive(Clone, Debug)]
 pub struct SignedStateRootUpdateMessage {
     pub message: StateRootUpdateMessage,
     pub bls_signature: BlsSignature,
@@ -55,11 +54,12 @@ pub struct BlockData {
 }
 
 
-
+#[derive(Clone, Debug)]
 pub struct SubmitRequest {
     pub blobs: Vec<Blob>,
 }
 
+#[derive(Clone, Debug)]
 pub struct Blob {
     pub namespace: Namespace,
     pub share_version: u32,
@@ -67,11 +67,12 @@ pub struct Blob {
     pub data: Vec<u8>,
 }
 
+#[derive(Clone, Debug)]
 pub struct Namespace {
     pub version: u8,
     pub id: u32,
 }
-
+#[derive(Clone, Debug)]
 pub struct PublishPayload {
     pub transaction_id: [u8; 32],
     pub data: Vec<u8>,

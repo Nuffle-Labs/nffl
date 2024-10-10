@@ -16,7 +16,7 @@ use alloy_rpc_types::Block;
 use tokio::sync::Mutex;
 
 use serde::{Serialize, Deserialize};
-use crate::types::{BlockData, NodeConfig, SignedStateRootUpdateMessage, StateRootUpdateMessage};
+use crate::types::{BlockData, NFFLNodeConfig, SignedStateRootUpdateMessage, StateRootUpdateMessage};
 use self::notifier::Notifier;
 use self::event_listener::{EventListener, SelectiveEventListener};
 use eigensdk::crypto_bls::{BlsKeyPair, BlsSignature};
@@ -48,14 +48,14 @@ pub struct Attestor {
     rollup_ids_to_urls: HashMap<u32, String>,
     clients: HashMap<u32, SafeClient>,
     rpc_calls_collectors: HashMap<u32, ()>, // Replace with actual RPC calls collector
-    config: NodeConfig,
+    config: NFFLNodeConfig,
     bls_keypair: BlsKeyPair,
     operator_id: OperatorId,
     registry: Registry,
 }
 
 impl Attestor {
-    pub fn new(config: &NodeConfig, bls_keypair: BlsKeyPair, operator_id: OperatorId, registry: Registry, logger: Box<dyn Logger + Send + Sync>) -> Result<Self> {
+    pub fn new(config: NFFLNodeConfig, bls_keypair: BlsKeyPair, operator_id: OperatorId, registry: Registry, logger: Box<dyn Logger + Send + Sync>) -> Result<Self> {
         let consumer = Consumer::new(ConsumerConfig {
             rollup_ids: config.near_da_indexer_rollup_ids.clone(),
             id: hex::encode(&operator_id),

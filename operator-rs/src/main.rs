@@ -1,6 +1,7 @@
 use anyhow::Result;
 use clap::{Command, Arg};
-use operator_rs::operator::{Operator, NodeConfig};
+use operator_rs::operator::Operator;
+use operator_rs::types::NFFLNodeConfig;
 use std::path::PathBuf;
 use tracing_subscriber::FmtSubscriber;
 
@@ -38,7 +39,18 @@ async fn main() -> Result<()> {
 
     match matches.subcommand() {
         Some(("run-args", args)) => {
-            let config = NodeConfig {
+            let config = NFFLNodeConfig {
+                enable_node_api: args.contains_id("enable-node-api"),
+                near_da_indexer_rmq_ip_port_address: args.get_one::<String>("near-da-indexer-rmq-ip-port-address").unwrap().to_string(),
+                near_da_indexer_rollup_ids: args.get_one::<String>("near-da-indexer-rollup-ids").unwrap().split(',').map(|s| s.parse().unwrap()).collect(),
+                rollup_ids_to_rpc_urls: args.get_one::<String>("rollup-ids-to-rpc-urls")
+                    .unwrap()
+                    .split(',')
+                    .map(|s| {
+                        let mut parts = s.split(':');
+                        (parts.next().unwrap().parse().unwrap(), parts.next().unwrap().to_string())
+                    })
+                    .collect(),
                 production: args.contains_id("production"),
                 eth_rpc_url: args.get_one::<String>("rpc-url").unwrap().to_string(),
                 eth_ws_url: args.get_one::<String>("ws-url").unwrap().to_string(),
@@ -49,11 +61,11 @@ async fn main() -> Result<()> {
                 operator_state_retriever_address: args.get_one::<String>("operator-state-retriever").unwrap().to_string(),
                 aggregator_server_ip_port_address: args.get_one::<String>("aggregator-server-ip-port").unwrap().to_string(),
                 enable_metrics: args.contains_id("enable-metrics"),
-                eigen_metrics_ip_port_address: args.get_one::<String>("eigen-metrics-ip-port").map(|s| s.to_string()),
-                node_api_ip_port_address: args.get_one::<String>("node-api-ip-port").map(|s| s.to_string()),
+                eigen_metrics_ip_port_address: args.get_one::<String>("eigen-metrics-ip-port").unwrap().to_string(),
+                node_api_ip_port_address: args.get_one::<String>("node-api-ip-port").unwrap().to_string(),
                 task_response_wait_ms: args.get_one::<String>("task-response-wait-ms").unwrap().parse().unwrap(),
                 register_operator_on_startup: args.contains_id("register-operator-on-startup"),
-                token_strategy_addr: args.get_one::<String>("token-strategy-addr").map(|s| s.to_string()),
+                token_strategy_addr: args.get_one::<String>("token-strategy-addr").unwrap().to_string(),
             };
             operator_main(config).await
         }
@@ -66,7 +78,7 @@ async fn main() -> Result<()> {
     }
 }
 
-async fn operator_main(config: NodeConfig) -> Result<()> {
+async fn operator_main(config: NFFLNodeConfig) -> Result<()> {
     let log_level = if config.production {
         tracing::Level::INFO
     } else {
@@ -81,11 +93,11 @@ async fn operator_main(config: NodeConfig) -> Result<()> {
     tracing::info!("Initializing Operator");
     tracing::info!("Read config: {:?}", config);
 
-    let operator = Operator::new_from_config(config).await?;
+    // let operator = Operator::new(config).await?;
+    // tracing::info!("Starting operator");
 
-    tracing::info!("Starting operator");
-    let mut ctx = operator_rs::operator::Context;
-    operator.start(&mut ctx).await?;
+    // let mut ctx = operator_rs::operator::Context;
+    // operator.start(&mut ctx).await?;
 
     Ok(())
 }

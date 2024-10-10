@@ -69,3 +69,114 @@ impl Clone for Notifier {
         }
     }
 }
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use std::sync::Arc;
+    use tokio::runtime::Runtime;
+
+    #[test]
+    fn test_notifier_subscribe_and_notify() {
+        let rt = Runtime::new().unwrap();
+        rt.block_on(async {
+            let notifier = Notifier::new();
+            let rollup_id = 1;
+
+            // Subscribe to notifications
+            let (mut rx, id) = notifier.subscribe(rollup_id, move |block| block.rollup_id == rollup_id);
+
+            // Create a test block
+            let test_block = BlockData {
+                rollup_id,
+                block: Default::default(), // You might need to adjust this based on your Block type
+                transaction_id: [0; 32],
+                commitment: [0; 32],
+            };
+
+            // Notify the subscribers
+            notifier.notify(rollup_id, test_block.clone()).unwrap();
+
+            // Check if we received the notification
+            let received_block = rx.recv().await.unwrap();
+            assert_eq!(received_block.rollup_id, test_block.rollup_id);
+
+            // Unsubscribe
+            notifier.unsubscribe(rollup_id, id);
+        });
+    }
+
+    #[test]
+    fn test_notifier_multiple_subscribers() {
+        let rt = Runtime::new().unwrap();
+        rt.block_on(async {
+            let notifier = Notifier::new();
+            let rollup_id = 1;
+
+            // Subscribe two listeners
+            let (mut rx1, id1) = notifier.subscribe(rollup_id, move |block| block.rollup_id == rollup_id);
+            let (mut rx2, id2) = notifier.subscribe(rollup_id, move |block| block.rollup_id == rollup_id);
+
+            // Create a test block
+            let test_block = BlockData {
+                rollup_id,
+                block: Default::default(),
+                transaction_id: [0; 32],
+                commitment: [0; 32],
+            };
+
+            // Notify the subscribers
+            notifier.notify(rollup_id, test_block.clone()).unwrap();
+
+            // Check if both subscribers received the notification
+            let received_block1 = rx1.recv().await.unwrap();
+            let received_block2 = rx2.recv().await.unwrap();
+            assert_eq!(received_block1.rollup_id, test_block.rollup_id);
+            assert_eq!(received_block2.rollup_id, test_block.rollup_id);
+
+            // Unsubscribe
+            notifier.unsubscribe(rollup_id, id1);
+            notifier.unsubscribe(rollup_id, id2);
+        });
+    }
+
+    #[test]
+    fn test_notifier_predicate_filtering() {
+        let rt = Runtime::new().unwrap();
+        rt.block_on(async {
+            let notifier = Notifier::new();
+            let rollup_id = 1;
+
+            // Subscribe with a specific predicate
+            let (mut rx, id) = notifier.subscribe(rollup_id, move |block| block.rollup_id == rollup_id && block.transaction_id[0] == 1);
+
+            // Create test blocks
+            let matching_block = BlockData {
+                rollup_id,
+                block: Default::default(),
+                transaction_id: [1; 32],
+                commitment: [0; 32],
+            };
+            let non_matching_block = BlockData {
+                rollup_id,
+                block: Default::default(),
+                transaction_id: [0; 32],
+                commitment: [0; 32],
+            };
+
+            // Notify the subscribers
+            notifier.notify(rollup_id, matching_block.clone()).unwrap();
+            notifier.notify(rollup_id, non_matching_block.clone()).unwrap();
+
+            // Check if only the matching block was received
+            let received_block = rx.recv().await.unwrap();
+            assert_eq!(received_block.transaction_id[0], 1);
+
+            // Ensure no more blocks were received
+            assert!(rx.try_recv().is_err());
+
+            // Unsubscribe
+            notifier.unsubscribe(rollup_id, id);
+        });
+    }
+}
