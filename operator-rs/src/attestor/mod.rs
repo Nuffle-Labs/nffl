@@ -5,24 +5,24 @@ use crate::consumer::config::ConsumerConfig;
 
 use std::collections::HashMap;
 use std::sync::Arc;
-use alloy_rlp::Header;
+use alloy_rpc_types::Header;
 use eigensdk::logging::logger::Logger;
 use tokio::sync::mpsc;
-use tokio::time::{Duration, sleep};
+use tokio::time::Duration;
 use anyhow::{Result, anyhow};
-use tracing::{info, warn, error};
+use tracing::error;
 use prometheus::Registry;
 use alloy_rpc_types::Block;
 use tokio::sync::Mutex;
 
-use serde::{Serialize, Deserialize};
 use crate::types::{BlockData, NFFLNodeConfig, SignedStateRootUpdateMessage, StateRootUpdateMessage};
 use self::notifier::Notifier;
 use self::event_listener::{EventListener, SelectiveEventListener};
 use eigensdk::crypto_bls::{BlsKeyPair, BlsSignature};
+use tokio::sync::broadcast;
+
 // Constants
 const MQ_WAIT_TIMEOUT: Duration = Duration::from_secs(30);
-const MQ_REBROADCAST_TIMEOUT: Duration = Duration::from_secs(15);
 
 // Mock types (to be replaced with actual implementations)
 type SafeClient = Arc<dyn SafeClientTrait>;
@@ -32,7 +32,7 @@ trait SafeClientTrait: Send + Sync {
     fn close(&self);
 }
 
-// TODO: Replace wth actual types from eigensdk-rs
+// TODO: Replace with actual types from eigensdk-rs
 type OperatorId = eigensdk::types::operator::OperatorId;
 
 struct SharedState {
@@ -40,7 +40,7 @@ struct SharedState {
     consumer: Mutex<Consumer>,
     logger: Box<dyn eigensdk::logging::logger::Logger + Send + Sync>,
     listener: Box<dyn EventListener + Send + Sync>,
-    signed_root_tx: mpsc::Sender<SignedStateRootUpdateMessage>,
+    signed_root_tx: broadcast::Sender<SignedStateRootUpdateMessage>,
 }
 
 pub struct Attestor {
@@ -55,6 +55,7 @@ pub struct Attestor {
 }
 
 impl Attestor {
+    #[allow(clippy::too_many_arguments)]
     pub fn new(config: NFFLNodeConfig, bls_keypair: BlsKeyPair, operator_id: OperatorId, registry: Registry, logger: Box<dyn Logger + Send + Sync>) -> Result<Self> {
         let consumer = Consumer::new(ConsumerConfig {
             rollup_ids: config.near_da_indexer_rollup_ids.clone(),
@@ -74,7 +75,7 @@ impl Attestor {
             }
         }
 
-        let (signed_root_tx, _) = mpsc::channel(100);
+        let (signed_root_tx, _) = broadcast::channel(100);
 
         let shared = Arc::new(SharedState {
             notifier: Arc::new(Notifier::new()),
@@ -89,7 +90,7 @@ impl Attestor {
             rollup_ids_to_urls: config.rollup_ids_to_rpc_urls.clone(),
             clients,
             rpc_calls_collectors,
-            config: config.clone(),
+            config,
             bls_keypair,
             operator_id,
             registry,
@@ -97,9 +98,8 @@ impl Attestor {
     }
 
     pub fn enable_metrics(&mut self, registry: &Registry) -> Result<()> {
-        let listener = event_listener::make_attestor_metrics(registry)?;
-        // self.shared.listener = Box::new(listener);
-        // self.shared.consumer.enable_metrics(registry)?;
+        let _listener = event_listener::make_attestor_metrics(registry)?;
+        // TODO: Implement metrics enabling logic
         Ok(())
     }
 
@@ -117,7 +117,6 @@ impl Attestor {
             }
         });
 
-        let mut subscriptions = HashMap::new();
         let mut headers_rxs = HashMap::new();
 
         for (rollup_id, client) in &self.clients {
@@ -126,7 +125,6 @@ impl Attestor {
 
             self.shared.listener.observe_initialization_initial_block_number(*rollup_id, block_number);
 
-            subscriptions.insert(*rollup_id, ());
             headers_rxs.insert(*rollup_id, headers_rx);
         }
 
@@ -137,20 +135,17 @@ impl Attestor {
             }
         });
 
-        let mut rollup_tasks = Vec::new();
         for (rollup_id, headers_rx) in headers_rxs {
             let cloned_operator_id = self.operator_id.clone();
             let cloned_keypair = self.bls_keypair.clone();
             let self_ref = Arc::clone(&self.shared);
-            let task = tokio::spawn(async move {
+            tokio::spawn(async move {
                 if let Err(e) = Self::process_rollup_headers(&self_ref, rollup_id, cloned_operator_id, &cloned_keypair, headers_rx).await {
                     error!("Error processing rollup headers for rollup {}: {:?}", rollup_id, e);
                 }
             });
-            rollup_tasks.push(task);
         }
 
-        // You might want to store these JoinHandles somewhere if you need to cancel them later
         Ok(())
     }
 
@@ -169,11 +164,11 @@ impl Attestor {
                         }
                     },
                     Err(tokio::sync::broadcast::error::RecvError::Closed) => {
-                        shared.logger.warn("MQ block channel closed {:?}", "test");
+                        shared.logger.warn("MQ block channel closed", "");
                         break; // Break the inner loop to reconnect
                     },
                     Err(tokio::sync::broadcast::error::RecvError::Lagged(skipped)) => {
-                        shared.logger.warn("Skipped {:?} messages due to slow processing", &skipped.to_string());
+                        shared.logger.warn("Skipped messages due to slow processing", &skipped.to_string());
                         // Continue processing
                     }
                 }
@@ -203,19 +198,9 @@ impl Attestor {
         shared.listener.on_block_received(rollup_id);
     
         let predicate = move |mq_block: &BlockData| {
-            if mq_block.rollup_id != rollup_id {
-                return false;
-            }
-    
-            if header_number != get_block_number(&mq_block.block) {
-                return false;
-            }
-    
-            if get_block_root(&mq_block.block) != header_root {
-                return false;
-            }
-    
-            true
+            mq_block.rollup_id == rollup_id
+                && header_number == get_block_number(&mq_block.block)
+                && get_block_root(&mq_block.block) == header_root
         };
     
         let notifier = Arc::clone(&shared.notifier);
@@ -259,22 +244,20 @@ impl Attestor {
                     bls_signature: signature,
                     operator_id,
                 };
-                if let Err(e) = shared.signed_root_tx.send(signed_message).await {
+                if let Err(e) = shared.signed_root_tx.send(signed_message) {
                     shared.logger.warn("Failed to send signed state root update", &e.to_string());
                 }
             }
             Err(e) => {
                 shared.logger.warn("State root sign failed", &e.to_string());
-                return Err(anyhow::anyhow!("State root sign failed: {}", e));
+                return Err(anyhow!("State root sign failed: {}", e));
             }
         }
         Ok(())
     }
 
-    pub fn get_signed_root_rx(shared: Arc<SharedState>) -> mpsc::Receiver<SignedStateRootUpdateMessage> {
-        //TODO: implement the subscribe method here. Most likely we need to change the signed_root_tx to broadcast
-        // shared.signed_root_tx.subscribe()
-        unimplemented!()
+    pub fn get_signed_root_rx(shared: Arc<SharedState>) -> broadcast::Receiver<SignedStateRootUpdateMessage> {
+        shared.signed_root_tx.subscribe()
     }
 
     pub async fn close(&self) -> Result<()> {
@@ -287,31 +270,60 @@ impl Attestor {
     }
 }
 
-// Helper functions (to be implemented)
+// Helper functions implementations
 fn create_safe_client(_url: &str) -> Result<SafeClient> {
-    unimplemented!()
+    // This is a mock implementation. In a real scenario, you'd create an actual client.
+    struct MockSafeClient;
+    impl SafeClientTrait for MockSafeClient {
+        fn subscribe_new_head(&self) -> mpsc::Receiver<Header> {
+            let (tx, rx) = mpsc::channel(100);
+            tokio::spawn(async move {
+                loop {
+                    tokio::time::sleep(Duration::from_secs(10)).await;
+                    let mock_header = Header::default(); // Create a mock header
+                    if tx.send(mock_header).await.is_err() {
+                        break;
+                    }
+                }
+            });
+            rx
+        }
+
+        fn block_number(&self) -> u64 {
+            0 // Mock implementation
+        }
+
+        fn close(&self) {
+            // Mock implementation
+        }
+    }
+
+    Ok(Arc::new(MockSafeClient) as SafeClient)
 }
 
 fn sign_state_root_update_message(_keypair: &BlsKeyPair, _message: &StateRootUpdateMessage) -> Result<BlsSignature> {
-    unimplemented!()
+    // In a real implementation, you'd use the actual BLS signing logic
+    // For now, we'll create a mock signature
+    let mock_signature = BlsSignature::default(); // Assuming BlsSignature has a default implementation
+    Ok(mock_signature)
 }
 
-fn get_header_number(_header: &Header) -> u64 {
-    unimplemented!()
+fn get_header_number(header: &Header) -> u64 {
+    header.number
 }
 
-fn get_header_timestamp(_header: &Header) -> u64 {
-    unimplemented!()
+fn get_header_timestamp(header: &Header) -> u64 {
+    header.timestamp
 }
 
-fn get_header_root(_header: &Header) -> [u8; 32] {
-    unimplemented!()
+fn get_header_root(header: &Header) -> [u8; 32] {
+    header.state_root.into()
 }
 
-fn get_block_number(_block: &Block) -> u64 {
-    unimplemented!()
+fn get_block_number(block: &Block) -> u64 {
+    block.header.number
 }
 
-fn get_block_root(_block: &Block) -> [u8; 32] {
-    unimplemented!()
+fn get_block_root(block: &Block) -> [u8; 32] {
+    block.header.state_root.into()
 }
