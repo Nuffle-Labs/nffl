@@ -55,7 +55,7 @@ async fn main() -> Result<()> {
                         println!("->> PacketSent data stored: {:?}", dvn_worker.packet());
                     },
                     Err(e) => {
-                        error!("Failed to decode PacketSent event: {:?}", e);
+                        error!("Failed to decode `PacketSent` event: {:?}", e);
                     }
                 }
             }
@@ -75,7 +75,7 @@ async fn main() -> Result<()> {
 
                             let required_confirmations = query_confirmations(&receivelib_contract, dvn_worker.config().eid()).await?;
 
-                            // NOTE: the method `_verified` doesn't seem to exist in the contract,
+                            // NOTE: the method `_verified` doesn't seem to exist in the contracts,
                             // so cannot perform the idempotency check.
                             //
                             //let already_verified = query_already_verified(&receivelib_contract, dvn_worker.config().dvn_addr()?, &[1,2,3], &[1,2,3], required_confirmations).await?;
@@ -94,8 +94,9 @@ async fn main() -> Result<()> {
                             //    }
                             //}
 
+                            // If the packet was stored when emited in the PacketSent event.
                             if let Some(packet) = dvn_worker.packet() {
-                                debug!("Packet data found. Calling verification.");
+                                debug!("Calling verification.");
                                 // FIXME: incorrect data
                                 verify(&receivelib_contract, &packet.options, &packet.encodedPayload, required_confirmations).await?;
                             } else {
@@ -104,7 +105,7 @@ async fn main() -> Result<()> {
                         }
                     },
                     Err(e) => {
-                        error!("Failed to decode DVNFeePaid event: {:?}", e);
+                        error!("Failed to decode `DVNFeePaid` event: {:?}", e);
                     }
                 }
             },
