@@ -11,7 +11,7 @@ use workers::{
     },
     chain::{
         connections::{build_subscriptions, get_abi_from_path, get_http_provider},
-        contracts::{create_contract_instance, query_confirmations, verify},
+        contracts::{create_contract_instance, query_already_verified, query_confirmations, verify},
     },
     data::Dvn,
 };
@@ -32,27 +32,22 @@ async fn main() -> Result<()> {
     // Create an HTTP provider to call contract functions.
     let http_provider = get_http_provider(dvn_worker.config())?;
 
-    // Get the relevant contract ABI.
+    // Get the relevant contract ABI, and create contract.
     //let sendlib_abi = get_abi_from_path("./abi/ArbitrumSendLibUln302.json")?;
-    let receivelib_abi = get_abi_from_path("./abi/ArbitrumReceiveLibUln302.json")?;
-
-    // Create a contract instance.
     //let sendlib_contract = create_contract_instance(&config, http_provider.clone(), sendlib_abi)?;
+    let receivelib_abi = get_abi_from_path("./abi/ArbitrumReceiveLibUln302.json")?;
     let receivelib_contract = create_contract_instance(dvn_worker.config(), http_provider, receivelib_abi)?;
 
     info!("Listening to chain events...");
 
     loop {
+        dvn_worker.listening();
         tokio::select! {
             Some(log) = endpoint_stream.next() => {
-                //println!("->> PacketSent log: {:?}", log);
                 match log.log_decode::<L0V2EndpointAbi::PacketSent>() {
                     Ok(inner_log) => {
                         debug!("PacketSent event found and decoded.");
                         dvn_worker.packet_received(inner_log.data().clone());
-                        debug!("PacketSent data stored.");
-
-                        println!("->> PacketSent data stored: {:?}", dvn_worker.packet());
                     },
                     Err(e) => {
                         error!("Failed to decode `PacketSent` event: {:?}", e);
@@ -60,55 +55,57 @@ async fn main() -> Result<()> {
                 }
             }
             Some(log) = sendlib_stream.next() => {
-                //println!("->> DVNFeePaid log: {:?}", log);
                 match log.log_decode::<SendLibraryAbi::DVNFeePaid>() {
                     Ok(inner_log) => {
                         info!("DVNFeePaid event found and decoded.");
                         let required_dvns = inner_log.inner.requiredDVNs.clone();
 
                         if required_dvns.contains(&dvn_worker.config().dvn_addr()?) {
-                            debug!("Matched DVN found in required DVNs.");
+                            info!("Found DVN in required DVNs.");
 
                             // NOTE: the docs' workflow require now to query L0's endpoint to
                             // get the address of the MessageLib, but we have already created
                             // the contract above to query it directly.
 
-                            let required_confirmations = query_confirmations(&receivelib_contract, dvn_worker.config().eid()).await?;
+                            let required_confirmations =
+                                query_confirmations(&receivelib_contract, dvn_worker.config().eid()).await?;
 
-                            // NOTE: the method `_verified` doesn't seem to exist in the contracts,
-                            // so cannot perform the idempotency check.
-                            //
-                            //let already_verified = query_already_verified(&receivelib_contract, dvn_worker.config().dvn_addr()?, &[1,2,3], &[1,2,3], required_confirmations).await?;
-                            //
-                            //if already_verified {
-                            //    debug!("Packet already verified.");
-                            //} else {
-                            //    debug!("Packet NOT verified. Calling verification.");
-                            //    let _ = utils::verify();
-                            //
-                            //    // Idempotency check again
-                            //    if get_verified(&receivelib_contract, required_confirmations).await? {
-                            //        debug!("Packet successfully verified. Listening for more packets...");
-                            //    } else {
-                            //        debug!("Packet verification failed!");
-                            //    }
-                            //}
+                            let already_verified = query_already_verified(
+                                &receivelib_contract,
+                                dvn_worker.config().dvn_addr()?,
+                                &[1, 2, 3],
+                                &[1, 2, 3],
+                                required_confirmations,
+                            )
+                            .await?;
 
-                            // If the packet was stored when emited in the PacketSent event.
-                            if let Some(packet) = dvn_worker.packet() {
-                                debug!("Calling verification.");
-                                // FIXME: incorrect data
-                                verify(&receivelib_contract, &packet.options, &packet.encodedPayload, required_confirmations).await?;
+                            if already_verified {
+                                debug!("Packet already verified.");
                             } else {
-                                debug!("No packet data found. Skipping verification.");
+                                // If the packet was stored when emited in the PacketSent event.
+                                if let Some(packet) = dvn_worker.packet() {
+                                    dvn_worker.verifying();
+                                    debug!("Packet NOT verified. Calling verification.");
+                                    // FIXME: incorrect data
+                                    verify(
+                                        &receivelib_contract,
+                                        &packet.options,
+                                        &packet.encodedPayload,
+                                        required_confirmations,
+                                    )
+                                    .await?;
+                                } else {
+                                    debug!("No packet data found. Skipping verification.");
+                                }
                             }
                         }
-                    },
+                    }
                     Err(e) => {
                         error!("Failed to decode `DVNFeePaid` event: {:?}", e);
                     }
                 }
             },
         }
+        dvn_worker.reset_packet();
     }
 }

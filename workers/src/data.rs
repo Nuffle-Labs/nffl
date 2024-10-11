@@ -34,15 +34,15 @@ impl Dvn {
         Ok(Dvn::new(config::DVNConfig::load_from_env()?))
     }
 
-    pub fn packet(&self) -> Option<&PacketSent> {
-        self.packet.as_ref()
+    pub fn packet(&self) -> Option<PacketSent> {
+        self.packet.clone()
     }
 
     pub fn config(&self) -> &DVNConfig {
         &self.config
     }
 
-    pub fn listen(&mut self) {
+    pub fn listening(&mut self) {
         self.status = DvnStatus::Listening;
     }
 
@@ -55,8 +55,12 @@ impl Dvn {
         self.status = DvnStatus::PacketReceived;
     }
 
-    pub fn verify(&mut self) {
+    pub fn reset_packet(&mut self) {
+        self.packet = None;
+        self.status = DvnStatus::Stopped;
+    }
+
+    pub fn verifying(&mut self) {
         self.status = DvnStatus::Verifying;
     }
 }
-
