@@ -14,6 +14,7 @@ use alloy::{
 use alloy_json_abi::JsonAbi;
 use eyre::{eyre, OptionExt, Result};
 use sha3::{Digest, Keccak256};
+use tracing::{debug, error};
 
 /// Create a contract instance from the ABI to interact with on-chain instance.
 pub fn create_contract_instance(config: &DVNConfig, http_provider: HttpProvider, abi: JsonAbi) -> Result<ContractInst> {
@@ -38,7 +39,10 @@ pub async fn get_messagelib_addr(contract: &ContractInst, eid: U256) -> Result<A
 
     match receive_library[0] {
         DynSolValue::Address(address) => Ok(address),
-        _ => Err(eyre!("Failed to get address")),
+        _ => {
+            error!("Failed to get address");
+            Err(eyre!("Failed to get address"))
+        }
     }
 }
 
@@ -60,7 +64,10 @@ pub async fn query_confirmations(contract: &ContractInst, eid: U256) -> Result<U
                 .ok_or_eyre("Cannot parse response from MessageLib")?;
             Ok(value.0)
         }
-        _ => Err(eyre::eyre!("Failed to get confirmations")),
+        _ => {
+            error!("Failed to get confirmations");
+            Err(eyre!("Failed to get confirmations"))
+        }
     }
 }
 
@@ -74,7 +81,9 @@ pub async fn query_already_verified(
 ) -> Result<bool> {
     // Call the `_verified` function on the 302 contract, to check if the DVN has already verified
     // the packet.
-    let receive_uln302 = contract
+    debug!("Calling _verified on contract's ReceiveLib");
+
+    let contract_state = contract
         .function(
             "_verified",
             &[
@@ -87,12 +96,15 @@ pub async fn query_already_verified(
         .call()
         .await?;
 
-    let uln302_state = match receive_uln302[0] {
+    let packet_state = match contract_state[0] {
         DynSolValue::Bool(b) => Ok(b),
-        _ => Err(eyre!("Failed to parse response from ULN302 for `_verified`")),
+        _ => {
+            error!("Failed to parse response from ReceiveLib for `_verified`");
+            Err(eyre!("Failed to parse response from ReceiveLib for `_verified`"))
+        }
     }?;
 
-    Ok(uln302_state)
+    Ok(packet_state)
 }
 
 pub async fn verify(
