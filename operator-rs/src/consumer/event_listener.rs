@@ -7,9 +7,6 @@ pub trait EventListener: Send + Sync {
     fn on_format_error(&self);
 }
 
-const OPERATOR_NAMESPACE: &str = "sffl_operator";
-const CONSUMER_SUBSYSTEM: &str = "consumer";
-
 #[derive(Default)]
 pub struct SelectiveListener {
     on_arrival_cb: Option<Arc<dyn Fn() + Send + Sync>>,

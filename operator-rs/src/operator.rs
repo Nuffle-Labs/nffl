@@ -308,14 +308,6 @@ struct OperatorStatus {
     operator_id: String,
 }
 
-// Mock implementations for missing types
-pub struct Context;
-impl Context {
-    pub fn done(&self) -> impl std::future::Future<Output = ()> {
-        std::future::ready(())
-    }
-}
-
 #[derive(Clone)]
 pub struct CheckpointTaskCreatedEvent {
     pub task: CheckpointTask,

@@ -1,7 +1,11 @@
 use anyhow::Result;
 use clap::{Command, Arg};
+use eigensdk::logging::logger::Logger;
+use operator_rs::attestor::Attestor;
+use operator_rs::consumer::Consumer;
 use operator_rs::operator::Operator;
 use operator_rs::types::NFFLNodeConfig;
+use prometheus::Registry;
 use std::path::PathBuf;
 use tracing_subscriber::FmtSubscriber;
 
@@ -93,6 +97,18 @@ async fn operator_main(config: NFFLNodeConfig) -> Result<()> {
     tracing::info!("Initializing Operator");
     tracing::info!("Read config: {:?}", config);
 
+    let attestor_config = config.clone();
+    let attestor = Attestor::new(
+        attestor_config,
+        eigensdk::crypto_bls::BlsKeyPair::new(config.bls_private_key_store_path.clone())?,
+        eigensdk::types::operator::OperatorId::from([1u8; 32]),
+        Registry::default(),
+        operator_rs::types::create_default_logger()
+    )?;   
+    //Start the attestor
+    attestor.start().await?;
+    
+    
     // let operator = Operator::new(config).await?;
     // tracing::info!("Starting operator");
 

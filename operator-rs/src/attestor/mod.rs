@@ -56,7 +56,8 @@ pub struct Attestor {
 
 impl Attestor {
     #[allow(clippy::too_many_arguments)]
-    pub fn new(config: NFFLNodeConfig, bls_keypair: BlsKeyPair, operator_id: OperatorId, registry: Registry, logger: Box<dyn Logger + Send + Sync>) -> Result<Self> {
+    pub fn new(config: NFFLNodeConfig, bls_keypair: BlsKeyPair,
+         operator_id: OperatorId, registry: Registry, logger: Box<dyn Logger + Send + Sync>) -> Result<Self> {
         let consumer = Consumer::new(ConsumerConfig {
             rollup_ids: config.near_da_indexer_rollup_ids.clone(),
             id: hex::encode(&operator_id),

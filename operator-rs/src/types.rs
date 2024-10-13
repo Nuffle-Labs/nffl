@@ -3,6 +3,9 @@ use borsh::BorshDeserialize;
 use eigensdk::{crypto_bls::BlsSignature, types::operator::OperatorId};
 use serde::{Deserialize, Serialize};
 use alloy_rpc_types::Block;
+use eigensdk::logging::logger::Logger;
+use tracing::{debug, error, info, warn};
+use std::sync::Arc;
 
 #[derive(Debug, Serialize, Deserialize, Clone)]
 pub struct NFFLNodeConfig {
@@ -130,4 +133,39 @@ impl BorshDeserialize for Namespace {
             id: u32::deserialize_reader(reader)?,
         })
     }
+}
+
+// Add this struct and implementation at the end of the file
+#[derive(Debug)]
+pub struct DefaultLogger;
+
+impl Logger for DefaultLogger {
+    fn info(&self, target: &str, message: &str) {
+        info!(target = target, "{}", message);
+    }
+
+    fn warn(&self, target: &str, message: &str) {
+        warn!(target = target, "{}", message);
+    }
+
+    fn error(&self, target: &str, message: &str) {
+        error!(target = target, "{}", message);
+    }
+
+    fn debug(&self, target: &str, message: &str) {
+        debug!(target = target, "{}", message);
+    }
+
+    fn fatal(&self, target: &str, message: &str) {
+        error!(target = target, "FATAL: {}", message);
+    }
+
+    fn log(&self, target: &str, message: &str) {
+        info!(target: "default_logger", "{}: {}", target, message);
+    }
+}
+
+// Function to create a new logger instance
+pub fn create_default_logger() -> Box<dyn Logger + Send + Sync> {
+    Box::new(DefaultLogger)
 }
