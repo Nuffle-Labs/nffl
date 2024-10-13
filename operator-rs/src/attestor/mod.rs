@@ -38,7 +38,6 @@ type OperatorId = eigensdk::types::operator::OperatorId;
 struct SharedState {
     notifier: Arc<Notifier>,
     consumer: Mutex<Consumer>,
-    logger: Box<dyn eigensdk::logging::logger::Logger + Send + Sync>,
     listener: Box<dyn EventListener + Send + Sync>,
     signed_root_tx: broadcast::Sender<SignedStateRootUpdateMessage>,
 }
@@ -84,7 +83,6 @@ impl Attestor {
         let shared = Arc::new(SharedState {
             notifier: Arc::new(Notifier::new()),
             consumer: Mutex::new(consumer),
-            logger,
             listener: Box::new(SelectiveEventListener::default()),
             signed_root_tx,
         });
@@ -277,9 +275,9 @@ impl Attestor {
         Ok(())
     }
 
-    pub fn get_signed_root_rx(shared: Arc<SharedState>) -> broadcast::Receiver<SignedStateRootUpdateMessage> {
+    pub fn get_signed_root_rx(&self) -> broadcast::Receiver<SignedStateRootUpdateMessage> {
         info!("Getting signed root receiver");
-        shared.signed_root_tx.subscribe()
+        self.shared.signed_root_tx.subscribe()
     }
 
     pub async fn close(&self) -> Result<()> {

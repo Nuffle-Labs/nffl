@@ -1,9 +1,3 @@
-//! FastNearIndexer module for efficient indexing of NEAR blockchain data.
-//!
-//! This module provides functionality to stream and process the latest blocks
-//! from the NEAR blockchain, focusing on specific transactions and receipts
-//! related to configured rollup addresses.
-
 use std::collections::HashMap;
 use near_indexer::near_primitives::{types::AccountId, views::{ActionView, ExecutionStatusView, ReceiptEnumView}};
 use reqwest::Client;
@@ -12,28 +6,15 @@ use tracing::{info, error, debug, trace};
 
 use crate::{errors::Error, rmq_publisher::{get_routing_key, PublishData, PublishOptions, PublishPayload, PublisherContext}, types::{BlockWithTxHashes, IndexerExecutionOutcomeWithReceiptAndTxHash, PartialCandidateData, PartialCandidateDataWithBlockTxHash}};
 
-/// The endpoint URL for fetching the latest finalized block from NEAR testnet.
 const FASTNEAR_ENDPOINT: &str = "https://testnet.neardata.xyz/v0/last_block/final";
 
-/// Represents the FastNearIndexer, which processes NEAR blockchain data.
 #[derive(Debug)]
 pub struct FastNearIndexer {
-    /// HTTP client for making requests to the NEAR API.
     client: Client,
-    /// Mapping of account IDs to their corresponding rollup IDs.
     addresses_to_rollup_ids: HashMap<AccountId, u32>,
 }
 
 impl FastNearIndexer {
-    /// Creates a new instance of FastNearIndexer.
-    ///
-    /// # Arguments
-    ///
-    /// * `addresses_to_rollup_ids` - A HashMap mapping AccountIds to their corresponding rollup IDs.
-    ///
-    /// # Returns
-    ///
-    /// A new `FastNearIndexer` instance.
     pub(crate) fn new(addresses_to_rollup_ids: HashMap<AccountId, u32>) -> Self {
         debug!(target: "fastnear_indexer", "Creating new FastNearIndexer");
         Self {
@@ -42,11 +23,6 @@ impl FastNearIndexer {
         }
     }
 
-    /// Starts the indexing process and returns a receiver for publish data.
-    ///
-    /// # Returns
-    ///
-    /// A `Receiver<PublishData>` for consuming the processed blockchain data.
     pub fn run(&self) -> Receiver<PublishData> {
         info!(target: "fastnear_indexer", "Starting FastNearIndexer");
         let block_receiver = self.stream_latest_blocks();
@@ -61,13 +37,6 @@ impl FastNearIndexer {
         publish_receiver
     }
 
-    /// Processes incoming blocks and publishes relevant data.
-    ///
-    /// # Arguments
-    ///
-    /// * `block_receiver` - A receiver for incoming `BlockWithTxHashes`.
-    /// * `publish_sender` - A sender for outgoing `PublishData`.
-    /// * `addresses_to_rollup_ids` - A HashMap mapping AccountIds to their corresponding rollup IDs.
     async fn process_blocks(
         mut block_receiver: Receiver<BlockWithTxHashes>,
         publish_sender: Sender<PublishData>,
@@ -82,17 +51,6 @@ impl FastNearIndexer {
         }
     }
 
-    /// Parses a block and publishes relevant data.
-    ///
-    /// # Arguments
-    ///
-    /// * `block` - The `BlockWithTxHashes` to be parsed.
-    /// * `publish_sender` - A sender for outgoing `PublishData`.
-    /// * `addresses_to_rollup_ids` - A HashMap mapping AccountIds to their corresponding rollup IDs.
-    ///
-    /// # Returns
-    ///
-    /// A `Result` indicating success or containing an `Error`.
     async fn parse_and_publish_block(
         block: BlockWithTxHashes,
         publish_sender: &Sender<PublishData>,
@@ -132,11 +90,6 @@ impl FastNearIndexer {
         Ok(())
     }
 
-    /// Creates a stream of the latest blocks from the NEAR blockchain.
-    ///
-    /// # Returns
-    ///
-    /// A `Receiver<BlockWithTxHashes>` for consuming the latest blocks.
     pub fn stream_latest_blocks(&self) -> mpsc::Receiver<BlockWithTxHashes> {
         info!(target: "fastnear_indexer", "Starting block stream");
         let (block_sender, block_receiver) = mpsc::channel(100);
@@ -161,15 +114,6 @@ impl FastNearIndexer {
         block_receiver
     }
 
-    /// Fetches the latest block from the NEAR API.
-    ///
-    /// # Arguments
-    ///
-    /// * `client` - The HTTP client to use for the API request.
-    ///
-    /// # Returns
-    ///
-    /// A `Result` containing the `BlockWithTxHashes` or an `Error`.
     async fn fetch_latest_block(client: &Client) -> Result<BlockWithTxHashes, Error> {
         debug!(target: "fastnear_indexer", "Fetching latest block");
         let response = client.get(FASTNEAR_ENDPOINT)
@@ -183,16 +127,6 @@ impl FastNearIndexer {
             .map_err(|e| Error::DeserializeJsonError(e.to_string()))
     }
 
-    /// Sends candidate data to the publish channel.
-    ///
-    /// # Arguments
-    ///
-    /// * `candidate_data` - The `PartialCandidateDataWithBlockTxHash` to be sent.
-    /// * `sender` - The `Sender<PublishData>` to send the data through.
-    ///
-    /// # Returns
-    ///
-    /// A `Result` indicating success or containing an `Error`.
     async fn send(candidate_data: &PartialCandidateDataWithBlockTxHash, sender: &Sender<PublishData>) -> Result<(), Error> {
         trace!(target: "fastnear_indexer", "Sending candidate data: {:?}", candidate_data);
         for data in candidate_data.clone().payloads {
@@ -215,15 +149,6 @@ impl FastNearIndexer {
         Ok(())
     }
 
-    /// Checks if the execution of a receipt was successful.
-    ///
-    /// # Arguments
-    ///
-    /// * `receipt_execution_outcome` - The `IndexerExecutionOutcomeWithReceiptAndTxHash` to check.
-    ///
-    /// # Returns
-    ///
-    /// A boolean indicating whether the execution was successful.
     fn is_successful_execution(receipt_execution_outcome: &IndexerExecutionOutcomeWithReceiptAndTxHash) -> bool {
         let is_successful = matches!(
             receipt_execution_outcome.execution_outcome.outcome.status,
@@ -233,16 +158,6 @@ impl FastNearIndexer {
         is_successful
     }
 
-    /// Filters and maps a receipt to partial candidate data.
-    ///
-    /// # Arguments
-    ///
-    /// * `receipt_enum_view` - The `ReceiptEnumView` to be filtered and mapped.
-    /// * `rollup_id` - The rollup ID associated with this receipt.
-    ///
-    /// # Returns
-    ///
-    /// An `Option<PartialCandidateData>` containing the filtered and mapped data, if any.
     fn receipt_filter_map(receipt_enum_view: ReceiptEnumView, rollup_id: u32) -> Option<PartialCandidateData> {
         trace!(target: "fastnear_indexer", "Filtering receipt for rollup_id: {}", rollup_id);
         let payloads = match receipt_enum_view {
@@ -265,15 +180,6 @@ impl FastNearIndexer {
         })
     }
 
-    /// Extracts arguments from an action view.
-    ///
-    /// # Arguments
-    ///
-    /// * `action` - The `ActionView` to extract arguments from.
-    ///
-    /// # Returns
-    ///
-    /// An `Option<Vec<u8>>` containing the extracted arguments, if any.
     fn extract_args(action: ActionView) -> Option<Vec<u8>> {
         match action {
             ActionView::FunctionCall { method_name, args, .. } if method_name == "submit" => {

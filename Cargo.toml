@@ -7,6 +7,7 @@ members = [
     "contracts/evm/test/ffi/bls-utils",
     "relayer-rs",
     "operator-rs",
+    "core-rs",  # Added core-rs as a workspace member
 ]
 
 [workspace.package]
@@ -16,3 +17,8 @@ repository = "https://github.com/NethermindEth/near-sffl"
 
 [patch.crates-io]
 parity-secp256k1 = { git = 'https://github.com/paritytech/rust-secp256k1.git' }
+
+# If you want to add core-rs as a dependency for other workspace members,
+# you can uncomment and add the following:
+# [workspace.dependencies]
+# core-rs = { path = "core-rs" }
