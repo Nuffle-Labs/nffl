@@ -95,8 +95,8 @@ services:
 
   operator-rs:
     build:
-      context: ../../operator-rs
-      dockerfile: Dockerfile
+      context: ../..  # Set this to the parent directory of both operator-rs and core-rs
+      dockerfile: operator-rs/Dockerfile
     container_name: near-sffl-operator-rs
     volumes:
       - ./config:/near-sffl/config

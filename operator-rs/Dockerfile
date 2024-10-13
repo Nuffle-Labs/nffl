@@ -1,6 +1,17 @@
 # Use the official Rust image as a parent image
 FROM rust:1.79 as builder
 
+# Install system dependencies
+RUN apt-get update && apt-get install -y \
+    clang \
+    libclang-dev \
+    llvm-dev \
+    libssl-dev \
+    && rm -rf /var/lib/apt/lists/*
+
+# Find and set the LIBCLANG_PATH
+RUN echo "export LIBCLANG_PATH=$(llvm-config --prefix)/lib" >> ~/.bashrc
+
 # Set the working directory in the container
 WORKDIR /usr/src/operator-rs
 
@@ -8,10 +19,11 @@ WORKDIR /usr/src/operator-rs
 COPY Cargo.toml ./
 
 # Copy the source code
-COPY src ./src
+COPY . /usr/src/operator-rs
+COPY ../core-rs /usr/src/core-rs
 
 # Build the application
-RUN cargo build --release
+RUN . ~/.bashrc && cargo build --release
 
 # Start a new stage for a smaller final image
 FROM debian:bookworm-slim
