@@ -16,8 +16,9 @@ pub struct NFFLNodeConfig {
     pub token_strategy_addr: String,
     pub eth_rpc_url: String,
     pub eth_ws_url: String,
-    pub bls_private_key_store_path: String,
     pub ecdsa_private_key_store_path: String,
+    // Replace bls_private_key_store_path with bls_keypair
+    pub bls_keypair: String,
     pub aggregator_server_ip_port_address: String,
     pub register_operator_on_startup: bool,
     pub eigen_metrics_ip_port_address: String,

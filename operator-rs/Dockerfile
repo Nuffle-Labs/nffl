@@ -1,5 +1,5 @@
 # Use the official Rust image as a parent image
-FROM rust:1.70 as builder
+FROM rust:1.79 as builder
 
 # Set the working directory in the container
 WORKDIR /usr/src/operator-rs

@@ -1,4 +1,3 @@
-
 # Production flag for logging - false for printing debug logs
 production: false
 
@@ -15,9 +14,11 @@ operator_state_retriever_address: 0x8D0b27Df027bc5C41855Da352Da4B5B2C406c1F0
 eth_rpc_url: https://ethereum-holesky-rpc.publicnode.com
 eth_ws_url: wss://ethereum-holesky-rpc.publicnode.com # You should change this!
 
-# EigenLayer ECDSA and BLS private key paths
+# EigenLayer ECDSA private key path
 ecdsa_private_key_store_path: /near-sffl/config/keys/ecdsa.json
-bls_private_key_store_path: /near-sffl/config/keys/bls.json
+
+# BLS private key as a decimal string (example)
+bls_keypair: "6357264453605833890416165025677756558252870029365952232381486360336261321079"
 
 # Aggregator server IP and port
 aggregator_server_ip_port_address: near-sffl-aggregator:8090
@@ -37,12 +38,12 @@ register_operator_on_startup: false
 
 # RMQ address and indexer rollup IDs
 near_da_indexer_rmq_ip_port_address: amqp://rmq:5672
-near_da_indexer_rollup_ids: [421614, 11155420]
+near_da_indexer_rollup_ids: [1, 2]
 
 # Rollup RPCs
 rollup_ids_to_rpc_urls:
-  421614: wss://arbitrum-sepolia-rpc.publicnode.com
-  11155420: wss://optimism-sepolia-rpc.publicnode.com
+  1: wss://arbitrum-sepolia-rpc.publicnode.com
+  2: wss://optimism-sepolia-rpc.publicnode.com
 
 task_response_wait_ms: 60000
 
