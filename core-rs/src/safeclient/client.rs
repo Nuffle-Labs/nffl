@@ -2,7 +2,7 @@ use alloy::eips::BlockNumberOrTag;
 use alloy::primitives::{B256, U256};
 use alloy::providers::{Provider, ProviderBuilder, RootProvider, WsConnect};
 use alloy::pubsub::PubSubFrontend;
-use alloy::rpc::types::{Block, Filter, Log, Transaction, TransactionReceipt};
+use alloy::rpc::types::{Block, Filter, Header, Log, Transaction, TransactionReceipt};
 use anyhow::Result;
 use async_trait::async_trait;
 use std::sync::Arc;
@@ -20,7 +20,7 @@ pub trait SafeClient: Send + Sync {
     async fn get_transaction_receipt(&self, tx_hash: B256) -> Result<Option<TransactionReceipt>>;
     async fn get_logs(&self, filter: Filter) -> Result<Vec<Log>>;
     async fn subscribe_logs(&self, filter: Filter) -> Result<broadcast::Receiver<Log>>;
-    async fn subscribe_new_heads(&self) -> Result<broadcast::Receiver<Block>>;
+    async fn subscribe_new_heads(&self) -> Result<broadcast::Receiver<Header>>;
     fn close(&self);
 }
 
@@ -120,7 +120,7 @@ impl SafeClient for SafeEthClient {
         Ok(rx)
     }
 
-    async fn subscribe_new_heads(&self) -> Result<broadcast::Receiver<Block>> {
+    async fn subscribe_new_heads(&self) -> Result<broadcast::Receiver<Header>> {
         let (tx, rx) = broadcast::channel(100);
         let header_timeout = self.header_timeout;
         let subscription = self.provider.subscribe_blocks().await?;
@@ -130,17 +130,17 @@ impl SafeClient for SafeEthClient {
             loop {
                 tokio::select! {
                     Some(block) = stream.next() => {
-                        if tx.send(block).is_err() {
-                            error!("Error sending block: channel closed");
+                        if tx.send(block.header).is_err() {
+                            error!("Error sending header: channel closed");
                             break;
                         }
                     }
                     _ = tokio::time::sleep(header_timeout) => {
-                        warn!("Timeout waiting for new block");
+                        warn!("Timeout waiting for new header");
                         break;
                     }
                     else => {
-                        error!("Block stream ended unexpectedly");
+                        error!("Header stream ended unexpectedly");
                         break;
                     }
                 }

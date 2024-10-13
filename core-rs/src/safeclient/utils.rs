@@ -9,7 +9,7 @@ pub fn hash_log(log: &Log) -> B256 {
     for topic in log.topics() {
         hasher.update(topic.as_slice());
     }
-    hasher.update(log.data().as_slice());
+    hasher.update(log.data().data.clone());
     
     // Hash additional block and tx info
     if let Some(block_hash) = log.block_hash {

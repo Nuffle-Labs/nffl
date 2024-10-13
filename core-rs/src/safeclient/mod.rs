@@ -1,6 +1,5 @@
-pub mod mocks;
 mod client;
 mod utils;
 
-pub use client::{SafeClient, SafeEthClient};
+pub use client::{SafeClient, SafeEthClient, SafeEthClientOptions};
 pub use utils::*;

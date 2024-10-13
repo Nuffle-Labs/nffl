@@ -7,7 +7,7 @@ members = [
     "contracts/evm/test/ffi/bls-utils",
     "relayer-rs",
     "operator-rs",
-    "core-rs",  # Added core-rs as a workspace member
+    "core-rs",
 ]
 
 [workspace.package]

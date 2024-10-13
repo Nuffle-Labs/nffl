@@ -6,7 +6,6 @@ use crate::consumer::config::ConsumerConfig;
 use std::collections::HashMap;
 use std::sync::Arc;
 use alloy_rpc_types::Header;
-use eigensdk::logging::logger::Logger;
 use tokio::sync::mpsc;
 use tokio::time::Duration;
 use anyhow::{Result, anyhow};
@@ -14,6 +13,7 @@ use tracing::{error, info, warn};
 use prometheus::Registry;
 use alloy_rpc_types::Block;
 use tokio::sync::Mutex;
+use core_rs::safeclient::{SafeClient, SafeEthClient, SafeEthClientOptions};
 
 use crate::types::{BlockData, NFFLNodeConfig, SignedStateRootUpdateMessage, StateRootUpdateMessage};
 use self::notifier::Notifier;
@@ -23,14 +23,6 @@ use tokio::sync::broadcast;
 
 // Constants
 const MQ_WAIT_TIMEOUT: Duration = Duration::from_secs(30);
-
-// Mock types (to be replaced with actual implementations)
-type SafeClient = Arc<dyn SafeClientTrait>;
-trait SafeClientTrait: Send + Sync {
-    fn subscribe_new_head(&self) -> mpsc::Receiver<Header>;
-    fn block_number(&self) -> u64;
-    fn close(&self);
-}
 
 // TODO: Replace with actual types from eigensdk-rs
 type OperatorId = eigensdk::types::operator::OperatorId;
@@ -45,7 +37,7 @@ struct SharedState {
 pub struct Attestor {
     shared: Arc<SharedState>,
     rollup_ids_to_urls: HashMap<u32, String>,
-    clients: HashMap<u32, SafeClient>,
+    clients: HashMap<u32, Arc<dyn SafeClient>>,
     rpc_calls_collectors: HashMap<u32, ()>, // Replace with actual RPC calls collector
     config: NFFLNodeConfig,
     bls_keypair: BlsKeyPair,
@@ -56,7 +48,7 @@ pub struct Attestor {
 impl Attestor {
     #[allow(clippy::too_many_arguments)]
     pub fn new(config: NFFLNodeConfig, bls_keypair: BlsKeyPair,
-         operator_id: OperatorId, registry: Registry, logger: Box<dyn Logger + Send + Sync>) -> Result<Self> {
+         operator_id: OperatorId, registry: Registry) -> Result<Self> {
         info!("Creating new Attestor instance");
         let consumer = Consumer::new(ConsumerConfig {
             rollup_ids: config.near_da_indexer_rollup_ids.clone(),
@@ -68,7 +60,7 @@ impl Attestor {
 
         for (rollup_id, url) in &config.rollup_ids_to_rpc_urls {
             info!("Creating SafeClient for rollup_id: {}, url: {}", rollup_id, url);
-            let client = create_safe_client(url)?;
+            let client: Arc<dyn SafeClient> = Arc::new(create_safe_client(url)?);
             clients.insert(*rollup_id, client);
 
             if config.enable_metrics {
@@ -128,11 +120,11 @@ impl Attestor {
 
         for (rollup_id, client) in &self.clients {
             info!("Setting up header subscription for rollup_id: {}", rollup_id);
-            let headers_rx = client.subscribe_new_head();
-            let block_number = client.block_number();
+            let headers_rx = client.subscribe_new_heads().await?;
+            let block_number = client.block_number().await?;
 
             info!("Observing initial block number {} for rollup_id: {}", block_number, rollup_id);
-            self.shared.listener.observe_initialization_initial_block_number(*rollup_id, block_number);
+            self.shared.listener.observe_initialization_initial_block_number(*rollup_id, block_number.to::<u64>());
 
             headers_rxs.insert(*rollup_id, headers_rx);
         }
@@ -192,9 +184,9 @@ impl Attestor {
         }
     }
 
-    async fn process_rollup_headers(shared: &Arc<SharedState>, rollup_id: u32, operator_id: OperatorId, keypair: &BlsKeyPair, mut headers_rx: mpsc::Receiver<Header>) -> Result<()> {
+    async fn process_rollup_headers(shared: &Arc<SharedState>, rollup_id: u32, operator_id: OperatorId, keypair: &BlsKeyPair, mut headers_rx: broadcast::Receiver<Header>) -> Result<()> {
         info!("Starting to process rollup headers for rollup_id: {}", rollup_id);
-        while let Some(header) = headers_rx.recv().await {
+        while let Ok(header) = headers_rx.recv().await {
             if let Err(e) = Self::process_header(shared, rollup_id, operator_id, keypair, header).await {
                 error!("Error processing header for rollup {}: {:?}", rollup_id, e);
             }
@@ -294,35 +286,20 @@ impl Attestor {
 }
 
 // Helper functions implementations
-fn create_safe_client(_url: &str) -> Result<SafeClient> {
-    // This is a mock implementation. In a real scenario, you'd create an actual client.
-    struct MockSafeClient;
-    impl SafeClientTrait for MockSafeClient {
-        fn subscribe_new_head(&self) -> mpsc::Receiver<Header> {
-            let (tx, rx) = mpsc::channel(100);
-            tokio::spawn(async move {
-                loop {
-                    tokio::time::sleep(Duration::from_secs(10)).await;
-                    let mock_header = Header::default(); // Create a mock header
-                    if tx.send(mock_header).await.is_err() {
-                        break;
-                    }
-                }
-            });
-            rx
-        }
+fn create_safe_client(url: &str) -> Result<SafeEthClient> {
+    let options = SafeEthClientOptions {
+        log_resub_interval: Duration::from_secs(300),
+        header_timeout: Duration::from_secs(30),
+        block_chunk_size: 100,
+        block_max_range: 100,
+    };
 
-        fn block_number(&self) -> u64 {
-            0 // Mock implementation
-        }
+    let client = tokio::runtime::Runtime::new()?.block_on(async {
+        SafeEthClient::new(url, options).await
+    })?;
 
-        fn close(&self) {
-            // Mock implementation
-        }
-    }
-
-    info!("Creating mock SafeClient");
-    Ok(Arc::new(MockSafeClient) as SafeClient)
+    info!("Created SafeEthClient");
+    Ok(client)
 }
 
 fn sign_state_root_update_message(_keypair: &BlsKeyPair, _message: &StateRootUpdateMessage) -> Result<BlsSignature> {

@@ -121,7 +121,6 @@ async fn operator_main(config: NFFLNodeConfig) -> Result<()> {
         BlsKeyPair::new(config.bls_keypair)?,
         eigensdk::types::operator::OperatorId::from([1u8; 32]),
         Registry::default(),
-        operator_rs::types::create_default_logger()
     )?;   
 
     // Start the attestor

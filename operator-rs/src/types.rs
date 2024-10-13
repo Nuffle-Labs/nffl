@@ -5,7 +5,6 @@ use serde::{Deserialize, Serialize};
 use alloy_rpc_types::Block;
 use eigensdk::logging::logger::Logger;
 use tracing::{debug, error, info, warn};
-use std::sync::Arc;
 
 #[derive(Debug, Serialize, Deserialize, Clone)]
 pub struct NFFLNodeConfig {
