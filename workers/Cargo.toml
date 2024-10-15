@@ -10,7 +10,8 @@ path = "src/bin/dvn.rs"
 [dependencies]
 alloy = { version = "0.4.2", features = ["full"] }
 alloy-json-abi = "0.8.6"
-dotenv = "0.15.0"
+blsful = "2.5.7"
+dotenvy = "0.15.7"
 eyre = "0.6.12"
 futures = "0.3.31"
 hex = "0.4.3"
