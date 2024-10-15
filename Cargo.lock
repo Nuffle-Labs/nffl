@@ -9439,7 +9439,6 @@ dependencies = [
  "hex",
  "serde",
  "serde_json",
- "sha3",
  "tokio",
  "tracing",
  "tracing-subscriber",
