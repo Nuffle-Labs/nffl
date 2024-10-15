@@ -8,7 +8,7 @@ use alloy::{
     contract::{ContractInstance, Interface},
     dyn_abi::DynSolValue,
     network::Ethereum,
-    primitives::{Address, Bytes, FixedBytes, U256},
+    primitives::{Address, FixedBytes, U256},
     transports::http::{Client, Http},
 };
 use alloy_json_abi::JsonAbi;
@@ -161,31 +161,6 @@ mod tests {
 
         // Check the value is what we expect
         assert_eq!(required_confirmations, U256::from(20));
-
-        Ok(())
-    }
-
-    //#[tokio::test]
-    async fn test_get_verified() -> Result<()> {
-        // NOTE: this method doesn't seem to exist in the contract
-        // Set up
-        let config = config::DVNConfig::load_from_env()?;
-        let http_provider = get_http_provider(&config)?;
-        let receivelib_abi = get_abi_from_path("./abi/ArbitrumReceiveLibUln302.json")?;
-        let receivelib_contract = create_contract_instance(&config, http_provider, receivelib_abi)?;
-
-        // Query contract value
-        let uln302 = query_already_verified(
-            &receivelib_contract,
-            "0x7B9E184e07a6EE1aC23eAe0fe8D6Be2f663f05e6".parse::<Address>()?,
-            &[1, 2, 3],
-            &[1, 2, 3],
-            U256::from(20),
-        )
-        .await?;
-
-        // Check the value is what we expect
-        assert!(uln302);
 
         Ok(())
     }
