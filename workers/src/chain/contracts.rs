@@ -8,12 +8,11 @@ use alloy::{
     contract::{ContractInstance, Interface},
     dyn_abi::DynSolValue,
     network::Ethereum,
-    primitives::{Address, FixedBytes, U256},
+    primitives::{keccak256, Address, U256},
     transports::http::{Client, Http},
 };
 use alloy_json_abi::JsonAbi;
 use eyre::{eyre, OptionExt, Result};
-use sha3::{Digest, Keccak256};
 use tracing::{debug, error};
 
 /// Create a contract instance from the ABI to interact with on-chain instance.
@@ -121,23 +120,15 @@ pub async fn verify(
         .function(
             "verify",
             &[
-                DynSolValue::Bytes(packet_header.to_vec()),            // PacketHeader
-                DynSolValue::FixedBytes(FixedBytes(payload_hash), 32), // PayloadHash
-                DynSolValue::Uint(confirmations, 64),                  // Confirmations
+                DynSolValue::Bytes(packet_header.to_vec()), // PacketHeader
+                DynSolValue::FixedBytes(payload_hash, 32),  // PayloadHash
+                DynSolValue::Uint(confirmations, 64),       // Confirmations
             ],
         )?
         .call()
         .await?;
 
     Ok(false)
-}
-
-/// Hash some data with `keccak256`.
-fn keccak256(data: &[u8]) -> [u8; 32] {
-    let mut hasher = Keccak256::default();
-    hasher.update(data);
-    let result = hasher.finalize();
-    result.into()
 }
 
 #[cfg(test)]
