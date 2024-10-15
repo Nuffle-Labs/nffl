@@ -76,7 +76,7 @@ impl DVNConfig {
 
     /// Load environment variables.
     pub fn load_from_env() -> Result<Self> {
-        dotenv::dotenv()?;
+        dotenvy::dotenv()?;
 
         Ok(Self {
             ws_rpc_url: std::env::var("WS_RPC_URL").unwrap_or_else(|_| Default::default()),
