@@ -1,5 +1,6 @@
 //! Main offchain workflow for Nuff DVN.
 
+use alloy::primitives::{Address, U256};
 use eyre::Result;
 use futures::stream::StreamExt;
 use tracing::{debug, error, info};
@@ -36,7 +37,8 @@ async fn main() -> Result<()> {
     //let sendlib_abi = get_abi_from_path("./abi/ArbitrumSendLibUln302.json")?;
     //let sendlib_contract = create_contract_instance(&config, http_provider.clone(), sendlib_abi)?;
     let receivelib_abi = get_abi_from_path("./abi/ArbitrumReceiveLibUln302.json")?;
-    let receivelib_contract = create_contract_instance(dvn_worker.config(), http_provider, receivelib_abi)?;
+    let contract_address = dvn_data.config().receivelib_uln302_addr.parse::<Address>()?;
+    let receivelib_contract = create_contract_instance(contract_address, http_provider, receivelib_abi)?;
 
     info!("Listening to chain events...");
 
@@ -60,31 +62,38 @@ async fn main() -> Result<()> {
                         info!("DVNFeePaid event found and decoded.");
                         let required_dvns = inner_log.inner.requiredDVNs.clone();
 
-                        if required_dvns.contains(&dvn_worker.config().dvn_addr()?) {
-                            info!("Found DVN in required DVNs.");
+                            info!("DVNFeePaid event found and decoded.");
+                            let required_dvns = inner_log.inner.requiredDVNs.clone();
+                            let own_dvn_addr = dvn_data.config().dvn_addr.parse::<Address>()?;
 
-                            // NOTE: the docs' workflow require now to query L0's endpoint to
-                            // get the address of the MessageLib, but we have already created
-                            // the contract above to query it directly.
+                            if required_dvns.contains(&own_dvn_addr) {
+                                debug!("Found DVN in required DVNs.");
 
                             let required_confirmations =
                                 query_confirmations(&receivelib_contract, dvn_worker.config().eid()).await?;
 
-                            let already_verified = query_already_verified(
-                                &receivelib_contract,
-                                dvn_worker.config().dvn_addr()?,
-                                &[1, 2, 3],
-                                &[1, 2, 3],
-                                required_confirmations,
-                            )
-                            .await?;
+                                let eid = U256::from(dvn_data.config().network_id);
+                                let required_confirmations = query_confirmations(&receivelib_contract, eid).await?;
 
-                            if already_verified {
-                                debug!("Packet already verified.");
-                            } else {
-                                // If the packet was stored when emited in the PacketSent event.
-                                if let Some(packet) = dvn_worker.packet() {
-                                    dvn_worker.verifying();
+                                // Prepare the header
+                                let header = packet_v1_codec::header(packet.encodedPayload.as_ref()).to_vec();
+                                // Prepate the payload.
+                                let payload = packet_v1_codec::payload(packet.encodedPayload.as_ref()).to_vec();
+
+                                // Check
+                                let already_verified = query_already_verified(
+                                    &receivelib_contract,
+                                    own_dvn_addr,
+                                    &header,
+                                    &payload,
+                                    required_confirmations,
+                                )
+                                .await?;
+
+                                if already_verified {
+                                    debug!("Packet already verified.");
+                                } else {
+                                    dvn_data.verifying();
                                     debug!("Packet NOT verified. Calling verification.");
                                     // FIXME: incorrect data
                                     verify(
