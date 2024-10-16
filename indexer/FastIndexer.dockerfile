@@ -16,12 +16,12 @@ RUN apt-get update -qq && \
 
 COPY ./Cargo.toml .
 RUN mkdir ./src && echo "fn main() {}" > ./src/main.rs
-RUN cargo build --release -p indexer
+RUN cargo build --release -p indexer --features use_fastnear
 
 COPY . .
 RUN touch ./src/main.rs
 
-RUN cargo build --release -p indexer
+RUN cargo build --release -p indexer --features use_fastnear
 
 FROM debian:bookworm-slim as runtime
 WORKDIR /indexer-app
