@@ -4,31 +4,33 @@ version = "0.1.0"
 edition = "2021"
 
 [dependencies]
-alloy = { version = "0.4.2", features = ["full", "node-bindings", "rpc-types-debug", "rpc-types-trace", "json-rpc", "rpc-client", "serde"] }
-alloy-primitives = "0.8.3"
-alloy-rpc-client = "0.4.2"
-alloy-rpc-types = "0.4.2"
-alloy-transport-ws = "0.4.2"
-alloy-rlp = "0.3.8"
+alloy = { workspace = true }
+alloy-primitives = { workspace = true }
+alloy-rpc-client = { workspace = true }
+alloy-rpc-types = { workspace = true }
+alloy-transport-ws = { workspace = true }
+alloy-rlp = { workspace = true }
+tokio = { workspace = true }
+prometheus = { workspace = true }
+serde = { workspace = true }
+serde_json = { workspace = true }
+anyhow = { workspace = true }
+tracing = { workspace = true }
+tracing-subscriber = { workspace = true }
+futures-util = { workspace = true }
+eyre = { workspace = true }
+bincode = { workspace = true }
+serde_yaml = { workspace = true }
+clap = { workspace = true }
+tempfile = { workspace = true }
+core-rs = { workspace = true }
+
+# Dependencies specific to operator-rs
 near-da-rpc = { git = "https://github.com/Nuffle-Labs/data-availability", branch = "main" }
 near-da-primitives = { git = "https://github.com/Nuffle-Labs/data-availability", branch = "main" }
-tokio = { version = "1.0", features = ["full"] }
-prometheus = "0.13"
 warp = "0.3"
-serde = { version = "1.0", features = ["derive"] }
-serde_json = "1.0"
-anyhow = "1.0"
-tracing = "0.1"
-tracing-subscriber = "0.3"
-futures-util = "0.3.30"
-eyre = "0.6"
-bincode = "1.3"
-serde_yaml = "0.9"
-clap = "4.5.18"
-tempfile = "3.10.0"
 hex = "0.4"
 rand = "0.8"
 eigensdk = { version = "0.1.0", features = ["full", "types", "crypto-bls", "utils"] }
 borsh = "1.5.1"
 lapin = "2.3.1"
-core-rs = { path = "../core-rs" }
