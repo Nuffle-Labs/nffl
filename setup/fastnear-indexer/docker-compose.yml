@@ -26,7 +26,7 @@ services:
     profiles: [indexer]
     build:
       context: ../../indexer
-      dockerfile: Dockerfile
+      dockerfile: FastIndexer.dockerfile
     container_name: fastnear-indexer
     depends_on:
       rmq:
