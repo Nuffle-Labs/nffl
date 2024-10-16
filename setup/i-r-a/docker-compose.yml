@@ -1,0 +1,138 @@
+version: "3"
+
+networks:
+  fastnear:
+    name: fastnear
+    driver: bridge
+  near-sffl-relayer-rs:
+    driver: bridge
+
+services:
+  rmq:
+    image: rabbitmq:3-management-alpine
+    container_name: rmq
+    user: rabbitmq
+    ports:
+      - "127.0.0.1:5672:5672"
+      - "127.0.0.1:15672:15672"
+    environment:
+      - RABBITMQ_DEFAULT_USER=guest
+      - RABBITMQ_DEFAULT_PASS=guest
+    healthcheck:
+      test: rabbitmq-diagnostics check_port_connectivity
+      interval: 1s
+      timeout: 3s
+      retries: 30
+    networks:
+      - fastnear
+
+  fastnear-indexer:
+    build:
+      context: ../../indexer
+      dockerfile: FastIndexer.dockerfile
+    container_name: fastnear-indexer
+    depends_on:
+      rmq:
+        condition: service_healthy
+    ports:
+      - "127.0.0.1:3030:3030"
+      - "127.0.0.1:9092:9092"
+    environment:
+      - CHAIN_ID=${NEAR_CHAIN_ID:-testnet}
+    volumes:
+      - ./:/fastnear-indexer/
+      - ${NEAR_HOME_DIR:-~/.near}:/root/.near
+      - ${NEAR_KEYS_DIR:-~/.near-credentials}:/root/.near-credentials
+    command:
+      - run
+      - --da-contract-ids
+      - sfrelayer21155420-2.testnet
+      - --rollup-ids
+      - "2"
+      - --rmq-address
+      - "amqp://rmq:5672"
+    entrypoint: ["/indexer-app/indexer"]
+    restart: unless-stopped
+    networks:
+      - fastnear
+    logging:
+      driver: "json-file"
+      options:
+        max-size: "1g"
+        max-file: "10"
+        compress: "true"
+
+  relayer_11155420_rs:
+    build:
+      context: ../../relayer-rs
+      dockerfile: Dockerfile
+    container_name: near-sffl-relayer-rs-21155420
+    volumes:
+      - ${NEAR_KEYS_DIR}:/root/.near-credentials
+    networks:
+      - near-sffl-relayer-rs
+    expose:
+      - 9094
+    command:
+      - run-args
+      - --rpc-url
+      - wss://optimism-sepolia-rpc.publicnode.com
+      - --da-account-id
+      - sfrelayer21155420-2.testnet
+      - --key-path
+      - /root/.near-credentials/${NEAR_CHAIN_ID}/sfrelayer21155420-2.testnet.json
+      - --network
+      - ${NEAR_RPC_URL}
+      - --metrics-ip-port-address
+      - near-sffl-relayer-rs-21155420:9094
+    restart: unless-stopped
+    logging:
+      driver: "json-file"
+      options:
+        max-size: "1g"
+        max-file: "20"
+        compress: "true"
+
+  operator-rs:
+    build:
+      context: ../..  # Set this to the parent directory of both operator-rs and core-rs
+      dockerfile: operator-rs/Dockerfile
+    container_name: near-sffl-operator-rs
+    volumes:
+      - ./config:/near-sffl/config
+      - ${NEAR_KEYS_DIR:-~/.near-credentials}:/root/.near-credentials
+      - ../../tests/keys/bls:/near-sffl/bls_keys
+    networks:
+      - fastnear
+      - near-sffl-relayer-rs
+    expose:
+      - ${OPERATOR_METRICS_PORT:-9095}
+    environment:
+      - PRODUCTION=${PRODUCTION:-false}
+      - ETH_RPC_URL=${ETH_RPC_URL:-https://optimism-sepolia-rpc.publicnode.com}
+      - ETH_WS_URL=${ETH_WS_URL:-wss://optimism-sepolia-rpc.publicnode.com}
+      - OPERATOR_ADDRESS=${OPERATOR_ADDRESS}
+      - BLS_KEY_PATH=/near-sffl/bls_keys/1/key.json
+      - BLS_KEY_PASSWORD_PATH=/near-sffl/bls_keys/1/password.txt
+      - ECDSA_KEY_PATH=${ECDSA_KEY_PATH:-/root/.near-credentials/ecdsa_key.json}
+      - AVS_REGISTRY_COORDINATOR_ADDRESS=${AVS_REGISTRY_COORDINATOR_ADDRESS}
+      - OPERATOR_STATE_RETRIEVER_ADDRESS=${OPERATOR_STATE_RETRIEVER_ADDRESS}
+      - AGGREGATOR_SERVER_IP_PORT=${AGGREGATOR_SERVER_IP_PORT}
+      - ENABLE_METRICS=${ENABLE_METRICS:-true}
+      - EIGEN_METRICS_IP_PORT=${EIGEN_METRICS_IP_PORT:-0.0.0.0:9095}
+      - NEAR_DA_INDEXER_RMQ_ADDRESS=${NEAR_DA_INDEXER_RMQ_ADDRESS:-amqp://rmq:5672}
+      - NEAR_DA_INDEXER_ROLLUP_IDS=${NEAR_DA_INDEXER_ROLLUP_IDS:-2}
+      - ROLLUP_IDS_TO_RPC_URLS=${ROLLUP_IDS_TO_RPC_URLS:-2:https://optimism-sepolia-rpc.publicnode.com}
+      - TASK_RESPONSE_WAIT_MS=${TASK_RESPONSE_WAIT_MS:-60000}
+      - TOKEN_STRATEGY_ADDR=${TOKEN_STRATEGY_ADDR:-0x0000000000000000000000000000000000000000}
+    command:
+      - run-config
+      - --path
+      - /near-sffl/config/operator.yaml
+    restart: unless-stopped
+    logging:
+      driver: "json-file"
+      options:
+        max-size: "1g"
+        max-file: "20"
+        compress: "true"

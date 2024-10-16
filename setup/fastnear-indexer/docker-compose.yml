@@ -1,0 +1,60 @@
+networks:
+  fastnear:
+    name: fastnear
+    driver: bridge
+
+services:
+  rmq:
+    image: rabbitmq:3-management-alpine
+    container_name: rmq
+    user: rabbitmq
+    ports:
+      - "127.0.0.1:5672:5672"
+      - "127.0.0.1:15672:15672"
+    environment:
+      - RABBITMQ_DEFAULT_USER=guest
+      - RABBITMQ_DEFAULT_PASS=guest
+    healthcheck:
+      test: rabbitmq-diagnostics check_port_connectivity
+      interval: 1s
+      timeout: 3s
+      retries: 30
+    networks:
+      - fastnear
+
+  fastnear-indexer:
+    profiles: [indexer]
+    build:
+      context: ../../indexer
+      dockerfile: FastIndexer.dockerfile
+    container_name: fastnear-indexer
+    depends_on:
+      rmq:
+        condition: service_healthy
+    ports:
+      - "127.0.0.1:3030:3030"
+      - "127.0.0.1:9092:9092"
+    environment:
+      - CHAIN_ID=${NEAR_CHAIN_ID:-testnet}
+    volumes:
+      - ./:/fastnear-indexer/
+      - ${NEAR_HOME_DIR:-~/.near}:/root/.near
+      - ${NEAR_KEYS_DIR:-~/.near-credentials}:/root/.near-credentials
+    command:
+      - run
+      - --da-contract-ids
+      - da.testnet
+      - --rollup-ids
+      - "2"
+      - --rmq-address
+      - "amqp://rmq:5672"
+    entrypoint: ["/indexer-app/indexer"]
+    restart: unless-stopped
+    networks:
+      - fastnear
+    logging:
+      driver: "json-file"
+      options:
+        max-size: "1g"
+        max-file: "10"
+        compress: "true"
