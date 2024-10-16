@@ -1,9 +1,6 @@
 //! Utilities for interacting with onchain contracts.
 
-use crate::{
-    chain::{ContractInst, HttpProvider},
-    config::DVNConfig,
-};
+use crate::chain::{ContractInst, HttpProvider};
 use alloy::{
     contract::{ContractInstance, Interface},
     dyn_abi::DynSolValue,
@@ -127,29 +124,3 @@ pub async fn verify(
 
     Ok(false)
 }
-
-//#[cfg(test)]
-//mod tests {
-//    use super::*;
-//    use crate::{
-//        chain::connections::{get_abi_from_path, get_http_provider},
-//        config,
-//    };
-//
-//    #[tokio::test]
-//    async fn test_get_confirmations() -> Result<()> {
-//        // Set up
-//        let config = config::DVNConfig::load_from_env()?;
-//        let http_provider = get_http_provider(&config)?;
-//        let sendlib_abi = get_abi_from_path("./abi/ArbitrumSendLibUln302.json")?;
-//        let sendlib_contract = create_contract_instance(&config, http_provider, sendlib_abi)?;
-//
-//        // Query contract value
-//        let required_confirmations = query_confirmations(&sendlib_contract, U256::from(30110)).await?;
-//
-//        // Check the value is what we expect
-//        assert_eq!(required_confirmations, U256::from(20));
-//
-//        Ok(())
-//    }
-//}

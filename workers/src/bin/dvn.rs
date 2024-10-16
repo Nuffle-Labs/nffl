@@ -75,10 +75,10 @@ async fn main() -> Result<()> {
                                 let eid = U256::from(dvn_data.config().network_id);
                                 let required_confirmations = query_confirmations(&receivelib_contract, eid).await?;
 
-                                // Prepare the header
-                                let header = packet_v1_codec::header(packet.encodedPayload.as_ref()).to_vec();
-                                // Prepate the payload.
-                                let payload = packet_v1_codec::payload(packet.encodedPayload.as_ref()).to_vec();
+                                // Prepare the header hash.
+                                let header_hash = dvn_data.get_header_hash();
+                                // Prepate the payload hash.
+                                let message_hash = dvn_data.get_message_hash();
 
                                 // Check
                                 let already_verified = query_already_verified(
@@ -98,14 +98,15 @@ async fn main() -> Result<()> {
                                     // FIXME: incorrect data
                                     verify(
                                         &receivelib_contract,
-                                        &packet.options,
-                                        &packet.encodedPayload,
+                                        own_dvn_addr,
+                                        header.as_ref(),
+                                        payload.as_ref(),
                                         required_confirmations,
                                     )
                                     .await?;
-                                } else {
-                                    debug!("No packet data found. Skipping verification.");
                                 }
+                            } else {
+                                dvn_data.reset_packet();
                             }
                         }
                     }

@@ -21,7 +21,7 @@ pub struct DVNConfig {
     /// The ReceiveLib Ultra Light Node 301 address.
     pub receivelib_uln301_addr: String,
     /// The Ethereum network ID.
-    pub network_id: u64,
+    pub network_eid: u64,
     /// Own DVN address. Used to check when the DVN is assigned to a task.
     pub dvn_addr: String,
 }
@@ -30,7 +30,7 @@ impl DVNConfig {
     /// Load environment variables.
     pub fn load_from_env() -> Result<Self> {
         let settings = Config::builder()
-            .add_source(config::File::with_name("workers/config_dvn"))
+            .add_source(config::File::with_name("./config_dvn"))
             .build()?;
         Ok(settings.try_deserialize::<Self>()?)
     }
