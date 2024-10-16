@@ -9790,6 +9790,7 @@ dependencies = [
  "alloy",
  "alloy-json-abi",
  "blsful",
+ "bytes",
  "config",
  "dotenvy",
  "eyre",

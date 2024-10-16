@@ -7,7 +7,7 @@ use serde::{Deserialize, Serialize};
 
 sol!(
     #[allow(missing_docs)]
-    #[sol(rpc)]
+    #[sol(abi, rpc)]
     #[derive(Debug, Serialize, Deserialize)]
     SendLibraryAbi,
     "abi/ArbitrumSendLibUln302.json"
@@ -15,7 +15,7 @@ sol!(
 
 sol!(
     #[allow(missing_docs)]
-    #[sol(rpc)]
+    #[sol(abi, rpc)]
     #[derive(Debug, Serialize, Deserialize)]
     ReceiveLibraryAbi,
     "abi/ArbitrumReceiveLibUln302.json"
@@ -23,7 +23,7 @@ sol!(
 
 sol!(
     #[allow(missing_docs)]
-    #[sol(rpc)]
+    #[sol(abi, rpc)]
     #[derive(Debug, Serialize, Deserialize)]
     L0V2EndpointAbi,
     "abi/ArbitrumL0V2Endpoint.json"
