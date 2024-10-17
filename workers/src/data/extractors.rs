@@ -10,7 +10,7 @@ use bytes::{Buf, BufMut, BytesMut};
 /// Minimum length of a packet.
 const MINIMUM_PACKET_LENGTH: usize = 113; // 1 + 8 + 4 + 32 + 4 + 32 + 32
 
-/// The whole header from the message.
+/// The whole header from the `Packet`.
 #[derive(Debug)]
 pub struct Header {
     version: u8,
@@ -77,43 +77,40 @@ pub fn extract_message(raw_packet: &[u8]) -> Option<Vec<u8>> {
     Some(message)
 }
 
+/// Test the extraction of the header and the message from a packet.
+///
+/// An encodedPayload from a transaction is used as mockup data,
+/// and to test that it correctly decodes it, a LayerZero's library
+/// in typescript has been used to check it:
+///
+/// ```typescript
+/// import { PacketSerializer } from "@layerzerolabs/lz-v2-utilities";
+///
+/// const des = PacketSerializer.deserialize("0x010000000000012c810000759e00000000000000000000000019cfce47ed54a88614648dc3f19a5980097007dd000075e80000000000000000000000005634c4a5fed09819e3c46d86a965dd9447d86e479527645d4aecaa3325a0225a2b593eea5f0d26a44b97af7276bc0a80ed43047b0200000000000000000000000000000000000000000000000000002d79883d2000000d00000000000000000000000051a9ffd0c6026dcd59b5f2f42cc119deaa7347d0000000000000000e00000d0000000000000000000000005c8fbdbbc01d3474e7e40de14538e1e58fd485b3000000000000206b00");
+///
+/// console.log(des);
+/// ```
+///
+/// And its output is:
+/// ```
+/// {
+///  version: 1,
+///  nonce: '76929',
+///  srcEid: 30110,
+///  sender: '0x00000000000000000000000019cfce47ed54a88614648dc3f19a5980097007dd',
+///  dstEid: 30184,
+///  receiver: '0x0000000000000000000000005634c4a5fed09819e3c46d86a965dd9447d86e47',
+///  guid: '0x9527645d4aecaa3325a0225a2b593eea5f0d26a44b97af7276bc0a80ed43047b',
+///  message: '0x0200000000000000000000000000000000000000000000000000002d79883d2000000d00000000000000000000000051a9ffd0c6026dcd59b5f2f42cc119deaa7347d0000000000000000e00000d0000000000000000000000005c8fbdbbc01d3474e7e40de14538e1e58fd485b3000000000000206b00',
+///  payload: '0x9527645d4aecaa3325a0225a2b593eea5f0d26a44b97af7276bc0a80ed43047b0200000000000000000000000000000000000000000000000000002d79883d2000000d00000000000000000000000051a9ffd0c6026dcd59b5f2f42cc119deaa7347d0000000000000000e00000d0000000000000000000000005c8fbdbbc01d3474e7e40de14538e1e58fd485b3000000000000206b00'
+/// }
+/// ```
+/// Note: The payload is the concatenation of the guid and the message.
 #[cfg(test)]
 mod tests {
     use super::*;
     use alloy::hex;
 
-    //0x010000000000001CE00000759E00000000000000000000000026DA582889F59EAAE9DA1F063BE0140CD93E6A4F0000759600000000000000000000000026DA582889F59EAAE9DA1F063BE0140CD93E6A4F58565502B0810F2B41F18679D3BFB5B703296753807465C02C37E23364EAE7D8
-
-    /// Test the extraction of the message from a packet.
-    ///
-    /// An encodedPayload from a transaction is used as mockup data,
-    /// and to test that it correctly decodes it, a LayerZero's library
-    /// in typescript has been used to check it:
-    ///
-    /// ```typescript
-    /// import { PacketSerializer } from "@layerzerolabs/lz-v2-utilities";
-    ///
-    /// const des = PacketSerializer.deserialize("0x010000000000012c810000759e00000000000000000000000019cfce47ed54a88614648dc3f19a5980097007dd000075e80000000000000000000000005634c4a5fed09819e3c46d86a965dd9447d86e479527645d4aecaa3325a0225a2b593eea5f0d26a44b97af7276bc0a80ed43047b0200000000000000000000000000000000000000000000000000002d79883d2000000d00000000000000000000000051a9ffd0c6026dcd59b5f2f42cc119deaa7347d0000000000000000e00000d0000000000000000000000005c8fbdbbc01d3474e7e40de14538e1e58fd485b3000000000000206b00");
-    ///
-    /// console.log(des);
-    /// ```
-    ///
-    /// And its output is:
-    /// ```
-    /// {
-    ///  version: 1,
-    ///  nonce: '76929',
-    ///  srcEid: 30110,
-    ///  sender: '0x00000000000000000000000019cfce47ed54a88614648dc3f19a5980097007dd',
-    ///  dstEid: 30184,
-    ///  receiver: '0x0000000000000000000000005634c4a5fed09819e3c46d86a965dd9447d86e47',
-    ///  guid: '0x9527645d4aecaa3325a0225a2b593eea5f0d26a44b97af7276bc0a80ed43047b',
-    ///  message: '0x0200000000000000000000000000000000000000000000000000002d79883d2000000d00000000000000000000000051a9ffd0c6026dcd59b5f2f42cc119deaa7347d0000000000000000e00000d0000000000000000000000005c8fbdbbc01d3474e7e40de14538e1e58fd485b3000000000000206b00',
-    ///  payload: '0x9527645d4aecaa3325a0225a2b593eea5f0d26a44b97af7276bc0a80ed43047b0200000000000000000000000000000000000000000000000000002d79883d2000000d00000000000000000000000051a9ffd0c6026dcd59b5f2f42cc119deaa7347d0000000000000000e00000d0000000000000000000000005c8fbdbbc01d3474e7e40de14538e1e58fd485b3000000000000206b00'
-    /// }
-    /// ```
-    ///
-    /// The payload is the concatenation of the guid and the message.
     #[test]
     fn extract_msg() {
         // GIVEN: a known encodedPayload
@@ -132,34 +129,6 @@ mod tests {
         assert_eq!(message, expected_message);
     }
 
-    /// Test the extraction of the message from a packet.
-    ///
-    /// An encodedPayload from a transaction is used as mockup data,
-    /// and to test that it correctly decodes it, a LayerZero's library
-    /// in typescript has been used to check it:
-    ///
-    /// ```typescript
-    /// import { PacketSerializer } from "@layerzerolabs/lz-v2-utilities";
-    ///
-    /// const des = PacketSerializer.deserialize("0x010000000000012c810000759e00000000000000000000000019cfce47ed54a88614648dc3f19a5980097007dd000075e80000000000000000000000005634c4a5fed09819e3c46d86a965dd9447d86e479527645d4aecaa3325a0225a2b593eea5f0d26a44b97af7276bc0a80ed43047b0200000000000000000000000000000000000000000000000000002d79883d2000000d00000000000000000000000051a9ffd0c6026dcd59b5f2f42cc119deaa7347d0000000000000000e00000d0000000000000000000000005c8fbdbbc01d3474e7e40de14538e1e58fd485b3000000000000206b00");
-    ///
-    /// console.log(des);
-    /// ```
-    ///
-    /// And its output is:
-    /// ```
-    /// {
-    ///  version: 1,
-    ///  nonce: '76929',
-    ///  srcEid: 30110,
-    ///  sender: '0x00000000000000000000000019cfce47ed54a88614648dc3f19a5980097007dd',
-    ///  dstEid: 30184,
-    ///  receiver: '0x0000000000000000000000005634c4a5fed09819e3c46d86a965dd9447d86e47',
-    ///  guid: '0x9527645d4aecaa3325a0225a2b593eea5f0d26a44b97af7276bc0a80ed43047b',
-    ///  message: '0x0200000000000000000000000000000000000000000000000000002d79883d2000000d00000000000000000000000051a9ffd0c6026dcd59b5f2f42cc119deaa7347d0000000000000000e00000d0000000000000000000000005c8fbdbbc01d3474e7e40de14538e1e58fd485b3000000000000206b00',
-    ///  payload: '0x9527645d4aecaa3325a0225a2b593eea5f0d26a44b97af7276bc0a80ed43047b0200000000000000000000000000000000000000000000000000002d79883d2000000d00000000000000000000000051a9ffd0c6026dcd59b5f2f42cc119deaa7347d0000000000000000e00000d0000000000000000000000005c8fbdbbc01d3474e7e40de14538e1e58fd485b3000000000000206b00'
-    /// }
-    /// ```
     #[test]
     fn extract_hdr() {
         // GIVEN: a known encodedPayload

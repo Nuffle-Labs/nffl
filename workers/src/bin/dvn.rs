@@ -46,7 +46,10 @@ async fn main() -> Result<()> {
         dvn_worker.listening();
         tokio::select! {
             Some(log) = endpoint_stream.next() => {
-                match log.log_decode::<L0V2EndpointAbi::PacketSent>() {
+                match log.log_decode::<PacketSent>() {
+                    Err(e) => {
+                        error!("Received a `PacketSent` event but failed to decode it: {:?}", e);
+                    }
                     Ok(inner_log) => {
                         debug!("PacketSent event found and decoded.");
                         dvn_worker.packet_received(inner_log.data().clone());
