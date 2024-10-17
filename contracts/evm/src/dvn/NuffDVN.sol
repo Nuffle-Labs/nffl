@@ -11,7 +11,7 @@ import { ISendLib } from "@layerzerolabs/lz-evm-protocol-v2/contracts/interfaces
 
 import { ILayerZeroEndpoint } from "./interfaces/ILayerZeroEndpoint.sol";
 import { ILayerZeroDVN } from "./interfaces/ILayerZeroDVN.sol";
-import { IReceiveUlnE2, Verification, UlnConfig} from "./interfaces/IReceiveUlnE2.sol";
+import { IReceiveUlnE2 } from "./interfaces/IReceiveUlnE2.sol";
 import "./interfaces/INuffClient.sol";
 import { INuffDVNConfig } from "./interfaces/INuffDVNConfig.sol";
 
