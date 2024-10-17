@@ -1,3 +1,9 @@
+//! Extract data from encoded payloads.
+//!
+//! FIXME: couldn't make it work with `alloy`+ABI, so
+//! using manual extracting for now.
+//! Re-check if it can work that way.
+
 use alloy::primitives::FixedBytes;
 use bytes::{Buf, BufMut, BytesMut};
 
