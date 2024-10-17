@@ -111,7 +111,7 @@ pub async fn verify(
 ) -> Result<bool> {
     //// Create the hash of the payload
     let payload_hash = keccak256(payload);
-    //
+
     // Call the `verified` function on the contract
     let _ = contract
         .function(
