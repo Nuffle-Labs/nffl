@@ -8,7 +8,7 @@ use alloy::primitives::FixedBytes;
 use bytes::{Buf, BufMut, BytesMut};
 
 /// Minimum length of a packet.
-const MINIMUM_PACKET_LENGTH: usize = 93; // 1 + 8 + 4 + 32 + 4 + 32 + 32
+const MINIMUM_PACKET_LENGTH: usize = 113; // 1 + 8 + 4 + 32 + 4 + 32 + 32
 
 /// The whole header from the message.
 #[derive(Debug)]
@@ -69,7 +69,7 @@ pub fn extract_message(raw_packet: &[u8]) -> Option<Vec<u8>> {
         return None;
     }
     let mut buffered_packet = BytesMut::from(raw_packet);
-    buffered_packet.advance(113);
+    buffered_packet.advance(MINIMUM_PACKET_LENGTH);
     let message = buffered_packet.freeze().to_vec();
 
     Some(message)
