@@ -57,6 +57,6 @@ mod tests {
 
     #[test]
     fn load_config_from_env() {
-        let conf = DVNConfig::load_from_env().unwrap();
+        let _conf = DVNConfig::load_from_env().unwrap();
     }
 }

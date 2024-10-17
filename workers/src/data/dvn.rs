@@ -8,9 +8,9 @@ use eyre::Result;
 use tracing::debug;
 
 pub struct Dvn {
-    config: DVNConfig,
-    status: DvnStatus,
-    packet: Option<PacketSent>,
+    pub config: DVNConfig,
+    pub status: DvnStatus,
+    pub packet: Option<PacketSent>,
 }
 
 pub enum DvnStatus {
@@ -31,14 +31,6 @@ impl Dvn {
 
     pub fn new_from_env() -> Result<Self> {
         Ok(Dvn::new(config::DVNConfig::load_from_env()?))
-    }
-
-    pub fn packet(&self) -> Option<PacketSent> {
-        self.packet.clone()
-    }
-
-    pub fn config(&self) -> &DVNConfig {
-        &self.config
     }
 
     pub fn listening(&mut self) {

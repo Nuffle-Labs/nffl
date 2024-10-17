@@ -89,7 +89,10 @@ pub async fn query_already_verified(
         .call()
         .await?;
 
-    let packet_state = match contract_state[0] {
+    let packet_state = match contract_state
+        .first()
+        .ok_or(eyre!("Empty response when querying `_verified`"))?
+    {
         DynSolValue::Bool(b) => Ok(b),
         _ => {
             error!("Failed to parse response from ReceiveLib for `_verified`");
@@ -97,7 +100,7 @@ pub async fn query_already_verified(
         }
     }?;
 
-    Ok(packet_state)
+    Ok(*packet_state)
 }
 
 pub async fn verify(
