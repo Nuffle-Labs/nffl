@@ -143,7 +143,7 @@ contract NuffDVNV2 is ILayerZeroDVN, AccessControl, IDVN {
         uint64 _confirmations,
         address _receiver,
         bytes calldata _reqId,
-        INuffClient.BSLSign calldata _signature,
+        INuffClient.SchnorrSign calldata _signature,
         bytes calldata gatewaySignature
     ) external {
         require(_isLocal(_dstEid), "Invalid dstEid");
@@ -272,7 +272,7 @@ contract NuffDVNV2 is ILayerZeroDVN, AccessControl, IDVN {
     function _verifyNuffSig(
         bytes calldata reqId,
         bytes32 hash,
-        INuffClient.BLSSign calldata sign,
+        INuffClient.SchnorrSign calldata sign,
         address nuffValidGateway,
         bytes calldata gatewaySignature
     ) internal {
