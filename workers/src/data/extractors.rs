@@ -65,10 +65,12 @@ pub fn extract_header(raw_packet: &[u8]) -> Option<Header> {
 
 /// When feeded a packet, return the whole message, which is everything but the header.
 pub fn extract_message(raw_packet: &[u8]) -> Option<Vec<u8>> {
+    // If there's no message to be loaded, return `None`.
     if raw_packet.len() < MINIMUM_PACKET_LENGTH {
         return None;
     }
     let mut buffered_packet = BytesMut::from(raw_packet);
+    // Skip the header.
     buffered_packet.advance(MINIMUM_PACKET_LENGTH);
     let message = buffered_packet.freeze().to_vec();
 
