@@ -1,6 +1,6 @@
 //! Main offchain workflow for Nuff DVN.
 
-use alloy::primitives::{Address, U256};
+use alloy::primitives::U256;
 use eyre::{OptionExt, Result};
 use futures::stream::StreamExt;
 use tracing::{debug, error, info, warn};
@@ -35,8 +35,8 @@ async fn main() -> Result<()> {
 
     // Get the relevant contract ABI, and create contract.
     let receivelib_abi = get_abi_from_path("./abi/ReceiveLibUln302.json")?;
-    let contract_address = dvn_data.config.receivelib_uln302_addr.parse::<Address>()?;
-    let receivelib_contract = create_contract_instance(contract_address, http_provider, receivelib_abi)?;
+    let receivelib_contract =
+        create_contract_instance(dvn_data.config.receivelib_uln302_addr, http_provider, receivelib_abi)?;
 
     info!("Listening to chain events...");
 
@@ -65,7 +65,7 @@ async fn main() -> Result<()> {
                     Ok(inner_log) if dvn_data.packet.is_some() => {
                         info!("DVNFeePaid event found and decoded.");
                         let required_dvns = &inner_log.inner.requiredDVNs;
-                        let own_dvn_addr = dvn_data.config.dvn_addr.parse::<Address>()?;
+                        let own_dvn_addr = dvn_data.config.dvn_addr;
 
                         if required_dvns.contains(&own_dvn_addr) {
                             debug!("Found DVN in required DVNs.");

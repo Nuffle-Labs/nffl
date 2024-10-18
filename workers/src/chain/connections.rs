@@ -6,7 +6,6 @@ use crate::{
 };
 use alloy::{
     eips::BlockNumberOrTag,
-    primitives::Address,
     providers::{Provider, ProviderBuilder, RootProvider, WsConnect},
     pubsub::{PubSubFrontend, SubscriptionStream},
     rpc::types::{Filter, Log},
@@ -23,19 +22,18 @@ pub async fn build_subscriptions(
     SubscriptionStream<Log>,
 )> {
     // Create the provider
-    let rpc_url = config.ws_rpc_url.clone();
-    let ws = WsConnect::new(rpc_url);
+    let ws = WsConnect::new(config.ws_rpc_url.to_string());
     let provider = ProviderBuilder::new().on_ws(ws).await?;
 
     // layerzero endpoint filter
     let packet_filter = Filter::new()
-        .address(config.l0_endpoint_addr.parse::<Address>()?)
+        .address(config.l0_endpoint_addr)
         .event(DVNEvent::PacketSent.as_ref())
         .from_block(BlockNumberOrTag::Latest);
 
     // messagelib endpoint filter
     let fee_paid_filter = Filter::new()
-        .address(config.sendlib_uln302_addr.parse::<Address>()?)
+        .address(config.sendlib_uln302_addr)
         .event(DVNEvent::FeePaid.as_ref())
         .from_block(BlockNumberOrTag::Latest);
 
@@ -63,6 +61,6 @@ pub fn get_abi_from_path(path: &str) -> Result<JsonAbi> {
 
 /// Construct an HTTP provider given the config.
 pub fn get_http_provider(config: &DVNConfig) -> Result<HttpProvider> {
-    let http_provider = ProviderBuilder::new().on_http(config.http_rpc_url.parse()?);
+    let http_provider = ProviderBuilder::new().on_http(config.http_rpc_url.to_string().parse()?);
     Ok(http_provider)
 }
