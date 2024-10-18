@@ -6,16 +6,19 @@ import "@openzeppelin/contracts/utils/cryptography/ECDSA.sol";
 import "@openzeppelin/contracts/utils/cryptography/MessageHashUtils.sol";
 
 import { ILayerZeroEndpointV2 } from "@layerzerolabs/lz-evm-protocol-v2/contracts/interfaces/ILayerZeroEndpointV2.sol";
-import { ILayerZeroEndpoint } from "@layerzerolabs/lz-evm-v1-0.7/contracts/interfaces/ILayerZeroEndpoint.sol";
-import { PacketV1Codec } from "@layerzerolabs/lz-evm-protocol-v2/contracts/messagelib/libs/PacketV1Codec.sol";
 import { ISendLib } from "@layerzerolabs/lz-evm-protocol-v2/contracts/interfaces/ISendLib.sol";
+import { IDVN } from "@layerzerolabs/lz-evm-messagelib-v2/contracts/uld/interfaces/IDVN.sol";
+import { ILayerZeroDVN } from "@layerzerolabs/lz-evm-messagelib-v2/contracts/uln/interfaces/ILayerZeroDVN.sol";
+import { PacketV1Codec } from "@layerzerolabs/lz-evm-protocol-v2/contracts/messagelib/libs/PacketV1Codec.sol";
+import { IReceiveUlnE2 } from "@layerzerolabs/lz-evm-messagelib-v2/contracts/uld/interfaces/IReceiveUlnE2.sol";
+import { IDVNFeeLib } from "@layerzerolabs/lz-evm-messagelib-v2/contracts/uld/interfaces/IDVNFeeLib.sol";
 
 import { INuffClient } from "./interfaces/INuffClient.sol";
 import { INuffDVNConfig } from "./interfaces/INuffDVNConfig.sol";
 
 import { ReentrancyGuard } from "@solady/src/utils/ReentrancyGuard.sol";
 
-contract NuffDVN is ILayerZeroDVN, AccessControl, ReentrancyGuard {
+contract NuffDVNV2 is ILayerZeroDVN, AccessControl, IDVN, ReentrancyGuard {
     using PacketV1Codec for bytes;
     using ECDSA for bytes32;
     using MessageHashUtils for bytes32;
@@ -52,13 +55,10 @@ contract NuffDVN is ILayerZeroDVN, AccessControl, ReentrancyGuard {
     address public feeLib;
 
     // FIXME: everything is getting stored in cold storage; use a buffer instead
-    mapping(uint256 => Job) public jobs;
-
-    // eid => bool
-    mapping(uint32 => bool) public supportedDstChain;
-    mapping(uint32 dstEid => DstConfig) public dstConfig;
-    // srcEid => ( jobId => isVerified )
-    mapping(uint32 => mapping(uint256 => bool)) public verifiedJobs;
+    mapping(uint256 jobId => Job job) public jobs;
+    mapping(uint32 eid => bool isSupported) public supportedDstChain;
+    mapping(uint32 dstEid => DstConfig config) public dstConfig;
+    mapping(uint32 srcEid => mapping(uint256 jobId => bool isVerified)) public verifiedJobs;
 
     event JobAssigned(uint256 jobId);
     event Verified(uint32 srcEid, uint256 jobId);
@@ -95,7 +95,7 @@ contract NuffDVN is ILayerZeroDVN, AccessControl, ReentrancyGuard {
         bytes calldata _options
     )
         external
-        nonReentrant 
+        nonReentrant
         payable
         override
         onlyRole(MESSAGE_LIB_ROLE)
@@ -147,7 +147,7 @@ contract NuffDVN is ILayerZeroDVN, AccessControl, ReentrancyGuard {
         uint64 _confirmations,
         address _receiver,
         bytes calldata _reqId,
-        INuffClient.BSLSign calldata _signature,
+        INuffClient.SchnorrSign calldata _signature,
         bytes calldata gatewaySignature
     ) external nonReentrant {
         require(_isLocal(_dstEid), "Invalid dstEid");
