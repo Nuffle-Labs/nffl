@@ -130,7 +130,7 @@ func (l *QueuesListener) listen(ctx context.Context, rollupId uint32, rollupData
 						RollupId:      rollupId,
 						TransactionId: publishPayload.TransactionId,
 						Commitment:    blob.Commitment,
-						Block:         *block,
+						Block:         block,
 					}
 
 					l.logger.Info(

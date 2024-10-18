@@ -1,13 +1,13 @@
 {
   "addresses": {
-    "deployer": "0x70d266e7089f15a963638Ec358D5975fc8dAfb6E",
-    "sfflPauserReg": "0xA782B1fc36666964a544a64F5559bf6aA75E73C0",
-    "sfflProxyAdmin": "0x7D8d41b1b983b720a3970cA5902c5381cB36b098",
-    "sfflRegistryRollup": "0xc8B72887e184D033595e060A749212509Ec1B6C8",
-    "sfflRegistryRollupImpl": "0x254cfb4b4306CA87494d78C9d6Ce06D61dB3d464"
+    "deployer": "0x7876e514e2Ab4c54A7E26735A512407904FF1fD8",
+    "sfflPauserReg": "0x60440D7a2C97A510E9b4b2644C46cAfE32a53363",
+    "sfflProxyAdmin": "0x84dd23209a0D47fd13f0963ADfa955d6ddcB175d",
+    "sfflRegistryRollup": "0xD36f3E2eAd270C0937e3183A0B4Be3ff662Ba05a",
+    "sfflRegistryRollupImpl": "0xf1EC1e53dcf222667f929EbF7dbaA21ab25066f6"
   },
   "chainInfo": {
     "chainId": 11155420,
-    "deploymentBlock": 11047724
+    "deploymentBlock": 17579752
   }
 }

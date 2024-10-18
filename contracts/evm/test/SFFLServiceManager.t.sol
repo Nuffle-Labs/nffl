@@ -46,6 +46,13 @@ contract SFFLServiceManagerHarness is SFFLServiceManager {
     ) public override onlyRegistryCoordinator {
         ServiceManagerBase.registerOperatorToAVS(operator, operatorSignature);
     }
+
+    function registerOperatorToAVSWhitelisted(
+        address operator,
+        ISignatureUtils.SignatureWithSaltAndExpiry memory operatorSignature
+    ) public onlyRegistryCoordinator {
+        SFFLServiceManager.registerOperatorToAVS(operator, operatorSignature);
+    }
 }
 
 contract SFFLServiceManagerTest is TestUtils {
@@ -55,6 +62,7 @@ contract SFFLServiceManagerTest is TestUtils {
 
     SFFLServiceManagerHarness public sfflServiceManager;
     SFFLTaskManager public taskManager;
+    SFFLOperatorSetUpdateRegistry operatorSetUpdateRegistry;
 
     address public serviceManagerOwner = address(uint160(uint256(keccak256("serviceManagerOwner"))));
 
@@ -84,7 +92,7 @@ contract SFFLServiceManagerTest is TestUtils {
         vm.label(impl, "taskManagerImpl");
         vm.label(address(taskManager), "taskManagerProxy");
 
-        SFFLOperatorSetUpdateRegistry operatorSetUpdateRegistry = new SFFLOperatorSetUpdateRegistry(registryCoordinator);
+        operatorSetUpdateRegistry = new SFFLOperatorSetUpdateRegistry(registryCoordinator);
 
         address sfflServiceManagerImplementation = address(
             new SFFLServiceManagerHarness(
@@ -109,6 +117,117 @@ contract SFFLServiceManagerTest is TestUtils {
         vm.label(address(serviceManager), "serviceManagerProxy");
 
         thresholdDenominator = taskManager.THRESHOLD_DENOMINATOR();
+    }
+
+    function test_initialize() public {
+        address newOwner = address(0x123);
+        IPauserRegistry newPauserRegistry = IPauserRegistry(address(0x456));
+
+        address impl = address(
+            new SFFLServiceManagerHarness(
+                IAVSDirectory(avsDirectoryMock),
+                registryCoordinator,
+                stakeRegistry,
+                taskManager,
+                SFFLOperatorSetUpdateRegistry(address(0))
+            )
+        );
+
+        SFFLServiceManagerHarness newServiceManager = SFFLServiceManagerHarness(
+            deployProxy(
+                impl,
+                address(proxyAdmin),
+                abi.encodeWithSignature("initialize(address,address)", newOwner, newPauserRegistry)
+            )
+        );
+
+        assertEq(newServiceManager.owner(), newOwner);
+        assertEq(address(newServiceManager.pauserRegistry()), address(newPauserRegistry));
+    }
+
+    function test_onlyTaskManager_RevertWhen_NonTaskManagerCall() public {
+        address nonTaskManager = address(0x123);
+        vm.prank(nonTaskManager);
+        vm.expectRevert("Task manager must be the caller");
+        sfflServiceManager.freezeOperator(address(0x456));
+    }
+
+    function test_constructor() public {
+        assertEq(address(sfflServiceManager.taskManager()), address(taskManager));
+        assertEq(address(sfflServiceManager.operatorSetUpdateRegistry()), address(operatorSetUpdateRegistry));
+    }
+
+    function test_initialize_PauserSetToZero() public {
+        address newOwner = address(0x123);
+
+        address impl = address(
+            new SFFLServiceManagerHarness(
+                IAVSDirectory(avsDirectoryMock),
+                registryCoordinator,
+                stakeRegistry,
+                taskManager,
+                SFFLOperatorSetUpdateRegistry(address(0))
+            )
+        );
+
+        vm.expectRevert("Pausable._initializePauser: _initializePauser() can only be called once");
+        deployProxy(impl, address(proxyAdmin), abi.encodeWithSignature("initialize(address)", newOwner));
+    }
+
+    function test_initialize_PauserSetToPauserRegistry() public {
+        address newOwner = address(0x123);
+        IPauserRegistry newPauserRegistry = IPauserRegistry(address(0x456));
+
+        address impl = address(
+            new SFFLServiceManagerHarness(
+                IAVSDirectory(avsDirectoryMock),
+                registryCoordinator,
+                stakeRegistry,
+                taskManager,
+                SFFLOperatorSetUpdateRegistry(address(0))
+            )
+        );
+
+        SFFLServiceManagerHarness newServiceManager = SFFLServiceManagerHarness(
+            deployProxy(
+                impl,
+                address(proxyAdmin),
+                abi.encodeWithSignature("initialize(address,address)", newOwner, newPauserRegistry)
+            )
+        );
+
+        assertEq(newServiceManager.owner(), newOwner);
+        assertEq(address(newServiceManager.pauserRegistry()), address(newPauserRegistry));
+    }
+
+    function test_registerOperatorToAVS_RevertWhen_NotWhitelisted() public {
+        address operator = address(0x789);
+        ISignatureUtils.SignatureWithSaltAndExpiry memory operatorSignature;
+
+        vm.mockCall(
+            address(sfflServiceManager.operatorSetUpdateRegistry()),
+            abi.encodeWithSignature("isOperatorWhitelisted(address)", operator),
+            abi.encode(false)
+        );
+
+        vm.prank(address(registryCoordinator));
+        vm.expectRevert("Not whitelisted");
+        sfflServiceManager.registerOperatorToAVSWhitelisted(operator, operatorSignature);
+    }
+
+    function testFail_registerOperatorToAVS_Whitelisted() public {
+        address operator = address(0x789);
+        ISignatureUtils.SignatureWithSaltAndExpiry memory operatorSignature;
+
+        vm.mockCall(
+            address(sfflServiceManager.operatorSetUpdateRegistry()),
+            abi.encodeWithSignature("isOperatorWhitelisted(address)", operator),
+            abi.encode(true)
+        );
+
+        vm.prank(address(registryCoordinator));
+        vm.expectRevert("Not whitelisted");
+        sfflServiceManager.registerOperatorToAVSWhitelisted(operator, operatorSignature);
     }
 
     function test_updateStateRoot() public {

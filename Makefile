@@ -26,7 +26,10 @@ deploy-eigenlayer-contracts-to-anvil-and-save-state: ## Deploy eigenlayer
 deploy-sffl-contracts-to-anvil-and-save-state: ## Deploy avs
 	./tests/anvil/deploy-avs-save-anvil-state.sh
 
-deploy-all-to-anvil-and-save-state: deploy-eigenlayer-contracts-to-anvil-and-save-state deploy-sffl-contracts-to-anvil-and-save-state ## deploy eigenlayer, shared avs contracts, and inc-sq contracts
+deploy-rollup-sffl-contracts-to-anvil-and-save-state: ## Deploy rollup contracts
+	./tests/anvil/deploy-rollup-avs-save-anvil-state.sh
+
+deploy-all-to-anvil-and-save-state: deploy-eigenlayer-contracts-to-anvil-and-save-state deploy-sffl-contracts-to-anvil-and-save-state deploy-rollup-sffl-contracts-to-anvil-and-save-state ## deploy eigenlayer and avs contracts
 
 start-anvil-chain-with-el-and-avs-deployed: ## starts anvil from a saved state file (with el and avs contracts deployed)
 	./tests/anvil/start-anvil-chain-with-el-and-avs-deployed.sh
@@ -63,13 +66,10 @@ __CLI__: ##
 
 cli-setup-operator: export OPERATOR_BLS_KEY_PASSWORD=$(OPERATOR_BLS_KEY_PASS)
 cli-setup-operator: export OPERATOR_ECDSA_KEY_PASSWORD=$(OPERATOR_ECDSA_KEY_PASS)
-cli-setup-operator: send-fund cli-register-operator-with-eigenlayer cli-deposit-into-mocktoken-strategy cli-register-operator-with-avs ## registers operator with eigenlayer and avs
+cli-setup-operator: send-fund cli-register-operator-with-eigenlayer cli-register-operator-with-avs ## registers operator with eigenlayer and avs
 
 cli-register-operator-with-eigenlayer: ## registers operator with delegationManager
 	go run cli/main.go --config config-files/operator.anvil.yaml register-operator-with-eigenlayer
-
-cli-deposit-into-mocktoken-strategy: ##
-	./scripts/deposit-into-mocktoken-strategy.sh
 
 cli-register-operator-with-avs: ##
 	go run cli/main.go --config config-files/operator.anvil.yaml register-operator-with-avs
@@ -104,7 +104,7 @@ start-indexer: ##
 	cargo run -p indexer --release -- --home-dir ~/.near/localnet run --da-contract-ids da.test.near --rollup-ids 2 --rmq-address "amqp://127.0.0.1:5672"
 
 start-test-relayer: ##
-	go run relayer/cmd/main.go --rpc-url ws://127.0.0.1:8546 --da-account-id da.test.near
+	CGO_LDFLAGS="-L ./relayer/libs ${CGO_LDFLAGS}" go run relayer/cmd/main.go run-args --rpc-url ws://127.0.0.1:8546 --da-account-id da.test.near --key-path ~/.near-credentials/localnet/da.test.near.json
 
 run-plugin: ##
 	go run plugin/cmd/main.go --config config-files/operator.anvil.yaml
@@ -115,15 +115,32 @@ mocks: ## generates mocks for tests
 	go generate ./...
 
 tests-unit: ## runs all unit tests
-	go test $$(go list ./... | grep -v /integration) -coverprofile=coverage.out -covermode=atomic
+	go test $$(go list ./... | grep -v /integration) -race -count=1 -coverprofile=coverage.out -covermode=atomic
 	go tool cover -html=coverage.out -o coverage.html
 
 tests-contract: ## runs all forge tests
-	cd contracts/evm && forge test
+	cd contracts/evm && forge test --ffi
 
+near-da-rpc-sys:
+	rm -rf relayer/libs && \
+	mkdir relayer/libs && \
+	git clone https://github.com/near/rollup-data-availability.git && \
+	cd rollup-data-availability && \
+	git checkout 6b7d76a28d7e3315c8b1c0f805cd665fc85dfd23 && \
+	make da-rpc-sys && \
+	cp gopkg/da-rpc/lib/* ../relayer/libs && \
+	cd .. && \
+	rm -rf rollup-data-availability
+
+# TODO: Currently we cannot use the race detector with `integration_test.go`
 tests-integration: ## runs all integration tests
 	go test ./tests/integration/integration_test.go -v -count=1
-	go test ./tests/integration/registration_test.go -v -count=1
+	go test ./tests/integration/registration_test.go -v -race -count=1
+
+## runs slither for solidity files
+## You can install Slither by following the guide at https://github.com/crytic/slither/tree/master?tab=readme-ov-file#how-to-install
+slither:
+	cd contracts/evm && slither .
 
 ## runs linter on all files
 ## TODO: For now, only Go files are linted

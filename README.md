@@ -1,4 +1,4 @@
-# Super Fast Finality Layer - SFFL
+# Nuffle Fast Finality Layer - NFFL
 
 ## Introduction
 
@@ -8,9 +8,9 @@ However, as the ecosystem continues to evolve towards a rollup-centric roadmap,
 it confronts new challenges such as state and liquidity fragmentation and
 extended finality time.
 
-In order to solve this problem, the NEAR Super Fast Finality Layer (SFFL) was
+In order to solve this problem, the Nuffle Fast Finality Layer (NFFL, formerly SFFL) was
 designed. Through it, various chains can, while supplying block data to
-[NEAR DA](https://github.com/near/rollup-data-availability), rely on the
+[NEAR DA](https://github.com/Nuffle-Labs/data-availability), rely on the
 economic security of an [EigenLayer](https://www.eigenlayer.xyz) AVS to provide
 a faster block finality to various protocols and use-cases while also including
 an additional public DA layer into their stack.
@@ -19,8 +19,8 @@ This universal, secure and fast finality leads to major advancements in
 interoperability protocols, enabling or improving designs such as general
 bridging and chain abstraction.
 
-For more details, refer to the [Documentation](https://near-sffl.nethermind.io).
-SFFL is under active development and is not yet available on any publicly
+For more details, refer to the [Documentation](https://nffl.nethermind.io/).
+NFFL is under active development and is not yet available on any publicly
 accessible environments.
 
 ## Getting Started
@@ -86,11 +86,19 @@ make start-indexer
 make setup-near-da
 ```
 
-Lastly, start the operator and the relayer:
+Then, start the operator:
 
 ```bash
 make start-operator
 ```
+
+Lastly, start the relayer. For this, certain native dependencies are required which need to be built at least once:
+
+```bash
+make near-da-rpc-sys
+```
+
+Once the dependencies are built, start the relayer
 
 ```bash
 make start-test-relayer
@@ -141,7 +149,7 @@ docker compose down
 
 ## More Details
 
-For more details, refer to the [Documentation](https://near-sffl.nethermind.io).
+For more details, refer to the [Documentation](https://nffl.nethermind.io/).
 
 The AVS implementation was based on the
 [Incredible Squaring AVS](https://github.com/Layr-Labs/incredible-squaring-avs)

@@ -84,7 +84,7 @@ its own flow.
 
 An operator set update message is invalid when the operator set update delta
 for a specific update ID either does not exist (the ID itself is invalid) or
-is wrong. This is directly done through the SFFL contracts, which include
+is wrong. This is directly done through the NFFL contracts, which include
 methods for examining operator set updates individually, and does not require
 any extra parameters.
 

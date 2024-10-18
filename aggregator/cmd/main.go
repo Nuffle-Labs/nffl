@@ -8,6 +8,7 @@ import (
 	"os"
 
 	sdklogging "github.com/Layr-Labs/eigensdk-go/logging"
+	"github.com/prometheus/client_golang/prometheus"
 	"github.com/urfave/cli"
 
 	"github.com/NethermindEth/near-sffl/aggregator"
@@ -66,23 +67,26 @@ func aggregatorMain(ctx *cli.Context) error {
 	}
 
 	bgCtx := context.Background()
-	agg, err := aggregator.NewAggregator(bgCtx, config, logger)
+	var optRegistry *prometheus.Registry
+	if config.EnableMetrics {
+		optRegistry = prometheus.NewRegistry()
+	}
+	agg, err := aggregator.NewAggregator(bgCtx, config, optRegistry, logger)
 	if err != nil {
 		return err
 	}
 
-	registry := agg.GetRegistry()
 	rpcServer := rpcserver.NewRpcServer(config.AggregatorServerIpPortAddr, agg, logger)
-	if registry != nil {
-		if err = rpcServer.EnableMetrics(registry); err != nil {
+	if optRegistry != nil {
+		if err = rpcServer.EnableMetrics(optRegistry); err != nil {
 			return err
 		}
 	}
 	go rpcServer.Start()
 
 	restServer := restserver.NewRestServer(config.AggregatorRestServerIpPortAddr, agg, logger)
-	if registry != nil {
-		if err = restServer.EnableMetrics(registry); err != nil {
+	if optRegistry != nil {
+		if err = restServer.EnableMetrics(optRegistry); err != nil {
 			return err
 		}
 	}

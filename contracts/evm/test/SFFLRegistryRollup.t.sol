@@ -461,4 +461,198 @@ contract SFFLRegistryRollupTest is TestUtils {
 
         registry.forceOperatorSetUpdate(message);
     }
+
+    function test_updateOperatorSet_RevertWhen_OperatorIsUpToDate() public {
+        RollupOperators.Operator[] memory operators = new RollupOperators.Operator[](1);
+        operators[0] = RollupOperators.Operator(initialOperators[0].pubkey, DEFAULT_WEIGHT);
+
+        OperatorSetUpdate.Message memory message =
+            OperatorSetUpdate.Message(registry.nextOperatorUpdateId(), 0, operators);
+
+        BN254.G1Point[] memory nonSignerPubkeys = new BN254.G1Point[](1);
+        nonSignerPubkeys[0] = initialOperators[3].pubkey;
+
+        RollupOperators.SignatureInfo memory signatureInfo = RollupOperators.SignatureInfo({
+            nonSignerPubkeys: nonSignerPubkeys,
+            apkG2: BN254.G2Point(
+                [
+                    21774854595736935906777183372431491423672246101465086449723107940773462536091,
+                    11859388993407979358677113204795514610964422675159446451278647734574620707784
+                ],
+                [
+                    3453374196609277266042659107600871924832557088868662992636101033001416801985,
+                    2630500117064331827715800222355515273572786883080373379723474133051328147838
+                ]
+            ),
+            sigma: BN254.hashToG1(message.hash()).scalar_mul(
+                6305737925830641523797682626723526790077499630761662964405387941160208990354
+            )
+        });
+
+        vm.expectRevert("Operator is up to date");
+        registry.updateOperatorSet(message, signatureInfo);
+    }
+
+    function test_verifyCalldata_RevertWhen_OperatorSetNotInitialized() public {
+        SFFLRegistryRollup newRegistry = SFFLRegistryRollup(
+            deployProxy(
+                address(new SFFLRegistryRollup()),
+                addr("proxyAdmin"),
+                abi.encodeWithSelector(
+                    registry.initialize.selector, QUORUM_THRESHOLD, addr("owner"), addr("aggregator"), pauserRegistry
+                )
+            )
+        );
+
+        StateRootUpdate.Message memory message =
+            StateRootUpdate.Message(0, 1, 0, keccak256(hex""), keccak256(hex""), keccak256(hex"f00d"));
+
+        BN254.G1Point[] memory nonSignerPubkeys = new BN254.G1Point[](0);
+
+        RollupOperators.SignatureInfo memory signatureInfo = RollupOperators.SignatureInfo({
+            nonSignerPubkeys: nonSignerPubkeys,
+            apkG2: BN254.G2Point(
+                [
+                    21774854595736935906777183372431491423672246101465086449723107940773462536091,
+                    11859388993407979358677113204795514610964422675159446451278647734574620707784
+                ],
+                [
+                    3453374196609277266042659107600871924832557088868662992636101033001416801985,
+                    2630500117064331827715800222355515273572786883080373379723474133051328147838
+                ]
+            ),
+            sigma: BN254.hashToG1(message.hash()).scalar_mul(
+                6305737925830641523797682626723526790077499630761662964405387941160208990354
+            )
+        });
+
+        vm.expectRevert("Operator set was not initialized");
+        newRegistry.updateStateRoot(message, signatureInfo);
+    }
+
+    function test_verifyCalldata_RevertWhen_PubkeysNotSorted() public {
+        StateRootUpdate.Message memory message =
+            StateRootUpdate.Message(0, 1, 0, keccak256(hex""), keccak256(hex""), keccak256(hex"f00d"));
+
+        BN254.G1Point[] memory nonSignerPubkeys = new BN254.G1Point[](2);
+        nonSignerPubkeys[0] = initialOperators[2].pubkey;
+        nonSignerPubkeys[1] = initialOperators[3].pubkey;
+
+        RollupOperators.SignatureInfo memory signatureInfo = RollupOperators.SignatureInfo({
+            nonSignerPubkeys: nonSignerPubkeys,
+            apkG2: BN254.G2Point(
+                [
+                    21774854595736935906777183372431491423672246101465086449723107940773462536091,
+                    11859388993407979358677113204795514610964422675159446451278647734574620707784
+                ],
+                [
+                    3453374196609277266042659107600871924832557088868662992636101033001416801985,
+                    2630500117064331827715800222355515273572786883080373379723474133051328147838
+                ]
+            ),
+            sigma: BN254.hashToG1(message.hash()).scalar_mul(
+                6305737925830641523797682626723526790077499630761662964405387941160208990354
+            )
+        });
+
+        vm.expectRevert("Pubkeys not sorted");
+        registry.updateStateRoot(message, signatureInfo);
+    }
+
+    function test_verifyCalldata_RevertWhen_OperatorHasZeroWeight() public {
+        RollupOperators.Operator[] memory operators = new RollupOperators.Operator[](1);
+        operators[0] = RollupOperators.Operator(initialOperators[3].pubkey, 0);
+
+        OperatorSetUpdate.Message memory updateMessage =
+            OperatorSetUpdate.Message(registry.nextOperatorUpdateId(), 0, operators);
+
+        BN254.G1Point[] memory updateNonSignerPubkeys = new BN254.G1Point[](1);
+        updateNonSignerPubkeys[0] = initialOperators[3].pubkey;
+
+        RollupOperators.SignatureInfo memory updateSignatureInfo = RollupOperators.SignatureInfo({
+            nonSignerPubkeys: updateNonSignerPubkeys,
+            apkG2: BN254.G2Point(
+                [
+                    21774854595736935906777183372431491423672246101465086449723107940773462536091,
+                    11859388993407979358677113204795514610964422675159446451278647734574620707784
+                ],
+                [
+                    3453374196609277266042659107600871924832557088868662992636101033001416801985,
+                    2630500117064331827715800222355515273572786883080373379723474133051328147838
+                ]
+            ),
+            sigma: BN254.hashToG1(updateMessage.hash()).scalar_mul(
+                6305737925830641523797682626723526790077499630761662964405387941160208990354
+            )
+        });
+
+        registry.updateOperatorSet(updateMessage, updateSignatureInfo);
+
+        StateRootUpdate.Message memory message =
+            StateRootUpdate.Message(0, 1, 0, keccak256(hex""), keccak256(hex""), keccak256(hex"f00d"));
+
+        BN254.G1Point[] memory nonSignerPubkeys = new BN254.G1Point[](1);
+        nonSignerPubkeys[0] = initialOperators[3].pubkey;
+
+        RollupOperators.SignatureInfo memory signatureInfo = RollupOperators.SignatureInfo({
+            nonSignerPubkeys: nonSignerPubkeys,
+            apkG2: BN254.G2Point(
+                [
+                    21774854595736935906777183372431491423672246101465086449723107940773462536091,
+                    11859388993407979358677113204795514610964422675159446451278647734574620707784
+                ],
+                [
+                    3453374196609277266042659107600871924832557088868662992636101033001416801985,
+                    2630500117064331827715800222355515273572786883080373379723474133051328147838
+                ]
+            ),
+            sigma: BN254.hashToG1(message.hash()).scalar_mul(
+                6305737925830641523797682626723526790077499630761662964405387941160208990354
+            )
+        });
+
+        vm.expectRevert("Operator has zero weight");
+        registry.updateStateRoot(message, signatureInfo);
+    }
+
+    function test_verifyCalldata_RevertWhen_SignatureIsInvalid() public {
+        StateRootUpdate.Message memory message =
+            StateRootUpdate.Message(0, 1, 0, keccak256(hex""), keccak256(hex""), keccak256(hex"f00d"));
+
+        BN254.G1Point[] memory nonSignerPubkeys = new BN254.G1Point[](1);
+        nonSignerPubkeys[0] = initialOperators[3].pubkey;
+
+        RollupOperators.SignatureInfo memory signatureInfo = RollupOperators.SignatureInfo({
+            nonSignerPubkeys: nonSignerPubkeys,
+            apkG2: BN254.G2Point(
+                [
+                    21774854595736935906777183372431491423672246101465086449723107940773462536091,
+                    11859388993407979358677113204795514610964422675159446451278647734574620707784
+                ],
+                [
+                    3453374196609277266042659107600871924832557088868662992636101033001416801985,
+                    2630500117064331827715800222355515273572786883080373379723474133051328147838
+                ]
+            ),
+            sigma: BN254.G1Point(1, 2) // Invalid signature
+        });
+
+        vm.expectRevert("Signature is invalid");
+        registry.updateStateRoot(message, signatureInfo);
+    }
+
+    function test_setAggregator() public {
+        address newAggregator = addr("newAggregator");
+
+        vm.prank(addr("owner"));
+        registry.setAggregator(newAggregator);
+
+        assertEq(registry.aggregator(), newAggregator);
+    }
+
+    function test_setAggregator_RevertWhen_CallerNotOwner() public {
+        vm.expectRevert("Ownable: caller is not the owner");
+
+        registry.setAggregator(addr("newAggregator"));
+    }
 }

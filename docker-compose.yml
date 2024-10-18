@@ -81,7 +81,7 @@ services:
     depends_on:
       rollup0-anvil:
         condition: service_healthy
-      indexer-setup:
+      near-da-deploy:
         condition: service_completed_successfully
     expose:
       - 9091
@@ -125,7 +125,7 @@ services:
     depends_on:
       rollup1-anvil:
         condition: service_healthy
-      indexer-setup:
+      near-da-deploy:
         condition: service_completed_successfully
     expose:
       - 9091
@@ -146,6 +146,8 @@ services:
       rmq:
         condition: service_healthy
       mainnet-anvil-setup:
+        condition: service_completed_successfully
+      indexer-setup:
         condition: service_completed_successfully
     ports:
       - "3030:3030"
@@ -171,8 +173,23 @@ services:
       - near-sffl
 
   indexer-setup:
-    image: node:16
+    image: debian:bookworm
     container_name: near-sffl-indexer-setup
+    volumes:
+      - near_cli_data:/near-cli
+      - near_cli_keys:/root/.near-credentials
+    entrypoint: sh
+    command:
+      - -c
+      - |
+        rm -rf /near-cli/*
+        rm -rf /root/.near-credentials/*
+    networks:
+      - near-sffl
+
+  near-da-deploy:
+    image: node:16
+    container_name: near-sffl-near-da-deploy
     depends_on:
       indexer:
         condition: service_healthy

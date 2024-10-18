@@ -15,12 +15,12 @@ discuss the factors that will inform the reward scheme and slashing design.
 
 ## Operating the Network
 
-To design the optimal incentive structure for SFFL AVS, we must understand the
-costs of the SFFL nodes to run the protocol.
+To design the optimal incentive structure for NFFL AVS, we must understand the
+costs of the NFFL nodes to run the protocol.
 
-The SFFL nodes stake Ethereum by getting delegations from staked Ethereum
+The NFFL nodes stake Ethereum by getting delegations from staked Ethereum
 holders. In addition to the stake run off-chain software, namely 1) rollup full
-nodes 2) SFFL nodes and 3) Aggregator node. As such, it's vital for the
+nodes 2) NFFL nodes and 3) Aggregator node. As such, it's vital for the
 protocol to reward the Operators accordingly.
 
 The calculation for the rewards for an Operator must be based on the signed
@@ -38,13 +38,13 @@ the Relayer role can be fulfilled by a decentralised network.
 
 Independent of what the Relayer implementation looks like, the Relayer needs to
 pay $NEAR to submit blocks to
-[NEAR DA](https://github.com/near/rollup-data-availability). The rewards for the
+[NEAR DA](https://github.com/Nuffle-Labs/data-availability). The rewards for the
 Relayer at the least need to compensate the Relayer's fee expenditure.
 
 In this specific case, it should be a reasonable approach that each network
 incentivises their Relayers independently, as it's effectively an extra DA
 layer for the network - so it's directly beneficial for it. However, a
-mechanism for SFFL itself to reward Relayers could also be implemented.
+mechanism for NFFL itself to reward Relayers could also be implemented.
 
 ## Pushing Operator Set Updates to Networks
 

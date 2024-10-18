@@ -10,7 +10,7 @@ require (
 	github.com/gorilla/mux v1.8.1
 	github.com/hashicorp/golang-lru/v2 v2.0.7
 	github.com/near/borsh-go v0.3.1
-	github.com/near/rollup-data-availability v0.2.4-0.20240327150603-b004cd803551
+	github.com/near/rollup-data-availability v0.2.4-0.20240507152131-6b7d76a28d7e
 	github.com/pokt-network/smt v0.9.2
 	github.com/prometheus/client_golang v1.19.0
 	github.com/stretchr/testify v1.9.0
@@ -125,5 +125,3 @@ require (
 	gopkg.in/yaml.v3 v3.0.1 // indirect
 	rsc.io/tmplfunc v0.0.3 // indirect
 )
-
-replace github.com/near/rollup-data-availability v0.2.4-0.20240327150603-b004cd803551 => github.com/taco-paco/rollup-data-availability v0.0.0-20240409111524-c9ec12924b27

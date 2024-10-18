@@ -38,6 +38,7 @@ contract SFFLTaskManagerTest is TestUtils {
     uint32 public constant TASK_RESPONSE_WINDOW_BLOCK = 30;
     address public aggregator;
     address public generator;
+    address owner;
     uint32 public thresholdDenominator;
 
     event CheckpointTaskCreated(uint32 indexed taskIndex, Checkpoint.Task task);
@@ -52,6 +53,7 @@ contract SFFLTaskManagerTest is TestUtils {
 
         aggregator = addr("aggregator");
         generator = addr("generator");
+        owner = addr("owner");
 
         address impl = address(new SFFLTaskManagerHarness(registryCoordinator, TASK_RESPONSE_WINDOW_BLOCK));
 
@@ -59,9 +61,7 @@ contract SFFLTaskManagerTest is TestUtils {
             deployProxy(
                 impl,
                 address(proxyAdmin),
-                abi.encodeWithSelector(
-                    taskManager.initialize.selector, pauserRegistry, registryCoordinatorOwner, aggregator, generator
-                )
+                abi.encodeWithSelector(taskManager.initialize.selector, pauserRegistry, owner, aggregator, generator)
             )
         );
 
@@ -69,6 +69,17 @@ contract SFFLTaskManagerTest is TestUtils {
         vm.label(address(taskManager), "taskManagerProxy");
 
         thresholdDenominator = taskManager.THRESHOLD_DENOMINATOR();
+    }
+
+    function test_constructor() public {
+        SFFLTaskManagerHarness newTaskManager =
+            new SFFLTaskManagerHarness(registryCoordinator, TASK_RESPONSE_WINDOW_BLOCK);
+
+        assertEq(newTaskManager.TASK_RESPONSE_WINDOW_BLOCK(), TASK_RESPONSE_WINDOW_BLOCK);
+        assertEq(address(newTaskManager.registryCoordinator()), address(registryCoordinator));
+
+        vm.expectRevert("Initializable: contract is already initialized");
+        newTaskManager.initialize(pauserRegistry, registryCoordinatorOwner, aggregator, generator);
     }
 
     function test_createCheckpointTask_RevertWhen_CallerNotTaskGenerator() public {
@@ -693,6 +704,38 @@ contract SFFLTaskManagerTest is TestUtils {
         taskManager.verifyMessageInclusionState(message, taskResponse, proof);
     }
 
+    function test_verifyMessageInclusionState_stateRootUpdate_RevertWhen_InvalidSMTProof() public {
+        StateRootUpdate.Message memory message = StateRootUpdate.Message({
+            rollupId: 10000,
+            blockHeight: 10001,
+            timestamp: 10002,
+            stateRoot: bytes32(0),
+            nearDaTransactionId: bytes32(0),
+            nearDaCommitment: bytes32(0)
+        });
+
+        bytes32[] memory sideNodes = new bytes32[](0);
+
+        SparseMerkleTree.Proof memory proof = SparseMerkleTree.Proof({
+            key: message.index(),
+            value: bytes32(0),
+            bitMask: 12,
+            sideNodes: sideNodes,
+            numSideNodes: 0,
+            nonMembershipLeafPath: bytes32(0),
+            nonMembershipLeafValue: bytes32(0)
+        });
+
+        Checkpoint.TaskResponse memory taskResponse = Checkpoint.TaskResponse({
+            referenceTaskIndex: 0,
+            stateRootUpdatesRoot: keccak256(hex"beef"),
+            operatorSetUpdatesRoot: keccak256(hex"f00d")
+        });
+
+        vm.expectRevert("Invalid SMT proof");
+        taskManager.verifyMessageInclusionState(message, taskResponse, proof);
+    }
+
     function test_verifyMessageInclusionState_operatorSetUpdate_Inclusion() public {
         RollupOperators.Operator[] memory operators = new RollupOperators.Operator[](0);
         OperatorSetUpdate.Message memory message =
@@ -918,6 +961,33 @@ contract SFFLTaskManagerTest is TestUtils {
         taskManager.verifyMessageInclusionState(message, taskResponse, proof);
     }
 
+    function test_verifyMessageInclusionState_operatorSetUpdate_RevertWhen_InvalidSMTProof() public {
+        RollupOperators.Operator[] memory operators = new RollupOperators.Operator[](0);
+        OperatorSetUpdate.Message memory message =
+            OperatorSetUpdate.Message({id: 10001, timestamp: 10002, operators: operators});
+
+        bytes32[] memory sideNodes = new bytes32[](9);
+
+        SparseMerkleTree.Proof memory proof = SparseMerkleTree.Proof({
+            key: message.index(),
+            value: bytes32(0),
+            bitMask: 30,
+            sideNodes: sideNodes,
+            numSideNodes: 0,
+            nonMembershipLeafPath: bytes32(0),
+            nonMembershipLeafValue: bytes32(0)
+        });
+
+        Checkpoint.TaskResponse memory taskResponse = Checkpoint.TaskResponse({
+            referenceTaskIndex: 0,
+            stateRootUpdatesRoot: keccak256(hex"beef"),
+            operatorSetUpdatesRoot: keccak256(hex"f00d")
+        });
+
+        vm.expectRevert("Invalid SMT proof");
+        taskManager.verifyMessageInclusionState(message, taskResponse, proof);
+    }
+
     function test_checkQuorum() public {
         uint32 taskCreationBlockNumber = 1000;
         bytes32 _msgHash = keccak256("test");
@@ -945,5 +1015,35 @@ contract SFFLTaskManagerTest is TestUtils {
 
         assertFalse(success);
         assertEq(signatoryRecordHash, expectedSignatoryRecordHash);
+    }
+
+    function test_setAggregator() public {
+        address newAggregator = addr("newAggregator");
+
+        vm.prank(owner);
+        taskManager.setAggregator(newAggregator);
+
+        assertEq(taskManager.aggregator(), newAggregator);
+    }
+
+    function test_setAggregator_RevertWhen_CallerNotOwner() public {
+        vm.expectRevert("Ownable: caller is not the owner");
+
+        taskManager.setAggregator(addr("newAggregator"));
+    }
+
+    function test_setGenerator() public {
+        address newGenerator = addr("newGenerator");
+
+        vm.prank(owner);
+        taskManager.setGenerator(newGenerator);
+
+        assertEq(taskManager.generator(), newGenerator);
+    }
+
+    function test_setGenerator_RevertWhen_CallerNotOwner() public {
+        vm.expectRevert("Ownable: caller is not the owner");
+
+        taskManager.setGenerator(addr("newGenerator"));
     }
 }

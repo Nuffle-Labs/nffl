@@ -33,6 +33,7 @@ services:
         compress: "true"
 
   grafana:
+    profiles: ["monitoring"]
     image: grafana/grafana:9.4.1
     container_name: grafana
     volumes:
@@ -49,6 +50,7 @@ services:
       - "127.0.0.1:3000:3000"
 
   prometheus:
+    profiles: ["monitoring"]
     image: prom/prometheus:v2.42.0
     container_name: prometheus
     volumes:

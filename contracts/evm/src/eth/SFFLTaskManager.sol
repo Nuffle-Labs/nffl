@@ -221,26 +221,16 @@ contract SFFLTaskManager is Initializable, OwnableUpgradeable, Pausable, BLSSign
     }
 
     /**
-     * @notice Gets the next checkpoint task number
-     * @return Next checkpoint task number
-     */
-    function checkpointTaskNumber() external view returns (uint32) {
-        return nextCheckpointTaskNum;
-    }
-
-    /**
      * @notice Challenges a task
      * @dev Does not fail if the challenge is not succesful
      * @param task Resolved task to be challenged
      * @param taskResponse Task response to be challenged
-     * @param taskResponseMetadata Current task response metadata
-     * @param pubkeysOfNonSigningOperators Non-signing operators BLS pubkeys
      */
     function raiseAndResolveCheckpointChallenge(
         Checkpoint.Task calldata task,
         Checkpoint.TaskResponse calldata taskResponse,
-        Checkpoint.TaskResponseMetadata calldata taskResponseMetadata,// forgefmt: disable-line
-        BN254.G1Point[] memory pubkeysOfNonSigningOperators// forgefmt: disable-line
+        Checkpoint.TaskResponseMetadata calldata, /* taskResponseMetadata */
+        BN254.G1Point[] memory /* pubkeysOfNonSigningOperators */
     ) external onlyWhenNotPaused(PAUSED_CHALLENGE_CHECKPOINT_TASK) {
         uint32 referenceTaskIndex = taskResponse.referenceTaskIndex;
 
@@ -269,8 +259,6 @@ contract SFFLTaskManager is Initializable, OwnableUpgradeable, Pausable, BLSSign
         // bytes32 signatoryRecordHash =
         //     keccak256(abi.encodePacked(task.taskCreatedBlock, hashesOfPubkeysOfNonSigningOperators));
         // require(signatoryRecordHash == taskResponseMetadata.hashOfNonSigners, "Wrong non-signer pubkeys");
-
-        // // TODO: slashing logic when it's available
 
         // checkpointTaskSuccesfullyChallenged[referenceTaskIndex] = true;
 
@@ -351,6 +339,22 @@ contract SFFLTaskManager is Initializable, OwnableUpgradeable, Pausable, BLSSign
         }
 
         return (true, hashOfNonSigners);
+    }
+
+    /**
+     * @notice Sets the aggregator address
+     * @param _aggregator New aggregator address
+     */
+    function setAggregator(address _aggregator) external onlyOwner {
+        aggregator = _aggregator;
+    }
+
+    /**
+     * @notice Sets the task generator address
+     * @param _generator New task generator address
+     */
+    function setGenerator(address _generator) external onlyOwner {
+        generator = _generator;
     }
 
     function _validateChallenge(
