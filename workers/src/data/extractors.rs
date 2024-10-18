@@ -66,7 +66,7 @@ pub fn extract_header(raw_packet: &[u8]) -> Option<Header> {
     let dst_eid = buffered_packet.get_u32(); // dst_eid
     buffered_packet.advance(12); // skip padding
     let rcv_addr: FixedBytes<20> = FixedBytes::from_slice(buffered_packet.split_to(20).as_ref());
-    let guid: FixedBytes<32> = FixedBytes::from_slice(buffered_packet.split_to(32).freeze()[..]);
+    let guid: FixedBytes<32> = FixedBytes::from_slice(&buffered_packet.split_to(32).freeze()[..]);
 
     Some(Header {
         version,

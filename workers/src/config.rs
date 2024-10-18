@@ -1,5 +1,6 @@
 //! Configuration for the DVN offchain workflow.
 
+use alloy::primitives::Address;
 use config::Config;
 use eyre::Result;
 use serde::Deserialize;
@@ -7,23 +8,23 @@ use serde::Deserialize;
 #[derive(Default, Deserialize)]
 pub struct DVNConfig {
     /// The Websocket RPC URL to connect to the Ethereum network.
-    pub ws_rpc_url: String,
+    pub ws_rpc_url: Address,
     /// The HTTP RPC URL to connect to the Ethereum network.
-    pub http_rpc_url: String,
+    pub http_rpc_url: Address,
     /// The LayerZero endpoint address.
-    pub l0_endpoint_addr: String,
+    pub l0_endpoint_addr: Address,
     /// The SendLib Ultra Light Node 302 address.
-    pub sendlib_uln302_addr: String,
+    pub sendlib_uln302_addr: Address,
     /// The ReceiveLib Ultra Light Node 302 address.
-    pub receivelib_uln302_addr: String,
+    pub receivelib_uln302_addr: Address,
     /// The SendLib Ultra Light Node 301 address.
-    pub sendlib_uln301_addr: String,
+    pub sendlib_uln301_addr: Address,
     /// The ReceiveLib Ultra Light Node 301 address.
-    pub receivelib_uln301_addr: String,
+    pub receivelib_uln301_addr: Address,
     /// The Ethereum network ID.
     pub network_eid: u64,
     /// Own DVN address. Used to check when the DVN is assigned to a task.
-    pub dvn_addr: String,
+    pub dvn_addr: Address,
 }
 
 impl DVNConfig {
