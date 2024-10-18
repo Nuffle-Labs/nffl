@@ -1,4 +1,4 @@
-FROM rust:1.81 AS builder
+FROM rust:1.81 AS builder # Ensure matches rust-toolchain!
 WORKDIR /tmp/indexer
 
 # Copy from nearcore:
