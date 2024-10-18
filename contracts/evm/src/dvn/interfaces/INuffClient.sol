@@ -9,8 +9,8 @@ interface INuffClient {
     }
 
     struct Signature {
-        uint[2] X;
-        uint[2] Y;
+        uint256 X;
+        uint256 Y;
     }
 
     struct PublicKey {
