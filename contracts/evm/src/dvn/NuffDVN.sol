@@ -15,7 +15,7 @@ import { INuffDVNConfig } from "./interfaces/INuffDVNConfig.sol";
 
 import { ReentrancyGuard } from "@solady/src/utils/ReentrancyGuard.sol";
 
-contract NuffDVN is ILayerZeroDVN, AccessControl, IDVN {
+contract NuffDVN is ILayerZeroDVN, AccessControl, ReentrancyGuard {
     using PacketV1Codec for bytes;
     using ECDSA for bytes32;
     using MessageHashUtils for bytes32;
@@ -51,6 +51,7 @@ contract NuffDVN is ILayerZeroDVN, AccessControl, IDVN {
     address public priceFeed;
     address public feeLib;
 
+    // FIXME: everything is getting stored in cold storage; use a buffer instead
     mapping(uint256 => Job) public jobs;
 
     // eid => bool
@@ -94,6 +95,7 @@ contract NuffDVN is ILayerZeroDVN, AccessControl, IDVN {
         bytes calldata _options
     )
         external
+        nonReentrant 
         payable
         override
         onlyRole(MESSAGE_LIB_ROLE)
@@ -147,7 +149,7 @@ contract NuffDVN is ILayerZeroDVN, AccessControl, IDVN {
         bytes calldata _reqId,
         INuffClient.BSLSign calldata _signature,
         bytes calldata gatewaySignature
-    ) external ReentrancyGuard.nonReentrant {
+    ) external nonReentrant {
         require(_isLocal(_dstEid), "Invalid dstEid");
         require(
             !verifiedJobs[_srcEid][_jobId],
@@ -259,7 +261,7 @@ contract NuffDVN is ILayerZeroDVN, AccessControl, IDVN {
         uint64 _confirmations,
         address _sender,
         bytes calldata _options
-    ) external view override returns (uint256 _fee) {
+    ) external nonReentrant view override returns (uint256 _fee) {
         IDVNFeeLib.FeeParams memory params = IDVNFeeLib.FeeParams(
             priceFeed,
             _dstEid,

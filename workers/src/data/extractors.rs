@@ -23,6 +23,7 @@ pub struct Header {
 }
 
 impl Header {
+    /// Return the header as a collection of bytes.
     pub fn to_slice(&self) -> Vec<u8> {
         let mut header = BytesMut::new();
         header.put_u8(self.version);
@@ -30,6 +31,21 @@ impl Header {
         header.put_u32(self.src_eid);
         header.put_slice(self.sender_addr.as_ref());
         header.put_u32(self.dst_eid);
+        header.put_slice(self.rcv_addr.as_ref());
+        header.put_slice(self.guid.as_ref());
+        header.to_vec()
+    }
+
+    /// Return the header as a collection of bytes but padding the addresses to 32 bytes.
+    pub fn to_slice_padded(&self) -> Vec<u8> {
+        let mut header = BytesMut::new();
+        header.put_u8(self.version);
+        header.put_u64(self.nonce);
+        header.put_u32(self.src_eid);
+        header.put_slice(&[0; 12]);
+        header.put_slice(self.sender_addr.as_ref());
+        header.put_u32(self.dst_eid);
+        header.put_slice(&[0; 12]);
         header.put_slice(self.rcv_addr.as_ref());
         header.put_slice(self.guid.as_ref());
         header.to_vec()
@@ -50,7 +66,7 @@ pub fn extract_header(raw_packet: &[u8]) -> Option<Header> {
     let dst_eid = buffered_packet.get_u32(); // dst_eid
     buffered_packet.advance(12); // skip padding
     let rcv_addr: FixedBytes<20> = FixedBytes::from_slice(buffered_packet.split_to(20).as_ref());
-    let guid: FixedBytes<32> = FixedBytes::from_slice(buffered_packet.split_to(32).freeze().iter().as_slice());
+    let guid: FixedBytes<32> = FixedBytes::from_slice(buffered_packet.split_to(32).freeze()[..]);
 
     Some(Header {
         version,
@@ -166,5 +182,39 @@ mod tests {
                     .as_ref()
             )
         );
+    }
+
+    #[test]
+    fn slice_header() {
+        let hdr = Header {
+            version: 1,
+            nonce: 1,
+            src_eid: 111,
+            sender_addr: FixedBytes::<20>::from_slice(&[1; 20]),
+            dst_eid: 222,
+            rcv_addr: FixedBytes::<20>::from_slice(&[2; 20]),
+            guid: FixedBytes::<32>::from_slice(&[3; 32]),
+        };
+        let expected_hdr = vec![
+            1, 0, 0, 0, 0, 0, 0, 0, 1, 0, 0, 0, 111, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 0, 0,
+            0, 222, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3,
+            3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3,
+        ];
+        let expected_padded_hdr = vec![
+            1, 0, 0, 0, 0, 0, 0, 0, 1, 0, 0, 0, 111, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1,
+            1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 0, 0, 0, 222, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 2, 2, 2, 2, 2, 2, 2, 2, 2,
+            2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3,
+            3, 3, 3, 3, 3, 3, 3,
+        ];
+
+        // WHEN: getting the header as a slice without padding.
+        let sliced_hdr = hdr.to_slice();
+        // THEN: it should return the expected value.
+        assert_eq!(sliced_hdr, expected_hdr);
+
+        // WHEN: getting the header as a slice with padding.
+        let padded_hdr = hdr.to_slice_padded();
+        // THEN: it should return the expected value.
+        assert_eq!(padded_hdr, expected_padded_hdr);
     }
 }

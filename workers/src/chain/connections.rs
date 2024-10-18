@@ -12,7 +12,7 @@ use alloy::{
     rpc::types::{Filter, Log},
 };
 use alloy_json_abi::JsonAbi;
-use eyre::Result;
+use eyre::{OptionExt, Result};
 
 /// Create the subscriptions for the DVN workflow.
 pub async fn build_subscriptions(
@@ -56,7 +56,7 @@ pub fn get_abi_from_path(path: &str) -> Result<JsonAbi> {
     let artifact = std::fs::read(path)?;
     let json: serde_json::Value = serde_json::from_slice(&artifact)?;
     // SAFETY: Assume `unwrap` is safe since the key has been harcoded
-    let abi_value = json.get("abi").unwrap();
+    let abi_value = json.get("abi").ok_or_eyre("ABI not found in artifact")?;
     let abi = serde_json::from_str(&abi_value.to_string())?;
     Ok(abi)
 }
