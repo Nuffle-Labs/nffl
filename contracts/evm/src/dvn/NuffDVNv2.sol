@@ -16,7 +16,9 @@ import { IDVNFeeLib } from "@layerzerolabs/lz-evm-messagelib-v2/contracts/uld/in
 import { INuffClient } from "./interfaces/INuffClient.sol";
 import { INuffDVNConfig } from "./interfaces/INuffDVNConfig.sol";
 
-contract NuffDVNV2 is ILayerZeroDVN, AccessControl, IDVN {
+import { ReentrancyGuard } from "@solady/src/utils/ReentrancyGuard.sol";
+
+contract NuffDVNV2 is ILayerZeroDVN, AccessControl, IDVN, ReentrancyGuard {
     using PacketV1Codec for bytes;
     using ECDSA for bytes32;
     using MessageHashUtils for bytes32;
@@ -52,16 +54,15 @@ contract NuffDVNV2 is ILayerZeroDVN, AccessControl, IDVN {
     address public priceFeed;
     address public feeLib;
 
-    mapping(uint256 => Job) public jobs;
-
-    // eid => bool
-    mapping(uint32 => bool) public supportedDstChain;
-    mapping(uint32 dstEid => DstConfig) public dstConfig;
-    // srcEid => ( jobId => isVerified )
-    mapping(uint32 => mapping(uint256 => bool)) public verifiedJobs;
+    // FIXME: everything is getting stored in cold storage; use a buffer instead
+    mapping(uint256 jobId => Job job) public jobs;
+    mapping(uint32 eid => bool isSupported) public supportedDstChain;
+    mapping(uint32 dstEid => DstConfig config) public dstConfig;
+    mapping(uint32 srcEid => mapping(uint256 jobId => bool isVerified)) public verifiedJobs;
 
     event JobAssigned(uint256 jobId);
     event Verified(uint32 srcEid, uint256 jobId);
+    event Withdraw(address lib, address to, uint256 amount);
 
     constructor(
         uint256 _nuffAppId,
@@ -95,6 +96,7 @@ contract NuffDVNV2 is ILayerZeroDVN, AccessControl, IDVN {
         bytes calldata _options
     )
         external
+        nonReentrant
         payable
         override
         onlyRole(MESSAGE_LIB_ROLE)
@@ -104,6 +106,8 @@ contract NuffDVNV2 is ILayerZeroDVN, AccessControl, IDVN {
 
         uint256 jobId = ++lastJobId;
         Job storage newJob = jobs[jobId];
+
+        require(_param.sender != address(0), "Invalid sender address");
 
         newJob.origin = msg.sender;
         newJob.srcEid = localEid;
@@ -146,7 +150,7 @@ contract NuffDVNV2 is ILayerZeroDVN, AccessControl, IDVN {
         bytes calldata _reqId,
         INuffClient.SchnorrSign calldata _signature,
         bytes calldata gatewaySignature
-    ) external {
+    ) external nonReentrant {
         require(_isLocal(_dstEid), "Invalid dstEid");
         require(
             !verifiedJobs[_srcEid][_jobId],
@@ -258,7 +262,7 @@ contract NuffDVNV2 is ILayerZeroDVN, AccessControl, IDVN {
         uint64 _confirmations,
         address _sender,
         bytes calldata _options
-    ) external view override returns (uint256 _fee) {
+    ) external nonReentrant view override returns (uint256 _fee) {
         IDVNFeeLib.FeeParams memory params = IDVNFeeLib.FeeParams(
             priceFeed,
             _dstEid,
@@ -273,7 +277,7 @@ contract NuffDVNV2 is ILayerZeroDVN, AccessControl, IDVN {
     function _verifyNuffSig(
         bytes calldata reqId,
         bytes32 hash,
-        INuffClient.SchnorrSign calldata sign,
+        INuffClient.BLSSign calldata sign,
         bytes calldata gatewaySignature
     ) internal {
         bool verified = nuff.nuffVerify(

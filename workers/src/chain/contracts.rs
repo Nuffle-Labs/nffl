@@ -30,11 +30,14 @@ pub async fn get_messagelib_addr(contract: &ContractInst, eid: U256) -> Result<A
         .call()
         .await?;
 
-    match receive_library[0] {
-        DynSolValue::Address(address) => Ok(address),
+    match receive_library
+        .first()
+        .ok_or_eyre("ReceiveLibrary not found in contract")?
+    {
+        DynSolValue::Address(address) if address.len() == 20 => Ok(*address),
         _ => {
-            error!("Failed to get address");
-            Err(eyre!("Failed to get address"))
+            error!("Failed to get a valid address");
+            Err(eyre!("Failed to get a valid address"))
         }
     }
 }
@@ -50,7 +53,7 @@ pub async fn query_confirmations(contract: &ContractInst, eid: U256) -> Result<U
         .call()
         .await?;
 
-    match &uln_config[0] {
+    match &uln_config.first().ok_or_eyre("ULN config not found in contract")? {
         DynSolValue::Tuple(tupled_int) => {
             let value = tupled_int[0]
                 .as_uint()
