@@ -1,5 +1,5 @@
 # Use the official Rust image as a parent image
-FROM rust:1.79 as builder
+FROM rust:1.79-bookworm AS builder
 
 # Install system dependencies
 RUN apt-get update && apt-get install -y \
