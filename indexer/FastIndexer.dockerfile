@@ -1,4 +1,4 @@
-FROM rust:1.79 AS builder
+FROM rust:1.79-bookworm AS builder
 WORKDIR /tmp/indexer
 
 # Copy from nearcore:
