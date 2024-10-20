@@ -147,7 +147,7 @@ contract NuffDVNV2 is ILayerZeroDVN, AccessControl, IDVN, ReentrancyGuard {
         uint64 _confirmations,
         address _receiver,
         bytes calldata _reqId,
-        INuffClient.SchnorrSign calldata _signature,
+        INuffClient.BLSSign calldata _signature,
         bytes calldata gatewaySignature
     ) external nonReentrant {
         require(_isLocal(_dstEid), "Invalid dstEid");
