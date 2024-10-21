@@ -16,9 +16,9 @@ pub struct Header {
     version: u8,
     nonce: u64,
     src_eid: u32,
-    sender_addr: FixedBytes<20>,
+    sender_addr: AddressWithType,
     dst_eid: u32,
-    rcv_addr: FixedBytes<20>,
+    rcv_addr: AddressWithType,
     guid: FixedBytes<32>,
 }
 
@@ -29,9 +29,9 @@ impl Header {
         header.put_u8(self.version);
         header.put_u64(self.nonce);
         header.put_u32(self.src_eid);
-        header.put_slice(self.sender_addr.as_ref());
+        header.put_slice(self.sender_addr.address.as_ref());
         header.put_u32(self.dst_eid);
-        header.put_slice(self.rcv_addr.as_ref());
+        header.put_slice(self.rcv_addr.address.as_ref());
         header.put_slice(self.guid.as_ref());
         header.to_vec()
     }
@@ -43,12 +43,38 @@ impl Header {
         header.put_u64(self.nonce);
         header.put_u32(self.src_eid);
         header.put_slice(&[0; 12]);
-        header.put_slice(self.sender_addr.as_ref());
+        header.put_slice(self.sender_addr.address.as_ref());
         header.put_u32(self.dst_eid);
         header.put_slice(&[0; 12]);
-        header.put_slice(self.rcv_addr.as_ref());
+        header.put_slice(self.rcv_addr.address.as_ref());
         header.put_slice(self.guid.as_ref());
         header.to_vec()
+    }
+}
+
+#[derive(Debug, PartialEq)]
+struct AddressWithType {
+    pub address: FixedBytes<32>,
+    pub variant: AddressType,
+}
+
+#[derive(Debug, PartialEq)]
+enum AddressType {
+    Ethereum,
+    Solana,
+}
+
+impl AddressWithType {
+    /// Expect some bytes (usually, 32 bytes) thay may encode an ETH address (padded with 12 bytes) or a Solana address (non-padded).
+    pub fn new(bytes_addr: &[u8]) -> Self {
+        println!("{:?}", bytes_addr);
+        let variant = if bytes_addr.starts_with(&[0; 12]) {
+            AddressType::Ethereum
+        } else {
+            AddressType::Solana
+        };
+        let address = FixedBytes::<32>::from_slice(bytes_addr);
+        Self { variant, address }
     }
 }
 
@@ -61,11 +87,9 @@ pub fn extract_header(raw_packet: &[u8]) -> Option<Header> {
     let version = buffered_packet.get_u8(); // version
     let nonce = buffered_packet.get_u64(); // nonce
     let src_eid = buffered_packet.get_u32(); // src_eid
-    buffered_packet.advance(12); // skip padding
-    let sender_addr: FixedBytes<20> = FixedBytes::from_slice(buffered_packet.split_to(20).as_ref());
+    let sender_addr = AddressWithType::new(&buffered_packet.split_to(32));
     let dst_eid = buffered_packet.get_u32(); // dst_eid
-    buffered_packet.advance(12); // skip padding
-    let rcv_addr: FixedBytes<20> = FixedBytes::from_slice(buffered_packet.split_to(20).as_ref());
+    let rcv_addr = AddressWithType::new(&buffered_packet.split_to(32));
     let guid: FixedBytes<32> = FixedBytes::from_slice(&buffered_packet.split_to(32).freeze()[..]);
 
     Some(Header {
@@ -126,6 +150,27 @@ pub fn extract_message(raw_packet: &[u8]) -> Option<Vec<u8>> {
 mod tests {
     use super::*;
     use alloy::hex;
+    use alloy::primitives::Address;
+    use eyre::Result;
+
+    impl AddressWithType {
+        pub fn ethereum_addr(&self) -> Result<Address> {
+            match self.variant {
+                AddressType::Ethereum => Ok(Address::from_slice(&self.address[12..32])),
+                _ => Err(eyre::eyre!("This is not an Ethereum address")),
+            }
+        }
+    }
+
+    #[test]
+    fn addresses_with_types() {
+        let a = AddressWithType::new(&[1; 20]);
+        assert_eq!(a.variant, AddressType::Ethereum);
+        assert!(a.address.starts_with(&[0; 12]));
+
+        let b = AddressWithType::new(&[1; 32]);
+        assert_eq!(b.variant, AddressType::Solana);
+    }
 
     #[test]
     fn extract_msg() {
@@ -158,8 +203,8 @@ mod tests {
         assert_eq!(header.nonce, 76929);
         assert_eq!(header.src_eid, 30110);
         assert_eq!(
-            header.sender_addr,
-            FixedBytes::<20>::from_slice(
+            header.sender_addr.ethereum_addr().unwrap(),
+            Address::from_slice(
                 hex::decode("19cfce47ed54a88614648dc3f19a5980097007dd")
                     .unwrap()
                     .as_ref()
@@ -167,8 +212,8 @@ mod tests {
         );
         assert_eq!(header.dst_eid, 30184);
         assert_eq!(
-            header.rcv_addr,
-            FixedBytes::<20>::from_slice(
+            header.rcv_addr.ethereum_addr().unwrap(),
+            Address::from_slice(
                 hex::decode("5634c4a5fed09819e3c46d86a965dd9447d86e47")
                     .unwrap()
                     .as_ref()
@@ -190,9 +235,9 @@ mod tests {
             version: 1,
             nonce: 1,
             src_eid: 111,
-            sender_addr: FixedBytes::<20>::from_slice(&[1; 20]),
+            sender_addr: AddressWithType::new(&[1; 20]),
             dst_eid: 222,
-            rcv_addr: FixedBytes::<20>::from_slice(&[2; 20]),
+            rcv_addr: AddressWithType::new(&[2; 20]),
             guid: FixedBytes::<32>::from_slice(&[3; 32]),
         };
         let expected_hdr = vec![

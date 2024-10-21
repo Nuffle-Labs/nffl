@@ -278,7 +278,7 @@ contract NuffDVNV2 is ILayerZeroDVN, AccessControl, IDVN, ReentrancyGuard {
         bytes32 hash,
         INuffClient.BLSSign calldata sign,
         bytes calldata gatewaySignature
-    ) internal {
+    ) internal nonReentrant {
         bool verified = nuff.nuffVerify(
             reqId,
             uint256(hash),
@@ -294,7 +294,7 @@ contract NuffDVNV2 is ILayerZeroDVN, AccessControl, IDVN, ReentrancyGuard {
         bytes32 _payloadHash,
         uint64 _confirmations,
         address _receiver
-    ) internal {
+    ) internal nonReentrant {
         address receiverLib;
         if (_isV2(_srcEid)) {
             (receiverLib, ) = layerZeroEndpointV2.getReceiveLibrary(
