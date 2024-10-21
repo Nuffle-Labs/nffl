@@ -5,6 +5,7 @@ use eyre::{OptionExt, Result};
 use futures::stream::StreamExt;
 use tracing::{debug, error, info, warn};
 use tracing_subscriber::EnvFilter;
+use workers::verifier::NFFLVerifier;
 use workers::{
     abi::{
         L0V2EndpointAbi::{self},
@@ -14,8 +15,9 @@ use workers::{
         connections::{build_subscriptions, get_abi_from_path, get_http_provider},
         contracts::{create_contract_instance, query_already_verified, query_confirmations, verify},
     },
-    data::Dvn,
+    config,
 };
+use workers::data::dvn::Dvn;
 
 #[tokio::main]
 async fn main() -> Result<()> {
@@ -26,6 +28,7 @@ async fn main() -> Result<()> {
         .init();
 
     let mut dvn_data = Dvn::new_from_env()?;
+    let verifier = NFFLVerifier::new_from_config(&dvn_data.config).await?;
 
     // Create the WS subscriptions for listening to the events.
     let (_provider, mut endpoint_stream, mut sendlib_stream) = build_subscriptions(&dvn_data.config).await?;
@@ -51,7 +54,7 @@ async fn main() -> Result<()> {
                     }
                     Ok(inner_log) => {
                         debug!("PacketSent event found and decoded.");
-                        dvn_worker.packet_received(inner_log.data().clone());
+                        dvn_data.packet_received(inner_log.data().clone());
                     },
                     Err(e) => {
                         error!("Failed to decode `PacketSent` event: {:?}", e);
@@ -97,8 +100,14 @@ async fn main() -> Result<()> {
                                     } else {
                                         dvn_data.verifying();
                                         debug!("Packet NOT verified. Calling verification.");
+                                        let bn = log.block_number.unwrap();
+                                        // By invariant (Verifying status), dvn_data has a packet.
+                                        let hash = dvn_data.packet.unwrap().payload_hash;
 
-                                        // FIXME: logic for NFFL verification
+                                        if !verifier.verify(bn, hash).await? {
+                                            error!("Failed to verify the state root.");
+                                            continue;
+                                        }
 
                                         verify(
                                             &receivelib_contract,
@@ -129,6 +138,6 @@ async fn main() -> Result<()> {
                 }
             },
         }
-        dvn_worker.reset_packet();
+        dvn_data.reset_packet();
     }
 }

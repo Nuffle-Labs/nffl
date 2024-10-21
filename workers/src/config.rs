@@ -25,6 +25,8 @@ pub struct DVNConfig {
     pub network_eid: u64,
     /// Own DVN address. Used to check when the DVN is assigned to a task.
     pub dvn_addr: Address,
+    /// Aggregator URL
+    pub aggregator_url: String,
 }
 
 impl DVNConfig {
