@@ -22,7 +22,7 @@ pub async fn build_subscriptions(
     SubscriptionStream<Log>,
 )> {
     // Create the provider
-    let ws = WsConnect::new(config.ws_rpc_url.to_string());
+    let ws = WsConnect::new(config.ws_rpc_url.clone());
     let provider = ProviderBuilder::new().on_ws(ws).await?;
 
     // layerzero endpoint filter

@@ -5,12 +5,12 @@ use config::Config;
 use eyre::Result;
 use serde::Deserialize;
 
-#[derive(Default, Deserialize)]
+#[derive(Debug, Deserialize)]
 pub struct DVNConfig {
     /// The Websocket RPC URL to connect to the Ethereum network.
-    pub ws_rpc_url: Address,
+    pub ws_rpc_url: String,
     /// The HTTP RPC URL to connect to the Ethereum network.
-    pub http_rpc_url: Address,
+    pub http_rpc_url: String,
     /// The LayerZero endpoint address.
     pub l0_endpoint_addr: Address,
     /// The SendLib Ultra Light Node 302 address.

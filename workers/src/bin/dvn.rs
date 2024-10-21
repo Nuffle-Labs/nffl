@@ -40,6 +40,7 @@ async fn main() -> Result<()> {
 
     info!("Listening to chain events...");
 
+    // FIXME: refactor the operations from this loop into smaller, testable containers.
     loop {
         dvn_worker.listening();
         tokio::select! {

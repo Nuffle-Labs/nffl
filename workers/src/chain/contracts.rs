@@ -43,6 +43,24 @@ pub async fn get_messagelib_addr(contract: &ContractInst, eid: U256) -> Result<A
 }
 
 /// Get the number of required confirmations by the ULN.
+///
+/// The value returned is a solidity `UlnConfig[]` with, at least, one value.
+///
+/// See: https://github.com/LayerZero-Labs/LayerZero-v2/blob/main/packages/layerzero-v2/evm/messagelib/contracts/uln/UlnBase.sol
+/// The struct `UlnConfig` is defined as follows:
+///
+/// ```solidity
+/// struct UlnConfig {
+///     uint64 confirmations;
+///     uint8 requiredDVNCount;
+///     uint8 optionalDVNCount;
+///     uint8 optionalDVNThreshold;
+///     address[] requiredDVNs;
+///     address[] optionalDVNs;
+/// }
+/// ```
+///
+/// and we require only the first value.
 pub async fn query_confirmations(contract: &ContractInst, eid: U256) -> Result<U256> {
     // Call the `getUlnConfig` function on the contract
     let uln_config = contract
