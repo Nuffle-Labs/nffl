@@ -1,8 +1,8 @@
 package actions
 
 import (
-	"github.com/NethermindEth/near-sffl/core/config"
-	"github.com/NethermindEth/near-sffl/operator"
+	"github.com/Nuffle-Labs/nffl/core/config"
+	"github.com/Nuffle-Labs/nffl/operator"
 	"github.com/urfave/cli"
 )
 

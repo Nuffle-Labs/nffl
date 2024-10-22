@@ -6,7 +6,7 @@ networks:
 
 services:
   near-sffl-aggregator:
-    image: ghcr.io/nethermindeth/near-sffl/aggregator:${SFFL_RELEASE}
+    image: ghcr.io/nuffle-labs/near-sffl/aggregator:${SFFL_RELEASE}
     container_name: near-sffl-aggregator
     volumes:
       - ./:/near-sffl/

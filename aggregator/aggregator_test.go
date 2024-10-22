@@ -15,17 +15,17 @@ import (
 	eigentypes "github.com/Layr-Labs/eigensdk-go/types"
 	gethtypes "github.com/ethereum/go-ethereum/core/types"
 
-	"github.com/NethermindEth/near-sffl/aggregator/blsagg"
-	dbmocks "github.com/NethermindEth/near-sffl/aggregator/database/mocks"
-	"github.com/NethermindEth/near-sffl/aggregator/database/models"
-	aggmocks "github.com/NethermindEth/near-sffl/aggregator/mocks"
-	"github.com/NethermindEth/near-sffl/aggregator/types"
-	taskmanager "github.com/NethermindEth/near-sffl/contracts/bindings/SFFLTaskManager"
-	"github.com/NethermindEth/near-sffl/core"
-	chainiomocks "github.com/NethermindEth/near-sffl/core/chainio/mocks"
-	safeclientmocks "github.com/NethermindEth/near-sffl/core/safeclient/mocks"
-	coretypes "github.com/NethermindEth/near-sffl/core/types"
-	"github.com/NethermindEth/near-sffl/core/types/messages"
+	"github.com/Nuffle-Labs/nffl/aggregator/blsagg"
+	dbmocks "github.com/Nuffle-Labs/nffl/aggregator/database/mocks"
+	"github.com/Nuffle-Labs/nffl/aggregator/database/models"
+	aggmocks "github.com/Nuffle-Labs/nffl/aggregator/mocks"
+	"github.com/Nuffle-Labs/nffl/aggregator/types"
+	taskmanager "github.com/Nuffle-Labs/nffl/contracts/bindings/SFFLTaskManager"
+	"github.com/Nuffle-Labs/nffl/core"
+	chainiomocks "github.com/Nuffle-Labs/nffl/core/chainio/mocks"
+	safeclientmocks "github.com/Nuffle-Labs/nffl/core/safeclient/mocks"
+	coretypes "github.com/Nuffle-Labs/nffl/core/types"
+	"github.com/Nuffle-Labs/nffl/core/types/messages"
 )
 
 var MOCK_OPERATOR_ID = [32]byte{207, 73, 226, 221, 104, 100, 123, 41, 192, 3, 9, 119, 90, 83, 233, 159, 231, 151, 245, 96, 150, 48, 144, 27, 102, 253, 39, 101, 1, 26, 135, 173}

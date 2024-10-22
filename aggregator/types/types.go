@@ -4,7 +4,7 @@ import (
 	"time"
 
 	eigentypes "github.com/Layr-Labs/eigensdk-go/types"
-	"github.com/NethermindEth/near-sffl/core/types/messages"
+	"github.com/Nuffle-Labs/nffl/core/types/messages"
 	"github.com/ethereum/go-ethereum/common"
 )
 
