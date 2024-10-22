@@ -6,7 +6,7 @@ networks:
 
 services:
   relayer_421614:
-    image: ghcr.io/nethermindeth/near-sffl/relayer:${SFFL_RELEASE}
+    image: ghcr.io/nuffle-labs/near-sffl/relayer:${SFFL_RELEASE}
     container_name: near-sffl-relayer-421614
     volumes:
       - ${NEAR_KEYS_DIR}:/root/.near-credentials
@@ -35,7 +35,7 @@ services:
         compress: "true"
 
   relayer_11155420:
-    image: ghcr.io/nethermindeth/near-sffl/relayer:${SFFL_RELEASE}
+    image: ghcr.io/nuffle-labs/near-sffl/relayer:${SFFL_RELEASE}
     container_name: near-sffl-relayer-11155420
     volumes:
       - ${NEAR_KEYS_DIR}:/root/.near-credentials
