@@ -6,15 +6,12 @@ use futures::stream::StreamExt;
 use tracing::{debug, error, info, warn};
 use tracing_subscriber::EnvFilter;
 use workers::{
-    abi::{
-        L0V2EndpointAbi::{self},
-        SendLibraryAbi,
-    },
+    abi::{L0V2EndpointAbi::PacketSent, SendLibraryAbi::DVNFeePaid},
     chain::{
         connections::{build_subscriptions, get_abi_from_path, get_http_provider},
         contracts::{create_contract_instance, query_already_verified, query_confirmations, verify},
     },
-    data::Dvn,
+    data::dvn::Dvn,
 };
 
 #[tokio::main]
@@ -42,7 +39,7 @@ async fn main() -> Result<()> {
 
     // FIXME: refactor the operations from this loop into smaller, testable containers.
     loop {
-        dvn_worker.listening();
+        dvn_data.listening();
         tokio::select! {
             Some(log) = endpoint_stream.next() => {
                 match log.log_decode::<PacketSent>() {
@@ -51,11 +48,8 @@ async fn main() -> Result<()> {
                     }
                     Ok(inner_log) => {
                         debug!("PacketSent event found and decoded.");
-                        dvn_worker.packet_received(inner_log.data().clone());
+                        dvn_data.packet_received(inner_log.data().clone());
                     },
-                    Err(e) => {
-                        error!("Failed to decode `PacketSent` event: {:?}", e);
-                    }
                 }
             }
             Some(log) = sendlib_stream.next() => {
@@ -103,7 +97,7 @@ async fn main() -> Result<()> {
                                         verify(
                                             &receivelib_contract,
                                             &dvn_data.get_header().ok_or_eyre("Cannot extract header from payload")?.to_slice(),
-                                            message_hash.as_ref(),
+                                            &message_hash.to_vec(),
                                             required_confirmations,
                                         ).await?;
                                     }
@@ -123,12 +117,9 @@ async fn main() -> Result<()> {
                     Ok(_)=> {
                         warn!("Received a `DVNFeePaid` event but don't have information about the `Packet` to be verified");
                     }
-                    Err(e) => {
-                        error!("Failed to decode `DVNFeePaid` event: {:?}", e);
-                    }
                 }
             },
         }
-        dvn_worker.reset_packet();
+        dvn_data.reset_packet();
     }
 }

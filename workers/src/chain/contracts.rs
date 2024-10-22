@@ -126,8 +126,8 @@ pub async fn query_already_verified(
 
 pub async fn verify(
     contract: &ContractInst,
-    packet_header: &Bytes,
-    payload: &Bytes,
+    packet_header: &Vec<u8>,
+    payload: &Vec<u8>,
     confirmations: U256,
 ) -> Result<bool> {
     //// Create the hash of the payload
