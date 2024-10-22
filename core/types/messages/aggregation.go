@@ -3,10 +3,10 @@ package messages
 import (
 	"github.com/Layr-Labs/eigensdk-go/crypto/bls"
 
-	registryrollup "github.com/NethermindEth/near-sffl/contracts/bindings/SFFLRegistryRollup"
-	taskmanager "github.com/NethermindEth/near-sffl/contracts/bindings/SFFLTaskManager"
-	"github.com/NethermindEth/near-sffl/core"
-	coretypes "github.com/NethermindEth/near-sffl/core/types"
+	registryrollup "github.com/Nuffle-Labs/nffl/contracts/bindings/SFFLRegistryRollup"
+	taskmanager "github.com/Nuffle-Labs/nffl/contracts/bindings/SFFLTaskManager"
+	"github.com/Nuffle-Labs/nffl/core"
+	coretypes "github.com/Nuffle-Labs/nffl/core/types"
 )
 
 type MessageBlsAggregation struct {

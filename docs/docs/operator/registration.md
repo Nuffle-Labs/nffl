@@ -38,7 +38,7 @@ Install [Docker Engine on Linux](https://docs.docker.com/engine/install/ubuntu/)
 Clone the NFFL repository and execute the following.
 
 ```bash
-git clone https://github.com/NethermindEth/near-sffl.git
+git clone https://github.com/Nuffle-Labs/nffl.git
 cd near-sffl/setup/plugin
 cp .env.example .env
 ```

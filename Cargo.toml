@@ -10,7 +10,7 @@ members = [
 [workspace.package]
 version = "0.0.1"
 edition = "2021"
-repository = "https://github.com/NethermindEth/near-sffl"
+repository = "https://github.com/Nuffle-Labs/nffl"
 
 [patch.crates-io]
 parity-secp256k1 = { git = 'https://github.com/paritytech/rust-secp256k1.git' }

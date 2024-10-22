@@ -6,9 +6,9 @@ import (
 	opstateretriever "github.com/Layr-Labs/eigensdk-go/contracts/bindings/OperatorStateRetriever"
 	"github.com/Layr-Labs/eigensdk-go/crypto/bls"
 
-	"github.com/NethermindEth/near-sffl/aggregator/types"
-	taskmanager "github.com/NethermindEth/near-sffl/contracts/bindings/SFFLTaskManager"
-	coretypes "github.com/NethermindEth/near-sffl/core/types"
+	"github.com/Nuffle-Labs/nffl/aggregator/types"
+	taskmanager "github.com/Nuffle-Labs/nffl/contracts/bindings/SFFLTaskManager"
+	coretypes "github.com/Nuffle-Labs/nffl/core/types"
 )
 
 // ====== TaskManager Mocks ======

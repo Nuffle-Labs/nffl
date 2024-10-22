@@ -1,7 +1,7 @@
 package models
 
 import (
-	"github.com/NethermindEth/near-sffl/core/types/messages"
+	"github.com/Nuffle-Labs/nffl/core/types/messages"
 	"gorm.io/gorm"
 )
 

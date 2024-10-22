@@ -4,9 +4,9 @@ import (
 	"encoding/json"
 	"fmt"
 	sdklogging "github.com/Layr-Labs/eigensdk-go/logging"
-	"github.com/NethermindEth/near-sffl/aggregator/mocks"
-	"github.com/NethermindEth/near-sffl/core/types/messages"
-	"github.com/NethermindEth/near-sffl/tests"
+	"github.com/Nuffle-Labs/nffl/aggregator/mocks"
+	"github.com/Nuffle-Labs/nffl/core/types/messages"
+	"github.com/Nuffle-Labs/nffl/tests"
 	"net/http"
 	"net/http/httptest"
 	"testing"
@@ -14,7 +14,7 @@ import (
 	"github.com/stretchr/testify/assert"
 	"go.uber.org/mock/gomock"
 
-	aggtypes "github.com/NethermindEth/near-sffl/aggregator/types"
+	aggtypes "github.com/Nuffle-Labs/nffl/aggregator/types"
 )
 
 func TestGetStateRootUpdateAggregation(t *testing.T) {

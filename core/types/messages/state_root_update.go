@@ -9,9 +9,9 @@ import (
 	eigentypes "github.com/Layr-Labs/eigensdk-go/types"
 	"github.com/ethereum/go-ethereum/accounts/abi"
 
-	servicemanager "github.com/NethermindEth/near-sffl/contracts/bindings/SFFLServiceManager"
-	"github.com/NethermindEth/near-sffl/core"
-	coretypes "github.com/NethermindEth/near-sffl/core/types"
+	servicemanager "github.com/Nuffle-Labs/nffl/contracts/bindings/SFFLServiceManager"
+	"github.com/Nuffle-Labs/nffl/core"
+	coretypes "github.com/Nuffle-Labs/nffl/core/types"
 )
 
 type StateRootUpdateMessage struct {
