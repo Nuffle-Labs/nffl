@@ -4,11 +4,11 @@ use crate::chain::{ContractInst, HttpProvider};
 use alloy::{
     contract::{ContractInstance, Interface},
     dyn_abi::DynSolValue,
+    json_abi::JsonAbi,
     network::Ethereum,
     primitives::{keccak256, Address, U256},
     transports::http::{Client, Http},
 };
-use alloy_json_abi::JsonAbi;
 use eyre::{eyre, OptionExt, Result};
 use tracing::{debug, error};
 

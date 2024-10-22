@@ -6,11 +6,11 @@ use crate::{
 };
 use alloy::{
     eips::BlockNumberOrTag,
+    json_abi::JsonAbi,
     providers::{Provider, ProviderBuilder, RootProvider, WsConnect},
     pubsub::{PubSubFrontend, SubscriptionStream},
     rpc::types::{Filter, Log},
 };
-use alloy_json_abi::JsonAbi;
 use eyre::{OptionExt, Result};
 
 /// Create the subscriptions for the DVN workflow.

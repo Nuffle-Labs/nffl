@@ -9831,7 +9831,6 @@ name = "workers"
 version = "0.1.0"
 dependencies = [
  "alloy",
- "alloy-json-abi",
  "blsful",
  "bytes",
  "config",

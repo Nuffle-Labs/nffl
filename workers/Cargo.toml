@@ -9,7 +9,6 @@ path = "src/bin/dvn.rs"
 
 [dependencies]
 alloy.workspace = true
-alloy-json-abi = "0.8.8"
 blsful = "2.5.7"
 bytes = "1.7.2"
 config = { version = "0.14.0", features = ["toml"] }
