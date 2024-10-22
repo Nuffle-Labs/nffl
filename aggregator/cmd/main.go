@@ -11,10 +11,10 @@ import (
 	"github.com/prometheus/client_golang/prometheus"
 	"github.com/urfave/cli"
 
-	"github.com/NethermindEth/near-sffl/aggregator"
-	restserver "github.com/NethermindEth/near-sffl/aggregator/rest_server"
-	rpcserver "github.com/NethermindEth/near-sffl/aggregator/rpc_server"
-	"github.com/NethermindEth/near-sffl/core/config"
+	"github.com/Nuffle-Labs/nffl/aggregator"
+	restserver "github.com/Nuffle-Labs/nffl/aggregator/rest_server"
+	rpcserver "github.com/Nuffle-Labs/nffl/aggregator/rpc_server"
+	"github.com/Nuffle-Labs/nffl/core/config"
 )
 
 var (

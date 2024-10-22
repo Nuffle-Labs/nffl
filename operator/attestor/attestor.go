@@ -14,11 +14,11 @@ import (
 	ethtypes "github.com/ethereum/go-ethereum/core/types"
 	"github.com/prometheus/client_golang/prometheus"
 
-	"github.com/NethermindEth/near-sffl/core"
-	"github.com/NethermindEth/near-sffl/core/safeclient"
-	"github.com/NethermindEth/near-sffl/core/types/messages"
-	"github.com/NethermindEth/near-sffl/operator/consumer"
-	optypes "github.com/NethermindEth/near-sffl/operator/types"
+	"github.com/Nuffle-Labs/nffl/core"
+	"github.com/Nuffle-Labs/nffl/core/safeclient"
+	"github.com/Nuffle-Labs/nffl/core/types/messages"
+	"github.com/Nuffle-Labs/nffl/operator/consumer"
+	optypes "github.com/Nuffle-Labs/nffl/operator/types"
 )
 
 const (

@@ -4,7 +4,7 @@ import (
 	"container/list"
 	"sync"
 
-	"github.com/NethermindEth/near-sffl/operator/consumer"
+	"github.com/Nuffle-Labs/nffl/operator/consumer"
 )
 
 type BlockPredicate = func(consumer.BlockData) bool

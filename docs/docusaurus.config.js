@@ -15,8 +15,8 @@ const config = {
   url: 'https://nffl.nethermind.io',
   baseUrl: '/',
 
-  organizationName: 'NethermindEth',
-  projectName: 'near-sffl',
+  organizationName: 'Nuffle Labs',
+  projectName: 'nffl',
 
   onBrokenLinks: 'throw',
   onBrokenMarkdownLinks: 'warn',
@@ -61,7 +61,7 @@ const config = {
             label: 'Docs',
           },
           {
-            href: 'https://github.com/NethermindEth/near-sffl',
+            href: 'https://github.com/Nuffle-Labs/nffl',
             label: 'GitHub',
             position: 'right',
           },
@@ -125,7 +125,7 @@ const config = {
             items: [
               {
                 label: 'GitHub',
-                href: 'https://github.com/NethermindEth/near-sffl',
+                href: 'https://github.com/Nuffle-Labs/nffl',
               },
             ],
           },

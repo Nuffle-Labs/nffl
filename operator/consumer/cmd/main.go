@@ -7,7 +7,7 @@ import (
 	"os"
 
 	"github.com/Layr-Labs/eigensdk-go/logging"
-	"github.com/NethermindEth/near-sffl/operator/consumer"
+	"github.com/Nuffle-Labs/nffl/operator/consumer"
 	"github.com/urfave/cli"
 )
 

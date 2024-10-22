@@ -8,11 +8,11 @@ import (
 	"github.com/ethereum/go-ethereum/accounts/abi/bind"
 	"github.com/ethereum/go-ethereum/common"
 
-	erc20mock "github.com/NethermindEth/near-sffl/contracts/bindings/ERC20Mock"
-	opsetupdatereg "github.com/NethermindEth/near-sffl/contracts/bindings/SFFLOperatorSetUpdateRegistry"
-	sfflregcoord "github.com/NethermindEth/near-sffl/contracts/bindings/SFFLRegistryCoordinator"
-	csservicemanager "github.com/NethermindEth/near-sffl/contracts/bindings/SFFLServiceManager"
-	taskmanager "github.com/NethermindEth/near-sffl/contracts/bindings/SFFLTaskManager"
+	erc20mock "github.com/Nuffle-Labs/nffl/contracts/bindings/ERC20Mock"
+	opsetupdatereg "github.com/Nuffle-Labs/nffl/contracts/bindings/SFFLOperatorSetUpdateRegistry"
+	sfflregcoord "github.com/Nuffle-Labs/nffl/contracts/bindings/SFFLRegistryCoordinator"
+	csservicemanager "github.com/Nuffle-Labs/nffl/contracts/bindings/SFFLServiceManager"
+	taskmanager "github.com/Nuffle-Labs/nffl/contracts/bindings/SFFLTaskManager"
 )
 
 type AvsManagersBindings struct {

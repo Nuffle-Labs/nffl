@@ -5,7 +5,7 @@ import (
 	rpccalls "github.com/Layr-Labs/eigensdk-go/metrics/collectors/rpc_calls"
 	"github.com/prometheus/client_golang/prometheus"
 
-	"github.com/NethermindEth/near-sffl/core/safeclient"
+	"github.com/Nuffle-Labs/nffl/core/safeclient"
 )
 
 type Metricable interface {

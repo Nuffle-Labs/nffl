@@ -4,7 +4,7 @@ import (
 	"github.com/Layr-Labs/eigensdk-go/crypto/bls"
 	"gorm.io/gorm"
 
-	"github.com/NethermindEth/near-sffl/core/types/messages"
+	"github.com/Nuffle-Labs/nffl/core/types/messages"
 )
 
 type MessageBlsAggregation struct {
