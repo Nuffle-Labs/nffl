@@ -149,8 +149,8 @@ pub fn extract_message(raw_packet: &[u8]) -> Option<Vec<u8>> {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use alloy::hex;
-    use alloy::primitives::Address;
+    use crate::abi::SendLibraryAbi;
+    use alloy::{hex, primitives::Address, sol_types::SolType};
     use eyre::Result;
 
     impl AddressWithType {
@@ -160,6 +160,49 @@ mod tests {
                 _ => Err(eyre::eyre!("This is not an Ethereum address")),
             }
         }
+    }
+
+    #[test]
+    fn abi_decode() -> Result<()> {
+        let hex_payload = hex!("010000000000012c810000759e00000000000000000000000019cfce47ed54a88614648dc3f19a5980097007dd000075e80000000000000000000000005634c4a5fed09819e3c46d86a965dd9447d86e479527645d4aecaa3325a0225a2b593eea5f0d26a44b97af7276bc0a80ed43047b0200000000000000000000000000000000000000000000000000002d79883d2000000d00000000000000000000000051a9ffd0c6026dcd59b5f2f42cc119deaa7347d0000000000000000e00000d0000000000000000000000005c8fbdbbc01d3474e7e40de14538e1e58fd485b3000000000000206b00");
+
+        let v = SendLibraryAbi::Packet::abi_decode(&hex_payload, true)?;
+        println!("{:?}", v);
+
+        //// Similar to the Packet
+        //type MyTy = (
+        //    Uint<8>,
+        //    Uint<64>,
+        //    Uint<32>,
+        //    FixedBytes<32>,
+        //    Uint<32>,
+        //    FixedBytes<32>,
+        //    FixedBytes<32>,
+        //    Bytes,
+        //);
+        //let v = MyTy::abi_decode(&hex_payload, true)?;
+        //println!("{:?}", v);
+
+        //sol!(
+        //    #[derive(Debug)]
+        //    struct Packet {
+        //        uint8 version;
+        //        uint64 nonce;
+        //        uint32 srcEid;
+        //        bytes32 sender;
+        //        uint32 dstEid;
+        //        bytes32 receiver;
+        //        bytes32 guid;
+        //        bytes message;
+        //    }
+        //);
+        //let v = Packet::abi_decode(&hex_payload, true)?;
+        //println!("{:?}", v);
+
+        //let v = SendLibraryAbi::Packet::abi_decode(&hex_payload, true)?;
+        //println!("{:?}", v);
+
+        Ok(())
     }
 
     #[test]
@@ -221,7 +264,7 @@ mod tests {
         );
         assert_eq!(
             header.guid,
-            FixedBytes::<32>::from_slice(
+            alloy::primitives::FixedBytes::<32>::from_slice(
                 hex::decode("9527645d4aecaa3325a0225a2b593eea5f0d26a44b97af7276bc0a80ed43047b")
                     .unwrap()
                     .as_ref()
@@ -238,7 +281,7 @@ mod tests {
             sender_addr: AddressWithType::new(&[1; 20]),
             dst_eid: 222,
             rcv_addr: AddressWithType::new(&[2; 20]),
-            guid: FixedBytes::<32>::from_slice(&[3; 32]),
+            guid: alloy::primitives::FixedBytes::<32>::from_slice(&[3; 32]),
         };
         let expected_hdr = vec![
             1, 0, 0, 0, 0, 0, 0, 0, 1, 0, 0, 0, 111, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 0, 0,
