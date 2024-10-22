@@ -96,17 +96,17 @@ async fn main() -> Result<()> {
 
                                         verify(
                                             &receivelib_contract,
-                                            &dvn_data.get_header().ok_or_eyre("Cannot extract header from payload")?.to_slice(),
-                                            &message_hash.to_vec(),
+                                            dvn_data.get_header().ok_or_eyre("Cannot extract header from payload")?,
+                                            message_hash.as_ref(),
                                             required_confirmations,
                                         ).await?;
                                     }
                                 }
                                 (_, None) => {
-                                    error!("Cannot payload hash");
+                                    error!("Cannot hash payload");
                                 }
                                 (None, _) => {
-                                    error!("Cannot message hash");
+                                    error!("Cannot hash message");
                                 }
                             }
                         } else {

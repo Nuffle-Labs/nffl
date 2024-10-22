@@ -25,18 +25,17 @@ sol!(
     "abi/L0V2Endpoint.json"
 );
 
-sol!(
-    #[allow(missing_docs)]
-    #[sol(abi)]
-    #[derive(Debug, PartialEq, Eq)]
-    struct Packet {
-        uint8 version;
-        uint64 nonce;
-        uint32 srcEid;
-        bytes32 sender;
-        uint32 dstEid;
-        bytes32 receiver;
-        bytes32 guid;
-        bytes message;
-    }
-);
+//sol!(
+//    #[allow(missing_docs)]
+//    #[sol(abi)]
+//    #[derive(Debug, PartialEq, Eq)]
+//    struct Packet {
+//        uint64 nonce;
+//        uint32 src_eid;
+//        bytes32 sender;
+//        uint32 dst_eid;
+//        bytes32 receiver;
+//        bytes32 guid;
+//        bytes message;
+//    }
+//);
