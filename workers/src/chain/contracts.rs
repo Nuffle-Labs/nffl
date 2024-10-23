@@ -15,7 +15,7 @@ use tracing::{debug, error};
 /// Create a contract instance from the ABI to interact with on-chain instance.
 pub fn create_contract_instance(addr: Address, http_provider: HttpProvider, abi: JsonAbi) -> Result<ContractInst> {
     let contract: ContractInstance<Http<Client>, _, Ethereum> =
-        ContractInstance::new(addr, http_provider.clone(), Interface::new(abi));
+        ContractInstance::new(addr, http_provider, Interface::new(abi));
     Ok(contract)
 }
 
@@ -124,12 +124,7 @@ pub async fn query_already_verified(
     Ok(*packet_state)
 }
 
-pub async fn verify(
-    contract: &ContractInst,
-    packet_header: &[u8],
-    payload: &[u8],
-    confirmations: U256,
-) -> Result<bool> {
+pub async fn verify(contract: &ContractInst, packet_header: &[u8], payload: &[u8], confirmations: U256) -> Result<()> {
     //// Create the hash of the payload
     let payload_hash = keccak256(payload);
 
@@ -146,5 +141,5 @@ pub async fn verify(
         .call()
         .await?;
 
-    Ok(false)
+    Ok(())
 }
