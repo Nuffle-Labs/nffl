@@ -1,7 +1,10 @@
 use clap::Parser;
 use configs::{Opts, SubCommand};
+use fastnear_indexer::FastNearIndexer;
 use prometheus::Registry;
 use tracing::{error, info};
+use tokio::sync::mpsc::Receiver;
+use crate::rmq_publisher::PublishData;
 
 use crate::{
     candidates_validator::CandidatesValidator, configs::RunConfigArgs, errors::Error, errors::Result,
@@ -17,6 +20,7 @@ mod metrics;
 mod metrics_server;
 mod rmq_publisher;
 mod types;
+mod fastnear_indexer;
 
 const INDEXER: &str = "indexer";
 
@@ -37,30 +41,39 @@ fn run(home_dir: std::path::PathBuf, config: RunConfigArgs) -> Result<()> {
     } else {
         None
     };
-
+    // firat: added some logic to handle the case when fastnear is enabled. Needs tests and maybe refactoring for base case
     // TODO: refactor
     let block_res = system.block_on(async move {
-        let mut indexer = IndexerWrapper::new(indexer_config, addresses_to_rollup_ids);
-        if let Some(_) = config.metrics_ip_port_address {
-            indexer.enable_metrics(registry.clone())?;
-        }
+        let validated_stream: Receiver<PublishData>;
+        if cfg!(feature = "use_fastnear") {
+            let fastnear_indexer = FastNearIndexer::new(addresses_to_rollup_ids);
+            validated_stream = fastnear_indexer.run();
+        } else {
+            let mut indexer = IndexerWrapper::new(indexer_config, addresses_to_rollup_ids);
+            if config.metrics_ip_port_address.is_some() {
+                indexer.enable_metrics(registry.clone())?;
+            }
 
-        let (view_client, _) = indexer.client_actors();
-        let (block_handle, candidates_stream) = indexer.run();
-        let mut candidates_validator = CandidatesValidator::new(view_client);
-        if let Some(_) = config.metrics_ip_port_address {
-            candidates_validator.enable_metrics(registry.clone())?;
-        }
+            let (view_client, _) = indexer.client_actors();
+            let (block_handle, candidates_stream) = indexer.run();
+            let mut candidates_validator = CandidatesValidator::new(view_client);
+            if config.metrics_ip_port_address.is_some() {
+                candidates_validator.enable_metrics(registry.clone())?;
+            }
 
-        let validated_stream = candidates_validator.run(candidates_stream);
+            validated_stream = candidates_validator.run(candidates_stream);
+
+            // TODO: Handle block_handle whether cancelled or panics
+            block_handle.await?;
+        }
+        
         let mut rmq_publisher = RmqPublisher::new(&config.rmq_address)?;
-        if let Some(_) = config.metrics_ip_port_address {
+        if config.metrics_ip_port_address.is_some() {
             rmq_publisher.enable_metrics(registry.clone())?;
         }
         rmq_publisher.run(validated_stream);
 
-        // TODO: block_handle wether cancelled or Panics. Can handle
-        Ok::<_, Error>(block_handle.await?)
+        Ok::<_, Error>(())
     });
 
     if let Some(handle) = server_handle {
@@ -84,11 +97,7 @@ fn read_config<T: serde::de::DeserializeOwned>(
         let config_str = std::fs::read_to_string(config_path)?;
         serde_yaml::from_str(&config_str).map_err(Into::into)
     } else {
-        if let Some(config_args) = config_args {
-            Ok(config_args)
-        } else {
-            panic!("Either config_path or config_args must be provided")
-        }
+        config_args.ok_or_else(|| Error::AnyhowError(anyhow::anyhow!("Either config_path or config_args must be provided")))
     }
 }
 
@@ -101,12 +110,12 @@ fn main() -> Result<()> {
     let env_filter = near_o11y::tracing_subscriber::EnvFilter::new(
         "nearcore=info,publisher=info,indexer=info,candidates_validator=info,\
          metrics=info,tokio_reactor=info,near=info,stats=info,telemetry=info,\
-         near-performance-metrics=info",
+         near-performance-metrics=info,fastnear_indexer=info",
     );
     let _subscriber = near_o11y::default_subscriber(env_filter, &Default::default()).global();
     let opts: Opts = Opts::parse();
 
-    let home_dir = opts.home_dir.unwrap_or(near_indexer::get_default_home());
+    let home_dir = opts.home_dir.unwrap_or_else(near_indexer::get_default_home);
     match opts.subcmd {
         SubCommand::Init(params) => {
             near_indexer::indexer_init_configs(&home_dir, read_config(params.config, params.args)?.into())?;
