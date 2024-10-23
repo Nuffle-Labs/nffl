@@ -7,15 +7,12 @@ use tracing::{debug, error, info, warn};
 use tracing_subscriber::EnvFilter;
 use workers::verifier::NFFLVerifier;
 use workers::{
-    abi::{
-        L0V2EndpointAbi::{self},
-        SendLibraryAbi,
-    },
+    abi::{L0V2EndpointAbi::PacketSent, SendLibraryAbi::DVNFeePaid},
     chain::{
         connections::{build_subscriptions, get_abi_from_path, get_http_provider},
         contracts::{create_contract_instance, query_already_verified, query_confirmations, verify},
     },
-    config,
+    data::dvn::Dvn,
 };
 use workers::data::dvn::Dvn;
 
@@ -45,7 +42,7 @@ async fn main() -> Result<()> {
 
     // FIXME: refactor the operations from this loop into smaller, testable containers.
     loop {
-        dvn_worker.listening();
+        dvn_data.listening();
         tokio::select! {
             Some(log) = endpoint_stream.next() => {
                 match log.log_decode::<PacketSent>() {
@@ -56,9 +53,6 @@ async fn main() -> Result<()> {
                         debug!("PacketSent event found and decoded.");
                         dvn_data.packet_received(inner_log.data().clone());
                     },
-                    Err(e) => {
-                        error!("Failed to decode `PacketSent` event: {:?}", e);
-                    }
                 }
             }
             Some(log) = sendlib_stream.next() => {
@@ -111,17 +105,17 @@ async fn main() -> Result<()> {
 
                                         verify(
                                             &receivelib_contract,
-                                            &dvn_data.get_header().ok_or_eyre("Cannot extract header from payload")?.to_slice(),
+                                            dvn_data.get_header().ok_or_eyre("Cannot extract header from payload")?,
                                             message_hash.as_ref(),
                                             required_confirmations,
                                         ).await?;
                                     }
                                 }
                                 (_, None) => {
-                                    error!("Cannot payload hash");
+                                    error!("Cannot hash payload");
                                 }
                                 (None, _) => {
-                                    error!("Cannot message hash");
+                                    error!("Cannot hash message");
                                 }
                             }
                         } else {
@@ -131,9 +125,6 @@ async fn main() -> Result<()> {
                     }
                     Ok(_)=> {
                         warn!("Received a `DVNFeePaid` event but don't have information about the `Packet` to be verified");
-                    }
-                    Err(e) => {
-                        error!("Failed to decode `DVNFeePaid` event: {:?}", e);
                     }
                 }
             },
