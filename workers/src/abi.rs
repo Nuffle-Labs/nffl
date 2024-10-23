@@ -14,7 +14,7 @@ sol!(
     #[sol(abi, rpc)]
     #[derive(Debug, Serialize, Deserialize)]
     SendLibraryAbi,
-    "abi/SendLibUln302.json"
+    "./abi/SendLibUln302.json"
 );
 
 sol!(
@@ -22,7 +22,7 @@ sol!(
     #[sol(abi, rpc)]
     #[derive(Debug, Serialize, Deserialize)]
     L0V2EndpointAbi,
-    "abi/L0V2Endpoint.json"
+    "./abi/L0V2Endpoint.json"
 );
 
 //sol!(

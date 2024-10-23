@@ -1,10 +1,11 @@
-//! Main offchain workflow for Nuff DVN.
+//! Main off-chain workflow for Nuff DVN.
 
 use alloy::primitives::U256;
 use eyre::{OptionExt, Result};
 use futures::stream::StreamExt;
 use tracing::{debug, error, info, warn};
 use tracing_subscriber::EnvFilter;
+use workers::data::dvn::Dvn;
 use workers::verifier::NFFLVerifier;
 use workers::{
     abi::{L0V2EndpointAbi::PacketSent, SendLibraryAbi::DVNFeePaid},
@@ -12,9 +13,7 @@ use workers::{
         connections::{build_subscriptions, get_abi_from_path, get_http_provider},
         contracts::{create_contract_instance, query_already_verified, query_confirmations, verify},
     },
-    data::dvn::Dvn,
 };
-use workers::data::dvn::Dvn;
 
 #[tokio::main]
 async fn main() -> Result<()> {
@@ -61,6 +60,8 @@ async fn main() -> Result<()> {
                         error!("Received a `DVNFeePaid` event but failed to decode it: {:?}", e);
                     }
                     Ok(inner_log) if dvn_data.packet.is_some() => {
+                        log.
+
                         info!("DVNFeePaid event found and decoded.");
                         let required_dvns = &inner_log.inner.requiredDVNs;
                         let own_dvn_addr = dvn_data.config.dvn_addr;
@@ -94,11 +95,8 @@ async fn main() -> Result<()> {
                                     } else {
                                         dvn_data.verifying();
                                         debug!("Packet NOT verified. Calling verification.");
-                                        let bn = log.block_number.unwrap();
-                                        // By invariant (Verifying status), dvn_data has a packet.
-                                        let hash = dvn_data.packet.unwrap().payload_hash;
 
-                                        if !verifier.verify(bn, hash).await? {
+                                        if !verifier.verify(log.block_number.unwrap()).await? {
                                             error!("Failed to verify the state root.");
                                             continue;
                                         }

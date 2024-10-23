@@ -9,13 +9,16 @@ path = "src/bin/dvn.rs"
 
 [dependencies]
 alloy.workspace = true
+alloy-trie = "0.7.2"
 blsful = "2.5.7"
 bytes = "1.7.2"
 config = { version = "0.14.0", features = ["toml"] }
 eyre.workspace = true
 futures = "0.3.31"
+reqwest.workspace = true
 serde.workspace = true
 serde_json.workspace = true
 tokio.workspace = true
 tracing.workspace = true
 tracing-subscriber = {workspace = true, features = ["env-filter"] }
+wiremock = "0.6.2"

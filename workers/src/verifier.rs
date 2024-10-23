@@ -1,13 +1,13 @@
-use alloy::providers::{ProviderBuilder, RootProvider, WsConnect};
-use alloy::pubsub::PubSubFrontend;
-use reqwest::{ClientBuilder, Url};
-use serde::{Deserialize, Serialize};
-use std::sync::Arc;
-use crate::config;
 use crate::config::DVNConfig;
+use alloy::eips::BlockNumberOrTag;
+use alloy::network::Ethereum;
+use alloy::primitives::B256;
+use alloy::providers::{Provider, ProviderBuilder, ReqwestProvider};
+use reqwest::{Client, ClientBuilder, Url};
+use serde::{Deserialize, Serialize};
 
 #[derive(Serialize, Deserialize, std::fmt::Debug)]
-pub (crate) struct ResponseWrapper {
+pub(crate) struct ResponseWrapper {
     pub message: Message,
 }
 
@@ -27,59 +27,131 @@ pub struct Message {
     pub state_root: Vec<u8>,
 }
 
+// TODO: Generify in a future for other networks, like Solana.
 pub struct NFFLVerifier {
-    // eth_l2_provider: Arc<RootProvider<PubSubFrontend>>,
-    http_client: reqwest::Client,
+    http_client: Client,
+    eth_l2_provider: ReqwestProvider<Ethereum>,
     aggregator_http_address: String,
     network_id: String,
 }
 
 impl NFFLVerifier {
-    pub async fn new(agg_url: &str, rpc_url: &str, network_id: u64) -> eyre::Result<NFFLVerifier> {
-        // let ws = WsConnect::new(rpc_url);
-        // let provider = ProviderBuilder::new().on_ws(ws).await?;
+    /// For test purposes only
+    pub(crate) async fn new(agg_url: &str, eth_l2_url: &str, network_id: u64) -> eyre::Result<NFFLVerifier> {
         let client = ClientBuilder::new().build()?;
-
+        let url: Url = eth_l2_url.parse()?;
+        let provider = ProviderBuilder::new().on_http(url);
         let agg_http_addr = format!("{}/aggregation/state-root-update", agg_url);
 
         Ok(NFFLVerifier {
-            // eth_l2_provider: Arc::new(provider),
+            eth_l2_provider: provider,
             http_client: client,
             aggregator_http_address: agg_http_addr,
-            network_id: network_id.to_string()
-        })
-    }    
-    
-    pub async fn new_from_config(cfg: &DVNConfig) -> eyre::Result<NFFLVerifier> {
-        // let ws = WsConnect::new(rpc_url);
-        // let provider = ProviderBuilder::new().on_ws(ws).await?;
-        let client = ClientBuilder::new().build()?;
-
-        let agg_http_addr = format!("{}/aggregation/state-root", cfg.aggregator_url());
-
-        Ok(NFFLVerifier {
-            // eth_l2_provider: Arc::new(provider),
-            http_client: client,
-            aggregator_http_address: agg_http_addr,
-            network_id: cfg.network_id().to_string()
+            network_id: network_id.to_string(),
         })
     }
 
-    pub async fn verify(&self, payload_hash: &[u8], block_height: u64) -> eyre::Result<bool> {
-        // tokio::spawn(async {
+    pub async fn new_from_config(cfg: &DVNConfig) -> eyre::Result<NFFLVerifier> {
+        let client = ClientBuilder::new().build()?;
+        let provider = ProviderBuilder::new().on_http(cfg.http_rpc_url.parse()?);
+        let agg_http_addr = format!("{}/aggregation/state-root-update", cfg.aggregator_url);
+
+        Ok(NFFLVerifier {
+            eth_l2_provider: provider,
+            http_client: client,
+            aggregator_http_address: agg_http_addr,
+            network_id: cfg.network_eid.to_string(),
+        })
+    }
+
+    /// Verifies the state root of a block. In case if any request future
+    /// is interrupted, or finishes unsuccessfully, returns Ok(false).
+    pub async fn verify(&self, block_height: u64) -> eyre::Result<bool> {
+        match tokio::try_join!(
+            self.get_aggregator_root_state(block_height),
+            self.get_block_state_root(block_height),
+        ) {
+            Ok((agg_response, block_state_root)) => {
+                let state_root_slice: &[u8] = agg_response.message.state_root.as_slice();
+                let aggregator_state_root: B256 = B256::from_slice(state_root_slice);
+                if agg_response.message.block_height != block_height {
+                    return Ok(false);
+                }
+                Ok(block_state_root.eq(&aggregator_state_root))
+            }
+            Err(_) => Ok(false),
+        }
+    }
+
+    /// Fetches the root state from the NFFL aggregator via HTTP.
+    pub(crate) async fn get_aggregator_root_state(&self, block_height: u64) -> eyre::Result<ResponseWrapper> {
         let params = [
             ("rollupId", self.network_id.clone()),
             ("blockHeight", block_height.to_string()),
         ];
-        let url = Url::parse_with_params(&self.aggregator_http_address, &params)?;
-        let res = self.http_client.get(url).send().await?;
-        let response_payload = res.json::<ResponseWrapper>().await?;
-        let message = &response_payload.message;
-        if (message.block_height != block_height) {
-            return Ok(false);
+        match Url::parse_with_params(&self.aggregator_http_address, &params) {
+            Ok(url) => {
+                let response = self.http_client.get(url).send().await?;
+                response.json::<ResponseWrapper>().await.map_err(|e| e.into())
+            }
+            Err(e) => Err(e.into()),
         }
-        // TODO: take the hash from the LayerZero message for Merkle proof verification.
-        // Ok(message.state_root.eq(&vec![0]))
-        Ok(true)
+    }
+
+    /// Fetches the block state root from the Ethereum L2 provider
+    /// via JSON-RPC API, backed by alloy-rs.
+    pub(crate) async fn get_block_state_root(&self, block_number: u64) -> eyre::Result<B256> {
+        let b_number = BlockNumberOrTag::from(block_number);
+        match self.eth_l2_provider.get_block_by_number(b_number, true).await? {
+            Some(block) => Ok(block.header.state_root),
+            None => Err(eyre::eyre!("Block not found")),
+        }
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use crate::verifier::{Message, NFFLVerifier};
+    use wiremock::matchers::{method, path};
+    use wiremock::{Mock, MockServer, ResponseTemplate};
+
+    #[tokio::test]
+    async fn test_aggregator_root_state_mock_ok() {
+        let mock_server = MockServer::start().await;
+        setup(&mock_server).await;
+
+        let verifier_result = NFFLVerifier::new(
+            format!("http://{addr}", addr = mock_server.address()).as_str(),
+            "https://arbitrum.drpc.org",
+            1,
+        )
+        .await;
+
+        assert!(verifier_result.is_ok());
+
+        let verifier = verifier_result.unwrap();
+
+        let state_root_resp_res = verifier.get_aggregator_root_state(2).await;
+        assert!(state_root_resp_res.is_ok()); // TODO: why not OK?
+
+        let state_root = state_root_resp_res.unwrap().message.state_root;
+        assert_eq!(state_root, vec![1, 1, 1]);
+    }
+
+    async fn setup(mock_server: &MockServer) {
+        let state_root_message = Message {
+            rollup_id: 1,
+            block_height: 2,
+            timestamp: 3,
+            near_da_transaction_id: vec![4],
+            near_da_commitment: vec![5],
+            state_root: vec![1, 1, 1],
+        };
+
+        Mock::given(method("GET"))
+            .and(path("/state-root"))
+            .respond_with(ResponseTemplate::new(200).set_body_json(state_root_message))
+            .mount(mock_server)
+            .await;
     }
 }
