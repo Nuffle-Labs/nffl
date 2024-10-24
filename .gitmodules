@@ -4,3 +4,9 @@
 [submodule "contracts/evm/lib/eigenlayer-middleware"]
 	path = contracts/evm/lib/eigenlayer-middleware
 	url = https://github.com/Layr-Labs/eigenlayer-middleware
+[submodule "contracts/evm/lib/openzeppelin-contracts"]
+	path = contracts/evm/lib/openzeppelin-contracts
+	url = https://github.com/OpenZeppelin/openzeppelin-contracts
+[submodule "contracts/evm/lib/solady"]
+	path = contracts/evm/lib/solady
+	url = https://github.com/vectorized/solady

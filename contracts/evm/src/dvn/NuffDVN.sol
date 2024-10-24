@@ -1,24 +1,24 @@
 // SPDX-License-Identifier: MIT
 pragma solidity ^0.8.20;
 
-import "@openzeppelin/contracts/access/AccessControl.sol";
-import "@openzeppelin/contracts/utils/cryptography/ECDSA.sol";
-import "@openzeppelin/contracts/utils/cryptography/MessageHashUtils.sol";
+import "openzeppelin-contracts/contracts/access/AccessControl.sol";
+import "openzeppelin-contracts/contracts/utils/cryptography/ECDSA.sol";
+import "openzeppelin-contracts/contracts/utils/cryptography/MessageHashUtils.sol";
 
 import { ILayerZeroEndpointV2 } from "@layerzerolabs/lz-evm-protocol-v2/contracts/interfaces/ILayerZeroEndpointV2.sol";
 import { ISendLib } from "@layerzerolabs/lz-evm-protocol-v2/contracts/interfaces/ISendLib.sol";
-import { IDVN } from "@layerzerolabs/lz-evm-messagelib-v2/contracts/uld/interfaces/IDVN.sol";
+import { IDVN } from "@layerzerolabs/lz-evm-messagelib-v2/contracts/uln/interfaces/IDVN.sol";
 import { ILayerZeroDVN } from "@layerzerolabs/lz-evm-messagelib-v2/contracts/uln/interfaces/ILayerZeroDVN.sol";
 import { PacketV1Codec } from "@layerzerolabs/lz-evm-protocol-v2/contracts/messagelib/libs/PacketV1Codec.sol";
-import { IReceiveUlnE2 } from "@layerzerolabs/lz-evm-messagelib-v2/contracts/uld/interfaces/IReceiveUlnE2.sol";
-import { IDVNFeeLib } from "@layerzerolabs/lz-evm-messagelib-v2/contracts/uld/interfaces/IDVNFeeLib.sol";
+import { IReceiveUlnE2 } from "@layerzerolabs/lz-evm-messagelib-v2/contracts/uln/interfaces/IReceiveUlnE2.sol";
+import { IDVNFeeLib } from "@layerzerolabs/lz-evm-messagelib-v2/contracts/uln/interfaces/IDVNFeeLib.sol";
 
 import { INuffClient } from "./interfaces/INuffClient.sol";
 import { INuffDVNConfig } from "./interfaces/INuffDVNConfig.sol";
 
-import { ReentrancyGuard } from "@solady/src/utils/ReentrancyGuard.sol";
+import { ReentrancyGuard } from "solady/src/utils/ReentrancyGuard.sol";
 
-contract NuffDVNV2 is ILayerZeroDVN, AccessControl, IDVN, ReentrancyGuard {
+abstract contract NuffDVN is ILayerZeroDVN, AccessControl, IDVN, ReentrancyGuard {
     using PacketV1Codec for bytes;
     using ECDSA for bytes32;
     using MessageHashUtils for bytes32;
@@ -39,7 +39,6 @@ contract NuffDVNV2 is ILayerZeroDVN, AccessControl, IDVN, ReentrancyGuard {
     bytes32 public constant MESSAGE_LIB_ROLE = keccak256("MESSAGE_LIB_ROLE");
 
     ILayerZeroEndpointV2 public layerZeroEndpointV2;
-    ILayerZeroEndpoint public layerZeroEndpointV1;
     uint32 public immutable localEid;
 
     uint256 public lastJobId;
@@ -68,7 +67,6 @@ contract NuffDVNV2 is ILayerZeroDVN, AccessControl, IDVN, ReentrancyGuard {
         INuffClient.PublicKey memory _nuffPublicKey,
         address _nuff,
         address _layerZeroEndpointV2,
-        address _layerZeroEndpointV1,
         address _dvnConfig,
         uint16 _defaultMultiplierBps,
         uint64 _quorum,
@@ -79,7 +77,6 @@ contract NuffDVNV2 is ILayerZeroDVN, AccessControl, IDVN, ReentrancyGuard {
         nuffPublicKey = _nuffPublicKey;
         nuff = INuffClient(_nuff);
         layerZeroEndpointV2 = ILayerZeroEndpointV2(_layerZeroEndpointV2);
-        layerZeroEndpointV1 = ILayerZeroEndpoint(_layerZeroEndpointV1);
         dvnConfig = INuffDVNConfig(_dvnConfig);
         localEid = layerZeroEndpointV2.eid();
         defaultMultiplierBps = _defaultMultiplierBps;
@@ -147,8 +144,7 @@ contract NuffDVNV2 is ILayerZeroDVN, AccessControl, IDVN, ReentrancyGuard {
         uint64 _confirmations,
         address _receiver,
         bytes calldata _reqId,
-        INuffClient.BLSSign calldata _signature,
-        bytes calldata gatewaySignature
+        INuffClient.BLSSign calldata _signature
     ) external nonReentrant {
         require(_isLocal(_dstEid), "Invalid dstEid");
         require(
@@ -175,9 +171,7 @@ contract NuffDVNV2 is ILayerZeroDVN, AccessControl, IDVN, ReentrancyGuard {
         _verifyNuffSig(
             _reqId,
             hash,
-            _signature,
-            dvnConfig.shieldNodes(_receiver),
-            gatewaySignature
+            _signature
         );
 
         _lzVerify(
@@ -261,7 +255,7 @@ contract NuffDVNV2 is ILayerZeroDVN, AccessControl, IDVN, ReentrancyGuard {
         uint64 _confirmations,
         address _sender,
         bytes calldata _options
-    ) external nonReentrant view override returns (uint256 _fee) {
+    ) external view override returns (uint256 _fee) {
         IDVNFeeLib.FeeParams memory params = IDVNFeeLib.FeeParams(
             priceFeed,
             _dstEid,
@@ -276,8 +270,7 @@ contract NuffDVNV2 is ILayerZeroDVN, AccessControl, IDVN, ReentrancyGuard {
     function _verifyNuffSig(
         bytes calldata reqId,
         bytes32 hash,
-        INuffClient.BLSSign calldata sign,
-        bytes calldata gatewaySignature
+        INuffClient.BLSSign calldata sign
     ) internal nonReentrant {
         bool verified = nuff.nuffVerify(
             reqId,
@@ -300,10 +293,6 @@ contract NuffDVNV2 is ILayerZeroDVN, AccessControl, IDVN, ReentrancyGuard {
             (receiverLib, ) = layerZeroEndpointV2.getReceiveLibrary(
                 _receiver,
                 _srcEid
-            );
-        } else {
-            receiverLib = layerZeroEndpointV1.getReceiveLibraryAddress(
-                _receiver
             );
         }
 
