@@ -41,7 +41,7 @@ impl NFFLVerifier {
         let client = ClientBuilder::new().build()?;
         let url: Url = eth_l2_url.parse()?;
         let provider = ProviderBuilder::new().on_http(url);
-        let agg_http_addr = format!("{}/aggregation/state-root-update", agg_url);
+        let agg_http_addr = format!("{}/state-root", agg_url);
 
         Ok(NFFLVerifier {
             eth_l2_provider: provider,
@@ -54,7 +54,7 @@ impl NFFLVerifier {
     pub async fn new_from_config(cfg: &DVNConfig) -> eyre::Result<NFFLVerifier> {
         let client = ClientBuilder::new().build()?;
         let provider = ProviderBuilder::new().on_http(cfg.http_rpc_url.parse()?);
-        let agg_http_addr = format!("{}/aggregation/state-root-update", cfg.aggregator_url);
+        let agg_http_addr = format!("{}/state-root", cfg.aggregator_url);
 
         Ok(NFFLVerifier {
             eth_l2_provider: provider,
@@ -89,11 +89,9 @@ impl NFFLVerifier {
             ("rollupId", self.network_id.clone()),
             ("blockHeight", block_height.to_string()),
         ];
-        match Url::parse_with_params(&self.aggregator_http_address, &params) {
-            Ok(url) => {
-                let response = self.http_client.get(url).send().await?;
-                response.json::<ResponseWrapper>().await.map_err(|e| e.into())
-            }
+        let url = Url::parse_with_params(&self.aggregator_http_address, &params)?;
+        match self.http_client.get(url).send().await {
+            Ok(response) => response.json::<ResponseWrapper>().await.map_err(|e| e.into()),
             Err(e) => Err(e.into()),
         }
     }
@@ -111,8 +109,8 @@ impl NFFLVerifier {
 
 #[cfg(test)]
 mod tests {
-    use crate::verifier::{Message, NFFLVerifier};
-    use wiremock::matchers::{method, path};
+    use crate::verifier::{Message, NFFLVerifier, ResponseWrapper};
+    use wiremock::matchers::{method, path, query_param_contains};
     use wiremock::{Mock, MockServer, ResponseTemplate};
 
     #[tokio::test]
@@ -120,12 +118,7 @@ mod tests {
         let mock_server = MockServer::start().await;
         setup(&mock_server).await;
 
-        let verifier_result = NFFLVerifier::new(
-            format!("http://{addr}", addr = mock_server.address()).as_str(),
-            "https://arbitrum.drpc.org",
-            1,
-        )
-        .await;
+        let verifier_result = NFFLVerifier::new(mock_server.uri().as_str(), "https://arbitrum.drpc.org", 1).await;
 
         assert!(verifier_result.is_ok());
 
@@ -148,9 +141,14 @@ mod tests {
             state_root: vec![1, 1, 1],
         };
 
+        let state_root_resp = ResponseWrapper {
+            message: state_root_message,
+        };
+
         Mock::given(method("GET"))
             .and(path("/state-root"))
-            .respond_with(ResponseTemplate::new(200).set_body_json(state_root_message))
+            .and(query_param_contains("blockHeight", "2"))
+            .respond_with(ResponseTemplate::new(200).set_body_json(state_root_resp))
             .mount(mock_server)
             .await;
     }
