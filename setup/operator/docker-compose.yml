@@ -26,7 +26,7 @@ services:
 
   near-sffl-indexer:
     profiles: [indexer]
-    image: ghcr.io/nethermindeth/near-sffl/indexer:${SFFL_RELEASE}
+    image: ghcr.io/nuffle-labs/near-sffl/indexer:${SFFL_RELEASE}
     container_name: near-sffl-indexer
     depends_on:
       rmq:
@@ -55,7 +55,7 @@ services:
 
   near-sffl-operator:
     profiles: [operator]
-    image: ghcr.io/nethermindeth/near-sffl/operator:${SFFL_RELEASE}
+    image: ghcr.io/nuffle-labs/near-sffl/operator:${SFFL_RELEASE}
     container_name: near-sffl-operator
     depends_on:
       rmq:

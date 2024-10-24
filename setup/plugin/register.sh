@@ -11,4 +11,4 @@ docker run --rm \
   -v $(pwd):/near-sffl/ \
   --env-file .env \
   --pull=always \
-  ghcr.io/nethermindeth/near-sffl/operator-plugin:latest --config /near-sffl/config/operator.yaml --operation-type opt-in
+  ghcr.io/nuffle-labs/near-sffl/operator-plugin:latest --config /near-sffl/config/operator.yaml --operation-type opt-in
