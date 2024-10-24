@@ -17,6 +17,46 @@ import (
 	aggtypes "github.com/NethermindEth/near-sffl/aggregator/types"
 )
 
+func TestGetStateRoot(t *testing.T) {
+	mockCtrl := gomock.NewController(t)
+	defer mockCtrl.Finish()
+
+	logger := sdklogging.NewNoopLogger()
+	aggregator := mocks.NewMockRestAggregatorer(mockCtrl)
+	restServer := NewRestServer("", aggregator, logger)
+
+	msg := messages.StateRootUpdateMessage{
+		RollupId:            1,
+		BlockHeight:         2,
+		Timestamp:           3,
+		NearDaCommitment:    tests.Keccak256(4),
+		NearDaTransactionId: tests.Keccak256(5),
+		StateRoot:           tests.Keccak256(6),
+	}
+
+	response := aggtypes.GetStateRootResponse{
+		Message: msg,
+	}
+	aggregator.EXPECT().GetStateRoot(msg.RollupId, msg.BlockHeight).Return(&response, nil)
+
+	req, err := http.NewRequest(
+		"GET",
+		fmt.Sprintf("/state-root?rollupId=%d&blockHeight=%d", msg.RollupId, msg.BlockHeight),
+		nil,
+	)
+	assert.Nil(t, err)
+
+	recorder := httptest.NewRecorder()
+	err = restServer.handleGetStateRoot(recorder, req)
+	assert.Nil(t, err)
+	assert.Equal(t, recorder.Code, http.StatusOK)
+
+	var body aggtypes.GetStateRootResponse
+	err = json.Unmarshal(recorder.Body.Bytes(), &body)
+	assert.Nil(t, err)
+	assert.Equal(t, body, response)
+}
+
 func TestGetStateRootUpdateAggregation(t *testing.T) {
 	mockCtrl := gomock.NewController(t)
 	defer mockCtrl.Finish()

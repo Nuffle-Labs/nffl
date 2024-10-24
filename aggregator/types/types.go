@@ -25,6 +25,10 @@ type OperatorInfo struct {
 	OperatorAddr    common.Address
 }
 
+type GetStateRootResponse struct {
+	Message messages.StateRootUpdateMessage
+}
+
 type GetStateRootUpdateAggregationResponse struct {
 	Message     messages.StateRootUpdateMessage
 	Aggregation messages.MessageBlsAggregation
