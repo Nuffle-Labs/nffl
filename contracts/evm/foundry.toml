@@ -20,3 +20,8 @@ optimizer = true
 optimizer_runs = 100
 
 # See more config options https://github.com/foundry-rs/foundry/blob/master/crates/config/README.md#all-options
+
+[profile.default.dvn]
+path = "src/dvn"
+solc_version = "0.8.20"
+

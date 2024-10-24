@@ -1,9 +1,8 @@
 // SPDX-License-Identifier: MIT
 pragma solidity ^0.8.20;
 
-import "openzeppelin-contracts/contracts/access/AccessControl.sol";
-import "openzeppelin-contracts/contracts/utils/cryptography/ECDSA.sol";
-import "openzeppelin-contracts/contracts/utils/cryptography/MessageHashUtils.sol";
+import "@openzeppelin/contracts/access/AccessControl.sol";
+import "@openzeppelin/contracts/utils/cryptography/ECDSA.sol";
 
 import { ILayerZeroEndpointV2 } from "@layerzerolabs/lz-evm-protocol-v2/contracts/interfaces/ILayerZeroEndpointV2.sol";
 import { ISendLib } from "@layerzerolabs/lz-evm-protocol-v2/contracts/interfaces/ISendLib.sol";
@@ -21,7 +20,6 @@ import { ReentrancyGuard } from "solady/src/utils/ReentrancyGuard.sol";
 abstract contract NuffDVN is ILayerZeroDVN, AccessControl, IDVN, ReentrancyGuard {
     using PacketV1Codec for bytes;
     using ECDSA for bytes32;
-    using MessageHashUtils for bytes32;
 
     struct Job {
         address origin;
