@@ -126,7 +126,7 @@ mod tests {
         let verifier = verifier_result.unwrap();
 
         let state_root_resp_res = verifier.get_aggregator_root_state(2).await;
-        assert!(state_root_resp_res.is_ok()); // TODO: why not OK?
+        assert!(state_root_resp_res.is_ok());
 
         let state_root = state_root_resp_res.unwrap().message.state_root;
         assert_eq!(state_root, vec![1, 1, 1]);
