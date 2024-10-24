@@ -1,6 +1,8 @@
 //! Utilities for interacting with onchain contracts.
 
 use crate::chain::{ContractInst, HttpProvider};
+use crate::data::packet_v1_codec::{guid, header, message, nonce, receiver, sender, src_eid};
+use alloy::primitives::{B256, I256};
 use alloy::{
     contract::{ContractInstance, Interface},
     dyn_abi::DynSolValue,
@@ -10,6 +12,8 @@ use alloy::{
     transports::http::{Client, Http},
 };
 use eyre::{eyre, OptionExt, Result};
+use std::time::Duration;
+use tokio::time::sleep;
 use tracing::{debug, error};
 
 /// Create a contract instance from the ABI to interact with on-chain instance.
@@ -142,4 +146,51 @@ pub async fn verify(contract: &ContractInst, packet_header: &[u8], payload: &[u8
         .await?;
 
     Ok(())
+}
+
+pub async fn executable(contract: &ContractInst, packet: &[u8]) -> Result<()> {
+    let call_builder = contract.function(
+        "_executable",
+        &[
+            DynSolValue::Bytes(header(packet).to_vec()),
+            DynSolValue::Address(Address::from_slice(receiver(packet).as_slice())),
+        ],
+    )?;
+
+    let call_result = call_builder.call().await?;
+
+    Ok(())
+}
+
+/// If the state is `Executable`, your `Executor` should decode the packet's options
+/// using the options.ts package and call the Endpoint's `lzReceive` function with
+/// the packet information:
+/// `endpoint.lzReceive(_origin, _receiver, _guid, _message, _extraData)`
+pub async fn lz_receive(contract: &ContractInst, packet: &[u8]) -> alloy::contract::Result<Vec<DynSolValue>> {
+    let call_builder = contract.function(
+        "_lzReceive",
+        &[
+            prepare_header(header(packet)),
+            DynSolValue::Address(Address::from_slice(receiver(packet).as_slice())),
+            DynSolValue::FixedBytes(B256::from_slice(guid(packet).as_slice()), 32),
+            DynSolValue::Bytes(message(packet).to_vec()),
+            DynSolValue::Bytes(vec![]),
+        ],
+    )?;
+
+    call_builder.call().await
+}
+
+/// Converts `Origin` data structure from the received `PacketVerified`
+/// to the `DynSolValue`, understandable by `alloy-rs`.
+pub(crate) fn prepare_header(packet: &[u8]) -> DynSolValue {
+    DynSolValue::CustomStruct {
+        name: String::from("Origin"),
+        prop_names: vec![String::from("srcEid"), String::from("sender"), String::from("nonce")],
+        tuple: vec![
+            DynSolValue::Uint(U256::from(src_eid(packet)), 32),
+            DynSolValue::Bytes(sender(packet).to_vec()),
+            DynSolValue::Uint(U256::from(nonce(packet)), 64),
+        ],
+    }
 }

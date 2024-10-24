@@ -7,6 +7,10 @@ edition = "2021"
 name = "dvn"
 path = "src/bin/dvn.rs"
 
+[[bin]]
+name = "executor"
+path = "src/bin/executor.rs"
+
 [dependencies]
 alloy.workspace = true
 blsful = "2.5.7"

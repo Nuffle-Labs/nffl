@@ -1,4 +1,4 @@
-//! Configuration for the DVN offchain workflow.
+//! Configuration for the DVN off-chain workflow.
 
 use alloy::primitives::Address;
 use config::Config;
@@ -38,16 +38,20 @@ impl DVNConfig {
 }
 
 /// Useful events for the DVN workflow.
-pub enum DVNEvent {
+pub enum LayerZeroEvent {
     PacketSent,
-    FeePaid,
+    DVNFeePaid,
+    ExecutorFeePaid,
+    PacketVerified,
 }
 
-impl AsRef<str> for DVNEvent {
+impl AsRef<str> for LayerZeroEvent {
     fn as_ref(&self) -> &str {
         match self {
-            DVNEvent::PacketSent => "PacketSent(bytes,bytes,address)",
-            DVNEvent::FeePaid => "DVNFeePaid(address[],address[],uint256[])",
+            LayerZeroEvent::PacketSent => "PacketSent(bytes,bytes,address)",
+            LayerZeroEvent::DVNFeePaid => "DVNFeePaid(address[],address[],uint256[])",
+            LayerZeroEvent::ExecutorFeePaid => "ExecutorFeePaid(address,uint256)",
+            LayerZeroEvent::PacketVerified => "PacketVerified(address,bytes,uint256,bytes32)",
         }
     }
 }

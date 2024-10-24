@@ -5,9 +5,6 @@ resolver = "2"
 members = [
     "indexer",
     "contracts/evm/test/ffi/bls-utils",
-    "relayer-rs",
-    "operator-rs",
-    "core-rs",
     "workers",
 ]
 
@@ -17,7 +14,7 @@ edition = "2021"
 repository = "https://github.com/NethermindEth/near-sffl"
 
 [workspace.dependencies]
-alloy = { version = "0.4.2", features = ["full", "node-bindings", "rpc-types-debug", "rpc-types-trace", "json-rpc", "rpc-client", "serde", "json-abi"] }
+alloy = { version = "0.4.2", features = ["full", "node-bindings", "rpc-types-debug", "rpc-types-trace", "json-rpc", "rpc-client", "serde", "json-abi", "eip712"] }
 alloy-primitives = "0.8.3"
 alloy-rpc-client = "0.4.2"
 alloy-rpc-types = "0.4.2"
