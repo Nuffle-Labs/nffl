@@ -9,22 +9,22 @@ edition = "2021"
 actix = "0.13.1"
 actix-web = "4.5.1"
 futures = "0.3.5"
-tokio = { workspace = true }
+tokio = { version = "1.28.2", features = ["sync", "time"] }
 deadpool = "0.10.0"
 lapin = "2.3.1"
 deadpool-lapin = "0.11.0"
 tokio-executor-trait = "2.1.0"
 tokio-reactor-trait = "1.1.0"
-prometheus = { workspace = true }
+prometheus = "0.13.3"
 
-clap = { workspace = true }
+clap = { version = "4.4.11", features = ["color", "derive", "env"] }
 openssl-probe = "0.1.4"
-serde = { workspace = true }
-serde_json = { workspace = true }
+serde = { version = "1", features = ["derive"] }
+serde_json = "1.0.68"
 
-tracing = { workspace = true }
+tracing = { version = "0.1.36", features = ["std"] }
 thiserror = "1.0.56"
-anyhow = { workspace = true }
+anyhow = "1.0.79"
 
 near-indexer = { git = "https://github.com/near/nearcore", rev = "93073d762ff377382ebf54e7cbff448b492e72c6" }
 near-client = { git = "https://github.com/near/nearcore", rev = "93073d762ff377382ebf54e7cbff448b492e72c6" }
@@ -32,7 +32,7 @@ near-o11y = { git = "https://github.com/near/nearcore", rev = "93073d762ff377382
 near-config-utils = { git = "https://github.com/near/nearcore", rev = "93073d762ff377382ebf54e7cbff448b492e72c6" }
 near-client-primitives = { git = "https://github.com/near/nearcore", rev = "93073d762ff377382ebf54e7cbff448b492e72c6" }
 borsh = { version = "1.0.0", features = ["derive", "rc"] }
-serde_yaml = { workspace = true }
+serde_yaml = "0.9.34"
 
 [dev-dependencies]
 near-crypto = { git = "https://github.com/near/nearcore", rev = "93073d762ff377382ebf54e7cbff448b492e72c6" }
