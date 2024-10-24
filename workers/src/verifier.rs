@@ -98,6 +98,7 @@ impl NFFLVerifier {
 
     /// Fetches the block state root from the Ethereum L2 provider
     /// via JSON-RPC API, backed by alloy-rs.
+    /// Note: an author didn't write a test for that, because he doesn't know how to mock RPC :( 
     pub(crate) async fn get_block_state_root(&self, block_number: u64) -> eyre::Result<B256> {
         let b_number = BlockNumberOrTag::from(block_number);
         match self.eth_l2_provider.get_block_by_number(b_number, true).await? {

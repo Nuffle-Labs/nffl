@@ -60,8 +60,6 @@ async fn main() -> Result<()> {
                         error!("Received a `DVNFeePaid` event but failed to decode it: {:?}", e);
                     }
                     Ok(inner_log) if dvn_data.packet.is_some() => {
-                        log.
-
                         info!("DVNFeePaid event found and decoded.");
                         let required_dvns = &inner_log.inner.requiredDVNs;
                         let own_dvn_addr = dvn_data.config.dvn_addr;
@@ -96,6 +94,7 @@ async fn main() -> Result<()> {
                                         dvn_data.verifying();
                                         debug!("Packet NOT verified. Calling verification.");
 
+                                        // Note: by invariant, block number is already Some(...).
                                         if !verifier.verify(log.block_number.unwrap()).await? {
                                             error!("Failed to verify the state root.");
                                             continue;
