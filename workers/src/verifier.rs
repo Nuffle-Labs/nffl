@@ -14,17 +14,17 @@ pub(crate) struct ResponseWrapper {
 #[derive(Serialize, Deserialize, std::fmt::Debug)]
 pub(crate) struct Message {
     #[serde(rename = "RollupId")]
-    pub rollup_id: u32,
+    rollup_id: u32,
     #[serde(rename = "BlockHeight")]
-    pub block_height: u64,
+    block_height: u64,
     #[serde(rename = "Timestamp")]
-    pub timestamp: u64,
+    timestamp: u64,
     #[serde(rename = "NearDaTransactionId")]
-    pub near_da_transaction_id: Vec<u8>,
+    near_da_transaction_id: Vec<u8>,
     #[serde(rename = "NearDaCommitment")]
-    pub near_da_commitment: Vec<u8>,
+    near_da_commitment: Vec<u8>,
     #[serde(rename = "StateRoot")]
-    pub state_root: Vec<u8>,
+    pub(crate) state_root: Vec<u8>,
 }
 
 // TODO: Generify in a future for other networks, like Solana.
