@@ -5,3 +5,6 @@ eigenlayer-middleware/=lib/eigenlayer-middleware/
 @eth-optimism/=node_modules/@eth-optimism
 @openzeppelin/=lib/eigenlayer-middleware/lib/eigenlayer-contracts/lib/openzeppelin-contracts/
 @openzeppelin-upgrades/=lib/eigenlayer-middleware/lib/eigenlayer-contracts/lib/openzeppelin-contracts-upgradeable/
+solady/=lib/solady/
+openzeppelin-contracts/=lib/openzeppelin-contracts/
+@layerzerolabs/=node_modules/@layerzerolabs/

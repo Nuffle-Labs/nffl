@@ -2,10 +2,8 @@
 
 pub trait BytesUtils {
     fn to_u8(&self, start: usize) -> u8;
-    fn to_u16(&self, start: usize) -> u16;
     fn to_u32(&self, start: usize) -> u32;
     fn to_u64(&self, start: usize) -> u64;
-    fn to_u128(&self, start: usize) -> u128;
     fn to_bytes32(&self, start: usize) -> &[u8];
     fn to_byte_array<const N: usize>(&self, start: usize) -> [u8; N];
 }
@@ -13,12 +11,6 @@ pub trait BytesUtils {
 impl BytesUtils for &[u8] {
     fn to_u8(&self, start: usize) -> u8 {
         self[start]
-    }
-
-    fn to_u16(&self, start: usize) -> u16 {
-        let mut bytes: [u8; 2] = [0; 2];
-        bytes.copy_from_slice(&self[start..start + 2]);
-        u16::from_be_bytes(bytes)
     }
 
     fn to_u32(&self, start: usize) -> u32 {
@@ -31,12 +23,6 @@ impl BytesUtils for &[u8] {
         let mut bytes: [u8; 8] = [0; 8];
         bytes.copy_from_slice(&self[start..start + 8]);
         u64::from_be_bytes(bytes)
-    }
-
-    fn to_u128(&self, start: usize) -> u128 {
-        let mut bytes: [u8; 16] = [0; 16];
-        bytes.copy_from_slice(&self[start..start + 16]);
-        u128::from_be_bytes(bytes)
     }
 
     fn to_bytes32(&self, start: usize) -> &[u8] {
@@ -64,18 +50,6 @@ mod tests {
     fn test_to_u8_start1() {
         let bytes = &[1_u8, 2][..];
         assert_eq!(bytes.to_u8(1), 2);
-    }
-
-    #[test]
-    fn test_to_u16() {
-        let bytes = &[1_u8, 1, 2][..];
-        assert_eq!(bytes.to_u16(0), 2_u16.pow(8) + 1);
-    }
-
-    #[test]
-    fn test_to_u16_start1() {
-        let bytes = &[1_u8, 1, 2][..];
-        assert_eq!(bytes.to_u16(1), 2_u16.pow(8) + 2);
     }
 
     #[test]
@@ -118,54 +92,6 @@ mod tests {
                 + 2_u64.pow(24)
                 + 2_u64.pow(16)
                 + 2_u64.pow(8)
-                + 2
-        );
-    }
-
-    #[test]
-    fn test_to_u128() {
-        let bytes = &[1_u8, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 2][..];
-        assert_eq!(
-            bytes.to_u128(0),
-            2_u128.pow(120)
-                + 2_u128.pow(112)
-                + 2_u128.pow(104)
-                + 2_u128.pow(96)
-                + 2_u128.pow(88)
-                + 2_u128.pow(80)
-                + 2_u128.pow(72)
-                + 2_u128.pow(64)
-                + 2_u128.pow(56)
-                + 2_u128.pow(48)
-                + 2_u128.pow(40)
-                + 2_u128.pow(32)
-                + 2_u128.pow(24)
-                + 2_u128.pow(16)
-                + 2_u128.pow(8)
-                + 1
-        );
-    }
-
-    #[test]
-    fn test_to_u128_start1() {
-        let bytes = &[1_u8, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 2][..];
-        assert_eq!(
-            bytes.to_u128(1),
-            2_u128.pow(120)
-                + 2_u128.pow(112)
-                + 2_u128.pow(104)
-                + 2_u128.pow(96)
-                + 2_u128.pow(88)
-                + 2_u128.pow(80)
-                + 2_u128.pow(72)
-                + 2_u128.pow(64)
-                + 2_u128.pow(56)
-                + 2_u128.pow(48)
-                + 2_u128.pow(40)
-                + 2_u128.pow(32)
-                + 2_u128.pow(24)
-                + 2_u128.pow(16)
-                + 2_u128.pow(8)
                 + 2
         );
     }

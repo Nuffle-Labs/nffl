@@ -49,7 +49,3 @@ setup/plugin/config/keys/ecdsa.json
 # Near DA RPC libs
 libnear_da_rpc_sys.*
 
-# Ignore configuration for DVN or Executor
-**/config_dvn.toml
-**/config_executor.toml
-**/abi/
