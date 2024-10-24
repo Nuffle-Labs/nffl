@@ -76,9 +76,9 @@ jobs:
       - name: Ensure containers are running
         run: |
           containers=(
-            "near-sffl_operator1-health_1"
+            "nffl_operator1-health_1"
             "near-sffl-operator1"
-            "near-sffl_operator0-health_1"
+            "nffl_operator0-health_1"
             "near-sffl-operator0"
             "rollup1-relayer"
             "rollup0-relayer"
@@ -105,8 +105,8 @@ jobs:
       - name: Check health status
         run: |
           services=(
-            "near-sffl_operator1-health_1"
-            "near-sffl_operator0-health_1"
+            "nffl_operator1-health_1"
+            "nffl_operator0-health_1"
             "near-sffl_agreator-health_1"
             "rollup1-anvil"
             "rollup0-anvil"
