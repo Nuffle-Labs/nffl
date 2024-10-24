@@ -12,7 +12,7 @@ pub(crate) struct ResponseWrapper {
 }
 
 #[derive(Serialize, Deserialize, std::fmt::Debug)]
-pub struct Message {
+pub(crate) struct Message {
     #[serde(rename = "RollupId")]
     pub rollup_id: u32,
     #[serde(rename = "BlockHeight")]
@@ -28,6 +28,12 @@ pub struct Message {
 }
 
 // TODO: Generify in a future for other networks, like Solana.
+/// Verifies state roots for the Decentralized Verification Network (DVN).
+///
+/// This verifier implements the V1 verification algorithm which:
+/// 1. Fetches the state root from the aggregator
+/// 2. Retrieves the block state root using the chain RPC API
+/// 3. Compares the two state roots to determine message validity
 pub struct NFFLVerifier {
     http_client: Client,
     eth_l2_provider: ReqwestProvider<Ethereum>,
@@ -52,16 +58,7 @@ impl NFFLVerifier {
     }
 
     pub async fn new_from_config(cfg: &DVNConfig) -> eyre::Result<NFFLVerifier> {
-        let client = ClientBuilder::new().build()?;
-        let provider = ProviderBuilder::new().on_http(cfg.http_rpc_url.parse()?);
-        let agg_http_addr = format!("{}/state-root", cfg.aggregator_url);
-
-        Ok(NFFLVerifier {
-            eth_l2_provider: provider,
-            http_client: client,
-            aggregator_http_address: agg_http_addr,
-            network_id: cfg.network_eid.to_string(),
-        })
+        Self::new(&cfg.aggregator_url, &cfg.http_rpc_url, cfg.network_eid).await
     }
 
     /// Verifies the state root of a block. In case if any request future
@@ -90,20 +87,19 @@ impl NFFLVerifier {
             ("blockHeight", block_height.to_string()),
         ];
         let url = Url::parse_with_params(&self.aggregator_http_address, &params)?;
-        match self.http_client.get(url).send().await {
-            Ok(response) => response.json::<ResponseWrapper>().await.map_err(|e| e.into()),
-            Err(e) => Err(e.into()),
-        }
+        let response = self.http_client.get(url).send().await?;
+        let result = response.json::<ResponseWrapper>().await?;
+        Ok(result)
     }
 
     /// Fetches the block state root from the Ethereum L2 provider
     /// via JSON-RPC API, backed by alloy-rs.
-    /// Note: an author didn't write a test for that, because he doesn't know how to mock RPC :( 
+    /// Note: an author didn't write a test for that, because he doesn't know how to mock RPC :(
     pub(crate) async fn get_block_state_root(&self, block_number: u64) -> eyre::Result<B256> {
         let b_number = BlockNumberOrTag::from(block_number);
         match self.eth_l2_provider.get_block_by_number(b_number, true).await? {
             Some(block) => Ok(block.header.state_root),
-            None => Err(eyre::eyre!("Block not found")),
+            None => Err(eyre::eyre!("Block {block_number} not found")),
         }
     }
 }

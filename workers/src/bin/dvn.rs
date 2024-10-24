@@ -94,7 +94,11 @@ async fn main() -> Result<()> {
                                         dvn_data.verifying();
                                         debug!("Packet NOT verified. Calling verification.");
 
-                                        // Note: by invariant, block number is already Some(...).
+                                        if log.block_number.is_none() {
+                                            error!("Block number is None, can't verify Packet.");
+                                            continue;
+                                        }
+                                        
                                         if !verifier.verify(log.block_number.unwrap()).await? {
                                             error!("Failed to verify the state root.");
                                             continue;
