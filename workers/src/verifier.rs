@@ -61,7 +61,7 @@ impl NFFLVerifier {
         Self::new(&cfg.aggregator_url, &cfg.http_rpc_url, cfg.network_eid).await
     }
 
-    /// Verifies the state root of a block. In case if any request future
+    /// Verifies the state root of a block. In case any request future
     /// is interrupted, or finishes unsuccessfully, returns Ok(false).
     pub async fn verify(&self, block_height: u64) -> eyre::Result<bool> {
         match tokio::try_join!(

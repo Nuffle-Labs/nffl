@@ -98,7 +98,7 @@ async fn main() -> Result<()> {
                                             error!("Block number is None, can't verify Packet.");
                                             continue;
                                         }
-                                        
+
                                         if !verifier.verify(log.block_number.unwrap()).await? {
                                             error!("Failed to verify the state root.");
                                             continue;
