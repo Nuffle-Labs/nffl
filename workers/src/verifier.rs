@@ -5,6 +5,8 @@ use alloy::primitives::B256;
 use alloy::providers::{Provider, ProviderBuilder, ReqwestProvider};
 use reqwest::{Client, ClientBuilder, Url};
 use serde::{Deserialize, Serialize};
+use std::time::Duration;
+use tracing::error;
 
 #[derive(Serialize, Deserialize, std::fmt::Debug)]
 pub(crate) struct ResponseWrapper {
@@ -43,6 +45,7 @@ pub struct NFFLVerifier {
 
 impl NFFLVerifier {
     /// For test purposes only
+    #[cfg(test)]
     pub(crate) async fn new(agg_url: &str, eth_l2_url: &str, network_id: u64) -> eyre::Result<NFFLVerifier> {
         let client = ClientBuilder::new().build()?;
         let url: Url = eth_l2_url.parse()?;
@@ -64,11 +67,12 @@ impl NFFLVerifier {
     /// Verifies the state root of a block. In case any request future
     /// is interrupted, or finishes unsuccessfully, returns Ok(false).
     pub async fn verify(&self, block_height: u64) -> eyre::Result<bool> {
+        const TIMEOUT: Duration = Duration::from_secs(10);
         match tokio::try_join!(
-            self.get_aggregator_root_state(block_height),
-            self.get_block_state_root(block_height),
+            tokio::time::timeout(TIMEOUT, self.get_aggregator_root_state(block_height)),
+            tokio::time::timeout(TIMEOUT, self.get_block_state_root(block_height)),
         ) {
-            Ok((agg_response, block_state_root)) => {
+            Ok((Ok(agg_response), Ok(block_state_root))) => {
                 let state_root_slice: &[u8] = agg_response.message.state_root.as_slice();
                 let aggregator_state_root: B256 = B256::from_slice(state_root_slice);
                 if agg_response.message.block_height != block_height {
@@ -76,7 +80,11 @@ impl NFFLVerifier {
                 }
                 Ok(block_state_root.eq(&aggregator_state_root))
             }
-            Err(_) => Ok(false),
+            Err(e) => {
+                error!("Error while verifying state root: {:?}", e);
+                Ok(false)
+            }
+            _ => Ok(false),
         }
     }
 
