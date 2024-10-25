@@ -1,5 +1,5 @@
 use crate::abi::L0V2EndpointAbi::PacketSent;
-use crate::abi::L0V2EndpointAbi::PacketVerified;
+use crate::abi::L0V2EndpointAbi::Pay;
 use crate::abi::SendLibraryAbi::ExecutorFeePaid;
 use crate::chain::connections::build_executor_subscriptions;
 use crate::chain::connections::get_abi_from_path;

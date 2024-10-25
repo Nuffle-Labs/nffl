@@ -24,13 +24,6 @@ sol!(
     L0V2EndpointAbi,
     "abi/L0V2Endpoint.json"
 );
-sol!(
-    #[allow(missing_docs)]
-    #[sol(abi, rpc)]
-    #[derive(Debug, Serialize, Deserialize)]
-    ReceiveLibraryAbi,
-    "abi/ReceiveLibUln302.json"
-);
 
 //sol!(
 //    #[allow(missing_docs)]
