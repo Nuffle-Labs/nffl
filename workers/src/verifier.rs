@@ -44,8 +44,6 @@ pub struct NFFLVerifier {
 }
 
 impl NFFLVerifier {
-    /// For test purposes only
-    #[cfg(test)]
     pub(crate) async fn new(agg_url: &str, eth_l2_url: &str, network_id: u64) -> eyre::Result<NFFLVerifier> {
         let client = ClientBuilder::new().build()?;
         let url: Url = eth_l2_url.parse()?;
