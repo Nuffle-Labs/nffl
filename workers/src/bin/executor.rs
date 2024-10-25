@@ -1,6 +1,5 @@
 use tracing::level_filters::LevelFilter;
 use tracing_subscriber::EnvFilter;
-use workers::chain::connections::build_executor_providers;
 use workers::config;
 use workers::executor_def::Executor;
 

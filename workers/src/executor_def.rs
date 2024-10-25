@@ -1,22 +1,15 @@
+use crate::abi::L0V2EndpointAbi::PacketSent;
 use crate::abi::L0V2EndpointAbi::PacketVerified;
-use crate::abi::ReceiveLibraryAbi::PayloadVerified;
 use crate::abi::SendLibraryAbi::ExecutorFeePaid;
-use crate::chain::contracts::{executable, lz_receive, prepare_header};
+use crate::chain::connections::build_executor_subscriptions;
+use crate::chain::connections::get_abi_from_path;
+use crate::chain::connections::get_http_provider;
+use crate::chain::contracts::create_contract_instance;
+use crate::chain::contracts::{lz_receive, prepare_header};
 use crate::chain::ContractInst;
 use crate::config::DVNConfig;
-use crate::config::LayerZeroEvent;
-use crate::data::packet_v1_codec::receiver;
-use crate::{
-    abi::L0V2EndpointAbi::PacketSent,
-    abi::SendLibraryAbi::DVNFeePaid,
-    chain::{
-        connections::{build_executor_subscriptions, get_abi_from_path, get_http_provider},
-        contracts::{create_contract_instance, query_already_verified, query_confirmations, verify},
-    },
-};
 use alloy::dyn_abi::DynSolValue;
-use alloy::primitives::Address;
-use alloy::primitives::{keccak256, I256};
+use alloy::primitives::I256;
 use eyre::Result;
 use futures::StreamExt;
 use std::collections::VecDeque;
@@ -30,6 +23,9 @@ pub struct Executor {
 }
 
 impl Executor {
+    pub(crate) const NOT_EXECUTABLE: &'static DynSolValue = &DynSolValue::Int(I256::ZERO, 32);
+    pub(crate) const VERIFIED_NOT_EXECUTABLE: &'static DynSolValue = &DynSolValue::Int(I256::ONE, 32);
+
     pub fn new(config: DVNConfig) -> Self {
         Executor { config, finish: false }
     }
@@ -114,23 +110,30 @@ impl Executor {
             ],
         )?;
 
+        // status `Executable` is represented by the integer 2 in the enum.
+        // To read more: https://tinyurl.com/zur3btzs (line 9)
+        let executable: &DynSolValue = &DynSolValue::Int(I256::unchecked_from(2), 32);
         loop {
             let call_result = call_builder.call().await?;
-            match call_result[0] {
-                DynSolValue::Int(I256::ZERO, 32) => {
-                    // state: NotExecutable, continue to await commits
-                    sleep(Duration::from_millis(500)).await;
-                    continue;
-                }
-                DynSolValue::Int(I256::ONE, 32) => {
-                    // state: Executable, firing lz_receive
-                    lz_receive(contract, &packet_sent.encodedPayload[..]).await?;
-                    // TODO: handle the result of the lz_receive call
-                    break;
-                }
+            if call_result.len() != 1 {
+                error!("Failed to call executable function");
+                break;
+            }
+
+            // Note: why not pattern matching here? Rust analyzer ranted
+            // on `executable` variable in the pattern, so I decided to make it via conditions.
+            if call_result[0].eq(Executor::NOT_EXECUTABLE) || call_result[0].eq(Executor::VERIFIED_NOT_EXECUTABLE) {
+                // state: NotExecutable or VerifiedNotExecutable, await commits/verifications
+                sleep(Duration::from_secs(1)).await;
+                continue;
+            } else if call_result[0].eq(executable) {
+                // state: Executable, firing lz_receive
+                lz_receive(contract, &packet_sent.encodedPayload[..]).await?;
+                break;
+            } else {
                 // We may ignore Executed status, it just frees the executor.
-                _ => break,
-            };
+                break;
+            }
         }
         Ok(())
     }
