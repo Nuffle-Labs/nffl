@@ -117,11 +117,37 @@ mod tests {
     use wiremock::{Mock, MockServer, ResponseTemplate};
 
     #[tokio::test]
+    async fn test_verify_mock_ok() {
+        let mock_server = MockServer::start().await;
+        setup(&mock_server, true).await;
+
+        let verifier_result = NFFLVerifier::new(mock_server.uri().as_str(), mock_server.uri().as_str(), 1).await;
+
+        assert!(verifier_result.is_ok());
+
+        let verifier = verifier_result.unwrap();
+        assert!(verifier.verify(2).await.unwrap());
+    }       
+    
+    #[tokio::test]
+    async fn test_verify_mock_fails() {
+        let mock_server = MockServer::start().await;
+        setup(&mock_server, false).await;
+
+        let verifier_result = NFFLVerifier::new(mock_server.uri().as_str(), mock_server.uri().as_str(), 1).await;
+
+        assert!(verifier_result.is_ok());
+
+        let verifier = verifier_result.unwrap();
+        assert!(!verifier.verify(2).await.unwrap());
+    }   
+    
+    #[tokio::test]
     async fn test_aggregator_root_state_mock_ok() {
         let mock_server = MockServer::start().await;
-        setup(&mock_server).await;
+        setup(&mock_server, true).await;
 
-        let verifier_result = NFFLVerifier::new(mock_server.uri().as_str(), "https://arbitrum.drpc.org", 1).await;
+        let verifier_result = NFFLVerifier::new(mock_server.uri().as_str(), mock_server.uri().as_str(), 1).await;
 
         assert!(verifier_result.is_ok());
 
@@ -131,17 +157,46 @@ mod tests {
         assert!(state_root_resp_res.is_ok());
 
         let state_root = state_root_resp_res.unwrap().message.state_root;
-        assert_eq!(state_root, vec![1, 1, 1]);
+        assert_eq!(state_root,  vec![99, 80, 208, 69, 66, 69, 251, 65, 15, 192, 251,
+                                     147, 246, 100, 140, 91, 144, 71, 166, 8, 20, 65,
+                                     227, 111, 15, 243, 171, 37, 156, 154, 71, 240]);
     }
 
-    async fn setup(mock_server: &MockServer) {
+    #[tokio::test]
+    async fn test_block_root_state_mock_ok() {
+        let mock_server = MockServer::start().await;
+        setup(&mock_server, true).await;
+
+        let verifier_result = NFFLVerifier::new(mock_server.uri().as_str(), mock_server.uri().as_str(), 1).await;
+
+        assert!(verifier_result.is_ok());
+
+        let verifier = verifier_result.unwrap();
+
+        let state_root_resp_res = verifier.get_block_state_root(2).await;
+        assert!(state_root_resp_res.is_ok());
+
+        let state_root = state_root_resp_res.unwrap().to_vec();
+        assert_eq!(state_root,  vec![99, 80, 208, 69, 66, 69, 251, 65, 15, 192, 251,
+                                     147, 246, 100, 140, 91, 144, 71, 166, 8, 20, 65,
+                                     227, 111, 15, 243, 171, 37, 156, 154, 71, 240]);
+    }
+
+    async fn setup(mock_server: &MockServer, should_pass: bool) {
+        let expected_state_root: Vec<u8> = match should_pass {
+            true => vec![99, 80, 208, 69, 66, 69, 251, 65, 15, 192, 251, 
+                         147, 246, 100, 140, 91, 144, 71, 166, 8, 20, 65, 
+                         227, 111, 15, 243, 171, 37, 156, 154, 71, 240],
+            false => vec![0; 32]
+        };
+        
         let state_root_message = Message {
             rollup_id: 1,
             block_height: 2,
             timestamp: 3,
             near_da_transaction_id: vec![4],
             near_da_commitment: vec![5],
-            state_root: vec![1, 1, 1],
+            state_root: expected_state_root,
         };
 
         let state_root_resp = ResponseWrapper {
@@ -152,6 +207,41 @@ mod tests {
             .and(path("/state-root"))
             .and(query_param_contains("blockHeight", "2"))
             .respond_with(ResponseTemplate::new(200).set_body_json(state_root_resp))
+            .mount(mock_server)
+            .await;
+
+        Mock::given(method("POST"))
+            .and(path("/"))
+            .respond_with(ResponseTemplate::new(200).set_body_json(serde_json::json!({
+              "jsonrpc": "2.0",
+              "id": 1,
+              "result": {
+                "difficulty": "0x1913ff69551dac",
+                "extraData": "0xe4b883e5bda9e7a59ee4bb99e9b1bc000921",
+                "gasLimit": "0xe4e1b2",
+                "gasUsed": "0xe4d737",
+                "hash": "0xa917fcc721a5465a484e9be17cda0cc5493933dd3bc70c9adbee192cb419c9d7",
+                "logsBloom": "0x00af00124b82093253a6960ab5a003170000318c0a00c18d418505009c10c905810e05d4a4511044b6245a062122010233958626c80039250781851410a468418101040c0100f178088a4e89000140e00001880c1c601413ac47bc5882854701180b9404422202202521584000808843030a552488a80e60c804c8d8004d0480422585320e068028d2e190508130022600024a51c116151a07612040081000088ba5c891064920a846b36288a40280820212b20940280056b233060818988945f33460426105024024040923447ad1102000028b8f0e001e810021031840a2801831a0113b003a5485843004c10c4c10d6a04060a84d88500038ab10875a382c",
+                "miner": "0x829bd824b016326a401d083b33d092293333a830",
+                "mixHash": "0x7d416c4a24dc3b43898040ea788922d8563d44a5193e6c4a1d9c70990775c879",
+                "nonce": "0xe6e41732385c71d6",
+                "number": "0xc5043f",
+                "parentHash": "0xd1c4628a6710d8dec345e5bca6b8093abf3f830516e05e36f419f993334d10ef",
+                "receiptsRoot": "0x7eadd994da137c7720fe2bf2935220409ed23a06ec6470ffd2d478e41af0255b",
+                "sha3Uncles": "0x7d9ce61d799ddcb5dfe1644ec7224ae7018f24ecb682f077b4c477da192e8553",
+                "size": "0xa244",
+                "stateRoot": "0x6350d0454245fb410fc0fb93f6648c5b9047a6081441e36f0ff3ab259c9a47f0",
+                "timestamp": "0x6100bc82",
+                "totalDifficulty": "0x5f35fb5663cdc988403",
+                "transactions": [
+                  "0x3dc2776aa483c0eee09c2ccc654bf81dccebead40e9bb664289637bfb5e7e954"
+                ],
+                "transactionsRoot": "0xa17c2a87a6ff2fd790d517e48279e02f2e092a05309300c976363e47e0012672",
+                "uncles": [
+                  "0xd3946359c70281162cf00c8164d99ca14801e8008715cb1fad93b9cecaf9f7d8"
+                ]
+              }
+            })))
             .mount(mock_server)
             .await;
     }
