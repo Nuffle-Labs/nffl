@@ -112,6 +112,7 @@ impl NFFLVerifier {
 
 #[cfg(test)]
 mod tests {
+    use std::time::Duration;
     use crate::verifier::{Message, NFFLVerifier, ResponseWrapper};
     use wiremock::matchers::{method, path, query_param_contains};
     use wiremock::{Mock, MockServer, ResponseTemplate};
@@ -140,7 +141,26 @@ mod tests {
 
         let verifier = verifier_result.unwrap();
         assert!(!verifier.verify(2).await.unwrap());
-    }   
+    }
+
+    #[tokio::test]
+    async fn test_verify_timeout_fail() {
+        let mock_server = MockServer::start().await;
+
+        // Mock that delays longer than timeout
+        Mock::given(method("GET"))
+            .respond_with(ResponseTemplate::new(200).set_delay(Duration::from_secs(11)))
+            .mount(&mock_server)
+            .await;
+
+        let verifier = NFFLVerifier::new(
+            mock_server.uri().as_str(),
+            mock_server.uri().as_str(),
+            1
+        ).await.unwrap();
+
+        assert!(!verifier.verify(2).await.unwrap());
+    }
     
     #[tokio::test]
     async fn test_aggregator_root_state_mock_ok() {
