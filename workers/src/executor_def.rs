@@ -24,6 +24,7 @@ pub struct NFFLExecutor {
 }
 
 impl NFFLExecutor {
+    pub(crate) const MAX_RETRIES: usize = 10;
     pub(crate) const NOT_EXECUTABLE: &'static DynSolValue = &DynSolValue::Int(I256::ZERO, 32);
     pub(crate) const VERIFIED_NOT_EXECUTABLE: &'static DynSolValue = &DynSolValue::Int(I256::ONE, 32);
 
@@ -39,11 +40,6 @@ impl NFFLExecutor {
         // Note: we are in a single-threaded event loop, and we do not care about atomicity (yet).
         self.finish = true;
         self.packet_queue.clear();
-    }
-
-    #[cfg(test)]
-    pub fn is_queue_empty(&self) -> bool {
-        self.packet_queue.is_empty()
     }
 
     pub async fn listen(&mut self) -> Result<()> {
@@ -118,10 +114,15 @@ impl NFFLExecutor {
             ],
         )?;
 
+        let mut retry_count = 0;
         // status `Executable` is represented by the integer 2 in the enum.
         // To read more: https://tinyurl.com/zur3btzs (line 9)
         let executable: &DynSolValue = &DynSolValue::Int(I256::unchecked_from(2), 32);
         loop {
+            if retry_count == Self::MAX_RETRIES {
+                error!("Maximum retries reached while waiting for `Executable` state.");
+                break;
+            }
             let call_result = call_builder.call().await?;
             if call_result.len() != 1 {
                 error!("`executable` function call returned invalid response.");
@@ -135,6 +136,7 @@ impl NFFLExecutor {
             {
                 // state: NotExecutable or VerifiedNotExecutable, await commits/verifications
                 sleep(Duration::from_secs(1)).await;
+                retry_count += 1;
                 continue;
             } else if call_result[0].eq(executable) {
                 // state: Executable, fire and forget `lz_receive`

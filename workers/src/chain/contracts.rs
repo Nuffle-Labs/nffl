@@ -163,19 +163,23 @@ pub async fn lz_receive(contract: &ContractInst, packet: &[u8]) -> Result<()> {
         ],
     )?;
 
-    match call_builder.call().await {
-        Ok(_) => debug!("Successfully called lzReceive for packet {:?}", guid),
-        Err(e) => error!("Failed to call lzReceive for packet {:?}: {:?}", guid, e),
-    }
+    call_builder.call().await.map_err(|e| {
+        error!("Failed to call lzReceive for packet {:?}: {:?}", guid, e);
+        eyre!("lzReceive call failed: {}", e)
+    })?;
+    debug!("Successfully called lzReceive for packet {:?}", guid);
     Ok(())
 }
 
 /// Converts `Origin` data structure from the received `PacketVerified`
 /// to the `DynSolValue`, understandable by `alloy-rs`.
 pub(crate) fn prepare_header(packet: &[u8]) -> DynSolValue {
+    const ORIGIN_STRUCT_NAME: &str = "Origin";
+    const ORIGIN_PROPS: [&str; 3] = ["srcEid", "sender", "nonce"];
+
     DynSolValue::CustomStruct {
-        name: String::from("Origin"),
-        prop_names: vec![String::from("srcEid"), String::from("sender"), String::from("nonce")],
+        name: String::from(ORIGIN_STRUCT_NAME),
+        prop_names: ORIGIN_PROPS.iter().map(|&s| String::from(s)).collect(),
         tuple: vec![
             DynSolValue::Uint(U256::from(src_eid(packet)), 32),
             DynSolValue::Bytes(sender(packet).to_vec()),
