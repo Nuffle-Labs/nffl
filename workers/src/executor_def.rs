@@ -17,18 +17,18 @@ use std::time::Duration;
 use tokio::time::sleep;
 use tracing::error;
 
-pub struct Executor {
+pub struct NFFLExecutor {
     config: DVNConfig,
     packet_queue: VecDeque<PacketSent>,
     finish: bool,
 }
 
-impl Executor {
+impl NFFLExecutor {
     pub(crate) const NOT_EXECUTABLE: &'static DynSolValue = &DynSolValue::Int(I256::ZERO, 32);
     pub(crate) const VERIFIED_NOT_EXECUTABLE: &'static DynSolValue = &DynSolValue::Int(I256::ONE, 32);
 
     pub fn new(config: DVNConfig) -> Self {
-        Executor {
+        NFFLExecutor {
             config,
             packet_queue: VecDeque::new(),
             finish: false,
@@ -130,7 +130,9 @@ impl Executor {
 
             // Note: why not pattern matching here? Rust analyzer ranted on `executable` variable
             // in the pattern, so an author decided to make it via conditions.
-            if call_result[0].eq(Executor::NOT_EXECUTABLE) || call_result[0].eq(Executor::VERIFIED_NOT_EXECUTABLE) {
+            if call_result[0].eq(NFFLExecutor::NOT_EXECUTABLE)
+                || call_result[0].eq(NFFLExecutor::VERIFIED_NOT_EXECUTABLE)
+            {
                 // state: NotExecutable or VerifiedNotExecutable, await commits/verifications
                 sleep(Duration::from_secs(1)).await;
                 continue;
