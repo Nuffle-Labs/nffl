@@ -69,7 +69,6 @@ type RpcAggregatorer interface {
 }
 
 type RestAggregatorer interface {
-	GetStateRoot(rollupId uint32, blockHeight uint64) (*types.GetStateRootResponse, error)
 	GetStateRootUpdateAggregation(rollupId uint32, blockHeight uint64) (*types.GetStateRootUpdateAggregationResponse, error)
 	GetOperatorSetUpdateAggregation(id uint64) (*types.GetOperatorSetUpdateAggregationResponse, error)
 	GetCheckpointMessages(fromTimestamp, toTimestamp uint64) (*types.GetCheckpointMessagesResponse, error)
@@ -622,17 +621,6 @@ func (agg *Aggregator) GetRegistryCoordinatorAddress(reply *string) error {
 }
 
 // Rest requests
-func (agg *Aggregator) GetStateRoot(rollupId uint32, blockHeight uint64) (*types.GetStateRootResponse, error) {
-	message, err := agg.msgDb.FetchStateRootUpdate(uint32(rollupId), blockHeight)
-	if err != nil {
-		return nil, StateRootUpdateNotFoundError
-	}
-
-	return &types.GetStateRootResponse{
-		Message: *message,
-	}, nil
-}
-
 func (agg *Aggregator) GetStateRootUpdateAggregation(rollupId uint32, blockHeight uint64) (*types.GetStateRootUpdateAggregationResponse, error) {
 	message, err := agg.msgDb.FetchStateRootUpdate(uint32(rollupId), blockHeight)
 	if err != nil {

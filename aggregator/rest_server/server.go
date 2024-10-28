@@ -55,7 +55,6 @@ func (s *RestServer) Start() error {
 	s.logger.Info("Starting aggregator REST API.")
 
 	router := mux.NewRouter()
-	router.HandleFunc("/state-root", wrapRequest(s.listener.APIErrors, s.handleGetStateRootUpdateAggregation)).Methods("GET")
 	router.HandleFunc("/aggregation/state-root-update", wrapRequest(s.listener.APIErrors, s.handleGetStateRootUpdateAggregation)).Methods("GET")
 	router.HandleFunc("/aggregation/operator-set-update", wrapRequest(s.listener.APIErrors, s.handleGetOperatorSetUpdateAggregation)).Methods("GET")
 	router.HandleFunc("/checkpoint/messages", wrapRequest(s.listener.APIErrors, s.handleGetCheckpointMessages)).Methods("GET")
@@ -81,33 +80,6 @@ func wrapRequest(errorHandler func(), requestCallback func(w http.ResponseWriter
 			errorHandler()
 		}
 	}
-}
-
-func (s *RestServer) handleGetStateRoot(w http.ResponseWriter, r *http.Request) error {
-	s.listener.IncStateRootUpdateRequests() // We can leave it as is, because it is similar requests
-
-	params := r.URL.Query()
-	rollupId, err := strconv.ParseUint(params.Get("rollupId"), 10, 32)
-	if err != nil {
-		http.Error(w, "Invalid rollupId", http.StatusBadRequest)
-		return err
-	}
-
-	blockHeight, err := strconv.ParseUint(params.Get("blockHeight"), 10, 64)
-	if err != nil {
-		http.Error(w, "Invalid blockHeight", http.StatusBadRequest)
-		return err
-	}
-
-	response, err := s.app.GetStateRoot(uint32(rollupId), blockHeight)
-	if err != nil {
-		http.Error(w, err.Error(), mapErrorToCode(err))
-		return err
-	}
-
-	w.WriteHeader(http.StatusOK)
-	w.Header().Set("Content-Type", "application/json")
-	return json.NewEncoder(w).Encode(*response)
 }
 
 func (s *RestServer) handleGetStateRootUpdateAggregation(w http.ResponseWriter, r *http.Request) error {
