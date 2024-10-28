@@ -31,12 +31,10 @@ impl Executor {
     }
 
     pub fn finish(&mut self) {
-        // Note for myself: we are in a single-threaded event loop,
-        // may not care about atomicity (yet?).
+        // Note: we are in a single-threaded event loop, and we do not care about atomicity (yet).
         self.finish = true;
     }
 
-    #[deny(clippy::while_immutable_condition)]
     pub async fn listen(&self) -> Result<()> {
         let (mut ps_stream, mut ef_stream, mut pv_stream) = build_executor_subscriptions(&self.config).await?;
 
@@ -97,16 +95,16 @@ impl Executor {
         }
 
         let packet_sent = queue.pop_front().unwrap();
-        // We don't expect any item to be present. If we have any - it is garbage.
+        // We don't expect any more items to be present. If we have any - they are garbage/leftovers.
         queue.clear();
-        // Despite being described with other arguments, the only real implementation in
-        // the contract of the `executable` function located here: https://shorturl.at/4H6Yz
+        // Despite being described with other arguments, the only real implementation of
+        //  `executable` function is in the contract located here: https://shorturl.at/4H6Yz
         // function executable(Origin memory _origin, address _receiver) returns (ExecutionState)
         let call_builder = contract.function(
             "executable",
             &[
-                prepare_header(&packet_sent.encodedPayload[..]), // Origin (selected header fields)
-                DynSolValue::Address(packet_verified.receiver),  // receiver address
+                prepare_header(&packet_sent.encodedPayload[..]),
+                DynSolValue::Address(packet_verified.receiver),
             ],
         )?;
 
@@ -116,22 +114,22 @@ impl Executor {
         loop {
             let call_result = call_builder.call().await?;
             if call_result.len() != 1 {
-                error!("Failed to call executable function");
+                error!("`executable` function call returned invalid response.");
                 break;
             }
 
-            // Note: why not pattern matching here? Rust analyzer ranted
-            // on `executable` variable in the pattern, so I decided to make it via conditions.
+            // Note: why not pattern matching here? Rust analyzer ranted on `executable` variable
+            // in the pattern, so an author decided to make it via conditions.
             if call_result[0].eq(Executor::NOT_EXECUTABLE) || call_result[0].eq(Executor::VERIFIED_NOT_EXECUTABLE) {
                 // state: NotExecutable or VerifiedNotExecutable, await commits/verifications
                 sleep(Duration::from_secs(1)).await;
                 continue;
             } else if call_result[0].eq(executable) {
-                // state: Executable, firing lz_receive
+                // state: Executable, fire and forget `lz_receive`
                 lz_receive(contract, &packet_sent.encodedPayload[..]).await?;
                 break;
             } else {
-                // We may ignore Executed status, it just frees the executor.
+                // We ignore Executed status, it just frees the executor.
                 break;
             }
         }
