@@ -1,17 +1,18 @@
-//! Main offchain workflow for Nuff DVN.
+//! Main off-chain workflow for Nuff DVN.
 
 use alloy::primitives::U256;
 use eyre::{OptionExt, Result};
 use futures::stream::StreamExt;
 use tracing::{debug, error, info, warn};
 use tracing_subscriber::EnvFilter;
+use workers::data::dvn::Dvn;
+use workers::verifier::NFFLVerifier;
 use workers::{
     abi::{L0V2EndpointAbi::PacketSent, SendLibraryAbi::DVNFeePaid},
     chain::{
         connections::{build_subscriptions, get_abi_from_path, get_http_provider},
         contracts::{create_contract_instance, query_already_verified, query_confirmations, verify},
     },
-    data::dvn::Dvn,
 };
 
 #[tokio::main]
@@ -23,6 +24,7 @@ async fn main() -> Result<()> {
         .init();
 
     let mut dvn_data = Dvn::new_from_env()?;
+    let verifier = NFFLVerifier::new_from_config(&dvn_data.config).await?;
 
     // Create the WS subscriptions for listening to the events.
     let (_provider, mut endpoint_stream, mut sendlib_stream) = build_subscriptions(&dvn_data.config).await?;
@@ -92,7 +94,15 @@ async fn main() -> Result<()> {
                                         dvn_data.verifying();
                                         debug!("Packet NOT verified. Calling verification.");
 
-                                        // FIXME: logic for NFFL verification
+                                        if log.block_number.is_none() {
+                                            error!("Block number is None, can't verify Packet.");
+                                            continue;
+                                        }
+
+                                        if !verifier.verify(log.block_number.unwrap()).await? {
+                                            error!("Failed to verify the state root.");
+                                            continue;
+                                        }
 
                                         verify(
                                             &receivelib_contract,
