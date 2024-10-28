@@ -96,7 +96,7 @@ impl NFFLVerifier {
         let url = Url::parse_with_params(&self.aggregator_http_address, &params)?;
         let response = self.http_client.get(url).send().await?;
         let mut result: serde_json::Value = response.json().await?;
-        
+
         serde_json::from_value(result["Message"].take()).map_err(Into::into)
     }
 
