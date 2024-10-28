@@ -27,7 +27,7 @@ pub(crate) struct Message {
 /// 3. Compares the two state roots to determine message validity
 pub struct NFFLVerifier {
     http_client: Client,
-    eth_l2_provider: ReqwestProvider<Ethereum>,
+    l2_provider: ReqwestProvider<Ethereum>,
     aggregator_http_address: String,
     network_id: String,
 }
@@ -40,7 +40,7 @@ impl NFFLVerifier {
         let agg_http_addr = format!("{}/aggregation/state-root-update", agg_url);
 
         Ok(NFFLVerifier {
-            eth_l2_provider: provider,
+            l2_provider: provider,
             http_client: client,
             aggregator_http_address: agg_http_addr,
             network_id: network_id.to_string(),
@@ -56,7 +56,7 @@ impl NFFLVerifier {
     pub async fn verify(&self, block_height: u64) -> eyre::Result<bool> {
         const TIMEOUT: Duration = Duration::from_secs(10);
         match tokio::try_join!(
-            tokio::time::timeout(TIMEOUT, self.get_aggregator_root_state(block_height)),
+            tokio::time::timeout(TIMEOUT, self.get_aggregator_state_root(block_height)),
             tokio::time::timeout(TIMEOUT, self.get_block_state_root(block_height)),
         ) {
             Ok((Ok(agg_response), Ok(block_state_root))) => {
@@ -88,7 +88,7 @@ impl NFFLVerifier {
     }
 
     /// Fetches the root state from the NFFL aggregator via HTTP.
-    pub(crate) async fn get_aggregator_root_state(&self, block_height: u64) -> eyre::Result<Message> {
+    pub(crate) async fn get_aggregator_state_root(&self, block_height: u64) -> eyre::Result<Message> {
         let params = [
             ("rollupId", &self.network_id),
             ("blockHeight", &block_height.to_string()),
@@ -104,7 +104,7 @@ impl NFFLVerifier {
     /// via JSON-RPC API, backed by alloy-rs.
     pub(crate) async fn get_block_state_root(&self, block_number: u64) -> eyre::Result<B256> {
         let b_number = BlockNumberOrTag::from(block_number);
-        match self.eth_l2_provider.get_block_by_number(b_number, true).await? {
+        match self.l2_provider.get_block_by_number(b_number, true).await? {
             Some(block) => Ok(block.header.state_root),
             None => Err(eyre::eyre!("Block {block_number} not found")),
         }
@@ -162,7 +162,7 @@ mod tests {
     }
 
     #[tokio::test]
-    async fn test_aggregator_root_state_mock_ok() {
+    async fn test_aggregator_state_root_mock_ok() {
         let mock_server = MockServer::start().await;
         setup(&mock_server, true).await;
 
@@ -172,7 +172,7 @@ mod tests {
 
         let verifier = verifier_result.unwrap();
 
-        let state_root_resp_res = verifier.get_aggregator_root_state(2).await;
+        let state_root_resp_res = verifier.get_aggregator_state_root(2).await;
         assert!(state_root_resp_res.is_ok());
 
         let state_root = state_root_resp_res.unwrap().state_root;
@@ -186,7 +186,7 @@ mod tests {
     }
 
     #[tokio::test]
-    async fn test_block_root_state_mock_ok() {
+    async fn test_block_state_root_mock_ok() {
         let mock_server = MockServer::start().await;
         setup(&mock_server, true).await;
 
