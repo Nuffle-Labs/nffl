@@ -74,12 +74,24 @@ impl NFFLVerifier {
                 let state_root_slice: &[u8] = agg_response.message.state_root.as_slice();
                 let aggregator_state_root: B256 = B256::from_slice(state_root_slice);
                 if agg_response.message.block_height != block_height {
+                    error!(
+                        "Block heights are not equal for comparing state roots.\
+                     Aggregator height: {:?}, L2-provided height: {:?}",
+                        agg_response.message.block_height, block_height
+                    );
                     return Ok(false);
                 }
-                Ok(block_state_root.eq(&aggregator_state_root))
+                let comparison_result = block_state_root.eq(&aggregator_state_root);
+                if !comparison_result {
+                    error!(
+                        "State roots are not equal. Aggregator: {:?}, L2-provided: {:?}",
+                        aggregator_state_root, block_state_root
+                    );
+                }
+                Ok(comparison_result)
             }
             Err(e) => {
-                error!("Error while verifying state root: {:?}", e);
+                error!("Timeout error while verifying state root: {:?}", e);
                 Ok(false)
             }
             _ => Ok(false),
@@ -89,8 +101,8 @@ impl NFFLVerifier {
     /// Fetches the root state from the NFFL aggregator via HTTP.
     pub(crate) async fn get_aggregator_root_state(&self, block_height: u64) -> eyre::Result<ResponseWrapper> {
         let params = [
-            ("rollupId", self.network_id.clone()),
-            ("blockHeight", block_height.to_string()),
+            ("rollupId", &self.network_id),
+            ("blockHeight", &block_height.to_string()),
         ];
         let url = Url::parse_with_params(&self.aggregator_http_address, &params)?;
         let response = self.http_client.get(url).send().await?;
@@ -112,8 +124,8 @@ impl NFFLVerifier {
 
 #[cfg(test)]
 mod tests {
-    use std::time::Duration;
     use crate::verifier::{Message, NFFLVerifier, ResponseWrapper};
+    use std::time::Duration;
     use wiremock::matchers::{method, path, query_param_contains};
     use wiremock::{Mock, MockServer, ResponseTemplate};
 
@@ -128,8 +140,8 @@ mod tests {
 
         let verifier = verifier_result.unwrap();
         assert!(verifier.verify(2).await.unwrap());
-    }       
-    
+    }
+
     #[tokio::test]
     async fn test_verify_mock_fails() {
         let mock_server = MockServer::start().await;
@@ -153,15 +165,13 @@ mod tests {
             .mount(&mock_server)
             .await;
 
-        let verifier = NFFLVerifier::new(
-            mock_server.uri().as_str(),
-            mock_server.uri().as_str(),
-            1
-        ).await.unwrap();
+        let verifier = NFFLVerifier::new(mock_server.uri().as_str(), mock_server.uri().as_str(), 1)
+            .await
+            .unwrap();
 
         assert!(!verifier.verify(2).await.unwrap());
     }
-    
+
     #[tokio::test]
     async fn test_aggregator_root_state_mock_ok() {
         let mock_server = MockServer::start().await;
@@ -177,9 +187,13 @@ mod tests {
         assert!(state_root_resp_res.is_ok());
 
         let state_root = state_root_resp_res.unwrap().message.state_root;
-        assert_eq!(state_root,  vec![99, 80, 208, 69, 66, 69, 251, 65, 15, 192, 251,
-                                     147, 246, 100, 140, 91, 144, 71, 166, 8, 20, 65,
-                                     227, 111, 15, 243, 171, 37, 156, 154, 71, 240]);
+        assert_eq!(
+            state_root,
+            vec![
+                99, 80, 208, 69, 66, 69, 251, 65, 15, 192, 251, 147, 246, 100, 140, 91, 144, 71, 166, 8, 20, 65, 227,
+                111, 15, 243, 171, 37, 156, 154, 71, 240
+            ]
+        );
     }
 
     #[tokio::test]
@@ -197,19 +211,24 @@ mod tests {
         assert!(state_root_resp_res.is_ok());
 
         let state_root = state_root_resp_res.unwrap().to_vec();
-        assert_eq!(state_root,  vec![99, 80, 208, 69, 66, 69, 251, 65, 15, 192, 251,
-                                     147, 246, 100, 140, 91, 144, 71, 166, 8, 20, 65,
-                                     227, 111, 15, 243, 171, 37, 156, 154, 71, 240]);
+        assert_eq!(
+            state_root,
+            vec![
+                99, 80, 208, 69, 66, 69, 251, 65, 15, 192, 251, 147, 246, 100, 140, 91, 144, 71, 166, 8, 20, 65, 227,
+                111, 15, 243, 171, 37, 156, 154, 71, 240
+            ]
+        );
     }
 
     async fn setup(mock_server: &MockServer, should_pass: bool) {
         let expected_state_root: Vec<u8> = match should_pass {
-            true => vec![99, 80, 208, 69, 66, 69, 251, 65, 15, 192, 251, 
-                         147, 246, 100, 140, 91, 144, 71, 166, 8, 20, 65, 
-                         227, 111, 15, 243, 171, 37, 156, 154, 71, 240],
-            false => vec![0; 32]
+            true => vec![
+                99, 80, 208, 69, 66, 69, 251, 65, 15, 192, 251, 147, 246, 100, 140, 91, 144, 71, 166, 8, 20, 65, 227,
+                111, 15, 243, 171, 37, 156, 154, 71, 240,
+            ],
+            false => vec![0; 32],
         };
-        
+
         let state_root_message = Message {
             rollup_id: 1,
             block_height: 2,
