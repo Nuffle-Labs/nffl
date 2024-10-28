@@ -19,6 +19,7 @@ use tracing::error;
 
 pub struct Executor {
     config: DVNConfig,
+    packet_queue: VecDeque<PacketSent>,
     finish: bool,
 }
 
@@ -27,15 +28,25 @@ impl Executor {
     pub(crate) const VERIFIED_NOT_EXECUTABLE: &'static DynSolValue = &DynSolValue::Int(I256::ONE, 32);
 
     pub fn new(config: DVNConfig) -> Self {
-        Executor { config, finish: false }
+        Executor {
+            config,
+            packet_queue: VecDeque::new(),
+            finish: false,
+        }
     }
 
     pub fn finish(&mut self) {
         // Note: we are in a single-threaded event loop, and we do not care about atomicity (yet).
         self.finish = true;
+        self.packet_queue.clear();
     }
 
-    pub async fn listen(&self) -> Result<()> {
+    #[cfg(test)]
+    pub fn is_queue_empty(&self) -> bool {
+        self.packet_queue.is_empty()
+    }
+
+    pub async fn listen(&mut self) -> Result<()> {
         let (mut ps_stream, mut ef_stream, mut pv_stream) = build_executor_subscriptions(&self.config).await?;
 
         let http_provider = get_http_provider(&self.config)?;
@@ -43,14 +54,12 @@ impl Executor {
         // Create a contract instance.
         let contract = create_contract_instance(self.config.l0_endpoint_addr, http_provider, l0_abi)?;
 
-        let mut packet_sent_queue: VecDeque<PacketSent> = VecDeque::default();
-
         loop {
             tokio::select! {
                 Some(log) = ps_stream.next() => {
                     match log.log_decode::<PacketSent>() {
                         Ok(packet_log) => {
-                            packet_sent_queue.push_back(packet_log.data().clone());
+                            self.packet_queue.push_back(packet_log.data().clone());
                         },
                         Err(e) => { error!("Failed to decode PacketSent event: {:?}", e);}
                     }
@@ -58,21 +67,22 @@ impl Executor {
                 Some(log) = ef_stream.next() => {
                     match log.log_decode::<ExecutorFeePaid>() {
                         Ok(executor_fee_log) => {
-                           if packet_sent_queue.is_empty() {
+                            if self.packet_queue.is_empty() {
                                 continue;
                             }
+
                             if !executor_fee_log.data().executor.eq(&self.config.dvn_addr)  {
-                                packet_sent_queue.clear();
+                                self.packet_queue.clear();
                                 continue;
                             }
                         },
                         Err(e) => { error!("Failed to decode ExecutorFeePaid event: {:?}", e);}
                     }
                 },
-                    Some(log) = pv_stream.next() => {
+                Some(log) = pv_stream.next() => {
                     match log.log_decode::<PacketVerified>() {
                         Ok(inner_log) => {
-                           Self::handle_verified_packet(&contract, &mut packet_sent_queue, inner_log.data()).await?;
+                           Self::handle_verified_packet(&contract, &mut self.packet_queue, inner_log.data()).await?;
                         },
                         Err(e) => { error!("Failed to decode PacketVerified event: {:?}", e);}
                     }

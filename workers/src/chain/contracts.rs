@@ -164,8 +164,8 @@ pub async fn lz_receive(contract: &ContractInst, packet: &[u8]) -> Result<()> {
     )?;
 
     match call_builder.call().await {
-        Ok(_) => debug!("Successfully called lzReceive for packet{:?}", guid),
-        Err(e) => error!("Failed to call lzReceive for packet{:?}: {:?}", guid, e)
+        Ok(_) => debug!("Successfully called lzReceive for packet {:?}", guid),
+        Err(e) => error!("Failed to call lzReceive for packet {:?}: {:?}", guid, e),
     }
     Ok(())
 }

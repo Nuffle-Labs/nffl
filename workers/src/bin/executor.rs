@@ -18,7 +18,7 @@ async fn main() -> eyre::Result<()> {
         )
         .init();
 
-    let executor = Executor::new(config::DVNConfig::load_from_env()?);
+    let mut executor = Executor::new(config::DVNConfig::load_from_env()?);
     executor.listen().await?;
 
     Ok(())
