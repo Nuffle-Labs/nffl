@@ -9,7 +9,6 @@ use crate::chain::contracts::{lz_receive, prepare_header};
 use crate::chain::ContractInst;
 use crate::config::DVNConfig;
 use alloy::dyn_abi::DynSolValue;
-use alloy::primitives::I256;
 use alloy::primitives::U256;
 use eyre::Result;
 use futures::StreamExt;
@@ -17,6 +16,14 @@ use std::collections::VecDeque;
 use std::time::Duration;
 use tokio::time::sleep;
 use tracing::{debug, error};
+
+#[derive(Debug, Clone, Copy, PartialEq)]
+pub enum ExecutionState {
+    NotExecutable = 0,
+    VerifiedNotExecutable = 1,
+    Executable = 2,
+    Executed = 3,
+}
 
 pub struct NFFLExecutor {
     config: DVNConfig,
@@ -120,10 +127,10 @@ impl NFFLExecutor {
         let mut retry_count = 0;
         // status `Executable` is represented by the integer 2 in the enum.
         // To read more: https://tinyurl.com/zur3btzs (line 9)
-        let not_executable = DynSolValue::Uint(U256::from(0), 8);
-        let verified_not_executable = DynSolValue::Uint(U256::from(1), 8);
-        let executable = DynSolValue::Uint(U256::from(2), 8);
-        let executed = DynSolValue::Uint(U256::from(3), 8);
+        let not_executable = DynSolValue::Uint(U256::from(ExecutionState::NotExecutable as u8), 8);
+        let verified_not_executable = DynSolValue::Uint(U256::from(ExecutionState::VerifiedNotExecutable as u8), 8);
+        let executable = DynSolValue::Uint(U256::from(ExecutionState::Executable as u8), 8);
+        let executed = DynSolValue::Uint(U256::from(ExecutionState::Executed as u8), 8);
         loop {
             debug!("Attempt #{retry_count} to call 'executable'");
             if retry_count == Self::MAX_EXECUTE_ATTEMPTS {
