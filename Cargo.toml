@@ -14,7 +14,7 @@ edition = "2021"
 repository = "https://github.com/NethermindEth/near-sffl"
 
 [workspace.dependencies]
-alloy = { version = "0.4.2", features = ["full", "node-bindings", "rpc-types-debug", "rpc-types-trace", "json-rpc", "rpc-client", "serde", "json-abi"] }
+alloy = { version = "0.4.2", features = ["full", "node-bindings", "rpc-types-debug", "rpc-types-trace", "json-rpc", "rpc-client", "serde", "json-abi", "eip712"] }
 alloy-primitives = "0.8.3"
 alloy-rlp = "0.3.8"
 alloy-rpc-client = "0.4.2"
