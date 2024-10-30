@@ -143,10 +143,7 @@ impl NFFLExecutor {
                 break;
             }
 
-            debug!("Call value {:?}", call_result);
-
-            // Note: why not pattern matching here? Rust analyzer ranted on `executable` variable
-            // in the pattern, so an author decided to make it via conditions.
+            // Note: why not pattern matching here? fn calls are not allowed in patterns
             if call_result[0].eq(&not_executable) || call_result[0].eq(&verified_not_executable) {
                 debug!("State: NotExecutable or VerifiedNotExecutable, await commits/verifications");
                 sleep(Duration::from_secs(1)).await;

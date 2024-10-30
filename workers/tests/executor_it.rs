@@ -61,10 +61,7 @@ mod tests {
 
         NFFLExecutor::handle_verified_packet(&contract, &mut queue, &verified_packet).await?;
 
-        debug!("Packet handled");
-
-        // FIXME: should be 2 if it exists in ABI.
-        assert_eq!(counter.load(Ordering::Acquire), 1);
+        assert_eq!(counter.load(Ordering::Acquire), 2);
         Ok(())
     }
 
@@ -97,6 +94,8 @@ mod tests {
 
         let http_provider = ProviderBuilder::new().on_http(SERVER_ADDRESS.parse()?);
         let l0_abi = get_abi_from_path("./abi/L0V2Endpoint.json")?;
+
+        debug!("{:?}", l0_abi.functions.iter().map(|f| f.0).collect::<Vec<_>>());
 
         packet_sent_queue.push_back(PacketSent {
             encodedPayload: Bytes::from(&[1; 256]),

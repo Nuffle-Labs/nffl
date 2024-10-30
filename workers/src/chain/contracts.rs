@@ -153,7 +153,7 @@ pub async fn verify(contract: &ContractInst, packet_header: &[u8], payload: &[u8
 pub async fn lz_receive(contract: &ContractInst, packet: &[u8]) -> Result<()> {
     let guid = guid(packet);
     let call_builder_result = contract.function(
-        "_lzReceive",
+        "lzReceive",
         &[
             prepare_header(header(packet)),
             DynSolValue::Address(Address::from_slice(&receiver(packet)[0..20])),
