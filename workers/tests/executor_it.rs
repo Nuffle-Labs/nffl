@@ -56,7 +56,7 @@ mod tests {
             payloadHash: FixedBytes::from(&[2; 32]),
         };
 
-        let join_handle = prepare_server(counter.clone()).await;
+        let _join_handle = prepare_server(counter.clone()).await;
         let contract = setup_contract(&mut queue).await?;
 
         NFFLExecutor::handle_verified_packet(&contract, &mut queue, &verified_packet).await?;

@@ -24,4 +24,12 @@ jobs:
     steps:
       - uses: actions/checkout@v4
       - uses: actions-rust-lang/setup-rust-toolchain@v1
-      - run: cargo test --all-features
+      - uses: dorny/paths-filter@v3
+        id: filter
+        with:
+          filters: |
+            rust:
+              - 'indexer/**'
+              - 'workers/**'
+        if: steps.filter.outputs.rust == 'true'
+        run: cargo test --all-features
