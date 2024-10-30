@@ -32,4 +32,4 @@ jobs:
               - 'indexer/**'
               - 'workers/**'
         if: steps.filter.outputs.rust == 'true'
-        run: cargo test --all-features
+      - run: cargo test --all-features
