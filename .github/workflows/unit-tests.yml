@@ -23,7 +23,6 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
-      - uses: actions-rust-lang/setup-rust-toolchain@v1
       - uses: dorny/paths-filter@v3
         id: filter
         with:
@@ -31,5 +30,6 @@ jobs:
             rust:
               - 'indexer/**'
               - 'workers/**'
+      - uses: actions-rust-lang/setup-rust-toolchain@v1
         if: steps.filter.outputs.rust == 'true'
       - run: cargo test --all-features
