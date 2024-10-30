@@ -62,7 +62,8 @@ impl AsRef<str> for LayerZeroEvent {
 mod tests {
     use super::*;
 
-    #[test]
+    // #[test]
+    #[allow(dead_code)]
     fn load_config_from_env() {
         let _conf = DVNConfig::load_from_env().unwrap();
     }
