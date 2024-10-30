@@ -1,6 +1,8 @@
 //! Utilities for interacting with onchain contracts.
 
 use crate::chain::{ContractInst, HttpProvider};
+use crate::data::packet_v1_codec::{guid, header, message, nonce, receiver, sender, src_eid};
+use alloy::primitives::B256;
 use alloy::{
     contract::{ContractInstance, Interface},
     dyn_abi::DynSolValue,
@@ -142,4 +144,51 @@ pub async fn verify(contract: &ContractInst, packet_header: &[u8], payload: &[u8
         .await?;
 
     Ok(())
+}
+
+/// If the state is `Executable`, your `Executor` should decode the packet's options
+/// using the options.ts package and call the Endpoint's `lzReceive` function with
+/// the packet information:
+/// `endpoint.lzReceive(_origin, _receiver, _guid, _message, _extraData)`
+pub async fn lz_receive(contract: &ContractInst, packet: &[u8]) -> Result<()> {
+    let guid = guid(packet);
+    let call_builder_result = contract.function(
+        "lzReceive",
+        &[
+            prepare_header(header(packet)),
+            DynSolValue::Address(Address::from_slice(&receiver(packet)[0..20])),
+            DynSolValue::FixedBytes(B256::from_slice(guid.as_slice()), 32),
+            DynSolValue::Bytes(message(packet).to_vec()),
+            DynSolValue::Bytes(vec![]),
+        ],
+    );
+
+    if call_builder_result.is_err() {
+        error!("Failed to call lzReceive, because it doesn't exist in the contract/ABI.");
+        return Ok(());
+    }
+
+    call_builder_result.unwrap().call().await.map_err(|e| {
+        error!("Failed to call lzReceive for packet {:?}: {:?}", guid, e);
+        eyre!("lzReceive call failed: {}", e)
+    })?;
+    debug!("Successfully called lzReceive for packet {:?}", guid);
+    Ok(())
+}
+
+/// Converts `Origin` data structure from the received `PacketVerified`
+/// to the `DynSolValue`, understandable by `alloy-rs`.
+pub(crate) fn prepare_header(packet: &[u8]) -> DynSolValue {
+    const ORIGIN_STRUCT_NAME: &str = "Origin";
+    const ORIGIN_PROPS: [&str; 3] = ["srcEid", "sender", "nonce"];
+
+    DynSolValue::CustomStruct {
+        name: String::from(ORIGIN_STRUCT_NAME),
+        prop_names: ORIGIN_PROPS.iter().map(|&s| String::from(s)).collect(),
+        tuple: vec![
+            DynSolValue::Uint(U256::from(src_eid(packet)), 32),
+            DynSolValue::FixedBytes(B256::from_slice(sender(packet).as_ref()), 32),
+            DynSolValue::Uint(U256::from(nonce(packet)), 64),
+        ],
+    }
 }
