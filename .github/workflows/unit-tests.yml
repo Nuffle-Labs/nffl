@@ -8,7 +8,7 @@ on:
 
 jobs:  
   Test:
-    name: Unit Test
+    name: Go Unit Tests
     runs-on: ubuntu-latest
     timeout-minutes: 5
     steps:
@@ -18,3 +18,10 @@ jobs:
           go-version: '1.21'
       - name: Test
         run: make tests-unit
+  test:
+    name: Rust Unit Tests
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions-rust-lang/setup-rust-toolchain@v1
+      - run: cargo test --all-features
