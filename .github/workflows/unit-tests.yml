@@ -7,7 +7,7 @@ on:
   pull_request:
 
 jobs:  
-  Test:
+  go_test:
     name: Go Unit Tests
     runs-on: ubuntu-latest
     timeout-minutes: 5
@@ -18,7 +18,7 @@ jobs:
           go-version: '1.21'
       - name: Test
         run: make tests-unit
-  test:
+  rust_test:
     name: Rust Unit Tests
     runs-on: ubuntu-latest
     steps:
