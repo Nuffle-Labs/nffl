@@ -10,12 +10,13 @@ use crate::chain::ContractInst;
 use crate::config::DVNConfig;
 use alloy::dyn_abi::DynSolValue;
 use alloy::primitives::I256;
+use alloy::primitives::U256;
 use eyre::Result;
 use futures::StreamExt;
 use std::collections::VecDeque;
 use std::time::Duration;
 use tokio::time::sleep;
-use tracing::error;
+use tracing::{debug, error};
 
 pub struct NFFLExecutor {
     config: DVNConfig,
@@ -24,9 +25,7 @@ pub struct NFFLExecutor {
 }
 
 impl NFFLExecutor {
-    pub(crate) const MAX_RETRIES: usize = 10;
-    pub(crate) const NOT_EXECUTABLE: &'static DynSolValue = &DynSolValue::Int(I256::ZERO, 32);
-    pub(crate) const VERIFIED_NOT_EXECUTABLE: &'static DynSolValue = &DynSolValue::Int(I256::ONE, 32);
+    pub(crate) const MAX_EXECUTE_ATTEMPTS: usize = 10;
 
     pub fn new(config: DVNConfig) -> Self {
         NFFLExecutor {
@@ -39,7 +38,6 @@ impl NFFLExecutor {
     pub fn finish(&mut self) {
         // Note: we are in a single-threaded event loop, and we do not care about atomicity (yet).
         self.finish = true;
-        self.packet_queue.clear();
     }
 
     pub async fn listen(&mut self) -> Result<()> {
@@ -91,7 +89,12 @@ impl NFFLExecutor {
         Ok(())
     }
 
-    async fn handle_verified_packet(
+    #[cfg(test)]
+    pub fn is_queue_empty(&self) -> bool {
+        self.packet_queue.is_empty()
+    }
+
+    pub async fn handle_verified_packet(
         contract: &ContractInst,
         queue: &mut VecDeque<PacketSent>,
         packet_verified: &PacketVerified,
@@ -117,9 +120,13 @@ impl NFFLExecutor {
         let mut retry_count = 0;
         // status `Executable` is represented by the integer 2 in the enum.
         // To read more: https://tinyurl.com/zur3btzs (line 9)
-        let executable: &DynSolValue = &DynSolValue::Int(I256::unchecked_from(2), 32);
+        let not_executable = DynSolValue::Uint(U256::from(0), 8);
+        let verified_not_executable = DynSolValue::Uint(U256::from(1), 8);
+        let executable = DynSolValue::Uint(U256::from(2), 8);
+        let executed = DynSolValue::Uint(U256::from(3), 8);
         loop {
-            if retry_count == Self::MAX_RETRIES {
+            debug!("Attempt #{retry_count} to call 'executable'");
+            if retry_count == Self::MAX_EXECUTE_ATTEMPTS {
                 error!("Maximum retries reached while waiting for `Executable` state.");
                 break;
             }
@@ -129,21 +136,24 @@ impl NFFLExecutor {
                 break;
             }
 
+            debug!("Call value {:?}", call_result);
+
             // Note: why not pattern matching here? Rust analyzer ranted on `executable` variable
             // in the pattern, so an author decided to make it via conditions.
-            if call_result[0].eq(NFFLExecutor::NOT_EXECUTABLE)
-                || call_result[0].eq(NFFLExecutor::VERIFIED_NOT_EXECUTABLE)
-            {
-                // state: NotExecutable or VerifiedNotExecutable, await commits/verifications
+            if call_result[0].eq(&not_executable) || call_result[0].eq(&verified_not_executable) {
+                debug!("State: NotExecutable or VerifiedNotExecutable, await commits/verifications");
                 sleep(Duration::from_secs(1)).await;
                 retry_count += 1;
                 continue;
-            } else if call_result[0].eq(executable) {
-                // state: Executable, fire and forget `lz_receive`
+            } else if call_result[0].eq(&executable) {
+                debug!("State: Executable, fire and forget `lzReceive`");
                 lz_receive(contract, &packet_sent.encodedPayload[..]).await?;
                 break;
+            } else if call_result[0].eq(&executed) {
+                debug!("State: Executed, free the executor");
+                break;
             } else {
-                // We ignore Executed status, it just frees the executor.
+                error!("Unknown state for `executable` call");
                 break;
             }
         }

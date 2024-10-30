@@ -152,18 +152,23 @@ pub async fn verify(contract: &ContractInst, packet_header: &[u8], payload: &[u8
 /// `endpoint.lzReceive(_origin, _receiver, _guid, _message, _extraData)`
 pub async fn lz_receive(contract: &ContractInst, packet: &[u8]) -> Result<()> {
     let guid = guid(packet);
-    let call_builder = contract.function(
+    let call_builder_result = contract.function(
         "_lzReceive",
         &[
             prepare_header(header(packet)),
-            DynSolValue::Address(Address::from_slice(receiver(packet).as_slice())),
+            DynSolValue::Address(Address::from_slice(&receiver(packet)[0..20])),
             DynSolValue::FixedBytes(B256::from_slice(guid.as_slice()), 32),
             DynSolValue::Bytes(message(packet).to_vec()),
             DynSolValue::Bytes(vec![]),
         ],
-    )?;
+    );
 
-    call_builder.call().await.map_err(|e| {
+    if call_builder_result.is_err() {
+        error!("Failed to call lzReceive, because it doesn't exist in the contract/ABI.");
+        return Ok(());
+    }
+
+    call_builder_result.unwrap().call().await.map_err(|e| {
         error!("Failed to call lzReceive for packet {:?}: {:?}", guid, e);
         eyre!("lzReceive call failed: {}", e)
     })?;
@@ -182,7 +187,7 @@ pub(crate) fn prepare_header(packet: &[u8]) -> DynSolValue {
         prop_names: ORIGIN_PROPS.iter().map(|&s| String::from(s)).collect(),
         tuple: vec![
             DynSolValue::Uint(U256::from(src_eid(packet)), 32),
-            DynSolValue::Bytes(sender(packet).to_vec()),
+            DynSolValue::FixedBytes(B256::from_slice(sender(packet).as_ref()), 32),
             DynSolValue::Uint(U256::from(nonce(packet)), 64),
         ],
     }
