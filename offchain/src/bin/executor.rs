@@ -1,9 +1,6 @@
+use offchain::{config, workers::executor::NFFLExecutor};
 use tracing::level_filters::LevelFilter;
 use tracing_subscriber::EnvFilter;
-use offchain::{
-    config,
-    workers::executor::NFFLExecutor
-};
 
 /// Executor is expected to work with low work rate, and we have a bonus
 /// from this observation - we don't need/want to care about concurrency control,

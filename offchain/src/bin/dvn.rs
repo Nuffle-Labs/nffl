@@ -1,9 +1,9 @@
 //! Main off-chain workflow for Nuff DVN.
 
-use eyre::{Result};
+use eyre::Result;
+use offchain::workers::dvn::Dvn;
 use tracing::level_filters::LevelFilter;
 use tracing_subscriber::EnvFilter;
-use offchain::workers::dvn::Dvn;
 
 #[tokio::main]
 async fn main() -> Result<()> {

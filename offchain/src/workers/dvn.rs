@@ -1,19 +1,19 @@
+use crate::chain::ContractInst;
 use crate::{
-    config::WorkerConfig,
-    data::packet_v1_codec::{header, message},
-    verifier::NFFLVerifier,
     abi::{L0V2EndpointAbi::PacketSent, SendLibraryAbi::DVNFeePaid},
     chain::{
         connections::{build_dvn_subscriptions, get_abi_from_path, get_http_provider},
         contracts::{create_contract_instance, query_already_verified, query_confirmations, verify},
-    }
+    },
+    config::WorkerConfig,
+    data::packet_v1_codec::{header, message},
+    verifier::NFFLVerifier,
 };
 use alloy::primitives::{keccak256, B256, U256};
 use alloy::rpc::types::Log;
-use eyre::{OptionExt, Result};
+use eyre::Result;
 use futures::stream::StreamExt;
 use tracing::{debug, error, info, warn};
-use crate::chain::ContractInst;
 
 pub enum DvnStatus {
     Stopped,
@@ -103,12 +103,7 @@ impl Dvn {
         }
 
         if let (Some(receive_lib), Some(header)) = (self.receive_lib.as_ref(), self.get_header()) {
-            verify(
-                receive_lib,
-                header,
-                message_hash.as_ref(),
-                required_confirmations,
-            ).await;
+            verify(receive_lib, header, message_hash.as_ref(), required_confirmations).await;
         }
     }
 
@@ -121,8 +116,11 @@ impl Dvn {
 
         // Get the relevant contract ABI, and create contract.
         let abi = get_abi_from_path("./abi/ReceiveLibUln302.json")?;
-        self.receive_lib =
-            Some(create_contract_instance(self.config.receivelib_uln302_addr, http_provider, abi)?);
+        self.receive_lib = Some(create_contract_instance(
+            self.config.receivelib_uln302_addr,
+            http_provider,
+            abi,
+        )?);
 
         // Start listening for events
         info!("Listening to chain events...");
@@ -151,7 +149,7 @@ impl Dvn {
             Ok(inner_log) => {
                 debug!("PacketSent event found and decoded.");
                 self.packet_received(inner_log.data().clone());
-            },
+            }
         }
     }
 
@@ -203,7 +201,8 @@ impl Dvn {
                                 header_hash.as_ref(),
                                 message_hash.as_ref(),
                                 required_confirmations,
-                            ).await;
+                            )
+                            .await;
 
                             if !already_verified {
                                 let _ = self.verify_message(&log, message_hash, required_confirmations).await;
@@ -215,7 +214,7 @@ impl Dvn {
                     self.reset_packet();
                 }
             }
-            Ok(_)=> {
+            Ok(_) => {
                 warn!("Received a `DVNFeePaid` event but don't have information about the `Packet` to be verified");
             }
         }

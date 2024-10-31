@@ -2,7 +2,7 @@
 
 use crate::{
     chain::HttpProvider,
-    config::{WorkerConfig, LayerZeroEvent},
+    config::{LayerZeroEvent, WorkerConfig},
 };
 use alloy::{
     eips::BlockNumberOrTag,
@@ -103,8 +103,8 @@ pub fn get_http_provider(config: &WorkerConfig) -> Result<HttpProvider> {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use tempfile::{NamedTempFile};
     use std::io::Write;
+    use tempfile::NamedTempFile;
 
     #[test]
     fn test_expect_to_find_all_abis() {
@@ -112,14 +112,14 @@ mod tests {
         get_abi_from_path("abi/SendLibUln302.json").unwrap();
         get_abi_from_path("abi/L0V2Endpoint.json").unwrap();
     }
-    
+
     #[test]
     fn test_get_abi_from_path() {
         // Create a file inside of `env::temp_dir()`.
         let mut temp_file = NamedTempFile::new_in(".").unwrap();
-         
+
         // Some mocked ABI info
-         let data = r#"{
+        let data = r#"{
              "abi": [
               {
                   "type": "function",
@@ -141,7 +141,7 @@ mod tests {
               }
             ]
          }"#;
-         writeln!(temp_file, "{}", data).unwrap();
+        writeln!(temp_file, "{}", data).unwrap();
 
         get_abi_from_path(temp_file.path().to_str().unwrap()).unwrap();
     }

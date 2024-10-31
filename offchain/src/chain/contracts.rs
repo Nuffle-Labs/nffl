@@ -102,25 +102,24 @@ pub async fn query_already_verified(
     // the packet.
     debug!("Calling _verified on contract's ReceiveLib");
 
-    let call_builder = contract
-        .function(
-            "_verified",
-            &[
-                DynSolValue::Address(dvn_address),             // DVN address
-                DynSolValue::Bytes(header_hash.to_vec()),      // HeaderHash
-                DynSolValue::Bytes(payload_hash.to_vec()),     // PayloadHash
-                DynSolValue::Uint(required_confirmations, 32), // confirmations
-            ],
-        );
+    let call_builder = contract.function(
+        "_verified",
+        &[
+            DynSolValue::Address(dvn_address),             // DVN address
+            DynSolValue::Bytes(header_hash.to_vec()),      // HeaderHash
+            DynSolValue::Bytes(payload_hash.to_vec()),     // PayloadHash
+            DynSolValue::Uint(required_confirmations, 32), // confirmations
+        ],
+    );
 
     let Ok(call_builder) = call_builder else {
         error!("Failed to construct `_verified` caller");
-        return false
+        return false;
     };
 
     let Ok(state) = call_builder.call().await else {
         error!("Failed to call `_verified` on contract");
-        return false
+        return false;
     };
 
     match state.first() {
@@ -137,20 +136,19 @@ pub async fn verify(contract: &ContractInst, packet_header: &[u8], payload: &[u8
     let payload_hash = keccak256(payload);
 
     // Call the `verified` function on the contract
-    let call_builder = contract
-        .function(
-            "verify",
-            &[
-                DynSolValue::Bytes(packet_header.to_vec()), // PacketHeader
-                DynSolValue::FixedBytes(payload_hash, 32),  // PayloadHash
-                DynSolValue::Uint(confirmations, 64),       // Confirmations
-            ],
-        );
+    let call_builder = contract.function(
+        "verify",
+        &[
+            DynSolValue::Bytes(packet_header.to_vec()), // PacketHeader
+            DynSolValue::FixedBytes(payload_hash, 32),  // PayloadHash
+            DynSolValue::Uint(confirmations, 64),       // Confirmations
+        ],
+    );
 
     if let Ok(call_builder) = call_builder {
         match call_builder.call().await {
             Err(e) => error!("Failed to call `verify`. Error: {:?}", e),
-            _ => {},
+            _ => {}
         }
     } else {
         error!("Failed to construct `verify` caller");

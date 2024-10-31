@@ -5,6 +5,8 @@ use config::Config;
 use eyre::Result;
 use serde::Deserialize;
 
+const CONFIG_PATH: &str = "./workers_config";
+
 #[derive(Debug, Deserialize)]
 pub struct WorkerConfig {
     /// The Websocket RPC URL to connect to the Ethereum network.
@@ -33,7 +35,8 @@ impl WorkerConfig {
     /// Load environment variables.
     pub fn load_from_env() -> Result<Self> {
         let settings = Config::builder()
-            .add_source(config::File::with_name("./config_dvn")).build()?;
+            .add_source(config::File::with_name(CONFIG_PATH))
+            .build()?;
         Ok(settings.try_deserialize::<Self>()?)
     }
 }
@@ -64,5 +67,15 @@ mod tests {
     #[test]
     fn load_config_from_env() {
         let _conf = WorkerConfig::load_from_env().unwrap();
+    }
+
+    #[test]
+    fn test_valid_config() {
+        let conf = WorkerConfig::load_from_env().unwrap();
+        assert!(conf.ws_rpc_url.starts_with("ws://") || conf.ws_rpc_url.starts_with("wss://"));
+
+        assert!(conf.http_rpc_url.starts_with("http://") || conf.http_rpc_url.starts_with("https://"));
+
+        assert!(conf.target_network_eid > 0);
     }
 }

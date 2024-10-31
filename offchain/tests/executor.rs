@@ -1,28 +1,21 @@
 use alloy::{
     primitives::{address, Address, Bytes, FixedBytes},
-    providers::ProviderBuilder
+    providers::ProviderBuilder,
 };
 use axum::{routing::post, Json, Router};
+use offchain::{
+    abi::L0V2EndpointAbi::{Origin, PacketSent, PacketVerified},
+    chain::{connections::get_abi_from_path, contracts::create_contract_instance, ContractInst},
+    workers::executor::NFFLExecutor,
+};
 use std::{
     collections::VecDeque,
     sync::atomic::{AtomicI32, Ordering},
-    sync::Arc
+    sync::Arc,
 };
 use tokio::task::JoinHandle;
-use tracing::{
-    debug,
-    level_filters::LevelFilter
-};
+use tracing::{debug, level_filters::LevelFilter};
 use tracing_subscriber::EnvFilter;
-use offchain::{
-    abi::L0V2EndpointAbi::{Origin, PacketSent, PacketVerified},
-    chain::{
-        connections::get_abi_from_path,
-        contracts::create_contract_instance,
-        ContractInst
-    },
-    workers::executor::NFFLExecutor
-};
 
 #[derive(serde::Serialize, serde::Deserialize, Debug)]
 struct EthCallRequest {

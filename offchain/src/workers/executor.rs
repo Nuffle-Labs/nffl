@@ -48,7 +48,8 @@ impl NFFLExecutor {
     }
 
     pub async fn listen(&mut self) -> Result<()> {
-        let (_provider, mut ps_stream, mut ef_stream, mut pv_stream) = build_executor_subscriptions(&self.config).await?;
+        let (_provider, mut ps_stream, mut ef_stream, mut pv_stream) =
+            build_executor_subscriptions(&self.config).await?;
 
         let http_provider = get_http_provider(&self.config)?;
         let l0_abi = get_abi_from_path("./abi/L0V2Endpoint.json")?;
