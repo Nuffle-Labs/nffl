@@ -1,0 +1,4 @@
+(node:2465) [DEP0040] DeprecationWarning: The `punycode` module is deprecated. Please use a userland alternative instead.
+(Use `node --trace-deprecation ...` to show where the warning was created)
+[31m[1mError[22m[39m [31m[1mHH110:[22m[39m Invalid JSON-RPC response received: "!�\u0001\u0000 �s�\u0019\u0019}H˛��ЙK&�B\u001d�/l�����Ё\u001f �`-�9׃�Ձ\u000e�,���XՈL��(aʙs��L\u0017\t��R��Hd�Fuƈy��\u0013�'�\u0001\u0003"
+For more info go to https://hardhat.org/HH110 or run Hardhat with --show-stack-traces

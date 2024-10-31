@@ -48,7 +48,7 @@ impl NFFLVerifier {
     }
 
     pub async fn new_from_config(cfg: &WorkerConfig) -> eyre::Result<NFFLVerifier> {
-        Self::new(&cfg.aggregator_url, &cfg.http_rpc_url, cfg.target_network_eid).await
+        Self::new(&cfg.aggregator_url, &cfg.source_http_rpc_url, cfg.target_network_eid).await
     }
 
     /// Verifies the state root of a block. In case any request future

@@ -1,18 +1,21 @@
 //! Utilities for interacting with onchain contracts.
 
-use crate::chain::{ContractInst, HttpProvider};
-use crate::data::packet_v1_codec::{guid, header, message, nonce, receiver, sender, src_eid};
-use alloy::primitives::B256;
+use crate::{
+    chain::{ContractInst, HttpProvider},
+    data::packet_v1_codec::{guid, header, message, nonce, receiver, sender, src_eid},
+};
 use alloy::{
     contract::{ContractInstance, Interface},
     dyn_abi::DynSolValue,
     json_abi::JsonAbi,
     network::Ethereum,
-    primitives::{keccak256, Address, U256},
+    primitives::{keccak256, Address, B256, U256},
     transports::http::{Client, Http},
 };
 use eyre::{eyre, OptionExt, Result};
 use tracing::{debug, error};
+
+const MAX_RETRIES: u8 = 10;
 
 /// Create a contract instance from the ABI to interact with on-chain instance.
 pub fn create_contract_instance(addr: Address, http_provider: HttpProvider, abi: JsonAbi) -> Result<ContractInst> {
@@ -23,7 +26,7 @@ pub fn create_contract_instance(addr: Address, http_provider: HttpProvider, abi:
 
 /// Get the address of the MessageLib on the destination chain
 pub async fn get_messagelib_addr(contract: &ContractInst, eid: U256) -> Result<Address> {
-    // Call the `getUlnConfig` function on the contract
+    // Call the `receiveLib` on the contract
     let receive_library = contract
         .function(
             "getReceiveLibrary",
@@ -44,7 +47,7 @@ pub async fn get_messagelib_addr(contract: &ContractInst, eid: U256) -> Result<A
     }
 }
 
-/// Get the number of required confirmations by the ULN.
+/// Get the number of required confirmations defined in the ULN config.
 ///
 /// The function is defined as:
 /// ```solidity
@@ -53,39 +56,43 @@ pub async fn get_messagelib_addr(contract: &ContractInst, eid: U256) -> Result<A
 ///
 /// The value returned is a solidity `UlnConfig[]` with, at least, one value.
 /// See: https://github.com/LayerZero-Labs/LayerZero-v2/blob/main/packages/layerzero-v2/evm/messagelib/contracts/uln/UlnBase.sol
-///
-/// The struct `UlnConfig` is defined as follows:
-/// ```solidity
-/// struct UlnConfig {
-///     uint64 confirmations;
-///     uint8 requiredDVNCount;
-///     uint8 optionalDVNCount;
-///     uint8 optionalDVNThreshold;
-///     address[] requiredDVNs;
-///     address[] optionalDVNs;
-/// }
-/// ```
-/// and we require only the first value.
 pub async fn query_confirmations(contract: &ContractInst, eid: U256) -> Result<U256> {
-    // Call the `getUlnConfig` function on the contract
-    let uln_config = contract
-        .function(
-            "getUlnConfig",
-            &[DynSolValue::Address(*contract.address()), DynSolValue::Uint(eid, 32)],
-        )?
-        .call()
-        .await?;
+    let mut retries = 0;
 
-    match &uln_config.first().ok_or_eyre("ULN config not found in contract")? {
-        DynSolValue::Tuple(tupled_int) => {
-            let value = tupled_int[0]
-                .as_uint()
-                .ok_or_eyre("Cannot parse response as `uint` from MessageLib")?;
-            Ok(value.0)
+    // Call the `getUlnConfig` function on the contract
+    let uln_config = loop {
+        if retries >= MAX_RETRIES {
+            break Err(eyre!("Max retries reached"));
+        } else {
+            retries += 1;
+
+            match contract
+                .function(
+                    "getUlnConfig",
+                    &[DynSolValue::Address(*contract.address()), DynSolValue::Uint(eid, 32)],
+                )?
+                .call()
+                .await
+            {
+                Ok(config) => {
+                    break Ok(config);
+                }
+                Err(e) => {
+                    error!("Failed to get ULN config with error: {:?}. Retrying...", e);
+                    continue;
+                }
+            }
         }
+    };
+
+    match &uln_config?.first().ok_or_eyre("ULN config not found in contract")? {
+        DynSolValue::CustomStruct { tuple, .. } => tuple
+            .first()
+            .and_then(|t| t.as_uint().map(|u| u.0))
+            .ok_or_eyre("Cannot parse response as `uint` from MessageLib"),
         _ => {
-            error!("Failed to get confirmations");
-            Err(eyre!("Failed to get confirmations"))
+            error!("Failed to parse returned value from contract");
+            Err(eyre!("Failed to parse returned value from contract"))
         }
     }
 }
@@ -97,62 +104,91 @@ pub async fn query_already_verified(
     header_hash: &[u8],
     payload_hash: &[u8],
     required_confirmations: U256,
-) -> bool {
+) -> Result<bool> {
     // Call the `_verified` function on the 302 contract, to check if the DVN has already verified
     // the packet.
-    debug!("Calling _verified on contract's ReceiveLib");
+    debug!("Calling _verified on ReceiveLib");
 
-    let call_builder = contract.function(
-        "_verified",
-        &[
-            DynSolValue::Address(dvn_address),             // DVN address
-            DynSolValue::Bytes(header_hash.to_vec()),      // HeaderHash
-            DynSolValue::Bytes(payload_hash.to_vec()),     // PayloadHash
-            DynSolValue::Uint(required_confirmations, 32), // confirmations
-        ],
-    );
+    let mut retries = 0;
 
-    let Ok(call_builder) = call_builder else {
-        error!("Failed to construct `_verified` caller");
-        return false;
+    let verified = loop {
+        if retries >= MAX_RETRIES {
+            break Err(eyre!("Max retries reached"));
+        } else {
+            retries += 1;
+
+            match contract
+                .function(
+                    "_verified",
+                    &[
+                        DynSolValue::Address(dvn_address),             // DVN address
+                        DynSolValue::Bytes(header_hash.to_vec()),      // HeaderHash
+                        DynSolValue::Bytes(payload_hash.to_vec()),     // PayloadHash
+                        DynSolValue::Uint(required_confirmations, 32), // confirmations
+                    ],
+                )?
+                .call()
+                .await
+            {
+                Ok(verified) => {
+                    break Ok(verified);
+                }
+                Err(e) => {
+                    error!("Failed to get verified with error: {:?}. Retrying...", e);
+                    continue;
+                }
+            }
+        }
     };
 
-    let Ok(state) = call_builder.call().await else {
-        error!("Failed to call `_verified` on contract");
-        return false;
-    };
-
-    match state.first() {
-        Some(DynSolValue::Bool(b)) => *b,
+    match verified?.first() {
+        Some(DynSolValue::Bool(b)) => Ok(*b),
         _ => {
             error!("Failed to parse as bool the `_verified` response from ReceiveLib");
-            false
+            Err(eyre!(
+                "Failed to parse as bool the `_verified` response from ReceiveLib"
+            ))
         }
     }
 }
 
-pub async fn verify(contract: &ContractInst, packet_header: &[u8], payload: &[u8], confirmations: U256) {
-    //// Create the hash of the payload
+pub async fn verify(contract: &ContractInst, packet_header: &[u8], payload: &[u8], confirmations: U256) -> Result<()> {
+    debug!("Calling `verify `on ReceiveLib");
+
+    // Create the hash of the payload
     let payload_hash = keccak256(payload);
+    let mut retries = 0;
 
     // Call the `verified` function on the contract
-    let call_builder = contract.function(
-        "verify",
-        &[
-            DynSolValue::Bytes(packet_header.to_vec()), // PacketHeader
-            DynSolValue::FixedBytes(payload_hash, 32),  // PayloadHash
-            DynSolValue::Uint(confirmations, 64),       // Confirmations
-        ],
-    );
-
-    if let Ok(call_builder) = call_builder {
-        match call_builder.call().await {
-            Err(e) => error!("Failed to call `verify`. Error: {:?}", e),
-            _ => {}
+    let _verify = loop {
+        if retries >= MAX_RETRIES {
+            break Err(eyre!("Max retries reached"));
+        } else {
+            retries += 1;
+            match contract
+                .function(
+                    "verify",
+                    &[
+                        DynSolValue::Bytes(packet_header.to_vec()), // PacketHeader
+                        DynSolValue::FixedBytes(payload_hash, 32),  // PayloadHash
+                        DynSolValue::Uint(confirmations, 64),       // Confirmations
+                    ],
+                )?
+                .call()
+                .await
+            {
+                Ok(_) => {
+                    break Ok(());
+                }
+                Err(e) => {
+                    error!("Failed to verify with error: {:?}. Retrying...", e);
+                    continue;
+                }
+            }
         }
-    } else {
-        error!("Failed to construct `verify` caller");
     };
+
+    Ok(())
 }
 
 /// If the state is `Executable`, your `Executor` should decode the packet's options

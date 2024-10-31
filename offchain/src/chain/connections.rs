@@ -1,8 +1,8 @@
 //! Utilities related to connection with a blockchain.
 
 use crate::{
-    chain::HttpProvider,
-    config::{LayerZeroEvent, WorkerConfig},
+    chain::{HttpProvider, LayerZeroEvent},
+    config::WorkerConfig,
 };
 use alloy::{
     eips::BlockNumberOrTag,
@@ -23,18 +23,18 @@ pub async fn build_dvn_subscriptions(
     SubscriptionStream<Log>,
 )> {
     // Create the provider
-    let ws = WsConnect::new(config.ws_rpc_url.clone());
+    let ws = WsConnect::new(config.source_ws_rpc_url.clone());
     let provider = ProviderBuilder::new().on_ws(ws).await?;
 
     // layerzero endpoint filter
     let packet_filter = Filter::new()
-        .address(config.l0_endpoint_addr)
+        .address(config.source_endpoint)
         .event(LayerZeroEvent::PacketSent.as_ref())
         .from_block(BlockNumberOrTag::Latest);
 
     // messagelib endpoint filter
     let fee_paid_filter = Filter::new()
-        .address(config.sendlib_uln302_addr)
+        .address(config.source_sendlib)
         .event(LayerZeroEvent::DVNFeePaid.as_ref())
         .from_block(BlockNumberOrTag::Latest);
 
@@ -58,22 +58,22 @@ pub async fn build_executor_subscriptions(
     SubscriptionStream<Log>,
 )> {
     // Create the provider
-    let ws = WsConnect::new(&config.ws_rpc_url);
+    let ws = WsConnect::new(&config.source_ws_rpc_url);
     let provider = ProviderBuilder::new().on_ws(ws).await?;
 
     // PacketSent
     let packet_sent_filter = Filter::new()
-        .address(config.l0_endpoint_addr)
+        .address(config.source_endpoint)
         .event(LayerZeroEvent::PacketSent.as_ref())
         .from_block(BlockNumberOrTag::Latest);
 
     let executor_fee_paid = Filter::new()
-        .address(config.sendlib_uln302_addr)
+        .address(config.source_sendlib)
         .event(LayerZeroEvent::ExecutorFeePaid.as_ref())
         .from_block(BlockNumberOrTag::Latest);
 
     let packet_verified_filter = Filter::new()
-        .address(config.l0_endpoint_addr)
+        .address(config.source_endpoint)
         .event(LayerZeroEvent::PacketVerified.as_ref())
         .from_block(BlockNumberOrTag::Latest);
 
@@ -99,8 +99,8 @@ pub fn get_abi_from_path(path: &str) -> Result<JsonAbi> {
 }
 
 /// Construct an HTTP provider given the config.
-pub fn get_http_provider(config: &WorkerConfig) -> Result<HttpProvider> {
-    let http_provider = ProviderBuilder::new().on_http(config.http_rpc_url.to_string().parse()?);
+pub fn get_http_provider(rpc_url: &str) -> Result<HttpProvider> {
+    let http_provider = ProviderBuilder::new().on_http(rpc_url.to_string().parse()?);
     Ok(http_provider)
 }
 

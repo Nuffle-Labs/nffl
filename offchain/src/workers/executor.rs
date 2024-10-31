@@ -51,10 +51,10 @@ impl NFFLExecutor {
         let (_provider, mut ps_stream, mut ef_stream, mut pv_stream) =
             build_executor_subscriptions(&self.config).await?;
 
-        let http_provider = get_http_provider(&self.config)?;
+        let http_provider = get_http_provider(&self.config.source_http_rpc_url)?;
         let l0_abi = get_abi_from_path("offchain/abi/L0V2Endpoint.json")?;
         // Create a contract instance.
-        let contract = create_contract_instance(self.config.l0_endpoint_addr, http_provider, l0_abi)?;
+        let contract = create_contract_instance(self.config.source_endpoint, http_provider, l0_abi)?;
 
         loop {
             tokio::select! {
@@ -73,7 +73,7 @@ impl NFFLExecutor {
                                 continue;
                             }
 
-                            if !executor_fee_log.data().executor.eq(&self.config.dvn_addr)  {
+                            if !executor_fee_log.data().executor.eq(&self.config.source_dvn)  {
                                 self.packet_queue.clear();
                                 continue;
                             }

@@ -13,11 +13,11 @@ import { IReceiveUlnE2 } from "@layerzerolabs/lz-evm-messagelib-v2/contracts/uln
 import { IDVNFeeLib } from "@layerzerolabs/lz-evm-messagelib-v2/contracts/uln/interfaces/IDVNFeeLib.sol";
 
 import { INuffClient } from "./interfaces/INuffClient.sol";
-import { INuffDVNConfig } from "./interfaces/INuffDVNConfig.sol";
+// import { INuffDVNConfig } from "./interfaces/INuffDVNConfig.sol";
 
 import { ReentrancyGuard } from "solady/src/utils/ReentrancyGuard.sol";
 
-abstract contract NuffDVN is ILayerZeroDVN, AccessControl, IDVN, ReentrancyGuard {
+contract NuffDVN is ILayerZeroDVN, AccessControl, IDVN, ReentrancyGuard {
     using PacketV1Codec for bytes;
     using ECDSA for bytes32;
 
@@ -41,10 +41,8 @@ abstract contract NuffDVN is ILayerZeroDVN, AccessControl, IDVN, ReentrancyGuard
 
     uint256 public lastJobId;
 
-    uint256 public nuffAppId;
     INuffClient.PublicKey public nuffPublicKey;
     INuffClient public nuff;
-    INuffDVNConfig public dvnConfig;
 
     uint16 public defaultMultiplierBps;
     uint64 public quorum;
@@ -56,26 +54,24 @@ abstract contract NuffDVN is ILayerZeroDVN, AccessControl, IDVN, ReentrancyGuard
     mapping(uint32 eid => bool isSupported) public supportedDstChain;
     mapping(uint32 dstEid => DstConfig config) public dstConfig;
     mapping(uint32 srcEid => mapping(uint256 jobId => bool isVerified)) public verifiedJobs;
+    mapping(uint32 eid => uint8[] optionTypes) public supportedOptionTypes;
 
     event JobAssigned(uint256 jobId);
     event Verified(uint32 srcEid, uint256 jobId);
+    event VerifierFeePaid(uint256 fee);
 
     constructor(
-        uint256 _nuffAppId,
         INuffClient.PublicKey memory _nuffPublicKey,
-        address _nuff,
+        // address _nuff,
         address _layerZeroEndpointV2,
-        address _dvnConfig,
         uint16 _defaultMultiplierBps,
         uint64 _quorum,
         address _priceFeed,
         address _feeLib
     ) {
-        nuffAppId = _nuffAppId;
         nuffPublicKey = _nuffPublicKey;
-        nuff = INuffClient(_nuff);
+        // nuff = INuffClient(_nuff);
         layerZeroEndpointV2 = ILayerZeroEndpointV2(_layerZeroEndpointV2);
-        dvnConfig = INuffDVNConfig(_dvnConfig);
         localEid = layerZeroEndpointV2.eid();
         defaultMultiplierBps = _defaultMultiplierBps;
         quorum = _quorum;
@@ -85,18 +81,38 @@ abstract contract NuffDVN is ILayerZeroDVN, AccessControl, IDVN, ReentrancyGuard
         _grantRole(ADMIN_ROLE, msg.sender);
     }
 
+    function getFee(
+        uint32 _dstEid,
+        uint64 _confirmations,
+        address _sender,
+        bytes calldata _options
+    ) external view override returns (uint256 _fee) {
+        // IDVNFeeLib.FeeParams memory params = IDVNFeeLib.FeeParams(
+        //     priceFeed,
+        //     _dstEid,
+        //     _confirmations,
+        //     _sender,
+        //     quorum,
+        //     defaultMultiplierBps
+        // );
+        //
+        // _fee = IDVNFeeLib(feeLib).getFee(params, dstConfig[_dstEid], _options);
+        _fee = 10000;
+    }
+
     function assignJob(
         AssignJobParam calldata _param,
         bytes calldata _options
     )
         external
-        nonReentrant
+        // nonReentrant
         payable
         override
-        onlyRole(MESSAGE_LIB_ROLE)
+        // onlyRole(MESSAGE_LIB_ROLE)
         returns (uint256 fee)
     {
-        require(supportedDstChain[_param.dstEid], "Unsupported chain");
+        // TODO: wire up later
+        // require(supportedDstChain[_param.dstEid], "Unsupported chain");
 
         uint256 jobId = ++lastJobId;
         Job storage newJob = jobs[jobId];
@@ -115,22 +131,24 @@ abstract contract NuffDVN is ILayerZeroDVN, AccessControl, IDVN, ReentrancyGuard
         );
         newJob.options = _options;
 
-        IDVNFeeLib.FeeParams memory feeParams = IDVNFeeLib.FeeParams(
-            priceFeed,
-            _param.dstEid,
-            _param.confirmations,
-            _param.sender,
-            quorum,
-            defaultMultiplierBps
-        );
-
-        fee = IDVNFeeLib(feeLib).getFeeOnSend(
-            feeParams,
-            dstConfig[_param.dstEid],
-            _options
-        );
+        // IDVNFeeLib.FeeParams memory feeParams = IDVNFeeLib.FeeParams(
+        //     priceFeed,
+        //     _param.dstEid,
+        //     _param.confirmations,
+        //     _param.sender,
+        //     quorum,
+        //     defaultMultiplierBps
+        // );
+        //
+        // fee = IDVNFeeLib(feeLib).getFeeOnSend(
+        //     feeParams,
+        //     dstConfig[_param.dstEid],
+        //     _options
+        // );
+        fee = 10000;
 
         emit JobAssigned(jobId);
+        emit VerifierFeePaid(fee);
     }
 
     function verify(
@@ -152,9 +170,8 @@ abstract contract NuffDVN is ILayerZeroDVN, AccessControl, IDVN, ReentrancyGuard
 
         verifiedJobs[_srcEid][_jobId] = true;
 
-        bytes32 hash = keccak256(
+        bytes32 _hash = keccak256(
             abi.encodePacked(
-                nuffAppId,
                 _reqId,
                 _srcEid,
                 _dstEid,
@@ -168,7 +185,7 @@ abstract contract NuffDVN is ILayerZeroDVN, AccessControl, IDVN, ReentrancyGuard
 
         _verifyNuffSig(
             _reqId,
-            hash,
+            _hash,
             _signature
         );
 
@@ -181,10 +198,6 @@ abstract contract NuffDVN is ILayerZeroDVN, AccessControl, IDVN, ReentrancyGuard
         );
 
         emit Verified(_srcEid, _jobId);
-    }
-
-    function setNuffAppId(uint256 _nuffAppId) external onlyRole(ADMIN_ROLE) {
-        nuffAppId = _nuffAppId;
     }
 
     function setNuffContract(address addr) external onlyRole(ADMIN_ROLE) {
@@ -248,23 +261,6 @@ abstract contract NuffDVN is ILayerZeroDVN, AccessControl, IDVN, ReentrancyGuard
         emit Withdraw(_lib, _to, _amount);
     }
 
-    function getFee(
-        uint32 _dstEid,
-        uint64 _confirmations,
-        address _sender,
-        bytes calldata _options
-    ) external view override returns (uint256 _fee) {
-        IDVNFeeLib.FeeParams memory params = IDVNFeeLib.FeeParams(
-            priceFeed,
-            _dstEid,
-            _confirmations,
-            _sender,
-            quorum,
-            defaultMultiplierBps
-        );
-        return IDVNFeeLib(feeLib).getFee(params, dstConfig[_dstEid], _options);
-    }
-
     function _verifyNuffSig(
         bytes calldata reqId,
         bytes32 hash,
@@ -287,12 +283,11 @@ abstract contract NuffDVN is ILayerZeroDVN, AccessControl, IDVN, ReentrancyGuard
         address _receiver
     ) internal nonReentrant {
         address receiverLib;
-        if (_isV2(_srcEid)) {
-            (receiverLib, ) = layerZeroEndpointV2.getReceiveLibrary(
-                _receiver,
-                _srcEid
-            );
-        }
+
+        (receiverLib, ) = layerZeroEndpointV2.getReceiveLibrary(
+            _receiver,
+            _srcEid
+        );
 
         IReceiveUlnE2(receiverLib).verify(
             _packetHeader,
@@ -313,5 +308,13 @@ abstract contract NuffDVN is ILayerZeroDVN, AccessControl, IDVN, ReentrancyGuard
             return true;
         }
         return false;
+    }
+
+    function getSupportedOptionTypes(uint32 _eid) external view returns (uint8[] memory) {
+        return supportedOptionTypes[_eid];
+    }
+
+    function setSupportedOptionTypes(uint32 _eid, uint8[] calldata _optionTypes) external {
+        supportedOptionTypes[_eid] = _optionTypes;
     }
 }

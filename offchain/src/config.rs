@@ -2,7 +2,7 @@
 
 use alloy::primitives::Address;
 use config::Config;
-use eyre::Result;
+use eyre::{eyre, Result};
 use serde::Deserialize;
 use std::path::PathBuf;
 
@@ -10,24 +10,26 @@ const CONFIG_PATH: &str = "offchain/workers_config";
 
 #[derive(Debug, Deserialize)]
 pub struct WorkerConfig {
-    /// The Websocket RPC URL to connect to the Ethereum network.
-    pub ws_rpc_url: String,
-    /// The HTTP RPC URL to connect to the Ethereum network.
-    pub http_rpc_url: String,
-    /// The LayerZero endpoint address.
-    pub l0_endpoint_addr: Address,
-    /// The SendLib Ultra Light Node 302 address.
-    pub sendlib_uln302_addr: Address,
-    /// The ReceiveLib Ultra Light Node 302 address.
-    pub receivelib_uln302_addr: Address,
-    /// The SendLib Ultra Light Node 301 address.
-    pub sendlib_uln301_addr: Address,
-    /// The ReceiveLib Ultra Light Node 301 address.
-    pub receivelib_uln301_addr: Address,
-    /// The Ethereum network ID.
+    /// The Websocket RPC URL to connect to the Ethereum network for the source chain.
+    pub source_ws_rpc_url: String,
+    /// The HTTP RPC URL to connect to the Ethereum network for the source chain.
+    pub source_http_rpc_url: String,
+    /// The Websocket RPC URL to connect to the Ethereum network for the target chain.
+    pub target_ws_rpc_url: String,
+    /// The HTTP RPC URL to connect to the Ethereum network for the target chain.
+    pub target_http_rpc_url: String,
+    /// The LayerZero endpoint address on the source chain.
+    pub source_endpoint: Address,
+    /// The LayerZero endpoint address on the target chain.
+    pub target_endpoint: Address,
+    /// The SendLib Ultra Light Node 302 address on the source chain.
+    pub source_sendlib: Address,
+    /// The ReceiveLib Ultra Light Node 302 address on the target chain.
+    pub target_receivelib: Address,
+    /// The Ethereum network ID of the target chain.
     pub target_network_eid: u64,
-    /// Own DVN address. Used to check when the DVN is assigned to a task.
-    pub dvn_addr: Address,
+    /// The address of the source DVN. Used to check when the DVN is assigned.
+    pub source_dvn: Address,
     /// NFFL Aggregator URL
     pub aggregator_url: String,
 }
@@ -37,26 +39,9 @@ impl WorkerConfig {
     pub fn load_from_env() -> Result<Self> {
         let path = project_root::get_project_root()?.join(PathBuf::from(CONFIG_PATH));
         let settings = Config::builder().add_source(config::File::from(path)).build()?;
-        Ok(settings.try_deserialize::<Self>()?)
-    }
-}
-
-/// Useful events for the DVN workflow.
-pub enum LayerZeroEvent {
-    PacketSent,
-    DVNFeePaid,
-    ExecutorFeePaid,
-    PacketVerified,
-}
-
-impl AsRef<str> for LayerZeroEvent {
-    fn as_ref(&self) -> &str {
-        match self {
-            LayerZeroEvent::PacketSent => "PacketSent(bytes,bytes,address)",
-            LayerZeroEvent::DVNFeePaid => "DVNFeePaid(address[],address[],uint256[])",
-            LayerZeroEvent::ExecutorFeePaid => "ExecutorFeePaid(address,uint256)",
-            LayerZeroEvent::PacketVerified => "PacketVerified(address,bytes,uint256,bytes32)",
-        }
+        settings
+            .try_deserialize::<Self>()
+            .map_err(|e| eyre!("Something happened with the worker's config: {:?}", e))
     }
 }
 
@@ -64,8 +49,7 @@ impl AsRef<str> for LayerZeroEvent {
 mod tests {
     use super::*;
 
-    // #[test]
-    #[allow(dead_code)]
+    #[test]
     fn load_config_from_env() {
         let _conf = WorkerConfig::load_from_env().unwrap();
     }
@@ -73,10 +57,11 @@ mod tests {
     #[test]
     fn test_valid_config() {
         let conf = WorkerConfig::load_from_env().unwrap();
-        assert!(conf.ws_rpc_url.starts_with("ws://") || conf.ws_rpc_url.starts_with("wss://"));
 
-        assert!(conf.http_rpc_url.starts_with("http://") || conf.http_rpc_url.starts_with("https://"));
-
+        assert!(conf.source_ws_rpc_url.starts_with("ws://") || conf.source_ws_rpc_url.starts_with("wss://"));
+        assert!(conf.source_http_rpc_url.starts_with("http://") || conf.source_http_rpc_url.starts_with("https://"));
+        assert!(conf.target_ws_rpc_url.starts_with("ws://") || conf.target_ws_rpc_url.starts_with("wss://"));
+        assert!(conf.target_http_rpc_url.starts_with("http://") || conf.target_http_rpc_url.starts_with("https://"));
         assert!(conf.target_network_eid > 0);
     }
 }

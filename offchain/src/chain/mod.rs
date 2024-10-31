@@ -15,3 +15,22 @@ pub type ContractInst = ContractInstance<Http<Client>, RootProvider<Http<Client>
 
 /// Alias for an HTTP provider.
 pub type HttpProvider = RootProvider<Http<Client>>;
+
+/// Useful events for the DVN workflow.
+pub enum LayerZeroEvent {
+    PacketSent,
+    DVNFeePaid,
+    ExecutorFeePaid,
+    PacketVerified,
+}
+
+impl AsRef<str> for LayerZeroEvent {
+    fn as_ref(&self) -> &str {
+        match self {
+            LayerZeroEvent::PacketSent => "PacketSent(bytes,bytes,address)",
+            LayerZeroEvent::DVNFeePaid => "DVNFeePaid(address[],address[],uint256[])",
+            LayerZeroEvent::ExecutorFeePaid => "ExecutorFeePaid(address,uint256)",
+            LayerZeroEvent::PacketVerified => "PacketVerified(address,bytes,uint256,bytes32)",
+        }
+    }
+}
