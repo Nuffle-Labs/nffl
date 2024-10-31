@@ -115,7 +115,7 @@ impl Dvn {
         let http_provider = get_http_provider(&self.config)?;
 
         // Get the relevant contract ABI, and create contract.
-        let abi = get_abi_from_path("./abi/ReceiveLibUln302.json")?;
+        let abi = get_abi_from_path("offchain/abi/ReceiveLibUln302.json")?;
         self.receive_lib = Some(create_contract_instance(
             self.config.receivelib_uln302_addr,
             http_provider,

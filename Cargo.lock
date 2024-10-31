@@ -6400,6 +6400,7 @@ dependencies = [
  "futures",
  "http-body-util",
  "log",
+ "project-root",
  "reqwest 0.12.8",
  "serde",
  "serde_json",
@@ -7223,6 +7224,12 @@ checksum = "b3e4daa0dcf6feba26f985457cdf104d4b4256fc5a09547140f3631bb076b19a"
 dependencies = [
  "unicode-ident",
 ]
+
+[[package]]
+name = "project-root"
+version = "0.2.2"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "8bccbff07d5ed689c4087d20d7307a52ab6141edeedf487c3876a55b86cf63df"
 
 [[package]]
 name = "prometheus"

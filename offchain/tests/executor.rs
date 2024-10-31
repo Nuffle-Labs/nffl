@@ -93,7 +93,7 @@ async fn setup_contract(packet_sent_queue: &mut VecDeque<PacketSent>) -> eyre::R
     const SERVER_ADDRESS: &str = "http://127.0.0.1:8081";
 
     let http_provider = ProviderBuilder::new().on_http(SERVER_ADDRESS.parse()?);
-    let l0_abi = get_abi_from_path("./abi/L0V2Endpoint.json")?;
+    let l0_abi = get_abi_from_path("offchain/abi/L0V2Endpoint.json")?;
 
     debug!("{:?}", l0_abi.functions.iter().map(|f| f.0).collect::<Vec<_>>());
 
