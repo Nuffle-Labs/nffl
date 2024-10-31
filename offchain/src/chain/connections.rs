@@ -11,7 +11,7 @@ use alloy::{
     pubsub::{PubSubFrontend, SubscriptionStream},
     rpc::types::{Filter, Log},
 };
-use eyre::{OptionExt, Result};
+use eyre::{eyre, OptionExt, Result};
 
 /// Create the subscriptions for the DVN workflow.
 pub async fn build_dvn_subscriptions(
@@ -86,7 +86,7 @@ pub async fn build_executor_subscriptions(
 /// Load the MessageLib ABI.
 pub fn get_abi_from_path(path: &str) -> Result<JsonAbi> {
     // Get the SendLib ABI
-    let artifact = std::fs::read(path)?;
+    let artifact = std::fs::read(path).map_err(|e| eyre!("Cannot load config for offchain worker. Error: {:?}", e))?;
     let json: serde_json::Value = serde_json::from_slice(&artifact)?;
     // SAFETY: Assume `unwrap` is safe since the key has been harcoded
     let abi_value = json.get("abi").ok_or_eyre("ABI not found in artifact")?;
@@ -108,9 +108,9 @@ mod tests {
 
     #[test]
     fn test_expect_to_find_all_abis() {
-        get_abi_from_path("abi/ReceiveLibUln302.json").unwrap();
-        get_abi_from_path("abi/SendLibUln302.json").unwrap();
-        get_abi_from_path("abi/L0V2Endpoint.json").unwrap();
+        get_abi_from_path("./offchain/abi/ReceiveLibUln302.json").unwrap();
+        get_abi_from_path("./offchain/abi/SendLibUln302.json").unwrap();
+        get_abi_from_path("./offchain/abi/L0V2Endpoint.json").unwrap();
     }
 
     #[test]

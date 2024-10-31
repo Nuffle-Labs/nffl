@@ -5,7 +5,7 @@ use config::Config;
 use eyre::Result;
 use serde::Deserialize;
 
-const CONFIG_PATH: &str = "./workers_config";
+const CONFIG_PATH: &str = "./offchain/workers_config.toml";
 
 #[derive(Debug, Deserialize)]
 pub struct WorkerConfig {
