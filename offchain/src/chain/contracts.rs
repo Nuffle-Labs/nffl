@@ -46,11 +46,15 @@ pub async fn get_messagelib_addr(contract: &ContractInst, eid: U256) -> Result<A
 
 /// Get the number of required confirmations by the ULN.
 ///
+/// The function is defined as:
+/// ```solidity
+/// function getUlnConfig(address _oapp, uint32 _remoteEid) public view returns (UlnConfig memory rtnConfig);
+/// ```
+///
 /// The value returned is a solidity `UlnConfig[]` with, at least, one value.
-///
 /// See: https://github.com/LayerZero-Labs/LayerZero-v2/blob/main/packages/layerzero-v2/evm/messagelib/contracts/uln/UlnBase.sol
-/// The struct `UlnConfig` is defined as follows:
 ///
+/// The struct `UlnConfig` is defined as follows:
 /// ```solidity
 /// struct UlnConfig {
 ///     uint64 confirmations;
@@ -61,7 +65,6 @@ pub async fn get_messagelib_addr(contract: &ContractInst, eid: U256) -> Result<A
 ///     address[] optionalDVNs;
 /// }
 /// ```
-///
 /// and we require only the first value.
 pub async fn query_confirmations(contract: &ContractInst, eid: U256) -> Result<U256> {
     // Call the `getUlnConfig` function on the contract
@@ -77,7 +80,7 @@ pub async fn query_confirmations(contract: &ContractInst, eid: U256) -> Result<U
         DynSolValue::Tuple(tupled_int) => {
             let value = tupled_int[0]
                 .as_uint()
-                .ok_or_eyre("Cannot parse response from MessageLib")?;
+                .ok_or_eyre("Cannot parse response as `uint` from MessageLib")?;
             Ok(value.0)
         }
         _ => {
@@ -94,12 +97,12 @@ pub async fn query_already_verified(
     header_hash: &[u8],
     payload_hash: &[u8],
     required_confirmations: U256,
-) -> Result<bool> {
+) -> bool {
     // Call the `_verified` function on the 302 contract, to check if the DVN has already verified
     // the packet.
     debug!("Calling _verified on contract's ReceiveLib");
 
-    let contract_state = contract
+    let call_builder = contract
         .function(
             "_verified",
             &[
@@ -108,30 +111,33 @@ pub async fn query_already_verified(
                 DynSolValue::Bytes(payload_hash.to_vec()),     // PayloadHash
                 DynSolValue::Uint(required_confirmations, 32), // confirmations
             ],
-        )?
-        .call()
-        .await?;
+        );
 
-    let packet_state = match contract_state
-        .first()
-        .ok_or(eyre!("Empty response when querying `_verified`"))?
-    {
-        DynSolValue::Bool(b) => Ok(b),
+    let Ok(call_builder) = call_builder else {
+        error!("Failed to construct `_verified` caller");
+        return false
+    };
+
+    let Ok(state) = call_builder.call().await else {
+        error!("Failed to call `_verified` on contract");
+        return false
+    };
+
+    match state.first() {
+        Some(DynSolValue::Bool(b)) => *b,
         _ => {
-            error!("Failed to parse response from ReceiveLib for `_verified`");
-            Err(eyre!("Failed to parse response from ReceiveLib for `_verified`"))
+            error!("Failed to parse as bool the `_verified` response from ReceiveLib");
+            false
         }
-    }?;
-
-    Ok(*packet_state)
+    }
 }
 
-pub async fn verify(contract: &ContractInst, packet_header: &[u8], payload: &[u8], confirmations: U256) -> Result<()> {
+pub async fn verify(contract: &ContractInst, packet_header: &[u8], payload: &[u8], confirmations: U256) {
     //// Create the hash of the payload
     let payload_hash = keccak256(payload);
 
     // Call the `verified` function on the contract
-    let _ = contract
+    let call_builder = contract
         .function(
             "verify",
             &[
@@ -139,11 +145,16 @@ pub async fn verify(contract: &ContractInst, packet_header: &[u8], payload: &[u8
                 DynSolValue::FixedBytes(payload_hash, 32),  // PayloadHash
                 DynSolValue::Uint(confirmations, 64),       // Confirmations
             ],
-        )?
-        .call()
-        .await?;
+        );
 
-    Ok(())
+    if let Ok(call_builder) = call_builder {
+        match call_builder.call().await {
+            Err(e) => error!("Failed to call `verify`. Error: {:?}", e),
+            _ => {},
+        }
+    } else {
+        error!("Failed to construct `verify` caller");
+    };
 }
 
 /// If the state is `Executable`, your `Executor` should decode the packet's options

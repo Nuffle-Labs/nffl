@@ -2,7 +2,7 @@
 
 use crate::{
     chain::HttpProvider,
-    config::{DVNConfig, LayerZeroEvent},
+    config::{WorkerConfig, LayerZeroEvent},
 };
 use alloy::{
     eips::BlockNumberOrTag,
@@ -14,8 +14,8 @@ use alloy::{
 use eyre::{OptionExt, Result};
 
 /// Create the subscriptions for the DVN workflow.
-pub async fn build_subscriptions(
-    config: &DVNConfig,
+pub async fn build_dvn_subscriptions(
+    config: &WorkerConfig,
 ) -> Result<(
     RootProvider<PubSubFrontend>,
     SubscriptionStream<Log>,
@@ -49,8 +49,9 @@ pub async fn build_subscriptions(
 }
 
 pub async fn build_executor_subscriptions(
-    config: &DVNConfig,
+    config: &WorkerConfig,
 ) -> Result<(
+    RootProvider<PubSubFrontend>,
     SubscriptionStream<Log>,
     SubscriptionStream<Log>,
     SubscriptionStream<Log>,
@@ -75,11 +76,11 @@ pub async fn build_executor_subscriptions(
         .event(LayerZeroEvent::PacketVerified.as_ref())
         .from_block(BlockNumberOrTag::Latest);
 
-    Ok((
-        provider.subscribe_logs(&packet_sent_filter).await?.into_stream(),
-        provider.subscribe_logs(&executor_fee_paid).await?.into_stream(),
-        provider.subscribe_logs(&packet_verified_filter).await?.into_stream(),
-    ))
+    let ps_stream = provider.subscribe_logs(&packet_sent_filter).await?.into_stream();
+    let ef_stream = provider.subscribe_logs(&executor_fee_paid).await?.into_stream();
+    let pv_stream = provider.subscribe_logs(&packet_verified_filter).await?.into_stream();
+
+    Ok((provider, ps_stream, ef_stream, pv_stream))
 }
 
 /// Load the MessageLib ABI.
@@ -94,7 +95,54 @@ pub fn get_abi_from_path(path: &str) -> Result<JsonAbi> {
 }
 
 /// Construct an HTTP provider given the config.
-pub fn get_http_provider(config: &DVNConfig) -> Result<HttpProvider> {
+pub fn get_http_provider(config: &WorkerConfig) -> Result<HttpProvider> {
     let http_provider = ProviderBuilder::new().on_http(config.http_rpc_url.to_string().parse()?);
     Ok(http_provider)
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use tempfile::{NamedTempFile};
+    use std::io::Write;
+
+    #[test]
+    fn test_expect_to_find_all_abis() {
+        get_abi_from_path("abi/ReceiveLibUln302.json").unwrap();
+        get_abi_from_path("abi/SendLibUln302.json").unwrap();
+        get_abi_from_path("abi/L0V2Endpoint.json").unwrap();
+    }
+    
+    #[test]
+    fn test_get_abi_from_path() {
+        // Create a file inside of `env::temp_dir()`.
+        let mut temp_file = NamedTempFile::new_in(".").unwrap();
+         
+        // Some mocked ABI info
+         let data = r#"{
+             "abi": [
+              {
+                  "type": "function",
+                  "name": "transfer",
+                  "inputs": [
+                      {
+                        "type": "address",
+                        "name": "_to",
+                        "internalType": "address"
+                      },
+                      {
+                        "type": "uint256",
+                        "name": "_amount",
+                        "internalType": "uint256"
+                      }
+                  ],
+                  "outputs": [],
+                  "stateMutability": "nonpayable"
+              }
+            ]
+         }"#;
+         writeln!(temp_file, "{}", data).unwrap();
+
+        get_abi_from_path(temp_file.path().to_str().unwrap()).unwrap();
+    }
 }

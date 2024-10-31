@@ -6388,6 +6388,30 @@ dependencies = [
 ]
 
 [[package]]
+name = "offchain"
+version = "0.1.0"
+dependencies = [
+ "alloy",
+ "axum 0.7.7",
+ "blsful",
+ "bytes",
+ "config",
+ "eyre",
+ "futures",
+ "http-body-util",
+ "log",
+ "reqwest 0.12.8",
+ "serde",
+ "serde_json",
+ "tempfile",
+ "tokio",
+ "tokio-tungstenite",
+ "tracing",
+ "tracing-subscriber",
+ "wiremock",
+]
+
+[[package]]
 name = "oid-registry"
 version = "0.7.1"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -10609,29 +10633,6 @@ dependencies = [
  "serde_json",
  "tokio",
  "url",
-]
-
-[[package]]
-name = "workers"
-version = "0.1.0"
-dependencies = [
- "alloy",
- "axum 0.7.7",
- "blsful",
- "bytes",
- "config",
- "eyre",
- "futures",
- "http-body-util",
- "log",
- "reqwest 0.12.8",
- "serde",
- "serde_json",
- "tokio",
- "tokio-tungstenite",
- "tracing",
- "tracing-subscriber",
- "wiremock",
 ]
 
 [[package]]
