@@ -4,8 +4,9 @@ use alloy::primitives::Address;
 use config::Config;
 use eyre::Result;
 use serde::Deserialize;
+use std::path::PathBuf;
 
-const CONFIG_PATH: &str = "./workers_config";
+const CONFIG_PATH: &str = "offchain/workers_config";
 
 #[derive(Debug, Deserialize)]
 pub struct WorkerConfig {
@@ -34,9 +35,8 @@ pub struct WorkerConfig {
 impl WorkerConfig {
     /// Load environment variables.
     pub fn load_from_env() -> Result<Self> {
-        let settings = Config::builder()
-            .add_source(config::File::with_name(CONFIG_PATH))
-            .build()?;
+        let path = project_root::get_project_root()?.join(PathBuf::from(CONFIG_PATH));
+        let settings = Config::builder().add_source(config::File::from(path)).build()?;
         Ok(settings.try_deserialize::<Self>()?)
     }
 }

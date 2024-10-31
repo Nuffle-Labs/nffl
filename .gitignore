@@ -50,5 +50,4 @@ setup/plugin/config/keys/ecdsa.json
 libnear_da_rpc_sys.*
 
 # Ignore configuration for DVN or Executor
-offchain/workers_config.toml
-**/config_executor.toml
+#offchain/workers_config.toml

@@ -52,7 +52,7 @@ impl NFFLExecutor {
             build_executor_subscriptions(&self.config).await?;
 
         let http_provider = get_http_provider(&self.config)?;
-        let l0_abi = get_abi_from_path("./abi/L0V2Endpoint.json")?;
+        let l0_abi = get_abi_from_path("offchain/abi/L0V2Endpoint.json")?;
         // Create a contract instance.
         let contract = create_contract_instance(self.config.l0_endpoint_addr, http_provider, l0_abi)?;
 
