@@ -14,8 +14,8 @@ interface INuffClient {
     }
 
     struct PublicKey {
-        uint x;
-        uint y;
+        uint256 x;
+        uint256 y;
     }
 
     function nuffVerify(

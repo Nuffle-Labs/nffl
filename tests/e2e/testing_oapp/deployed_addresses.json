@@ -1,0 +1,30 @@
+{
+  "dvn":{
+    "holesky":{
+      "simple":"0x25e8edce1bcf8d074f8af8838e9ceecd3e3e0268",
+      "regular":"0xbe4bad49fe4c887f1ba0adf5287ab2408caad8cf"
+    },
+    "arbitrum-sepolia":{
+      "simple":"0x539c696515fb90b1d399e4fa0ae56c94fc391649",
+      "regular":"0x8b1b58883d8a0fdde8cedea4520483e20578c5df"
+    },
+    "amoy-testnet":{
+      "simple":"0xd58388997b0ad8f7f4a035f6c159c9c2270170f4",
+      "regular":"0xb1593cfcf8bfce9aa28865c04eb5c30df0f47784"
+    }
+  },
+  "oapp":{
+    "holesky":{
+      "simple":"0xF65450a2fC9817e956942b856b8c46139641Ea08",
+      "regular":"0x6246696Dba86622Dd624c276Da5AF61480bb4e6c"
+    },
+    "arbitrum-sepolia":{
+      "simple":"0x01ADf31F11501F424e67215A91FAB7100B68c518",
+      "regular":"0x6241a21419756E01574e1A4048D776b349C92E4A"
+    },
+    "amoy-testnet":{
+      "simple":"0x9c0b85420726a33Cf2Fd264f9353e4F143805CcB",
+      "regular":"0xf57CFDba0Ae3AE717ed87bA536A2060d326C5AC3"
+    }
+  }
+}
