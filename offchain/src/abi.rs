@@ -1,6 +1,5 @@
-//! Types create from the JSON ABI files.
-//!
-//! For example, to be able to decode the logs' data, or call contracts' methods.
+//! Types from the JSON ABI files. For example, to be able to decode the logs' data, or call
+//! contracts' methods.
 //!
 //! To obtain the corresponding ABI, there are two ways:
 //!   - Manually downloading the ABI from the contract's source code (we use this one for now);
@@ -24,18 +23,3 @@ sol!(
     L0V2EndpointAbi,
     "abi/L0V2Endpoint.json"
 );
-
-//sol!(
-//    #[allow(missing_docs)]
-//    #[sol(abi)]
-//    #[derive(Debug, PartialEq, Eq)]
-//    struct Packet {
-//        uint64 nonce;
-//        uint32 src_eid;
-//        bytes32 sender;
-//        uint32 dst_eid;
-//        bytes32 receiver;
-//        bytes32 guid;
-//        bytes message;
-//    }
-//);

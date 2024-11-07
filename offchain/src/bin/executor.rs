@@ -1,7 +1,6 @@
+use offchain::{config, workers::executor::NFFLExecutor};
 use tracing::level_filters::LevelFilter;
 use tracing_subscriber::EnvFilter;
-use workers::config;
-use workers::executor_def::NFFLExecutor;
 
 /// Executor is expected to work with low work rate, and we have a bonus
 /// from this observation - we don't need/want to care about concurrency control,
@@ -18,7 +17,7 @@ async fn main() -> eyre::Result<()> {
         )
         .init();
 
-    let mut executor = NFFLExecutor::new(config::DVNConfig::load_from_env()?);
+    let mut executor = NFFLExecutor::new(config::WorkerConfig::load_from_env()?);
     executor.listen().await?;
 
     Ok(())

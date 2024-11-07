@@ -1,19 +1,19 @@
-use crate::abi::L0V2EndpointAbi::PacketSent;
-use crate::abi::L0V2EndpointAbi::PacketVerified;
-use crate::abi::SendLibraryAbi::ExecutorFeePaid;
-use crate::chain::connections::build_executor_subscriptions;
-use crate::chain::connections::get_abi_from_path;
-use crate::chain::connections::get_http_provider;
-use crate::chain::contracts::create_contract_instance;
-use crate::chain::contracts::{lz_receive, prepare_header};
-use crate::chain::ContractInst;
-use crate::config::DVNConfig;
-use alloy::dyn_abi::DynSolValue;
-use alloy::primitives::U256;
+use crate::{
+    abi::{
+        L0V2EndpointAbi::{PacketSent, PacketVerified},
+        SendLibraryAbi::ExecutorFeePaid,
+    },
+    chain::{
+        connections::{build_executor_subscriptions, get_abi_from_path, get_http_provider},
+        contracts::{create_contract_instance, lz_receive, prepare_header},
+        ContractInst,
+    },
+    config::WorkerConfig,
+};
+use alloy::{dyn_abi::DynSolValue, primitives::U256};
 use eyre::Result;
 use futures::StreamExt;
-use std::collections::VecDeque;
-use std::time::Duration;
+use std::{collections::VecDeque, time::Duration};
 use tokio::time::sleep;
 use tracing::{debug, error};
 
@@ -26,7 +26,7 @@ pub enum ExecutionState {
 }
 
 pub struct NFFLExecutor {
-    config: DVNConfig,
+    config: WorkerConfig,
     packet_queue: VecDeque<PacketSent>,
     finish: bool,
 }
@@ -34,7 +34,7 @@ pub struct NFFLExecutor {
 impl NFFLExecutor {
     pub(crate) const MAX_EXECUTE_ATTEMPTS: usize = 10;
 
-    pub fn new(config: DVNConfig) -> Self {
+    pub fn new(config: WorkerConfig) -> Self {
         NFFLExecutor {
             config,
             packet_queue: VecDeque::new(),
@@ -48,10 +48,11 @@ impl NFFLExecutor {
     }
 
     pub async fn listen(&mut self) -> Result<()> {
-        let (mut ps_stream, mut ef_stream, mut pv_stream) = build_executor_subscriptions(&self.config).await?;
+        let (_provider, mut ps_stream, mut ef_stream, mut pv_stream) =
+            build_executor_subscriptions(&self.config).await?;
 
         let http_provider = get_http_provider(&self.config)?;
-        let l0_abi = get_abi_from_path("./abi/L0V2Endpoint.json")?;
+        let l0_abi = get_abi_from_path("offchain/abi/L0V2Endpoint.json")?;
         // Create a contract instance.
         let contract = create_contract_instance(self.config.l0_endpoint_addr, http_provider, l0_abi)?;
 

@@ -4,9 +4,12 @@ use alloy::primitives::Address;
 use config::Config;
 use eyre::Result;
 use serde::Deserialize;
+use std::path::PathBuf;
+
+const CONFIG_PATH: &str = "offchain/workers_config";
 
 #[derive(Debug, Deserialize)]
-pub struct DVNConfig {
+pub struct WorkerConfig {
     /// The Websocket RPC URL to connect to the Ethereum network.
     pub ws_rpc_url: String,
     /// The HTTP RPC URL to connect to the Ethereum network.
@@ -22,19 +25,18 @@ pub struct DVNConfig {
     /// The ReceiveLib Ultra Light Node 301 address.
     pub receivelib_uln301_addr: Address,
     /// The Ethereum network ID.
-    pub network_eid: u64,
+    pub target_network_eid: u64,
     /// Own DVN address. Used to check when the DVN is assigned to a task.
     pub dvn_addr: Address,
     /// NFFL Aggregator URL
     pub aggregator_url: String,
 }
 
-impl DVNConfig {
+impl WorkerConfig {
     /// Load environment variables.
     pub fn load_from_env() -> Result<Self> {
-        let settings = Config::builder()
-            .add_source(config::File::with_name("./config_dvn"))
-            .build()?;
+        let path = project_root::get_project_root()?.join(PathBuf::from(CONFIG_PATH));
+        let settings = Config::builder().add_source(config::File::from(path)).build()?;
         Ok(settings.try_deserialize::<Self>()?)
     }
 }
@@ -65,6 +67,16 @@ mod tests {
     // #[test]
     #[allow(dead_code)]
     fn load_config_from_env() {
-        let _conf = DVNConfig::load_from_env().unwrap();
+        let _conf = WorkerConfig::load_from_env().unwrap();
+    }
+
+    #[test]
+    fn test_valid_config() {
+        let conf = WorkerConfig::load_from_env().unwrap();
+        assert!(conf.ws_rpc_url.starts_with("ws://") || conf.ws_rpc_url.starts_with("wss://"));
+
+        assert!(conf.http_rpc_url.starts_with("http://") || conf.http_rpc_url.starts_with("https://"));
+
+        assert!(conf.target_network_eid > 0);
     }
 }

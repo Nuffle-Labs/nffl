@@ -1,4 +1,4 @@
-use crate::config::DVNConfig;
+use crate::config::WorkerConfig;
 use alloy::eips::BlockNumberOrTag;
 use alloy::network::Ethereum;
 use alloy::primitives::B256;
@@ -47,8 +47,8 @@ impl NFFLVerifier {
         })
     }
 
-    pub async fn new_from_config(cfg: &DVNConfig) -> eyre::Result<NFFLVerifier> {
-        Self::new(&cfg.aggregator_url, &cfg.http_rpc_url, cfg.network_eid).await
+    pub async fn new_from_config(cfg: &WorkerConfig) -> eyre::Result<NFFLVerifier> {
+        Self::new(&cfg.aggregator_url, &cfg.http_rpc_url, cfg.target_network_eid).await
     }
 
     /// Verifies the state root of a block. In case any request future

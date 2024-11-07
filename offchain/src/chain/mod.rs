@@ -12,5 +12,6 @@ pub mod contracts;
 
 /// Alias for a contract instance in the Ethereum network.
 pub type ContractInst = ContractInstance<Http<Client>, RootProvider<Http<Client>>, Ethereum>;
+
 /// Alias for an HTTP provider.
 pub type HttpProvider = RootProvider<Http<Client>>;
