@@ -53,13 +53,17 @@ pub async fn build_executor_subscriptions(
     config: &WorkerConfig,
 ) -> Result<(
     RootProvider<PubSubFrontend>,
+    RootProvider<PubSubFrontend>,
     SubscriptionStream<Log>,
     SubscriptionStream<Log>,
     SubscriptionStream<Log>,
 )> {
-    // Create the provider
+    // Create the source provider
     let ws = WsConnect::new(&config.source_ws_rpc_url);
-    let provider = ProviderBuilder::new().on_ws(ws).await?;
+    let source_provider = ProviderBuilder::new().on_ws(ws).await?;
+    // Create the target provider
+    let ws = WsConnect::new(&config.target_ws_rpc_url);
+    let target_provider = ProviderBuilder::new().on_ws(ws).await?;
 
     // PacketSent
     let packet_sent_filter = Filter::new()
@@ -73,15 +77,18 @@ pub async fn build_executor_subscriptions(
         .from_block(BlockNumberOrTag::Latest);
 
     let packet_verified_filter = Filter::new()
-        .address(config.source_endpoint)
+        .address(config.target_endpoint)
         .event(LayerZeroEvent::PacketVerified.as_ref())
         .from_block(BlockNumberOrTag::Latest);
 
-    let ps_stream = provider.subscribe_logs(&packet_sent_filter).await?.into_stream();
-    let ef_stream = provider.subscribe_logs(&executor_fee_paid).await?.into_stream();
-    let pv_stream = provider.subscribe_logs(&packet_verified_filter).await?.into_stream();
+    let ps_stream = source_provider.subscribe_logs(&packet_sent_filter).await?.into_stream();
+    let ef_stream = source_provider.subscribe_logs(&executor_fee_paid).await?.into_stream();
+    let pv_stream = target_provider
+        .subscribe_logs(&packet_verified_filter)
+        .await?
+        .into_stream();
 
-    Ok((provider, ps_stream, ef_stream, pv_stream))
+    Ok((source_provider, target_provider, ps_stream, ef_stream, pv_stream))
 }
 
 /// Load the MessageLib ABI. The path must be relative to the project root.

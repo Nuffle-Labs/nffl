@@ -30,7 +30,7 @@ impl AsRef<str> for LayerZeroEvent {
             LayerZeroEvent::PacketSent => "PacketSent(bytes,bytes,address)",
             LayerZeroEvent::DVNFeePaid => "DVNFeePaid(address[],address[],uint256[])",
             LayerZeroEvent::ExecutorFeePaid => "ExecutorFeePaid(address,uint256)",
-            LayerZeroEvent::PacketVerified => "PacketVerified(address,bytes,uint256,bytes32)",
+            LayerZeroEvent::PacketVerified => "PacketVerified((uint32,bytes32,uint64),address,bytes32)",
         }
     }
 }

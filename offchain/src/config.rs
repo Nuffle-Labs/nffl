@@ -25,6 +25,8 @@ pub struct WorkerConfig {
     /// The SendLib Ultra Light Node 302 address on the source chain.
     pub source_sendlib: Address,
     /// The ReceiveLib Ultra Light Node 302 address on the target chain.
+    pub source_receivelib: Address,
+    /// The ReceiveLib Ultra Light Node 302 address on the target chain.
     pub target_receivelib: Address,
     /// The Ethereum network ID of the target chain.
     pub target_network_eid: u64,

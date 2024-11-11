@@ -2,12 +2,7 @@ use crate::{
     abi::{L0V2EndpointAbi::PacketSent, SendLibraryAbi::DVNFeePaid},
     chain::{
         connections::{build_dvn_subscriptions, get_abi_from_path, get_http_provider},
-        contracts::{
-            create_contract_instance,
-            // query_already_verified,
-            query_confirmations,
-            verify,
-        },
+        contracts::{create_contract_instance, query_confirmations, verify},
         ContractInst,
     },
     config::WorkerConfig,
@@ -20,10 +15,13 @@ use alloy::{
 };
 use eyre::{eyre, Result};
 use futures::stream::StreamExt;
+use tracing::warn;
 use tracing::{debug, error, info};
 
 const RECEIVELIB_ABI_PATH: &str = "offchain/abi/ReceiveLibUln302.json";
+//const ENDPOINT_ABI_PATH: &str = "offchain/abi/L0V2Endpoint.json";
 
+#[derive(Debug, Clone, PartialEq)]
 pub enum DvnStatus {
     Stopped,
     Listening,
@@ -37,6 +35,7 @@ pub struct Dvn {
     pub packet: Option<PacketSent>,
     pub receive_lib: Option<ContractInst>,
     pub verifier: Option<NFFLVerifier>,
+    pub waited_blocks: Option<u64>,
 }
 
 impl Dvn {
@@ -47,6 +46,7 @@ impl Dvn {
             packet: None,
             receive_lib: None,
             verifier: None,
+            waited_blocks: None,
         }
     }
 
@@ -120,8 +120,17 @@ impl Dvn {
         //    error!("Verifier not present")
         //}
 
-        if let (Some(receive_lib), Some(header)) = (self.receive_lib.as_ref(), self.get_header()) {
-            verify(receive_lib, header, message_hash.as_ref(), required_confirmations).await
+        // Create an HTTP provider to call contract functions on the chain.
+        //let http_provider = get_http_provider(&self.config.source_http_rpc_url)?;
+        let http_provider = get_http_provider(&self.config.target_http_rpc_url)?;
+        // Get the relevant contract ABI, and create contract.
+        //let abi = get_abi_from_path(ENDPOINT_ABI_PATH)?;
+        let abi = get_abi_from_path(RECEIVELIB_ABI_PATH)?;
+        //let endpoint_contract = create_contract_instance(self.config.source_endpoint, http_provider, abi);
+        let endpoint_contract = create_contract_instance(self.config.target_receivelib, http_provider, abi);
+
+        if let (Ok(contract), Some(header)) = (endpoint_contract, self.get_header()) {
+            verify(&contract, header, message_hash.as_ref(), required_confirmations).await
         } else {
             error!("Cannot verify packet. Missing `ReceiveLib` contract or `Packet`");
             Err(eyre!("Cannot verify packet. Missing `ReceiveLib` contract or `Packet`"))
@@ -132,9 +141,10 @@ impl Dvn {
         // Create the WS subscriptions for listening to the events.
         let (_provider, mut endpoint_stream, mut sendlib_stream) = build_dvn_subscriptions(&self.config).await?;
 
-        // Create an HTTP provider to call contract functions on the target chain.
+        // FIXME: target or source
+        //
+        // Create an HTTP provider to call contract functions on the chain.
         let http_provider = get_http_provider(&self.config.target_http_rpc_url)?;
-
         // Get the relevant contract ABI, and create contract.
         let abi = get_abi_from_path(RECEIVELIB_ABI_PATH)?;
         self.receive_lib = Some(create_contract_instance(
@@ -157,9 +167,15 @@ impl Dvn {
                 },
                 // From the SendLib, we need the event which triggers the verification: `DVNFeePaid`.
                 Some(log) = sendlib_stream.next() => {
-                    if let Err(e) = self.sendlib_log_logic(&log).await {
-                        error!("Error processing sendlib log. Error: {:?}", e);
-                    }
+                    //if self.waited_blocks.is_none() {
+                        warn!("Wait for {:?} confirmations", self.waited_blocks);
+                        if let Err(e) = self.sendlib_log_logic(&log).await {
+                            error!("Error processing sendlib log. Error: {:?}", e);
+                        }
+                    //} else {
+                        //warn!("Waiting for confirmations. Remaining: {:?}", self.waited_blocks);
+                        //self.waited_blocks = self.waited_blocks.unwrap().checked_sub(U256::from(1))
+                    //}
                 },
             }
         }
@@ -172,8 +188,9 @@ impl Dvn {
                 error!("Received a `PacketSent` event but failed to decode it: {:?}", e);
                 Err(eyre!(e))
             },
-            |p| {
-                self.packet_received(p.data().clone());
+            |inner_log| {
+                //debug!("->> Endpoint's PacketSent log: {:?}", log);
+                self.packet_received(inner_log.data().clone());
                 Ok(())
             },
         )
@@ -214,13 +231,16 @@ impl Dvn {
                         // this
                         //
                         //let already_verified = query_already_verified(
-                        //    receive_lib,
-                        //    own_dvn_addr,
-                        //    header_hash.as_ref(),
+                        //    // FIXME: no unwrap pls
+                        //
+                        //    self.receive_lib.as_ref().unwrap(),
+                        //    self.config.source_dvn,
+                        //    _header_hash.as_ref(),
                         //    message_hash.as_ref(),
                         //    required_confirmations,
                         //)
                         //.await;
+                        //println!("->> Already verified: {:?}", already_verified);
 
                         //if !already_verified {
                         self.verify_message(log, message_hash, required_confirmations).await?;
@@ -238,8 +258,8 @@ impl Dvn {
         }
     }
 
-    async fn get_required_confirmations(&self) -> Result<U256> {
-        // If there's a receive lib from the target
+    async fn get_required_confirmations(&mut self) -> Result<U256> {
+        // Check if there's a receive lib
         let Some(receive_lib) = &self.receive_lib else {
             error!("No `ReceiveLib` contract present in worker to query confirmations");
             return Err(eyre!(
@@ -252,7 +272,10 @@ impl Dvn {
 
         // Query the confirmations from the receive lib contract.
         match query_confirmations(receive_lib, remote_eid).await {
-            Ok(confirmations) => Ok(confirmations),
+            Ok(confirmations) => {
+                self.waited_blocks = Some(confirmations.to::<u64>());
+                Ok(confirmations)
+            }
             Err(e) => {
                 error!("Failed to query confirmations. Error: {:?}", e);
                 Err(eyre!(e))

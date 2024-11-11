@@ -11,7 +11,7 @@ use crate::{
     config::WorkerConfig,
 };
 use alloy::{dyn_abi::DynSolValue, primitives::U256};
-use eyre::Result;
+use eyre::{eyre, Result};
 use futures::StreamExt;
 use std::{collections::VecDeque, time::Duration};
 use tokio::time::sleep;
@@ -48,19 +48,21 @@ impl NFFLExecutor {
     }
 
     pub async fn listen(&mut self) -> Result<()> {
-        let (_provider, mut ps_stream, mut ef_stream, mut pv_stream) =
+        let (_source_source_provider, _target_provider, mut ps_stream, mut ef_stream, mut pv_stream) =
             build_executor_subscriptions(&self.config).await?;
 
-        let http_provider = get_http_provider(&self.config.source_http_rpc_url)?;
+        // FIXME: should this be source or target?
+        let http_provider = get_http_provider(&self.config.target_http_rpc_url)?;
         let l0_abi = get_abi_from_path("offchain/abi/L0V2Endpoint.json")?;
         // Create a contract instance.
-        let contract = create_contract_instance(self.config.source_endpoint, http_provider, l0_abi)?;
+        let contract = create_contract_instance(self.config.target_endpoint, http_provider, l0_abi)?;
 
         loop {
             tokio::select! {
                 Some(log) = ps_stream.next() => {
                     match log.log_decode::<PacketSent>() {
                         Ok(packet_log) => {
+                            debug!("Packet seemed to arrive");
                             self.packet_queue.push_back(packet_log.data().clone());
                         },
                         Err(e) => { error!("Failed to decode PacketSent event: {:?}", e);}
@@ -69,21 +71,24 @@ impl NFFLExecutor {
                 Some(log) = ef_stream.next() => {
                     match log.log_decode::<ExecutorFeePaid>() {
                         Ok(executor_fee_log) => {
+                            debug!("Executor fee paid seemed to arrive");
                             if self.packet_queue.is_empty() {
                                 continue;
                             }
 
-                            if !executor_fee_log.data().executor.eq(&self.config.source_dvn)  {
-                                self.packet_queue.clear();
-                                continue;
-                            }
+                            //if !executor_fee_log.data().executor.eq(&self.config.source_dvn)  {
+                            //    self.packet_queue.clear();
+                            //    continue;
+                            //}
                         },
                         Err(e) => { error!("Failed to decode ExecutorFeePaid event: {:?}", e);}
                     }
                 },
                 Some(log) = pv_stream.next() => {
+                    // FIXME: we should not process everything, check for some condition to filter
                     match log.log_decode::<PacketVerified>() {
                         Ok(inner_log) => {
+                            debug!("->> Packet verified seemd to arrived");
                            Self::handle_verified_packet(&contract, &mut self.packet_queue, inner_log.data()).await?;
                         },
                         Err(e) => { error!("Failed to decode PacketVerified event: {:?}", e);}
@@ -107,11 +112,14 @@ impl NFFLExecutor {
         queue: &mut VecDeque<PacketSent>,
         packet_verified: &PacketVerified,
     ) -> Result<()> {
-        if queue.is_empty() {
-            return Ok(());
-        }
-
-        let packet_sent = queue.pop_front().unwrap();
+        //if queue.is_empty() {
+        //    return Ok(());
+        //}
+        //
+        //let packet_sent = queue.pop_front().unwrap();
+        let Some(packet_sent) = queue.pop_front() else {
+            return Err(eyre!("Queue was empty, not handling packet verified"));
+        };
         // We don't expect any more items to be present. If we have any - they are garbage/leftovers.
         queue.clear();
         // Despite being described with other arguments, the only real implementation of
@@ -139,6 +147,7 @@ impl NFFLExecutor {
                 break;
             }
             let call_result = call_builder.call().await?;
+            debug!("Result of `executable` function call: {:?}", call_result);
             if call_result.len() != 1 {
                 error!("`executable` function call returned invalid response.");
                 break;

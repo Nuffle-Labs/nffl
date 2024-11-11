@@ -172,6 +172,7 @@ pub async fn verify(contract: &ContractInst, packet_header: &[u8], payload: &[u8
                         DynSolValue::Bytes(packet_header.to_vec()), // PacketHeader
                         DynSolValue::FixedBytes(payload_hash, 32),  // PayloadHash
                         DynSolValue::Uint(confirmations, 64),       // Confirmations
+                                                                    //prepare_header(packet_header), // PacketHeader
                     ],
                 )?
                 .call()
@@ -182,6 +183,7 @@ pub async fn verify(contract: &ContractInst, packet_header: &[u8], payload: &[u8
                 }
                 Err(e) => {
                     error!("Failed to verify with error: {:?}. Retrying...", e);
+                    tokio::time::sleep(std::time::Duration::from_millis(300)).await;
                     continue;
                 }
             }
