@@ -102,7 +102,7 @@ impl NFFLExecutor {
                                 continue;
                             }
 
-                            debug!("{:?} ~ {:?}", executor_fee_log.data().executor, &self.config.executor);
+                            debug!("{:?} ~ {:?}", executor_fee_log.data().executor, &self.config.target_executor);
                             // if !executor_fee_log.data().executor.eq(&self.config.executor)  {
                             // packet_queue.pop_front();
                             ////    self.packet_queue.clear();
