@@ -25,10 +25,27 @@ pub enum ExecutionState {
     Executed = 3,
 }
 
+#[derive(Debug, Clone, PartialEq)]
+pub enum ExecutorState {
+    /// Initialized but not waiting for anything.
+    Created,
+    /// Listening for a `PacketSent` event to be executed.
+    WaitingPacket,
+    /// Listening for a `ExecutorFeePaid` event assigning the executor.
+    WaitingAssignation,
+    /// Listening for a `PacketVerified` event that triggers execution.
+    WaitingVerification,
+    /// Finished flow. Will resume listening again.
+    Finish,
+}
+
+// NOTE: [IMPROVEMENT]: could also rewrite the executor with a BundleCreator, that packs the info from the events and then checks at the streams if there's more info to process the bundles.
+
 pub struct NFFLExecutor {
     config: WorkerConfig,
     packet_queue: VecDeque<PacketSent>,
     finish: bool,
+    status: ExecutorState,
 }
 
 impl NFFLExecutor {
@@ -39,6 +56,7 @@ impl NFFLExecutor {
             config,
             packet_queue: VecDeque::new(),
             finish: false,
+            status: ExecutorState::Created,
         }
     }
 
@@ -57,13 +75,20 @@ impl NFFLExecutor {
         // Create a contract instance.
         let contract = create_contract_instance(self.config.target_endpoint, http_provider, l0_abi)?;
 
+        self.status = ExecutorState::WaitingPacket;
+
         loop {
             tokio::select! {
                 Some(log) = ps_stream.next() => {
                     match log.log_decode::<PacketSent>() {
                         Ok(packet_log) => {
                             debug!("Packet seemed to arrive");
-                            self.packet_queue.push_back(packet_log.data().clone());
+
+                            if self.status == ExecutorState::WaitingPacket {
+                                self.packet_queue.push_back(packet_log.data().clone());
+                                self.status = ExecutorState::WaitingAssignation;
+                            continue;
+                            }
                         },
                         Err(e) => { error!("Failed to decode PacketSent event: {:?}", e);}
                     }
@@ -72,14 +97,11 @@ impl NFFLExecutor {
                     match log.log_decode::<ExecutorFeePaid>() {
                         Ok(executor_fee_log) => {
                             debug!("Executor fee paid seemed to arrive");
-                            if self.packet_queue.is_empty() {
+                            if executor_fee_log.data().executor.eq(&self.config.target_executor)  {
+                                self.status = ExecutorState::WaitingVerification;
                                 continue;
                             }
 
-                            //if !executor_fee_log.data().executor.eq(&self.config.source_dvn)  {
-                            //    self.packet_queue.clear();
-                            //    continue;
-                            //}
                         },
                         Err(e) => { error!("Failed to decode ExecutorFeePaid event: {:?}", e);}
                     }
@@ -89,7 +111,10 @@ impl NFFLExecutor {
                     match log.log_decode::<PacketVerified>() {
                         Ok(inner_log) => {
                             debug!("->> Packet verified seemd to arrived");
-                           Self::handle_verified_packet(&contract, &mut self.packet_queue, inner_log.data()).await?;
+                            if self.status != ExecutorState::WaitingVerification {
+                               Self::handle_verified_packet(&contract, &mut self.packet_queue, inner_log.data()).await?;
+                                continue;
+                            }
                         },
                         Err(e) => { error!("Failed to decode PacketVerified event: {:?}", e);}
                     }
