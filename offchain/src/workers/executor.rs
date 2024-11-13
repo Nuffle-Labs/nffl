@@ -26,9 +26,26 @@ pub enum ExecutionState {
     Executed = 3,
 }
 
+#[derive(Debug, Clone, PartialEq)]
+pub enum ExecutorState {
+    /// Initialized but not waiting for anything.
+    Created,
+    /// Listening for a `PacketSent` event to be executed.
+    WaitingPacket,
+    /// Listening for a `ExecutorFeePaid` event assigning the executor.
+    WaitingAssignation,
+    /// Listening for a `PacketVerified` event that triggers execution.
+    WaitingVerification,
+    /// Finished flow. Will resume listening again.
+    Finish,
+}
+
+// NOTE: [IMPROVEMENT]: could also rewrite the executor with a BundleCreator, that packs the info from the events and then checks at the streams if there's more info to process the bundles.
+
 pub struct NFFLExecutor {
     config: WorkerConfig,
     finish: bool,
+    status: ExecutorState,
 }
 
 impl NFFLExecutor {
@@ -39,7 +56,6 @@ impl NFFLExecutor {
     }
 
     pub fn finish(&mut self) {
-        // Note: we are in a single-threaded event loop, and we do not care about atomicity (yet).
         self.finish = true;
     }
 
@@ -65,6 +81,7 @@ impl NFFLExecutor {
         let mut packet_queue: VecDeque<PacketSent> = VecDeque::new();
 
         // Network I/O handler
+        self.status = ExecutorState::WaitingPacket;
         loop {
             debug!("Iteration started, queue size {:?}", packet_queue.len());
             tokio::select! {
