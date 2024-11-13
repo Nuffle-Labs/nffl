@@ -32,6 +32,8 @@ pub struct WorkerConfig {
     pub target_network_eid: u64,
     /// The address of the source DVN. Used to check when the DVN is assigned.
     pub source_dvn: Address,
+    /// The address of the source executor. Used to check when the executor is assigned.
+    pub executor: Address,
     /// NFFL Aggregator URL
     pub aggregator_url: String,
 }
