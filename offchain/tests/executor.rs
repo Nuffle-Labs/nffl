@@ -9,7 +9,6 @@ use offchain::{
     workers::executor::NFFLExecutor,
 };
 use std::{
-    collections::VecDeque,
     sync::atomic::{AtomicI32, Ordering},
     sync::Arc,
 };
@@ -45,7 +44,13 @@ async fn test_handle_verified_packet_success() -> eyre::Result<()> {
         .init();
 
     let counter: Arc<AtomicI32> = Arc::new(AtomicI32::new(0));
-    let mut queue: VecDeque<PacketSent> = VecDeque::new();
+
+    let packet_sent = PacketSent {
+        encodedPayload: Bytes::from(&[1; 256]),
+        options: Bytes::from(&[1; 32]),
+        sendLibrary: Address::from_slice(&[2; 20]),
+    };
+
     let verified_packet = PacketVerified {
         origin: Origin {
             srcEid: 1,
@@ -57,9 +62,9 @@ async fn test_handle_verified_packet_success() -> eyre::Result<()> {
     };
 
     let _join_handle = prepare_server(counter.clone()).await;
-    let contract = setup_contract(&mut queue).await?;
+    let contract = setup_contract().await?;
 
-    NFFLExecutor::handle_verified_packet(&contract, &mut queue, &verified_packet).await?;
+    NFFLExecutor::handle_verified_packet(&contract, packet_sent, verified_packet).await?;
 
     assert_eq!(counter.load(Ordering::Acquire), 2);
     Ok(())
@@ -84,24 +89,14 @@ async fn prepare_server(counter: Arc<AtomicI32>) -> JoinHandle<()> {
     // Spawn the server on a background task.
     let listener = tokio::net::TcpListener::bind(SERVER_ADDRESS_SHORT).await.unwrap();
 
-    debug!("Listening on {}", listener.local_addr().unwrap());
-
     tokio::spawn(async move { axum::serve(listener, app).await.unwrap() })
 }
 
-async fn setup_contract(packet_sent_queue: &mut VecDeque<PacketSent>) -> eyre::Result<ContractInst> {
+async fn setup_contract() -> eyre::Result<ContractInst> {
     const SERVER_ADDRESS: &str = "http://127.0.0.1:8081";
 
     let http_provider = ProviderBuilder::new().on_http(SERVER_ADDRESS.parse()?);
     let l0_abi = get_abi_from_path("offchain/abi/L0V2Endpoint.json")?;
-
-    debug!("{:?}", l0_abi.functions.iter().map(|f| f.0).collect::<Vec<_>>());
-
-    packet_sent_queue.push_back(PacketSent {
-        encodedPayload: Bytes::from(&[1; 256]),
-        options: Bytes::from(&[1; 32]),
-        sendLibrary: Address::from_slice(&[2; 20]),
-    });
 
     create_contract_instance(
         address!("d8da6bf26964af9d7eed9e03e53415d37aa96045"),
