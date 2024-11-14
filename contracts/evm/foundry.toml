@@ -9,7 +9,8 @@ fs_permissions = [
     { access = "read-write", path = "script/output/11155420"}
 ]
 
-solc_version = "0.8.12"
+# solc_version = "0.8.12"
+auto_detect_solc = true
 
 # This is a low optimizer_runs setting since the `RegistryCoordinator`
 # contract size is really high and we must extend it in SFFL. It would be
@@ -19,3 +20,8 @@ optimizer = true
 optimizer_runs = 100
 
 # See more config options https://github.com/foundry-rs/foundry/blob/master/crates/config/README.md#all-options
+
+[profile.default.dvn]
+path = "src/dvn"
+solc_version = "0.8.20"
+

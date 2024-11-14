@@ -78,6 +78,7 @@ impl RmqPublisherHandle {
         Ok(self.sender.send(publish_data).await?)
     }
 
+    #[allow(dead_code)]
     pub async fn closed(&self) {
         self.sender.closed().await
     }
