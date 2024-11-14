@@ -44,8 +44,7 @@ pub enum ExecutorState {
 
 pub struct NFFLExecutor {
     config: WorkerConfig,
-    finish: bool,
-    status: ExecutorState,
+    finish: bool
 }
 
 impl NFFLExecutor {
@@ -81,7 +80,6 @@ impl NFFLExecutor {
         let mut packet_queue: VecDeque<PacketSent> = VecDeque::new();
 
         // Network I/O handler
-        self.status = ExecutorState::WaitingPacket;
         loop {
             debug!("Iteration started, queue size {:?}", packet_queue.len());
             tokio::select! {
