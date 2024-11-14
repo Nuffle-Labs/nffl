@@ -16,7 +16,7 @@ services:
     command: 
       - --config 
       - config/aggregator.yaml
-      - --sffl-deployment 
+      - --nffl-deployment
       - config/deployment/17000.json
       - --ecdsa-private-key 
       - ${ECDSA_PRIVATE_KEY}

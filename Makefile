@@ -89,7 +89,7 @@ send-fund: ## sends fund to the first operator saved in tests/keys/ecdsa/*
 ____OFFCHAIN_SOFTWARE___: ##
 start-aggregator: ##
 	go run aggregator/cmd/main.go --config config-files/aggregator.yaml \
-		--sffl-deployment ${DEPLOYMENT_FILES_DIR}/sffl_avs_deployment_output.json \
+		--nffl-deployment ${DEPLOYMENT_FILES_DIR}/sffl_avs_deployment_output.json \
 		--ecdsa-private-key ${AGGREGATOR_ECDSA_PRIV_KEY} \
 		2>&1 | zap-pretty
 

@@ -13,7 +13,7 @@ scrape_configs:
     static_configs:
       - targets: ["localhost:9090"]
 
-  - job_name: "sffl-operator0"
+  - job_name: "nffl-operator0"
     scrape_interval: 5s
     static_configs:
       - targets: ["nffl-operator0:9090"]
@@ -21,7 +21,7 @@ scrape_configs:
           role: "operator"
           instance: "0"
 
-  - job_name: "sffl-operator1"
+  - job_name: "nffl-operator1"
     scrape_interval: 5s
     static_configs:
       # host.docker.internal might not work on linux
@@ -32,12 +32,12 @@ scrape_configs:
           role: "operator"
           instance: "1"
 
-  - job_name: "sffl-aggregator"
+  - job_name: "nffl-aggregator"
     scrape_interval: 5s
     static_configs:
       - targets: ["nffl-aggregator:9091"]
 
-  - job_name: "sffl-indexer"
+  - job_name: "nffl-indexer"
     scrape_interval: 5s
     static_configs:
       - targets: ["nffl-indexer:9090"]
