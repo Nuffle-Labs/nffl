@@ -46,7 +46,7 @@ const config = {
   themeConfig:
     /** @type {import('@docusaurus/preset-classic').ThemeConfig} */
     ({
-      image: 'img/near-sffl-social-card.jpg',
+      image: 'img/nffl-social-card.jpg',
       navbar: {
         title: 'NFFL',
         logo: {

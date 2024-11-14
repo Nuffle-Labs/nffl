@@ -1,17 +1,17 @@
 version: "3"
 
 networks:
-  near-sffl-relayer:
+  nffl-relayer:
     driver: bridge
 
 services:
   relayer_421614:
-    image: ghcr.io/nuffle-labs/near-sffl/relayer:${SFFL_RELEASE}
-    container_name: near-sffl-relayer-421614
+    image: ghcr.io/nuffle-labs/nffl/relayer:${SFFL_RELEASE}
+    container_name: nffl-relayer-421614
     volumes:
       - ${NEAR_KEYS_DIR}:/root/.near-credentials
     networks:
-      - near-sffl-relayer
+      - nffl-relayer
     expose:
       - 9091
     command:
@@ -25,7 +25,7 @@ services:
       - --network
       - ${NEAR_RPC_URL}
       - --metrics-ip-port-address
-      - near-sffl-relayer-421614:9091
+      - nffl-relayer-421614:9091
     restart: unless-stopped
     logging:
       driver: "json-file"
@@ -35,12 +35,12 @@ services:
         compress: "true"
 
   relayer_11155420:
-    image: ghcr.io/nuffle-labs/near-sffl/relayer:${SFFL_RELEASE}
-    container_name: near-sffl-relayer-11155420
+    image: ghcr.io/nuffle-labs/nffl/relayer:${SFFL_RELEASE}
+    container_name: nffl-relayer-11155420
     volumes:
       - ${NEAR_KEYS_DIR}:/root/.near-credentials
     networks:
-      - near-sffl-relayer
+      - nffl-relayer
     expose:
       - 9091
     command:
@@ -54,7 +54,7 @@ services:
       - --network
       - ${NEAR_RPC_URL}
       - --metrics-ip-port-address
-      - near-sffl-relayer-11155420:9091
+      - nffl-relayer-11155420:9091
     restart: unless-stopped
     logging:
       driver: "json-file"
@@ -71,7 +71,7 @@ services:
       - grafana_data_relayer:/var/lib/grafana
       - ../../grafana/provisioning:/etc/grafana/provisioning
     networks:
-      - near-sffl-relayer
+      - nffl-relayer
     environment:
       - GF_SECURITY_ADMIN_USER=${ADMIN_USER:-admin}
       - GF_SECURITY_ADMIN_PASSWORD=${ADMIN_PASSWORD:-admin}
@@ -88,7 +88,7 @@ services:
       - ./prometheus:/etc/prometheus
       - prometheus_data_relayer:/prometheus
     networks:
-      - near-sffl-relayer
+      - nffl-relayer
     command:
       - "--config.file=/etc/prometheus/prometheus.yml"
       - "--storage.tsdb.path=/prometheus"

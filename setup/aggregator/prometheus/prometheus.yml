@@ -16,4 +16,4 @@ scrape_configs:
   - job_name: "sffl-aggregator"
     scrape_interval: 5s
     static_configs:
-      - targets: ["near-sffl-aggregator:9091"]
+      - targets: ["nffl-aggregator:9091"]

@@ -178,7 +178,7 @@ type testEnv struct {
 func setupTestEnv(t *testing.T, ctx context.Context) *testEnv {
 	containersCtx, cancelContainersCtx := context.WithCancel(context.Background())
 
-	networkName := "near-sffl"
+	networkName := "nffl"
 	net, err := testcontainers.GenericNetwork(containersCtx, testcontainers.GenericNetworkRequest{
 		NetworkRequest: testcontainers.NetworkRequest{
 			Driver:         "bridge",
@@ -593,7 +593,7 @@ func startIndexer(t *testing.T, ctx context.Context, name string, rollupAnvils [
 	}
 
 	req := testcontainers.ContainerRequest{
-		Image:        "near-sffl-indexer",
+		Image:        "nffl-indexer",
 		Name:         name,
 		Cmd:          append([]string{"--rmq-address", amqpUrl}, rollupArgs...),
 		ExposedPorts: []string{"3030/tcp"},

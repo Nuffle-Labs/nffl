@@ -1,18 +1,18 @@
 version: "3"
 
 networks:
-  near-sffl-aggregator:
+  nffl-aggregator:
     driver: bridge
 
 services:
-  near-sffl-aggregator:
-    image: ghcr.io/nuffle-labs/near-sffl/aggregator:${SFFL_RELEASE}
-    container_name: near-sffl-aggregator
+  nffl-aggregator:
+    image: ghcr.io/nuffle-labs/nffl/aggregator:${SFFL_RELEASE}
+    container_name: nffl-aggregator
     volumes:
-      - ./:/near-sffl/
+      - ./:/nffl/
     networks:
-      - near-sffl-aggregator
-    working_dir: /near-sffl
+      - nffl-aggregator
+    working_dir: /nffl
     command: 
       - --config 
       - config/aggregator.yaml
@@ -40,7 +40,7 @@ services:
       - grafana_data_aggregator:/var/lib/grafana
       - ../../grafana/provisioning:/etc/grafana/provisioning
     networks:
-      - near-sffl-aggregator
+      - nffl-aggregator
     environment:
       - GF_SECURITY_ADMIN_USER=${ADMIN_USER:-admin}
       - GF_SECURITY_ADMIN_PASSWORD=${ADMIN_PASSWORD:-admin}
@@ -57,7 +57,7 @@ services:
       - ./prometheus:/etc/prometheus
       - prometheus_data_aggregator:/prometheus
     networks:
-      - near-sffl-aggregator
+      - nffl-aggregator
     command:
       - "--config.file=/etc/prometheus/prometheus.yml"
       - "--storage.tsdb.path=/prometheus"

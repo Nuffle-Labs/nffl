@@ -1,8 +1,8 @@
 version: "3"
 
 networks:
-  near-sffl:
-    name: near-sffl
+  nffl:
+    name: nffl
     driver: bridge
 
 services:
@@ -22,7 +22,7 @@ services:
       timeout: 3s
       retries: 30
     networks:
-      - near-sffl
+      - nffl
 
   mainnet-anvil:
     image: ghcr.io/foundry-rs/foundry:latest@sha256:8b843eb65cc7b155303b316f65d27173c862b37719dc095ef3a2ef27ce8d3c00
@@ -39,7 +39,7 @@ services:
       timeout: 10s
       retries: 5
     networks:
-      - near-sffl
+      - nffl
 
   mainnet-anvil-setup:
     image: ghcr.io/foundry-rs/foundry:latest@sha256:8b843eb65cc7b155303b316f65d27173c862b37719dc095ef3a2ef27ce8d3c00
@@ -56,7 +56,7 @@ services:
     environment:
       - ETH_RPC_URL=http://mainnet-anvil:8545
     networks:
-      - near-sffl
+      - nffl
 
   rollup0-anvil:
     image: ghcr.io/foundry-rs/foundry:latest@sha256:8b843eb65cc7b155303b316f65d27173c862b37719dc095ef3a2ef27ce8d3c00
@@ -73,10 +73,10 @@ services:
       timeout: 10s
       retries: 5
     networks:
-      - near-sffl
+      - nffl
 
   rollup0-relayer:
-    image: near-sffl-test-relayer:latest
+    image: nffl-test-relayer:latest
     container_name: rollup0-relayer
     depends_on:
       rollup0-anvil:
@@ -96,11 +96,11 @@ services:
       - --key-path
       - /root/.near-credentials/localnet/da2.test.near.json
       - --network
-      - http://near-sffl-indexer:3030
+      - http://nffl-indexer:3030
       - --metrics-ip-port-address
       - rollup0-relayer:9091
     networks:
-      - near-sffl
+      - nffl
 
   rollup1-anvil:
     image: ghcr.io/foundry-rs/foundry:latest@sha256:8b843eb65cc7b155303b316f65d27173c862b37719dc095ef3a2ef27ce8d3c00
@@ -117,10 +117,10 @@ services:
       timeout: 30s
       retries: 15
     networks:
-      - near-sffl
+      - nffl
 
   rollup1-relayer:
-    image: near-sffl-test-relayer:latest
+    image: nffl-test-relayer:latest
     container_name: rollup1-relayer
     depends_on:
       rollup1-anvil:
@@ -137,11 +137,11 @@ services:
       - --path
       - /etc/relayer/relayer1-docker-compose.yaml
     networks:
-      - near-sffl
+      - nffl
 
   indexer:
-    image: near-sffl-indexer:latest
-    container_name: near-sffl-indexer
+    image: nffl-indexer:latest
+    container_name: nffl-indexer
     depends_on:
       rmq:
         condition: service_healthy
@@ -170,11 +170,11 @@ services:
       - --metrics-ip-port-address
       - "0.0.0.0:9090"
     networks:
-      - near-sffl
+      - nffl
 
   indexer-setup:
     image: debian:bookworm
-    container_name: near-sffl-indexer-setup
+    container_name: nffl-indexer-setup
     volumes:
       - near_cli_data:/near-cli
       - near_cli_keys:/root/.near-credentials
@@ -185,16 +185,16 @@ services:
         rm -rf /near-cli/*
         rm -rf /root/.near-credentials/*
     networks:
-      - near-sffl
+      - nffl
 
   near-da-deploy:
     image: node:16
-    container_name: near-sffl-near-da-deploy
+    container_name: nffl-near-da-deploy
     depends_on:
       indexer:
         condition: service_healthy
     volumes:
-      - ./:/near-sffl/
+      - ./:/nffl/
       - near_cli_data:/near-cli
       - near_cli_keys:/root/.near-credentials
     entrypoint: sh
@@ -203,29 +203,29 @@ services:
       - |
         npm i -g near-cli@3.0.0
         near create-account da2.test.near --masterAccount test.near
-        near deploy da2.test.near /near-sffl/tests/near/near_da_blob_store.wasm --initFunction new --initArgs {} --masterAccount test.near -f
+        near deploy da2.test.near /nffl/tests/near/near_da_blob_store.wasm --initFunction new --initArgs {} --masterAccount test.near -f
         near create-account da3.test.near --masterAccount test.near
-        near deploy da3.test.near /near-sffl/tests/near/near_da_blob_store.wasm --initFunction new --initArgs {} --masterAccount test.near -f
+        near deploy da3.test.near /nffl/tests/near/near_da_blob_store.wasm --initFunction new --initArgs {} --masterAccount test.near -f
     environment:
       - NEAR_ENV=localnet
       - NEAR_CLI_LOCALNET_NETWORK_ID=localnet
       - NEAR_HELPER_ACCOUNT=near
       - NEAR_CLI_LOCALNET_KEY_PATH=/near-cli/validator_key.json
-      - NEAR_NODE_URL=http://near-sffl-indexer:3030
+      - NEAR_NODE_URL=http://nffl-indexer:3030
     networks:
-      - near-sffl
+      - nffl
 
   aggregator:
-    image: near-sffl-aggregator
-    container_name: near-sffl-aggregator
+    image: nffl-aggregator
+    container_name: nffl-aggregator
     depends_on:
       mainnet-anvil-setup:
         condition: service_completed_successfully
     expose:
       - 9091
     volumes:
-      - ./:/near-sffl/
-    working_dir: /near-sffl
+      - ./:/nffl/
+    working_dir: /nffl
     command:
       - --config
       - config-files/aggregator-docker-compose.yaml
@@ -234,7 +234,7 @@ services:
       - --ecdsa-private-key
       - "0x2a871d0798f97d79848a013d4936a73bf4cc922c825d33c1cf7073dff6d409c6"
     networks:
-      - near-sffl
+      - nffl
 
   agreator-health:
     image: debian:bookworm
@@ -243,16 +243,16 @@ services:
         condition: service_started
     command: sh -c "apt update && apt install -y netcat-traditional && sleep infinity"
     healthcheck:
-      test: ["CMD", "nc", "-zv", "near-sffl-aggregator", "9091"]
+      test: ["CMD", "nc", "-zv", "nffl-aggregator", "9091"]
       interval: 15s
       timeout: 10s
       retries: 5
     networks:
-      - near-sffl
+      - nffl
 
   operator0:
-    image: near-sffl-operator
-    container_name: near-sffl-operator0
+    image: nffl-operator
+    container_name: nffl-operator0
     depends_on:
       rmq:
         condition: service_healthy
@@ -263,14 +263,14 @@ services:
     expose:
       - 9090 # prometheus metrics port (defined in operator0-docker-compose.anvil.yaml file)
     volumes:
-      - ./:/near-sffl/
-    working_dir: /near-sffl
+      - ./:/nffl/
+    working_dir: /nffl
     environment:
       - OPERATOR_BLS_KEY_PASSWORD=fDUMDLmBROwlzzPXyIcy
       - OPERATOR_ECDSA_KEY_PASSWORD=EnJuncq01CiVk9UbuBYl
     command: --config config-files/operator0-docker-compose.anvil.yaml
     networks:
-      - near-sffl
+      - nffl
 
   operator0-health:
     image: debian:bookworm
@@ -279,30 +279,30 @@ services:
         condition: service_started
     command: sh -c "apt update && apt install -y netcat-traditional && sleep infinity"
     healthcheck:
-      test: ["CMD", "nc", "-zv", "near-sffl-operator0", "9090"]
+      test: ["CMD", "nc", "-zv", "nffl-operator0", "9090"]
       interval: 15s
       timeout: 10s
       retries: 5
     networks:
-      - near-sffl
+      - nffl
 
   operator1:
-    image: near-sffl-operator
-    container_name: near-sffl-operator1
+    image: nffl-operator
+    container_name: nffl-operator1
     depends_on:
       operator0-health:
         condition: service_healthy
     expose:
       - 9091 # prometheus metrics port (defined in operator1-docker-compose.anvil.yaml file)
     volumes:
-      - ./:/near-sffl/
-    working_dir: /near-sffl
+      - ./:/nffl/
+    working_dir: /nffl
     environment:
       - OPERATOR_BLS_KEY_PASSWORD=2EVEUyHCrHZdfdo8lp29
       - OPERATOR_ECDSA_KEY_PASSWORD=isru1gvtykIavuk1Fg1Q
     command: --config config-files/operator1-docker-compose.anvil.yaml
     networks:
-      - near-sffl
+      - nffl
 
   operator1-health:
     image: debian:bookworm
@@ -311,12 +311,12 @@ services:
         condition: service_started
     command: sh -c "apt update && apt install -y netcat-traditional && sleep infinity"
     healthcheck:
-      test: ["CMD", "nc", "-zv", "near-sffl-operator1", "9091"]
+      test: ["CMD", "nc", "-zv", "nffl-operator1", "9091"]
       interval: 15s
       timeout: 10s
       retries: 5
     networks:
-      - near-sffl
+      - nffl
 
   # METRICS RELATED
   grafana:
@@ -336,7 +336,7 @@ services:
     ports:
       - 3000:3000
     networks:
-      - near-sffl
+      - nffl
 
   prometheus:
     image: prom/prometheus:v2.42.0
@@ -356,7 +356,7 @@ services:
     ports:
       - 9090:9090
     networks:
-      - near-sffl
+      - nffl
     # so that we can access the host from within the container
     # needed to get the metrics from host.docker.internal:9184/metrics
     extra_hosts:

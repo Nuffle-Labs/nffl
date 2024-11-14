@@ -16,7 +16,7 @@ scrape_configs:
   - job_name: "sffl-operator0"
     scrape_interval: 5s
     static_configs:
-      - targets: ["near-sffl-operator0:9090"]
+      - targets: ["nffl-operator0:9090"]
         labels:
           role: "operator"
           instance: "0"
@@ -27,7 +27,7 @@ scrape_configs:
       # host.docker.internal might not work on linux
       # TODO: do https://stackoverflow.com/a/67158212/4971151
       # - targets: ["host.docker.internal:9090"]
-      - targets: ["near-sffl-operator1:9091"]
+      - targets: ["nffl-operator1:9091"]
         labels:
           role: "operator"
           instance: "1"
@@ -35,12 +35,12 @@ scrape_configs:
   - job_name: "sffl-aggregator"
     scrape_interval: 5s
     static_configs:
-      - targets: ["near-sffl-aggregator:9091"]
+      - targets: ["nffl-aggregator:9091"]
 
   - job_name: "sffl-indexer"
     scrape_interval: 5s
     static_configs:
-      - targets: ["near-sffl-indexer:9090"]
+      - targets: ["nffl-indexer:9090"]
 
     relabel_configs:
       # is this actually useful? We already have the job name

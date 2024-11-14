@@ -11,5 +11,5 @@ eth_rpc_url: https://ethereum-holesky-rpc.publicnode.com
 eth_ws_url: wss://ethereum-holesky-rpc.publicnode.com
 
 # EigenLayer ECDSA and BLS private key paths
-ecdsa_private_key_store_path: /near-sffl/config/keys/ecdsa.json
-bls_private_key_store_path: /near-sffl/config/keys/bls.json
+ecdsa_private_key_store_path: /nffl/config/keys/ecdsa.json
+bls_private_key_store_path: /nffl/config/keys/bls.json
