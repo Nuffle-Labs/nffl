@@ -24,13 +24,13 @@ import (
 	"github.com/ethereum/go-ethereum/common"
 	"github.com/prometheus/client_golang/prometheus"
 
-	taskmanager "github.com/NethermindEth/near-sffl/contracts/bindings/SFFLTaskManager"
-	"github.com/NethermindEth/near-sffl/core"
-	"github.com/NethermindEth/near-sffl/core/chainio"
-	"github.com/NethermindEth/near-sffl/core/safeclient"
-	"github.com/NethermindEth/near-sffl/core/types/messages"
-	"github.com/NethermindEth/near-sffl/operator/attestor"
-	optypes "github.com/NethermindEth/near-sffl/operator/types"
+	taskmanager "github.com/Nuffle-Labs/nffl/contracts/bindings/SFFLTaskManager"
+	"github.com/Nuffle-Labs/nffl/core"
+	"github.com/Nuffle-Labs/nffl/core/chainio"
+	"github.com/Nuffle-Labs/nffl/core/safeclient"
+	"github.com/Nuffle-Labs/nffl/core/types/messages"
+	"github.com/Nuffle-Labs/nffl/operator/attestor"
+	optypes "github.com/Nuffle-Labs/nffl/operator/types"
 )
 
 const (

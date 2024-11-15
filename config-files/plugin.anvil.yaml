@@ -11,5 +11,5 @@ eth_rpc_url: http://mainnet-anvil:8545
 eth_ws_url: ws://mainnet-anvil:8545
 
 # EigenLayer ECDSA and BLS private key paths
-ecdsa_private_key_store_path: /near-sffl/keys/ecdsa/1/key.json
-bls_private_key_store_path: /near-sffl/keys/bls/1/key.json
+ecdsa_private_key_store_path: /nffl/keys/ecdsa/1/key.json
+bls_private_key_store_path: /nffl/keys/bls/1/key.json

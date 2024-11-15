@@ -13,10 +13,10 @@ import (
 	"github.com/ethereum/go-ethereum/accounts/abi/bind"
 	"github.com/ethereum/go-ethereum/common"
 
-	registryrollup "github.com/NethermindEth/near-sffl/contracts/bindings/SFFLRegistryRollup"
-	"github.com/NethermindEth/near-sffl/core/config"
-	"github.com/NethermindEth/near-sffl/core/safeclient"
-	"github.com/NethermindEth/near-sffl/core/types/messages"
+	registryrollup "github.com/Nuffle-Labs/nffl/contracts/bindings/SFFLRegistryRollup"
+	"github.com/Nuffle-Labs/nffl/core/config"
+	"github.com/Nuffle-Labs/nffl/core/safeclient"
+	"github.com/Nuffle-Labs/nffl/core/types/messages"
 )
 
 const (

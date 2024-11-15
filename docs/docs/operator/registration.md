@@ -38,8 +38,8 @@ Install [Docker Engine on Linux](https://docs.docker.com/engine/install/ubuntu/)
 Clone the NFFL repository and execute the following.
 
 ```bash
-git clone https://github.com/NethermindEth/near-sffl.git
-cd near-sffl/setup/plugin
+git clone https://github.com/Nuffle-Labs/nffl.git
+cd nffl/setup/plugin
 cp .env.example .env
 ```
 
@@ -80,8 +80,8 @@ eth_rpc_url: https://ethereum-holesky-rpc.publicnode.com
 eth_ws_url: wss://ethereum-holesky-rpc.publicnode.com
 
 # EigenLayer ECDSA and BLS private key paths
-ecdsa_private_key_store_path: /near-sffl/config/keys/ecdsa.json
-bls_private_key_store_path: /near-sffl/config/keys/bls.json
+ecdsa_private_key_store_path: /nffl/config/keys/ecdsa.json
+bls_private_key_store_path: /nffl/config/keys/bls.json
 ```
 
 You'll need to refer to the [Setup](./setup) again before running the node for

@@ -10,7 +10,7 @@ import (
 	"github.com/ethereum/go-ethereum/core/types"
 	"github.com/stretchr/testify/assert"
 
-	"github.com/NethermindEth/near-sffl/operator/consumer"
+	"github.com/Nuffle-Labs/nffl/operator/consumer"
 )
 
 const NUM_OF_BLOCKS = 1000

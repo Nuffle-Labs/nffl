@@ -14,10 +14,10 @@ import (
 	"github.com/Layr-Labs/eigensdk-go/crypto/bls"
 	eigentypes "github.com/Layr-Labs/eigensdk-go/types"
 
-	"github.com/NethermindEth/near-sffl/aggregator/types"
-	"github.com/NethermindEth/near-sffl/core"
-	coretypes "github.com/NethermindEth/near-sffl/core/types"
-	"github.com/NethermindEth/near-sffl/core/types/messages"
+	"github.com/Nuffle-Labs/nffl/aggregator/types"
+	"github.com/Nuffle-Labs/nffl/core"
+	coretypes "github.com/Nuffle-Labs/nffl/core/types"
+	"github.com/Nuffle-Labs/nffl/core/types/messages"
 )
 
 func TestProcessSignedCheckpointTaskResponse(t *testing.T) {

@@ -3,7 +3,7 @@ package mocks
 import (
 	"context"
 
-	"github.com/NethermindEth/near-sffl/operator/consumer"
+	"github.com/Nuffle-Labs/nffl/operator/consumer"
 	rmq "github.com/rabbitmq/amqp091-go"
 )
 

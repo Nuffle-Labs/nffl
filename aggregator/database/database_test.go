@@ -9,11 +9,11 @@ import (
 	"github.com/stretchr/testify/assert"
 	"go.uber.org/mock/gomock"
 
-	"github.com/NethermindEth/near-sffl/aggregator/database"
-	"github.com/NethermindEth/near-sffl/aggregator/database/models"
-	coretypes "github.com/NethermindEth/near-sffl/core/types"
-	"github.com/NethermindEth/near-sffl/core/types/messages"
-	"github.com/NethermindEth/near-sffl/tests"
+	"github.com/Nuffle-Labs/nffl/aggregator/database"
+	"github.com/Nuffle-Labs/nffl/aggregator/database/models"
+	coretypes "github.com/Nuffle-Labs/nffl/core/types"
+	"github.com/Nuffle-Labs/nffl/core/types/messages"
+	"github.com/Nuffle-Labs/nffl/tests"
 )
 
 func TestFetchUnknownStateRootUpdate(t *testing.T) {

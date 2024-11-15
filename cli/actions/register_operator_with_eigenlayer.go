@@ -3,8 +3,8 @@ package actions
 import (
 	"github.com/urfave/cli"
 
-	"github.com/NethermindEth/near-sffl/core/config"
-	"github.com/NethermindEth/near-sffl/operator"
+	"github.com/Nuffle-Labs/nffl/core/config"
+	"github.com/Nuffle-Labs/nffl/operator"
 )
 
 func RegisterOperatorWithEigenlayer(ctx *cli.Context) error {

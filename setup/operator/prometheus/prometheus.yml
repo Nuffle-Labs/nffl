@@ -13,15 +13,15 @@ scrape_configs:
     static_configs:
       - targets: ["localhost:9090"]
 
-  - job_name: "sffl-operator"
+  - job_name: "nffl-operator"
     scrape_interval: 5s
     static_configs:
-      - targets: ["near-sffl-operator:9091"]
+      - targets: ["nffl-operator:9091"]
         labels:
           role: "operator"
           instance: "0"
 
-  - job_name: "sffl-indexer"
+  - job_name: "nffl-indexer"
     scrape_interval: 5s
     static_configs:
-      - targets: ["near-sffl-indexer:9092"]
+      - targets: ["nffl-indexer:9092"]

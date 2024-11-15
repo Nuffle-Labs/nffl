@@ -1,4 +1,4 @@
-module github.com/NethermindEth/near-sffl
+module github.com/Nuffle-Labs/nffl
 
 go 1.21
 

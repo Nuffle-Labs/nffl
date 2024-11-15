@@ -18,16 +18,16 @@ import (
 	eigentypes "github.com/Layr-Labs/eigensdk-go/types"
 	"github.com/prometheus/client_golang/prometheus"
 
-	"github.com/NethermindEth/near-sffl/aggregator/blsagg"
-	"github.com/NethermindEth/near-sffl/aggregator/database"
-	"github.com/NethermindEth/near-sffl/aggregator/types"
-	taskmanager "github.com/NethermindEth/near-sffl/contracts/bindings/SFFLTaskManager"
-	"github.com/NethermindEth/near-sffl/core"
-	"github.com/NethermindEth/near-sffl/core/chainio"
-	"github.com/NethermindEth/near-sffl/core/config"
-	"github.com/NethermindEth/near-sffl/core/safeclient"
-	coretypes "github.com/NethermindEth/near-sffl/core/types"
-	"github.com/NethermindEth/near-sffl/core/types/messages"
+	"github.com/Nuffle-Labs/nffl/aggregator/blsagg"
+	"github.com/Nuffle-Labs/nffl/aggregator/database"
+	"github.com/Nuffle-Labs/nffl/aggregator/types"
+	taskmanager "github.com/Nuffle-Labs/nffl/contracts/bindings/SFFLTaskManager"
+	"github.com/Nuffle-Labs/nffl/core"
+	"github.com/Nuffle-Labs/nffl/core/chainio"
+	"github.com/Nuffle-Labs/nffl/core/config"
+	"github.com/Nuffle-Labs/nffl/core/safeclient"
+	coretypes "github.com/Nuffle-Labs/nffl/core/types"
+	"github.com/Nuffle-Labs/nffl/core/types/messages"
 )
 
 const (

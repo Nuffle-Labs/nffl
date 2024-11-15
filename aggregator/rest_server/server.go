@@ -9,8 +9,8 @@ import (
 	"github.com/gorilla/mux"
 	"github.com/prometheus/client_golang/prometheus"
 
-	"github.com/NethermindEth/near-sffl/aggregator"
-	"github.com/NethermindEth/near-sffl/core"
+	"github.com/Nuffle-Labs/nffl/aggregator"
+	"github.com/Nuffle-Labs/nffl/core"
 )
 
 var (

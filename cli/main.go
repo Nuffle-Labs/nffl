@@ -4,8 +4,8 @@ import (
 	"log"
 	"os"
 
-	"github.com/NethermindEth/near-sffl/cli/actions"
-	"github.com/NethermindEth/near-sffl/core/config"
+	"github.com/Nuffle-Labs/nffl/cli/actions"
+	"github.com/Nuffle-Labs/nffl/core/config"
 	"github.com/urfave/cli"
 )
 

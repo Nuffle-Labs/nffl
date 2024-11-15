@@ -6,9 +6,9 @@ import (
 
 	"github.com/Layr-Labs/eigensdk-go/crypto/bls"
 	"github.com/Layr-Labs/eigensdk-go/logging"
-	"github.com/NethermindEth/near-sffl/aggregator/mocks"
-	"github.com/NethermindEth/near-sffl/core/types"
-	"github.com/NethermindEth/near-sffl/core/types/messages"
+	"github.com/Nuffle-Labs/nffl/aggregator/mocks"
+	"github.com/Nuffle-Labs/nffl/core/types"
+	"github.com/Nuffle-Labs/nffl/core/types/messages"
 	"github.com/stretchr/testify/assert"
 	"go.uber.org/mock/gomock"
 )

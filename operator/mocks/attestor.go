@@ -7,9 +7,9 @@ import (
 	eigentypes "github.com/Layr-Labs/eigensdk-go/types"
 	"github.com/prometheus/client_golang/prometheus"
 
-	"github.com/NethermindEth/near-sffl/core"
-	messages "github.com/NethermindEth/near-sffl/core/types/messages"
-	"github.com/NethermindEth/near-sffl/operator/attestor"
+	"github.com/Nuffle-Labs/nffl/core"
+	messages "github.com/Nuffle-Labs/nffl/core/types/messages"
+	"github.com/Nuffle-Labs/nffl/operator/attestor"
 )
 
 type MockAttestor struct {

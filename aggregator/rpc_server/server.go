@@ -6,15 +6,15 @@ import (
 	"net/rpc"
 	"strings"
 
-	"github.com/NethermindEth/near-sffl/aggregator/blsagg"
-	"github.com/NethermindEth/near-sffl/core"
+	"github.com/Nuffle-Labs/nffl/aggregator/blsagg"
+	"github.com/Nuffle-Labs/nffl/core"
 	"github.com/prometheus/client_golang/prometheus"
 
 	"github.com/Layr-Labs/eigensdk-go/logging"
 	eigentypes "github.com/Layr-Labs/eigensdk-go/types"
 
-	"github.com/NethermindEth/near-sffl/aggregator"
-	"github.com/NethermindEth/near-sffl/core/types/messages"
+	"github.com/Nuffle-Labs/nffl/aggregator"
+	"github.com/Nuffle-Labs/nffl/core/types/messages"
 )
 
 var (

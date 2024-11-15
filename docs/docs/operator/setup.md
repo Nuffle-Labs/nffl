@@ -68,26 +68,26 @@ Install [Docker Engine on Linux](https://docs.docker.com/engine/install/ubuntu/)
 Clone the NFFL repository and execute the following.
 
 ```bash
-git clone https://github.com/NethermindEth/near-sffl.git
-cp near-sffl/setup/operator/.env.example near-sffl/setup/operator/.env
-cp near-sffl/setup/plugin/.env.example near-sffl/setup/plugin/.env
+git clone https://github.com/Nuffle-Labs/nffl.git
+cp nffl/setup/operator/.env.example nffl/setup/operator/.env
+cp nffl/setup/plugin/.env.example nffl/setup/plugin/.env
 ```
 
 ### Step 4: Copy your EigenLayer operator keys to the setup directories
 
 ```bash
-cp <path-to-your-operator-ecdsa-key> near-sffl/setup/plugin/config/keys/ecdsa.json
-cp <path-to-your-operator-bls-key> near-sffl/setup/plugin/config/keys/bls.json
+cp <path-to-your-operator-ecdsa-key> nffl/setup/plugin/config/keys/ecdsa.json
+cp <path-to-your-operator-bls-key> nffl/setup/plugin/config/keys/bls.json
 
 # Using a placeholder ECDSA key only as we'll not be using the
 # register_operator_on_startup configuration
-cp near-sffl/setup/operator/config/keys/ecdsa.example.json near-sffl/setup/operator/config/keys/ecdsa.json
-cp <path-to-your-operator-bls-key> near-sffl/setup/operator/config/keys/bls.json
+cp nffl/setup/operator/config/keys/ecdsa.example.json nffl/setup/operator/config/keys/ecdsa.json
+cp <path-to-your-operator-bls-key> nffl/setup/operator/config/keys/bls.json
 ```
 
 ### Step 5: Update your `.env` files
 
-You should have something similar to this in your `near-sffl/setup/plugin/.env`:
+You should have something similar to this in your `nffl/setup/plugin/.env`:
 ```bash
 # Operator BLS and ECDSA key passwords (from config/keys files)
 BLS_KEY_PASSWORD=fDUMDLmBROwlzzPXyIcy
@@ -98,7 +98,7 @@ Set your EigenLayer ECDSA and BLS key passwords in the
 `ECDSA_KEY_PASSWORD` and `BLS_KEY_PASSWORD` fields.
 
 Then, for the node environment variables, you should have something similar to
-this in your `near-sffl/setup/operator/.env`:
+this in your `nffl/setup/operator/.env`:
 ```bash
 # Tagged release for SFFL containers
 SFFL_RELEASE=latest
@@ -144,8 +144,8 @@ eth_rpc_url: https://ethereum-holesky-rpc.publicnode.com
 eth_ws_url: wss://ethereum-holesky-rpc.publicnode.com
 
 # EigenLayer ECDSA and BLS private key paths
-ecdsa_private_key_store_path: /near-sffl/config/keys/ecdsa.json
-bls_private_key_store_path: /near-sffl/config/keys/bls.json
+ecdsa_private_key_store_path: /nffl/config/keys/ecdsa.json
+bls_private_key_store_path: /nffl/config/keys/bls.json
 ```
 
 Then, in `setup/operator/config/operator.yaml`, set all the relevant fields
@@ -169,11 +169,11 @@ eth_rpc_url: https://ethereum-holesky-rpc.publicnode.com
 eth_ws_url: wss://ethereum-holesky-rpc.publicnode.com # You should change this!
 
 # EigenLayer ECDSA and BLS private key paths
-ecdsa_private_key_store_path: /near-sffl/config/keys/ecdsa.json
-bls_private_key_store_path: /near-sffl/config/keys/bls.json
+ecdsa_private_key_store_path: /nffl/config/keys/ecdsa.json
+bls_private_key_store_path: /nffl/config/keys/bls.json
 
 # Aggregator server IP and port
-aggregator_server_ip_port_address: near-sffl-aggregator:8090
+aggregator_server_ip_port_address: nffl-aggregator:8090
 
 # Operator EigenLayer metrics server IP and port
 enable_metrics: true
@@ -221,13 +221,13 @@ contract addresses.
 Follow the command below in the operator setup directory:
 
 ```bash
-# cd near-sffl/setup/operator
+# cd nffl/setup/operator
 docker compose --profile indexer up
 ```
 
 You should run it until it starts syncing. You'll see a log similar to:
 ```
-near-sffl-indexer  | 2024-04-20T22:24:00.296255Z  INFO stats: #161784536 Waiting for peers 0 peers ⬇ 0 B/s ⬆ 0 B/s NaN bps 0 gas/s CPU: 0%, Mem: 13.7 GB
+nffl-indexer  | 2024-04-20T22:24:00.296255Z  INFO stats: #161784536 Waiting for peers 0 peers ⬇ 0 B/s ⬆ 0 B/s NaN bps 0 gas/s CPU: 0%, Mem: 13.7 GB
 ```
 
 At this point, stop the execution with `Ctrl+C`. We're going to use NEAR's
@@ -269,7 +269,7 @@ After that, you can use the operator plugin in order to register your operator.
 Simply go to your operator plugin setup directory and run:
 
 ```bash
-# cd near-sffl/setup/plugin
+# cd nffl/setup/plugin
 ./register.sh
 ```
 
