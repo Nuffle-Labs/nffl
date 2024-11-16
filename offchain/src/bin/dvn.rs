@@ -12,7 +12,7 @@ async fn main() -> Result<()> {
         .with_target(false)
         .with_env_filter(
             EnvFilter::builder()
-                .with_default_directive(LevelFilter::DEBUG.into())
+                .with_default_directive(LevelFilter::INFO.into())
                 .from_env_lossy(),
         )
         .init();

@@ -8,10 +8,15 @@ deploy:
 
 wire:
 	npx hardhat lz:oapp:wire --oapp-config layerzero.config.ts
+	@echo "==================================="
+	@echo "=== Wired the OApps for testing ==="
+	@echo "==================================="
+
+wire-simple:
 	npx hardhat lz:oapp:wire --oapp-config layerzerosimple.config.ts
-	@echo "============================================================="
-	@echo "=== Wired the OApps for testing (both regular and simple) ==="
-	@echo "============================================================="
+	@echo "============================================="
+	@echo "=== Wired the (simple) OApps for testing  ==="
+	@echo "============================================="
 
 e2e:
 	npx hardhat e2e --source holesky --target arbitrum-sepolia

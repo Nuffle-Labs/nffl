@@ -44,7 +44,7 @@ const config: OAppOmniGraphHardhat = {
             config: {
                 sendConfig: {
                     ulnConfig: {
-                        confirmations: BigInt(1),
+                        confirmations: BigInt(0),
                         requiredDVNs: [
                             holesky.receipts[0].contractAddress,
                         ],
@@ -58,7 +58,7 @@ const config: OAppOmniGraphHardhat = {
             config: {
                 sendConfig: {
                     ulnConfig: {
-                        confirmations: BigInt(1),
+                        confirmations: BigInt(0),
                         requiredDVNs: [
                             holesky.receipts[0].contractAddress,
                         ],
@@ -72,7 +72,7 @@ const config: OAppOmniGraphHardhat = {
             config: {
                 sendConfig: {
                     ulnConfig: {
-                        confirmations: BigInt(1),
+                        confirmations: BigInt(0),
                         requiredDVNs: [
                             amoy.receipts[0].contractAddress,
                         ],
@@ -86,7 +86,7 @@ const config: OAppOmniGraphHardhat = {
             config: {
                 sendConfig: {
                     ulnConfig: {
-                        confirmations: BigInt(1),
+                        confirmations: BigInt(0),
                         requiredDVNs: [
                             amoy.receipts[0].contractAddress,
                         ],
@@ -100,7 +100,7 @@ const config: OAppOmniGraphHardhat = {
             config: {
                 sendConfig: {
                     ulnConfig: {
-                        confirmations: BigInt(1),
+                        confirmations: BigInt(0),
                         requiredDVNs: [
                             arbitrum.receipts[0].contractAddress,
                         ],

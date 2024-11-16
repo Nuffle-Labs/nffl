@@ -30,17 +30,51 @@ task('send', 'test send')
 
     const options = Options.newOptions().addExecutorLzReceiveOption(200000, 0).toHex().toString();
     //const msg = taskArgs.message == "" ? "Hola Mundo" : taskArgs.message;
-    const msg = "Hola Nuff";
+    const msg = "hola nuff";
     const [nativeFee] = await oapp.quote(eidB, msg, options, false);
     console.log('native fee:', nativeFee);
 
-    const r = await oapp.send(eidB, msg, options, {
+    const receipt = await oapp.send(eidB, msg, options, {
       value: nativeFee,
     });
+    console.log('send receipt:', receipt);
 
-    console.log(`Tx initiated. See: https://layerzeroscan.com/tx/${r.hash}`);
+    console.log(`Tx initiated. See: https://layerzeroscan.com/tx/${receipt.hash}`);
   });
 
+// send messages from a contract on one network to another
+task('sendm', 'test send')
+  // contract to send a message from
+  .addParam('contractA', 'contract address on network A')
+  // network that sender contract resides on
+  .addParam('networkA', 'name of the network A')
+  // network that receiver contract resides on
+  .addParam('networkB', 'name of the network B')
+  // message to send from network a to network b
+  .addParam('message', 'amout to send from network A to network B')
+  .setAction(async (taskArgs, {ethers}) => {
+    const eidA = getEidForNetworkName(taskArgs.networkA);
+    const eidB = getEidForNetworkName(taskArgs.networkB);
+    const contractA = taskArgs.contractA;
+    const environmentFactory = createGetHreByEid();
+    const providerFactory = createProviderFactory(environmentFactory);
+    const signer = (await providerFactory(eidA)).getSigner();
+
+    const oappContractFactory = await ethers.getContractFactory('TestingOApp', signer);
+    const oapp = oappContractFactory.attach(contractA);
+
+    const options = Options.newOptions().addExecutorLzReceiveOption(200000, 0).toHex().toString();
+    const message = taskArgs.message;
+    const [nativeFee] = await oapp.quote(eidB, message, options, false);
+    console.log('native fee:', nativeFee);
+
+    const receipt = await oapp.send(eidB, message, options, {
+      value: nativeFee,
+    });
+    console.log('send receipt:', receipt);
+
+    console.log(`Tx initiated. See: https://layerzeroscan.com/tx/${receipt.hash}`);
+  });
 
 task('read', 'read message stored in OApp')
   .addParam('contractA', 'contract address on network A')
@@ -128,8 +162,10 @@ task("e2e", "Send a message and check that it has arrived.")
     const r = await sourceOapp.send(targetEid, initialData, options, {
       value: nativeFee,
     });
+    console.log("send receipt:", r);
 
     console.log(`Tx initiated. See: https://layerzeroscan.com/tx/${r.hash}`);
+    //console.log("Waiting 30 seconds for the message to arrive...");
     console.log("Waiting 30 seconds for the message to arrive...");
 
     // Wait for the transaction to arrive on the target chain.
@@ -194,6 +230,7 @@ task("e2e:simple", "Send a message and check that it has arrived.")
     const r = await sourceOapp.send(targetEid, initialData, options, {
       value: nativeFee,
     });
+    console.log("send receipt:", r);
 
     console.log(`Tx initiated. See: https://layerzeroscan.com/tx/${r.hash}`);
     console.log("Waiting 30 seconds for the message to arrive...");

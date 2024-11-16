@@ -9,7 +9,7 @@ import { MessagingReceipt } from "@layerzerolabs/lz-evm-oapp-v2/contracts/oapp/O
 contract TestingOApp is OApp {
     constructor(address _endpoint, address _delegate) OApp(_endpoint, _delegate) Ownable(_delegate) {}
 
-    uint public data = 0;
+    string public data = "nothing received yet";
 
     /**
      * @notice Sends a message from the source chain to a destination chain.
@@ -65,6 +65,6 @@ contract TestingOApp is OApp {
         address /*_executor*/,
         bytes calldata /*_extraData*/
     ) internal override {
-        data = abi.decode(payload, (uint));
+        data = abi.decode(payload, (string));
     }
 }

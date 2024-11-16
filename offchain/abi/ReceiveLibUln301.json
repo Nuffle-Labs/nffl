@@ -6,6 +6,11 @@
                     "internalType": "address",
                     "name": "_endpoint",
                     "type": "address"
+                },
+                {
+                    "internalType": "uint32",
+                    "name": "_localEid",
+                    "type": "uint32"
                 }
             ],
             "stateMutability": "nonpayable",
@@ -13,7 +18,32 @@
         },
         {
             "inputs": [],
+            "name": "AddressCast_InvalidSizeForAddress",
+            "type": "error"
+        },
+        {
+            "inputs": [],
+            "name": "AddressSizeConfig_AddressSizeAlreadySet",
+            "type": "error"
+        },
+        {
+            "inputs": [],
+            "name": "AddressSizeConfig_InvalidAddressSize",
+            "type": "error"
+        },
+        {
+            "inputs": [],
+            "name": "LZ_MessageLib_InvalidExecutor",
+            "type": "error"
+        },
+        {
+            "inputs": [],
             "name": "LZ_MessageLib_OnlyEndpoint",
+            "type": "error"
+        },
+        {
+            "inputs": [],
+            "name": "LZ_MessageLib_OnlyExecutor",
             "type": "error"
         },
         {
@@ -24,9 +54,9 @@
         {
             "inputs": [
                 {
-                    "internalType": "uint32",
+                    "internalType": "uint256",
                     "name": "configType",
-                    "type": "uint32"
+                    "type": "uint256"
                 }
             ],
             "name": "LZ_ULN_InvalidConfigType",
@@ -92,6 +122,50 @@
             "anonymous": false,
             "inputs": [
                 {
+                    "indexed": false,
+                    "internalType": "uint16",
+                    "name": "eid",
+                    "type": "uint16"
+                },
+                {
+                    "indexed": false,
+                    "internalType": "uint256",
+                    "name": "size",
+                    "type": "uint256"
+                }
+            ],
+            "name": "AddressSizeSet",
+            "type": "event"
+        },
+        {
+            "anonymous": false,
+            "inputs": [
+                {
+                    "components": [
+                        {
+                            "internalType": "uint32",
+                            "name": "eid",
+                            "type": "uint32"
+                        },
+                        {
+                            "internalType": "address",
+                            "name": "executor",
+                            "type": "address"
+                        }
+                    ],
+                    "indexed": false,
+                    "internalType": "struct SetDefaultExecutorParam[]",
+                    "name": "params",
+                    "type": "tuple[]"
+                }
+            ],
+            "name": "DefaultExecutorsSet",
+            "type": "event"
+        },
+        {
+            "anonymous": false,
+            "inputs": [
+                {
                     "components": [
                         {
                             "internalType": "uint32",
@@ -149,6 +223,68 @@
             "anonymous": false,
             "inputs": [
                 {
+                    "indexed": false,
+                    "internalType": "address",
+                    "name": "oapp",
+                    "type": "address"
+                },
+                {
+                    "indexed": false,
+                    "internalType": "uint32",
+                    "name": "eid",
+                    "type": "uint32"
+                },
+                {
+                    "indexed": false,
+                    "internalType": "address",
+                    "name": "executor",
+                    "type": "address"
+                }
+            ],
+            "name": "ExecutorSet",
+            "type": "event"
+        },
+        {
+            "anonymous": false,
+            "inputs": [
+                {
+                    "indexed": true,
+                    "internalType": "uint16",
+                    "name": "srcChainId",
+                    "type": "uint16"
+                },
+                {
+                    "indexed": false,
+                    "internalType": "bytes32",
+                    "name": "srcAddress",
+                    "type": "bytes32"
+                },
+                {
+                    "indexed": true,
+                    "internalType": "address",
+                    "name": "dstAddress",
+                    "type": "address"
+                },
+                {
+                    "indexed": false,
+                    "internalType": "uint64",
+                    "name": "nonce",
+                    "type": "uint64"
+                },
+                {
+                    "indexed": false,
+                    "internalType": "bytes32",
+                    "name": "payloadHash",
+                    "type": "bytes32"
+                }
+            ],
+            "name": "InvalidDst",
+            "type": "event"
+        },
+        {
+            "anonymous": false,
+            "inputs": [
+                {
                     "indexed": true,
                     "internalType": "address",
                     "name": "previousOwner",
@@ -162,6 +298,42 @@
                 }
             ],
             "name": "OwnershipTransferred",
+            "type": "event"
+        },
+        {
+            "anonymous": false,
+            "inputs": [
+                {
+                    "components": [
+                        {
+                            "internalType": "uint32",
+                            "name": "srcEid",
+                            "type": "uint32"
+                        },
+                        {
+                            "internalType": "bytes32",
+                            "name": "sender",
+                            "type": "bytes32"
+                        },
+                        {
+                            "internalType": "uint64",
+                            "name": "nonce",
+                            "type": "uint64"
+                        }
+                    ],
+                    "indexed": false,
+                    "internalType": "struct Origin",
+                    "name": "origin",
+                    "type": "tuple"
+                },
+                {
+                    "indexed": false,
+                    "internalType": "address",
+                    "name": "receiver",
+                    "type": "address"
+                }
+            ],
+            "name": "PacketDelivered",
             "type": "event"
         },
         {
@@ -255,6 +427,25 @@
         {
             "inputs": [
                 {
+                    "internalType": "uint32",
+                    "name": "dstEid",
+                    "type": "uint32"
+                }
+            ],
+            "name": "addressSizes",
+            "outputs": [
+                {
+                    "internalType": "uint256",
+                    "name": "size",
+                    "type": "uint256"
+                }
+            ],
+            "stateMutability": "view",
+            "type": "function"
+        },
+        {
+            "inputs": [
+                {
                     "internalType": "bytes",
                     "name": "_packetHeader",
                     "type": "bytes"
@@ -274,18 +465,61 @@
             "inputs": [
                 {
                     "internalType": "bytes",
-                    "name": "_packetHeader",
+                    "name": "_packet",
                     "type": "bytes"
                 },
                 {
-                    "internalType": "bytes32",
-                    "name": "_payloadHash",
-                    "type": "bytes32"
+                    "internalType": "uint256",
+                    "name": "_gasLimit",
+                    "type": "uint256"
                 }
             ],
             "name": "commitVerification",
             "outputs": [],
             "stateMutability": "nonpayable",
+            "type": "function"
+        },
+        {
+            "inputs": [
+                {
+                    "internalType": "uint32",
+                    "name": "eid",
+                    "type": "uint32"
+                }
+            ],
+            "name": "defaultExecutors",
+            "outputs": [
+                {
+                    "internalType": "address",
+                    "name": "executor",
+                    "type": "address"
+                }
+            ],
+            "stateMutability": "view",
+            "type": "function"
+        },
+        {
+            "inputs": [
+                {
+                    "internalType": "address",
+                    "name": "oapp",
+                    "type": "address"
+                },
+                {
+                    "internalType": "uint32",
+                    "name": "eid",
+                    "type": "uint32"
+                }
+            ],
+            "name": "executors",
+            "outputs": [
+                {
+                    "internalType": "address",
+                    "name": "executor",
+                    "type": "address"
+                }
+            ],
+            "stateMutability": "view",
             "type": "function"
         },
         {
@@ -347,9 +581,9 @@
         {
             "inputs": [
                 {
-                    "internalType": "uint32",
+                    "internalType": "uint16",
                     "name": "_eid",
-                    "type": "uint32"
+                    "type": "uint16"
                 },
                 {
                     "internalType": "address",
@@ -357,9 +591,9 @@
                     "type": "address"
                 },
                 {
-                    "internalType": "uint32",
+                    "internalType": "uint256",
                     "name": "_configType",
-                    "type": "uint32"
+                    "type": "uint256"
                 }
             ],
             "name": "getConfig",
@@ -368,6 +602,30 @@
                     "internalType": "bytes",
                     "name": "",
                     "type": "bytes"
+                }
+            ],
+            "stateMutability": "view",
+            "type": "function"
+        },
+        {
+            "inputs": [
+                {
+                    "internalType": "address",
+                    "name": "_oapp",
+                    "type": "address"
+                },
+                {
+                    "internalType": "uint32",
+                    "name": "_remoteEid",
+                    "type": "uint32"
+                }
+            ],
+            "name": "getExecutor",
+            "outputs": [
+                {
+                    "internalType": "address",
+                    "name": "",
+                    "type": "address"
                 }
             ],
             "stateMutability": "view",
@@ -464,38 +722,6 @@
             "type": "function"
         },
         {
-            "inputs": [
-                {
-                    "internalType": "uint32",
-                    "name": "_eid",
-                    "type": "uint32"
-                }
-            ],
-            "name": "isSupportedEid",
-            "outputs": [
-                {
-                    "internalType": "bool",
-                    "name": "",
-                    "type": "bool"
-                }
-            ],
-            "stateMutability": "view",
-            "type": "function"
-        },
-        {
-            "inputs": [],
-            "name": "messageLibType",
-            "outputs": [
-                {
-                    "internalType": "enum MessageLibType",
-                    "name": "",
-                    "type": "uint8"
-                }
-            ],
-            "stateMutability": "pure",
-            "type": "function"
-        },
-        {
             "inputs": [],
             "name": "owner",
             "outputs": [
@@ -518,10 +744,51 @@
         {
             "inputs": [
                 {
+                    "internalType": "uint16",
+                    "name": "_eid",
+                    "type": "uint16"
+                },
+                {
+                    "internalType": "uint256",
+                    "name": "_size",
+                    "type": "uint256"
+                }
+            ],
+            "name": "setAddressSize",
+            "outputs": [],
+            "stateMutability": "nonpayable",
+            "type": "function"
+        },
+        {
+            "inputs": [
+                {
+                    "internalType": "uint16",
+                    "name": "_eid",
+                    "type": "uint16"
+                },
+                {
                     "internalType": "address",
                     "name": "_oapp",
                     "type": "address"
                 },
+                {
+                    "internalType": "uint256",
+                    "name": "_configType",
+                    "type": "uint256"
+                },
+                {
+                    "internalType": "bytes",
+                    "name": "_config",
+                    "type": "bytes"
+                }
+            ],
+            "name": "setConfig",
+            "outputs": [],
+            "stateMutability": "nonpayable",
+            "type": "function"
+        },
+        {
+            "inputs": [
                 {
                     "components": [
                         {
@@ -530,22 +797,17 @@
                             "type": "uint32"
                         },
                         {
-                            "internalType": "uint32",
-                            "name": "configType",
-                            "type": "uint32"
-                        },
-                        {
-                            "internalType": "bytes",
-                            "name": "config",
-                            "type": "bytes"
+                            "internalType": "address",
+                            "name": "executor",
+                            "type": "address"
                         }
                     ],
-                    "internalType": "struct SetConfigParam[]",
+                    "internalType": "struct SetDefaultExecutorParam[]",
                     "name": "_params",
                     "type": "tuple[]"
                 }
             ],
-            "name": "setConfig",
+            "name": "setDefaultExecutors",
             "outputs": [],
             "stateMutability": "nonpayable",
             "type": "function"
@@ -605,25 +867,6 @@
             "name": "setDefaultUlnConfigs",
             "outputs": [],
             "stateMutability": "nonpayable",
-            "type": "function"
-        },
-        {
-            "inputs": [
-                {
-                    "internalType": "bytes4",
-                    "name": "_interfaceId",
-                    "type": "bytes4"
-                }
-            ],
-            "name": "supportsInterface",
-            "outputs": [
-                {
-                    "internalType": "bool",
-                    "name": "",
-                    "type": "bool"
-                }
-            ],
-            "stateMutability": "view",
             "type": "function"
         },
         {
@@ -744,47 +987,6 @@
                 }
             ],
             "stateMutability": "pure",
-            "type": "function"
-        },
-        {
-            "inputs": [
-                {
-                    "components": [
-                        {
-                            "internalType": "uint32",
-                            "name": "srcEid",
-                            "type": "uint32"
-                        },
-                        {
-                            "internalType": "bytes32",
-                            "name": "sender",
-                            "type": "bytes32"
-                        },
-                        {
-                            "internalType": "uint64",
-                            "name": "nonce",
-                            "type": "uint64"
-                        }
-                    ],
-                    "internalType": "struct Origin",
-                    "name": "_origin",
-                    "type": "tuple"
-                },
-                {
-                    "internalType": "address",
-                    "name": "_receiver",
-                    "type": "address"
-                }
-            ],
-            "name": "executable",
-            "outputs": [
-                {
-                    "internalType": "enum ExecutionState",
-                    "name": "",
-                    "type": "uint8"
-                }
-            ],
-            "stateMutability": "view",
             "type": "function"
         }
     ]

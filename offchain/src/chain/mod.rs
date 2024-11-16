@@ -22,15 +22,17 @@ pub enum LayerZeroEvent {
     DVNFeePaid,
     ExecutorFeePaid,
     PacketVerified,
+    PayloadVerified,
 }
 
 impl AsRef<str> for LayerZeroEvent {
     fn as_ref(&self) -> &str {
         match self {
-            LayerZeroEvent::PacketSent => "PacketSent(bytes,bytes,address)",
-            LayerZeroEvent::DVNFeePaid => "DVNFeePaid(address[],address[],uint256[])",
-            LayerZeroEvent::ExecutorFeePaid => "ExecutorFeePaid(address,uint256)",
-            LayerZeroEvent::PacketVerified => "PacketVerified((uint32,bytes32,uint64),address,bytes32)",
+            Self::PacketSent => "PacketSent(bytes,bytes,address)",
+            Self::DVNFeePaid => "DVNFeePaid(address[],address[],uint256[])",
+            Self::ExecutorFeePaid => "ExecutorFeePaid(address,uint256)",
+            Self::PacketVerified => "PacketVerified((uint32,bytes32,uint64),address,bytes32)",
+            Self::PayloadVerified => "PayloadVerified(address,bytes,uint256,bytes32)",
         }
     }
 }

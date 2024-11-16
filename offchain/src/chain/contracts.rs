@@ -18,10 +18,10 @@ use tracing::{debug, error};
 const MAX_RETRIES: u8 = 10;
 
 /// Create a contract instance from the ABI to interact with on-chain instance.
-pub fn create_contract_instance(addr: Address, http_provider: HttpProvider, abi: JsonAbi) -> Result<ContractInst> {
+pub fn create_contract_instance(addr: Address, http_provider: HttpProvider, abi: JsonAbi) -> ContractInst {
     let contract: ContractInstance<Http<Client>, _, Ethereum> =
         ContractInstance::new(addr, http_provider, Interface::new(abi));
-    Ok(contract)
+    contract
 }
 
 /// Get the address of the MessageLib on the destination chain
@@ -152,6 +152,7 @@ pub async fn query_already_verified(
     }
 }
 
+/// Call the `verify` function on the contract.
 pub async fn verify(contract: &ContractInst, packet_header: &[u8], payload: &[u8], confirmations: U256) -> Result<()> {
     debug!("Calling `verify `on ReceiveLib");
 
@@ -160,7 +161,7 @@ pub async fn verify(contract: &ContractInst, packet_header: &[u8], payload: &[u8
     let mut retries = 0;
 
     // Call the `verified` function on the contract
-    let _verify = loop {
+    loop {
         if retries >= MAX_RETRIES {
             break Err(eyre!("Max retries reached"));
         } else {
@@ -188,9 +189,45 @@ pub async fn verify(contract: &ContractInst, packet_header: &[u8], payload: &[u8
                 }
             }
         }
-    };
+    }
+}
 
-    Ok(())
+/// Call the `commit` function on the contract.
+pub async fn commit(contract: &ContractInst, packet_header: &[u8], payload: &[u8]) -> Result<()> {
+    debug!("Calling `commit `on ReceiveLib");
+
+    // Create the hash of the payload
+    let payload_hash = keccak256(payload);
+    let mut retries = 0;
+
+    // Call the `verified` function on the contract
+    loop {
+        if retries >= MAX_RETRIES {
+            break Err(eyre!("Max retries reached"));
+        } else {
+            retries += 1;
+            match contract
+                .function(
+                    "commitVerification",
+                    &[
+                        DynSolValue::Bytes(packet_header.to_vec()), // PacketHeader
+                        DynSolValue::FixedBytes(payload_hash, 32),  // PayloadHash
+                    ],
+                )?
+                .call()
+                .await
+            {
+                Ok(_) => {
+                    break Ok(());
+                }
+                Err(e) => {
+                    error!("Failed to commit with error: {:?}. Retrying...", e);
+                    tokio::time::sleep(std::time::Duration::from_millis(300)).await;
+                    continue;
+                }
+            }
+        }
+    }
 }
 
 /// If the state is `Executable`, your `Executor` should decode the packet's options
