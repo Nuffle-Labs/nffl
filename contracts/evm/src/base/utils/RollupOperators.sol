@@ -160,7 +160,7 @@ library RollupOperators {
         require(pairingSuccessful, "Pairing precompile call failed");
         require(signatureIsValid, "Signature is invalid");
 
-        return weight >= (self.totalWeight * self.quorumThreshold) / THRESHOLD_DENOMINATOR;
+        return weight * THRESHOLD_DENOMINATOR >= (self.totalWeight * self.quorumThreshold);
     }
 
     /**
