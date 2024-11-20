@@ -12,7 +12,7 @@ import (
 	"github.com/prometheus/client_golang/prometheus"
 	rmq "github.com/rabbitmq/amqp091-go"
 
-	"github.com/NethermindEth/near-sffl/core"
+	"github.com/Nuffle-Labs/nffl/core"
 )
 
 const (

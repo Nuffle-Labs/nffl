@@ -1,0 +1,27 @@
+{
+  "private": true,
+  "name": "nffl-cli",
+  "version": "0.0.1",
+  "main": "index.ts",
+  "scripts": {
+    "typechain": "typechain --target ethers-v6 --out-dir typechain-types 'abi/*.json'",
+    "storage-proof": "ts-node src/index.ts storage-proof",
+    "update-state-root": "ts-node src/index.ts update-state-root",
+    "update-operator-set": "ts-node src/index.ts update-operator-set"
+  },
+  "keywords": [],
+  "author": "Near.org",
+  "license": "MIT",
+  "description": "",
+  "dependencies": {
+    "commander": "^12.1.0",
+    "ethers": "^6.13.1",
+    "rlp": "^3.0.0"
+  },
+  "devDependencies": {
+    "@commander-js/extra-typings": "^12.1.0",
+    "@typechain/ethers-v6": "^0.5.1",
+    "@types/node": "^22.2.0",
+    "typechain": "^8.3.2"
+  }
+}

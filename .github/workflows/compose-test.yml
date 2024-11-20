@@ -28,7 +28,7 @@ jobs:
           load: true
           context: .
           file: ./indexer/Dockerfile
-          tags: near-sffl-indexer
+          tags: nffl-indexer
           cache-from: type=gha,scope=indexer
           cache-to: type=gha,mode=max,scope=indexer
 
@@ -38,7 +38,7 @@ jobs:
           load: true
           context: .
           file: ./relayer/cmd/Dockerfile
-          tags: near-sffl-test-relayer
+          tags: nffl-test-relayer
           cache-from: type=gha,scope=relayer
           cache-to: type=gha,mode=max,scope=relayer
 
@@ -48,7 +48,7 @@ jobs:
           load: true
           context: .
           file: ./aggregator/cmd/Dockerfile
-          tags: near-sffl-aggregator
+          tags: nffl-aggregator
           cache-from: type=gha,scope=aggregator
           cache-to: type=gha,mode=max,scope=aggregator
 
@@ -58,7 +58,7 @@ jobs:
           load: true
           context: .
           file: ./operator/cmd/Dockerfile
-          tags: near-sffl-operator
+          tags: nffl-operator
           cache-from: type=gha,scope=operator
           cache-to: type=gha,mode=max,scope=operator
 
@@ -76,15 +76,15 @@ jobs:
       - name: Ensure containers are running
         run: |
           containers=(
-            "near-sffl_operator1-health_1"
-            "near-sffl-operator1"
-            "near-sffl_operator0-health_1"
-            "near-sffl-operator0"
+            "nffl_operator1-health_1"
+            "nffl-operator1"
+            "nffl_operator0-health_1"
+            "nffl-operator0"
             "rollup1-relayer"
             "rollup0-relayer"
-            "near-sffl-indexer"
-            "near-sffl-aggregator"
-            "near-sffl_agreator-health_1"
+            "nffl-indexer"
+            "nffl-aggregator"
+            "nffl_agreator-health_1"
             "mainnet-anvil"
             "prometheus"
             "rollup0-anvil"
@@ -105,9 +105,9 @@ jobs:
       - name: Check health status
         run: |
           services=(
-            "near-sffl_operator1-health_1"
-            "near-sffl_operator0-health_1"
-            "near-sffl_agreator-health_1"
+            "nffl_operator1-health_1"
+            "nffl_operator0-health_1"
+            "nffl_agreator-health_1"
             "rollup1-anvil"
             "rollup0-anvil"
             "mainnet-anvil"

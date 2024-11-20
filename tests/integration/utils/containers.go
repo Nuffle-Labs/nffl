@@ -17,14 +17,14 @@ import (
 	"github.com/testcontainers/testcontainers-go"
 	"github.com/testcontainers/testcontainers-go/wait"
 
-	"github.com/NethermindEth/near-sffl/relayer/config"
+	"github.com/Nuffle-Labs/nffl/relayer/config"
 )
 
 const (
 	NearNetworkId = "localnet"
-	NetworkName   = "near-sffl"
-	// TODO(edwin): near-sffl-test-relayer -> near-sffl-relayer?
-	RelayerImageName     = "near-sffl-test-relayer"
+	NetworkName   = "nffl"
+	// TODO(edwin): nffl-test-relayer -> nffl-relayer?
+	RelayerImageName     = "nffl-test-relayer"
 	RelayerContainerName = "relayer"
 	IndexerPort          = "3030"
 	MetricsPort          = "9091"

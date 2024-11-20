@@ -9,9 +9,9 @@ import (
 	eigentypes "github.com/Layr-Labs/eigensdk-go/types"
 	"github.com/ethereum/go-ethereum/accounts/abi"
 
-	registryrollup "github.com/NethermindEth/near-sffl/contracts/bindings/SFFLRegistryRollup"
-	"github.com/NethermindEth/near-sffl/core"
-	coretypes "github.com/NethermindEth/near-sffl/core/types"
+	registryrollup "github.com/Nuffle-Labs/nffl/contracts/bindings/SFFLRegistryRollup"
+	"github.com/Nuffle-Labs/nffl/core"
+	coretypes "github.com/Nuffle-Labs/nffl/core/types"
 )
 
 type OperatorSetUpdateMessage struct {

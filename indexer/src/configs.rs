@@ -92,6 +92,7 @@ mod download_config_type_option_serde {
     use super::*;
     use serde::{Deserialize, Deserializer, Serializer};
 
+    #[allow(dead_code)]
     pub fn serialize<S>(value: &Option<DownloadConfigType>, serializer: S) -> Result<S::Ok, S::Error>
     where
         S: Serializer,

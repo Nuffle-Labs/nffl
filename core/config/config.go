@@ -183,7 +183,7 @@ var (
 		Usage:    "Load configuration from `FILE`",
 	}
 	SFFLDeploymentFileFlag = cli.StringFlag{
-		Name:     "sffl-deployment",
+		Name:     "nffl-deployment",
 		Required: true,
 		Usage:    "Load SFFL contract addresses from `FILE`",
 	}

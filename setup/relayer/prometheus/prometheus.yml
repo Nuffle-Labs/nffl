@@ -13,14 +13,14 @@ scrape_configs:
     static_configs:
       - targets: ["localhost:9090"]
 
-  - job_name: "sffl-relayer"
+  - job_name: "nffl-relayer"
     scrape_interval: 5s
     static_configs:
-      - targets: ["near-sffl-relayer-421614:9091"]
+      - targets: ["nffl-relayer-421614:9091"]
         labels:
           role: "relayer"
           instance: "1"
-      - targets: ["near-sffl-relayer-11155420:9091"]
+      - targets: ["nffl-relayer-11155420:9091"]
         labels:
           role: "operator"
           instance: "1"

@@ -8,9 +8,9 @@ import (
 
 	"github.com/urfave/cli"
 
-	"github.com/NethermindEth/near-sffl/core/config"
-	"github.com/NethermindEth/near-sffl/operator"
-	optypes "github.com/NethermindEth/near-sffl/operator/types"
+	"github.com/Nuffle-Labs/nffl/core/config"
+	"github.com/Nuffle-Labs/nffl/operator"
+	optypes "github.com/Nuffle-Labs/nffl/operator/types"
 
 	sdkutils "github.com/Layr-Labs/eigensdk-go/utils"
 )

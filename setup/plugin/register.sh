@@ -8,7 +8,7 @@ fi
 echo "Using operator plugin to opt-in into NEAR SFFL"
 
 docker run --rm \
-  -v $(pwd):/near-sffl/ \
+  -v $(pwd):/nffl/ \
   --env-file .env \
   --pull=always \
-  ghcr.io/nethermindeth/near-sffl/operator-plugin:latest --config /near-sffl/config/operator.yaml --operation-type opt-in
+  ghcr.io/nuffle-labs/nffl/operator-plugin:latest --config /nffl/config/operator.yaml --operation-type opt-in
