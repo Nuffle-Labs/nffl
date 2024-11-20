@@ -26,11 +26,11 @@ tracing = { version = "0.1.36", features = ["std"] }
 thiserror = "1.0.56"
 anyhow = "1.0.79"
 
-near-indexer = { git = "https://github.com/near/nearcore", rev = "2bce389e4fd9273b78e4efbb16fb3317a7389b5b" }
-near-client = { git = "https://github.com/near/nearcore", rev = "2bce389e4fd9273b78e4efbb16fb3317a7389b5b" }
-near-o11y = { git = "https://github.com/near/nearcore", rev = "2bce389e4fd9273b78e4efbb16fb3317a7389b5b" }
-near-config-utils = { git = "https://github.com/near/nearcore", rev = "2bce389e4fd9273b78e4efbb16fb3317a7389b5b" }
-near-client-primitives = { git = "https://github.com/near/nearcore", rev = "2bce389e4fd9273b78e4efbb16fb3317a7389b5b" }
+near-indexer = { git = "https://github.com/near/nearcore", rev = "a83c18490cf4dafaedca01458f365dc5871bd293" }
+near-client = { git = "https://github.com/near/nearcore", rev = "a83c18490cf4dafaedca01458f365dc5871bd293" }
+near-o11y = { git = "https://github.com/near/nearcore", rev = "a83c18490cf4dafaedca01458f365dc5871bd293" }
+near-config-utils = { git = "https://github.com/near/nearcore", rev = "a83c18490cf4dafaedca01458f365dc5871bd293" }
+near-client-primitives = { git = "https://github.com/near/nearcore", rev = "a83c18490cf4dafaedca01458f365dc5871bd293" }
 borsh = { version = "1.0.0", features = ["derive", "rc"] }
 serde_yaml = "0.9.34"
 
