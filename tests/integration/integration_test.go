@@ -31,18 +31,18 @@ import (
 	"github.com/testcontainers/testcontainers-go/modules/rabbitmq"
 	"github.com/testcontainers/testcontainers-go/wait"
 
-	"github.com/NethermindEth/near-sffl/aggregator"
-	restserver "github.com/NethermindEth/near-sffl/aggregator/rest_server"
-	rpcserver "github.com/NethermindEth/near-sffl/aggregator/rpc_server"
-	aggtypes "github.com/NethermindEth/near-sffl/aggregator/types"
-	registryrollup "github.com/NethermindEth/near-sffl/contracts/bindings/SFFLRegistryRollup"
-	transparentproxy "github.com/NethermindEth/near-sffl/contracts/bindings/TransparentUpgradeableProxy"
-	"github.com/NethermindEth/near-sffl/core/chainio"
-	"github.com/NethermindEth/near-sffl/core/config"
-	"github.com/NethermindEth/near-sffl/core/types"
-	"github.com/NethermindEth/near-sffl/operator"
-	optypes "github.com/NethermindEth/near-sffl/operator/types"
-	"github.com/NethermindEth/near-sffl/tests/integration/utils"
+	"github.com/Nuffle-Labs/nffl/aggregator"
+	restserver "github.com/Nuffle-Labs/nffl/aggregator/rest_server"
+	rpcserver "github.com/Nuffle-Labs/nffl/aggregator/rpc_server"
+	aggtypes "github.com/Nuffle-Labs/nffl/aggregator/types"
+	registryrollup "github.com/Nuffle-Labs/nffl/contracts/bindings/SFFLRegistryRollup"
+	transparentproxy "github.com/Nuffle-Labs/nffl/contracts/bindings/TransparentUpgradeableProxy"
+	"github.com/Nuffle-Labs/nffl/core/chainio"
+	"github.com/Nuffle-Labs/nffl/core/config"
+	"github.com/Nuffle-Labs/nffl/core/types"
+	"github.com/Nuffle-Labs/nffl/operator"
+	optypes "github.com/Nuffle-Labs/nffl/operator/types"
+	"github.com/Nuffle-Labs/nffl/tests/integration/utils"
 )
 
 const (
@@ -178,7 +178,7 @@ type testEnv struct {
 func setupTestEnv(t *testing.T, ctx context.Context) *testEnv {
 	containersCtx, cancelContainersCtx := context.WithCancel(context.Background())
 
-	networkName := "near-sffl"
+	networkName := "nffl"
 	net, err := testcontainers.GenericNetwork(containersCtx, testcontainers.GenericNetworkRequest{
 		NetworkRequest: testcontainers.NetworkRequest{
 			Driver:         "bridge",
@@ -593,7 +593,7 @@ func startIndexer(t *testing.T, ctx context.Context, name string, rollupAnvils [
 	}
 
 	req := testcontainers.ContainerRequest{
-		Image:        "near-sffl-indexer",
+		Image:        "nffl-indexer",
 		Name:         name,
 		Cmd:          append([]string{"--rmq-address", amqpUrl}, rollupArgs...),
 		ExposedPorts: []string{"3030/tcp"},

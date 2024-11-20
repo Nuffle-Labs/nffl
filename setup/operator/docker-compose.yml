@@ -1,8 +1,8 @@
 version: "3"
 
 networks:
-  near-sffl:
-    name: near-sffl
+  nffl:
+    name: nffl
     driver: bridge
 
 services:
@@ -22,12 +22,12 @@ services:
       timeout: 3s
       retries: 30
     networks:
-      - near-sffl
+      - nffl
 
-  near-sffl-indexer:
+  nffl-indexer:
     profiles: [indexer]
-    image: ghcr.io/nethermindeth/near-sffl/indexer:${SFFL_RELEASE}
-    container_name: near-sffl-indexer
+    image: ghcr.io/nuffle-labs/nffl/indexer:${SFFL_RELEASE}
+    container_name: nffl-indexer
     depends_on:
       rmq:
         condition: service_healthy
@@ -37,15 +37,15 @@ services:
     environment:
       - CHAIN_ID=${NEAR_CHAIN_ID}
     volumes:
-      - ./:/near-sffl/
+      - ./:/nffl/
       - ${NEAR_HOME_DIR}:/root/.near
       - ${NEAR_KEYS_DIR}:/root/.near-credentials
     command:
       - --config
-      - /near-sffl/config/indexer.yaml
+      - /nffl/config/indexer.yaml
     restart: unless-stopped
     networks:
-      - near-sffl
+      - nffl
     logging:
       driver: "json-file"
       options:
@@ -53,27 +53,27 @@ services:
         max-file: "10"
         compress: "true"
 
-  near-sffl-operator:
+  nffl-operator:
     profiles: [operator]
-    image: ghcr.io/nethermindeth/near-sffl/operator:${SFFL_RELEASE}
-    container_name: near-sffl-operator
+    image: ghcr.io/nuffle-labs/nffl/operator:${SFFL_RELEASE}
+    container_name: nffl-operator
     depends_on:
       rmq:
         condition: service_healthy
-      near-sffl-indexer:
+      nffl-indexer:
         condition: service_healthy
     ports:
       - "127.0.0.1:9091:9091"
     volumes:
-      - ./:/near-sffl/
-    working_dir: /near-sffl
+      - ./:/nffl/
+    working_dir: /nffl
     environment:
       - OPERATOR_BLS_KEY_PASSWORD=${OPERATOR_BLS_KEY_PASSWORD}
       - OPERATOR_ECDSA_KEY_PASSWORD=${OPERATOR_ECDSA_KEY_PASSWORD}
     command: --config config/operator.yaml
     restart: unless-stopped
     networks:
-      - near-sffl
+      - nffl
     logging:
       driver: "json-file"
       options:
@@ -85,16 +85,16 @@ services:
     profiles: [operator]
     image: debian:bookworm
     depends_on:
-      near-sffl-operator:
+      nffl-operator:
         condition: service_started
     command: sh -c "apt update && apt install -y netcat-traditional && sleep infinity"
     healthcheck:
-      test: ["CMD", "nc", "-zv", "near-sffl-operator", "9091"]
+      test: ["CMD", "nc", "-zv", "nffl-operator", "9091"]
       interval: 5s
       timeout: 75s
       retries: 15
     networks:
-      - near-sffl
+      - nffl
 
   grafana:
     profiles: [operator]
@@ -111,7 +111,7 @@ services:
     ports:
       - "127.0.0.1:3000:3000"
     networks:
-      - near-sffl
+      - nffl
 
   prometheus:
     profiles: [operator]
@@ -132,7 +132,7 @@ services:
     ports:
       - "127.0.0.1:9090:9090"
     networks:
-      - near-sffl
+      - nffl
     extra_hosts:
       - "host.docker.internal:host-gateway"
 

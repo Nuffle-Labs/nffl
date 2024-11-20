@@ -18,12 +18,12 @@ import (
 	"github.com/ethereum/go-ethereum/common"
 	"github.com/ethereum/go-ethereum/crypto"
 
-	opsetupdatereg "github.com/NethermindEth/near-sffl/contracts/bindings/SFFLOperatorSetUpdateRegistry"
-	taskmanager "github.com/NethermindEth/near-sffl/contracts/bindings/SFFLTaskManager"
-	"github.com/NethermindEth/near-sffl/core/chainio"
-	coretypes "github.com/NethermindEth/near-sffl/core/types"
-	"github.com/NethermindEth/near-sffl/core/types/messages"
-	optypes "github.com/NethermindEth/near-sffl/operator/types"
+	opsetupdatereg "github.com/Nuffle-Labs/nffl/contracts/bindings/SFFLOperatorSetUpdateRegistry"
+	taskmanager "github.com/Nuffle-Labs/nffl/contracts/bindings/SFFLTaskManager"
+	"github.com/Nuffle-Labs/nffl/core/chainio"
+	coretypes "github.com/Nuffle-Labs/nffl/core/types"
+	"github.com/Nuffle-Labs/nffl/core/types/messages"
+	optypes "github.com/Nuffle-Labs/nffl/operator/types"
 )
 
 type AvsManagerer interface {

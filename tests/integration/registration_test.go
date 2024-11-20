@@ -17,10 +17,10 @@ import (
 	"github.com/Layr-Labs/eigensdk-go/signerv2"
 	"github.com/Layr-Labs/eigensdk-go/types"
 	sdkutils "github.com/Layr-Labs/eigensdk-go/utils"
-	"github.com/NethermindEth/near-sffl/core/chainio"
-	"github.com/NethermindEth/near-sffl/core/safeclient"
-	optypes "github.com/NethermindEth/near-sffl/operator/types"
-	"github.com/NethermindEth/near-sffl/tests/integration/utils"
+	"github.com/Nuffle-Labs/nffl/core/chainio"
+	"github.com/Nuffle-Labs/nffl/core/safeclient"
+	optypes "github.com/Nuffle-Labs/nffl/operator/types"
+	"github.com/Nuffle-Labs/nffl/tests/integration/utils"
 	"github.com/ethereum/go-ethereum/accounts/abi/bind"
 	"github.com/ethereum/go-ethereum/common"
 	"github.com/testcontainers/testcontainers-go"
@@ -35,7 +35,7 @@ func TestRegistration(t *testing.T) {
 		t.Fatalf("Failed to create logger: %s", err.Error())
 	}
 
-	networkName := "near-sffl-registration"
+	networkName := "nffl-registration"
 	net, err := testcontainers.GenericNetwork(ctx, testcontainers.GenericNetworkRequest{
 		NetworkRequest: testcontainers.NetworkRequest{
 			Driver:         "bridge",
@@ -153,7 +153,7 @@ func runOperatorPluginContainer(t *testing.T, ctx context.Context, name, network
 	}
 
 	req := testcontainers.ContainerRequest{
-		Image:    "near-sffl-operator-plugin",
+		Image:    "nffl-operator-plugin",
 		Name:     name,
 		Networks: []string{networkName},
 		Env: map[string]string{
@@ -163,7 +163,7 @@ func runOperatorPluginContainer(t *testing.T, ctx context.Context, name, network
 		Files: []testcontainers.ContainerFile{
 			{
 				HostFilePath:      "../../config-files/plugin.anvil.yaml",
-				ContainerFilePath: "/near-sffl/config.yml",
+				ContainerFilePath: "/nffl/config.yml",
 			},
 		},
 		Mounts: testcontainers.ContainerMounts{
@@ -171,13 +171,13 @@ func runOperatorPluginContainer(t *testing.T, ctx context.Context, name, network
 				Source: testcontainers.GenericBindMountSource{
 					HostPath: keysPath,
 				},
-				Target:   testcontainers.ContainerMountTarget("/near-sffl/keys/"),
+				Target:   testcontainers.ContainerMountTarget("/nffl/keys/"),
 				ReadOnly: true,
 			},
 		},
 		Cmd: []string{
 			"--config",
-			"/near-sffl/config.yml",
+			"/nffl/config.yml",
 			"--operation-type",
 			operation,
 		},

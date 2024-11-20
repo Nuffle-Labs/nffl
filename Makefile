@@ -49,15 +49,15 @@ bindings: ## generates contract bindings
 
 ___DOCKER___: ##
 docker-build-indexer:
-	docker build -t near-sffl-indexer -f ./indexer/Dockerfile .
+	docker build -t nffl-indexer -f ./indexer/Dockerfile .
 docker-build-relayer:
-	docker build -t near-sffl-test-relayer -f ./relayer/cmd/Dockerfile .
+	docker build -t nffl-test-relayer -f ./relayer/cmd/Dockerfile .
 docker-build-aggregator:
-	docker build -t near-sffl-aggregator -f ./aggregator/cmd/Dockerfile .
+	docker build -t nffl-aggregator -f ./aggregator/cmd/Dockerfile .
 docker-build-operator:
-	docker build -t near-sffl-operator -f ./operator/cmd/Dockerfile .
+	docker build -t nffl-operator -f ./operator/cmd/Dockerfile .
 docker-build-plugin:
-	docker build -t near-sffl-operator-plugin -f ./plugin/cmd/Dockerfile .
+	docker build -t nffl-operator-plugin -f ./plugin/cmd/Dockerfile .
 docker-build-images: docker-build-indexer docker-build-relayer docker-build-aggregator docker-build-operator docker-build-plugin ## builds and publishes indexer, operator and aggregator docker images
 docker-start-everything: docker-build-images ## starts aggregator and operator docker containers
 	docker compose up
@@ -89,7 +89,7 @@ send-fund: ## sends fund to the first operator saved in tests/keys/ecdsa/*
 ____OFFCHAIN_SOFTWARE___: ##
 start-aggregator: ##
 	go run aggregator/cmd/main.go --config config-files/aggregator.yaml \
-		--sffl-deployment ${DEPLOYMENT_FILES_DIR}/sffl_avs_deployment_output.json \
+		--nffl-deployment ${DEPLOYMENT_FILES_DIR}/sffl_avs_deployment_output.json \
 		--ecdsa-private-key ${AGGREGATOR_ECDSA_PRIV_KEY} \
 		2>&1 | zap-pretty
 

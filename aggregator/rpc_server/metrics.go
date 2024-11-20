@@ -2,7 +2,7 @@ package rpc_server
 
 import (
 	"fmt"
-	"github.com/NethermindEth/near-sffl/aggregator"
+	"github.com/Nuffle-Labs/nffl/aggregator"
 	"github.com/prometheus/client_golang/prometheus"
 )
 

@@ -18,7 +18,7 @@ import (
 	"github.com/Layr-Labs/eigensdk-go/chainio/clients/eth"
 	"github.com/Layr-Labs/eigensdk-go/chainio/mocks"
 	"github.com/Layr-Labs/eigensdk-go/logging"
-	"github.com/NethermindEth/near-sffl/core/safeclient"
+	"github.com/Nuffle-Labs/nffl/core/safeclient"
 )
 
 type MockNetwork struct {

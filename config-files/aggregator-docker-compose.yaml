@@ -16,4 +16,4 @@ rollup_ids_to_registry_addresses:
 
 # metrics related
 enable_metrics: true
-metrics_ip_port_address: near-sffl-aggregator:9091
+metrics_ip_port_address: nffl-aggregator:9091

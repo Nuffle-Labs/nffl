@@ -5,7 +5,7 @@ import (
 	"log"
 
 	sdkutils "github.com/Layr-Labs/eigensdk-go/utils"
-	optypes "github.com/NethermindEth/near-sffl/operator/types"
+	optypes "github.com/Nuffle-Labs/nffl/operator/types"
 )
 
 func readNodeConfig(configPath string) (*optypes.NodeConfig, error) {

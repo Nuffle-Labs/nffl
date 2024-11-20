@@ -3,8 +3,8 @@ package models
 import (
 	"gorm.io/gorm"
 
-	coretypes "github.com/NethermindEth/near-sffl/core/types"
-	"github.com/NethermindEth/near-sffl/core/types/messages"
+	coretypes "github.com/Nuffle-Labs/nffl/core/types"
+	"github.com/Nuffle-Labs/nffl/core/types/messages"
 )
 
 type OperatorSetUpdateMessage struct {

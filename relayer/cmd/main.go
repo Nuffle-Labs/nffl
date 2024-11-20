@@ -11,8 +11,8 @@ import (
 	"github.com/prometheus/client_golang/prometheus"
 	"github.com/urfave/cli"
 
-	"github.com/NethermindEth/near-sffl/relayer"
-	"github.com/NethermindEth/near-sffl/relayer/config"
+	"github.com/Nuffle-Labs/nffl/relayer"
+	"github.com/Nuffle-Labs/nffl/relayer/config"
 )
 
 func main() {

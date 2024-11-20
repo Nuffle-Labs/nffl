@@ -16,11 +16,11 @@ eth_rpc_url: https://ethereum-holesky-rpc.publicnode.com
 eth_ws_url: wss://ethereum-holesky-rpc.publicnode.com # You should change this!
 
 # EigenLayer ECDSA and BLS private key paths
-ecdsa_private_key_store_path: /near-sffl/config/keys/ecdsa.json
-bls_private_key_store_path: /near-sffl/config/keys/bls.json
+ecdsa_private_key_store_path: /nffl/config/keys/ecdsa.json
+bls_private_key_store_path: /nffl/config/keys/bls.json
 
 # Aggregator server IP and port
-aggregator_server_ip_port_address: near-sffl-aggregator:8090
+aggregator_server_ip_port_address: nffl-aggregator:8090
 
 # Operator EigenLayer metrics server IP and port
 enable_metrics: true

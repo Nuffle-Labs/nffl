@@ -12,9 +12,9 @@ import (
 	near "github.com/near/rollup-data-availability/gopkg/da-rpc"
 	"github.com/prometheus/client_golang/prometheus"
 
-	"github.com/NethermindEth/near-sffl/core"
-	"github.com/NethermindEth/near-sffl/core/safeclient"
-	"github.com/NethermindEth/near-sffl/relayer/config"
+	"github.com/Nuffle-Labs/nffl/core"
+	"github.com/Nuffle-Labs/nffl/core/safeclient"
+	"github.com/Nuffle-Labs/nffl/relayer/config"
 )
 
 const (
