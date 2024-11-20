@@ -161,7 +161,7 @@ library RollupOperators {
         require(signatureIsValid, "Signature is invalid");
         require(weight <= type(uint256).max / THRESHOLD_DENOMINATOR, "Weight too large");
 
-        return weight * THRESHOLD_DENOMINATOR >= (self.totalWeight * self.quorumThreshold);
+        return weight * THRESHOLD_DENOMINATOR >= (uint256(self.totalWeight) * self.quorumThreshold);
     }
 
     /**
