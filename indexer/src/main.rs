@@ -17,6 +17,7 @@ mod metrics;
 mod metrics_server;
 mod rmq_publisher;
 mod types;
+mod fastnear;
 
 const INDEXER: &str = "indexer";
 
