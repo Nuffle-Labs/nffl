@@ -1,0 +1,14 @@
+[package]
+name = "e2e_tests"
+version.workspace = true
+edition.workspace = true
+repository.workspace = true
+
+[features]
+it-tests = []
+
+[dependencies]
+eyre = {workspace = true}
+tokio = {workspace = true}
+testcontainers = "0.23.1"
+testcontainers-modules = { version = "0.11.4", features = ["rabbitmq", "blocking"] }
