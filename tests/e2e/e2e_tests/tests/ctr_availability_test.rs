@@ -39,34 +39,30 @@ pub async fn check_near_da_deployer_available() {
     deployer.start().await.expect("");
 }
 
-#[cfg(test)]
-#[cfg(target_arch = "x86_64")]
+#[cfg(all(test, target_arch = "x86_64"))]
 #[tokio::test]
 pub async fn check_rollup_relayer_available() {
     let relayer = rollup_relayer(8546); // Example rollup node port number
     relayer.start().await.expect("");
 }
 
-#[cfg(target_arch = "x86_64")]
-#[cfg(test)]
+#[cfg(all(test, target_arch = "x86_64"))]
 #[tokio::test]
 pub async fn check_indexer_available() {
     let indexer = indexer();
     indexer.start().await.expect("");
 }
 
-#[cfg(target_arch = "x86_64")]
-#[cfg(test)]
+#[cfg(all(test, target_arch = "x86_64"))]
 #[tokio::test]
 pub async fn check_aggregator_available() {
     let aggregator = aggregator();
     aggregator.start().await.expect("");
 }
 
-#[cfg(target_arch = "x86_64")]
-#[cfg(test)]
+#[cfg(all(test, target_arch = "x86_64"))]
 #[tokio::test]
 pub async fn check_operator_available() {
-    let operator = operator("path/to/config"); // Example config path
+    let operator = operator("../../../config-files/operator1-docker-compose.anvil.yaml"); // Example config path
     operator.start().await.expect("");
 }

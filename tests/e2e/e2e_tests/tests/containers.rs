@@ -94,7 +94,7 @@ pub fn near_da_deployer(indexer_port: i32) -> ContainerRequest<GenericImage> {
              near create-account da2.test.near --masterAccount test.near \\\
              near deploy da2.test.near /nffl/tests/near/near_da_blob_store.wasm --initFunction new --initArgs {} --masterAccount test.near -f \\\
              near create-account da3.test.near --masterAccount test.near \\\
-             near deploy da2.test.near /nffl/tests/near/near_da_blob_store.wasm --initFunction new --initArgs {} --masterAccount test.near -f"])
+             near deploy da3.test.near /nffl/tests/near/near_da_blob_store.wasm --initFunction new --initArgs {} --masterAccount test.near -f"])
         .with_env_var("NEAR_ENV", "localhost")
         .with_env_var("NEAR_CLI_LOCALNET_NETWORK_ID", "localhost")
         .with_env_var("NEAR_CLI_LOCALNET_KEY_PATH", "/near-cli/validator_key.json")
@@ -103,8 +103,7 @@ pub fn near_da_deployer(indexer_port: i32) -> ContainerRequest<GenericImage> {
         .with_network(NETWORK_NAME)
 }
 
-#[cfg(test)]
-#[cfg(target_arch = "x86_64")]
+#[cfg(all(test, target_arch = "x86_64"))]
 pub fn rollup_relayer(rollup_node_port: i32) -> ContainerRequest<GenericImage> {
     GenericImage::new("ghcr.io/nuffle-labs/nffl/relayer", "66dcb37e32e34f552a63c1e638a57dd251846f63")
         .with_cmd(vec![
@@ -123,8 +122,7 @@ pub fn rollup_relayer(rollup_node_port: i32) -> ContainerRequest<GenericImage> {
         .with_network(NETWORK_NAME)
 }
 
-#[cfg(test)]
-#[cfg(target_arch = "x86_64")]
+#[cfg(all(test, target_arch = "x86_64"))]
 pub fn indexer() -> ContainerRequest<GenericImage> {
     GenericImage::new(
         "ghcr.io/nuffle-labs/nffl/indexer",
@@ -145,8 +143,7 @@ pub fn indexer() -> ContainerRequest<GenericImage> {
         .with_network(NETWORK_NAME)
 }
 
-#[cfg(test)]
-#[cfg(target_arch = "x86_64")]
+#[cfg(all(test, target_arch = "x86_64"))]
 pub fn aggregator() -> ContainerRequest<GenericImage> {
     GenericImage::new(
         "ghcr.io/nuffle-labs/nffl/aggregator",
@@ -165,8 +162,7 @@ pub fn aggregator() -> ContainerRequest<GenericImage> {
         .with_network(NETWORK_NAME)
 }
 
-#[cfg(test)]
-#[cfg(target_arch = "x86_64")]
+#[cfg(all(test, target_arch = "x86_64"))]
 pub fn operator(config_path: &str) -> ContainerRequest<GenericImage> {
     GenericImage::new(
         "ghcr.io/nuffle-labs/nffl/operator",
