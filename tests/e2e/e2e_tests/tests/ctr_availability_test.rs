@@ -1,4 +1,13 @@
-/// Docker container availability test for our test-containers suite
+/// End-to-end test suite for verifying container availability
+///
+/// # Prerequisites
+/// - Docker daemon must be running
+/// - Sufficient system resources for multiple containers
+/// - Required ports must be available (8546, 3030)
+///
+/// # Cleanup
+/// Containers are automatically cleaned up after each test,
+/// but manual cleanup may be required if tests fail
 mod containers;
 
 use testcontainers::runners::AsyncRunner;
