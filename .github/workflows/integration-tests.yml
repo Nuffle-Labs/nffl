@@ -79,5 +79,5 @@ jobs:
 
       - name: Rust Integration Test
         run: cargo test --features it-tests
-        working-directory: ./tests/e2e/e2e-tests
+        working-directory: ./tests/e2e/e2e_tests
 
