@@ -9,7 +9,7 @@ use crate::{
     candidates_validator::CandidatesValidator, configs::RunConfigArgs, errors::Error, errors::Result,
     indexer_wrapper::IndexerWrapper, metrics::Metricable, metrics_server::MetricsServer, rmq_publisher::RmqPublisher,
 };
-use crate::fastnear::FastNearIndexer;
+use crate::fastnear_indexer::FastNearIndexer;
 use crate::metrics::INDEXER_NAMESPACE;
 
 mod block_listener;
@@ -21,7 +21,7 @@ mod metrics;
 mod metrics_server;
 mod rmq_publisher;
 mod types;
-mod fastnear;
+mod fastnear_indexer;
 
 const INDEXER: &str = "indexer";
 
