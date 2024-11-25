@@ -68,6 +68,9 @@ jobs:
       - name: Build and start Docker Compose services
         run: docker-compose -f ./docker-compose.yml up --build -d --wait --wait-timeout 300
 
+      - name: Wait for a 1 minute
+        run: sleep 60
+
       - name: List running containers
         run: |
           echo "Running containers:"
