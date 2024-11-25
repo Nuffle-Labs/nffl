@@ -139,9 +139,9 @@ services:
     networks:
       - nffl
 
-  fastnear-indexer:
+  indexer:
     image: nffl-fast-indexer:latest
-    container_name: nffl-fast-indexer
+    container_name: nffl-indexer
     depends_on:
       rmq:
         condition: service_healthy

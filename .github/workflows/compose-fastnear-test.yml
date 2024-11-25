@@ -6,7 +6,7 @@ on:
       - main
   pull_request:
     paths:
-      - 'indexer/**' # Temporarily util it become prime way to obtain NEAR DA blocks.
+      - 'indexer/**' # Temporarily util it becomes prime way to obtain NEAR DA blocks.
 
 jobs:
   run-docker-compose-fastnear:
@@ -33,6 +33,9 @@ jobs:
           tags: nffl-fast-indexer
           cache-from: type=gha,scope=indexer
           cache-to: type=gha,mode=max,scope=indexer
+          build-args: |
+            - TARGET="debug"
+            - COMPILATION_MODE=""
 
       - name: Build relayer container
         uses: docker/build-push-action@v5
@@ -65,7 +68,7 @@ jobs:
           cache-to: type=gha,mode=max,scope=operator
 
       - name: Build and start Docker Compose services
-        run: docker-compose -f ./docker-compose-fastnear.yml up --build -d --wait --wait-timeout 150
+        run: docker-compose -f ./docker-compose-fastnear.yml up --build -d --wait --wait-timeout 300
 
       - name: List running containers
         run: |
