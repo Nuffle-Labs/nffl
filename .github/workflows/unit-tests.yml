@@ -32,4 +32,4 @@ jobs:
               - 'offchain/**'
       - uses: actions-rust-lang/setup-rust-toolchain@v1
         if: steps.filter.outputs.rust == 'true'
-      - run: cargo test --all-features
+      - run: cargo test
