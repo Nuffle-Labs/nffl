@@ -1,13 +1,15 @@
-name: Docker Compose Test
+name: Docker Compose Test With FastNear
 
 on:
   push:
     branches:
       - main
   pull_request:
+    paths:
+      - 'indexer/**' # Temporarily util it become prime way to obtain NEAR DA blocks.
 
 jobs:
-  run-docker-compose:
+  run-docker-compose-fastnear:
     runs-on: ubuntu-latest
 
     steps:
@@ -27,8 +29,8 @@ jobs:
         with:
           load: true
           context: .
-          file: ./indexer/Dockerfile
-          tags: nffl-indexer
+          file: ./indexer/FastIndexer.dockerfile
+          tags: nffl-fast-indexer
           cache-from: type=gha,scope=indexer
           cache-to: type=gha,mode=max,scope=indexer
 
@@ -63,7 +65,7 @@ jobs:
           cache-to: type=gha,mode=max,scope=operator
 
       - name: Build and start Docker Compose services
-        run: docker-compose -f ./docker-compose.yml up --build -d --wait --wait-timeout 150
+        run: docker-compose -f ./docker-compose-fastnear.yml up --build -d --wait --wait-timeout 150
 
       - name: List running containers
         run: |
@@ -79,7 +81,7 @@ jobs:
             "nffl-operator0"
             "rollup1-relayer"
             "rollup0-relayer"
-            "nffl-indexer"
+            "nffl-fast-indexer"
             "nffl-aggregator"
             "nffl_agreator-health_1"
             "mainnet-anvil"
@@ -114,7 +116,7 @@ jobs:
             status=$(docker inspect -f '{{.State.Health.Status}}' $service)
             if [ "$status" != "healthy" ]; then
               echo "Service $service is not healthy"
-              docker-compose -f ./docker-compose.yml logs $service
+              docker-compose -f ./docker-compose-fastnear.yml logs $service
               exit 1
             else
               echo "Service $service is healthy"
@@ -122,4 +124,4 @@ jobs:
           done
 
       - name: Tear down Docker Compose services
-        run: docker-compose -f ./docker-compose.yml down
+        run: docker-compose -f ./docker-compose-fastnear.yml down

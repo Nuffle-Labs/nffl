@@ -139,9 +139,9 @@ services:
     networks:
       - nffl
 
-  indexer:
-    image: nffl-indexer:latest
-    container_name: nffl-indexer
+  fastnear-indexer:
+    image: nffl-fast-indexer:latest
+    container_name: nffl-fast-indexer
     depends_on:
       rmq:
         condition: service_healthy
@@ -151,8 +151,6 @@ services:
         condition: service_completed_successfully
     ports:
       - "3030:3030"
-    expose:
-      - 9090 # prometheus port
     volumes:
       - near_cli_data:/root/.near
       - near_cli_keys:/root/.near-credentials
@@ -167,8 +165,6 @@ services:
       - "2"
       - --rollup-ids
       - "3"
-      - --metrics-ip-port-address
-      - "0.0.0.0:9090"
     networks:
       - nffl
 
