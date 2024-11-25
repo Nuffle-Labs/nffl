@@ -6,7 +6,6 @@ const SHELL_ENTRYPOINT: &str = "sh";
 const ANVIL_ENTRYPOINT: &str = "anvil";
 const NETWORK_NAME: &str = "nffl";
 const ANVIL_STATE_PATH: &str = "../../anvil/data/avs-and-eigenlayer-deployed-anvil-state.json";
-const NEAR_KEYS: &str = "near_cli_keys";
 const CURRENT_DIR: &str = "./";
 
 #[cfg(test)]
