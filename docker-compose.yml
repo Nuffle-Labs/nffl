@@ -2,7 +2,6 @@ version: "3"
 
 networks:
   nffl:
-    name: nffl
     driver: bridge
 
 services:
@@ -139,40 +138,6 @@ services:
     networks:
       - nffl
 
-  indexer:
-    image: nffl-indexer:latest
-    container_name: nffl-indexer
-    profiles: ["default-indexer"]
-    depends_on:
-      rmq:
-        condition: service_healthy
-      mainnet-anvil-setup:
-        condition: service_completed_successfully
-      indexer-setup:
-        condition: service_completed_successfully
-    ports:
-      - "3030:3030"
-    expose:
-      - 9090 # prometheus port
-    volumes:
-      - near_cli_data:/root/.near
-      - near_cli_keys:/root/.near-credentials
-    command:
-      - --rmq-address
-      - amqp://rmq:5672
-      - --da-contract-ids
-      - da2.test.near
-      - --da-contract-ids
-      - da3.test.near
-      - --rollup-ids
-      - "2"
-      - --rollup-ids
-      - "3"
-      - --metrics-ip-port-address
-      - "0.0.0.0:9090"
-    networks:
-      - nffl
-
   fastnear-indexer:
     image: nffl-fast-indexer:latest
     container_name: nffl-fast-indexer
@@ -207,9 +172,44 @@ services:
     networks:
       - nffl
 
+  indexer:
+    image: nffl-indexer:latest
+    container_name: nffl-indexer
+    profiles: ["default-indexer"]
+    depends_on:
+      rmq:
+        condition: service_healthy
+      mainnet-anvil-setup:
+        condition: service_completed_successfully
+      indexer-setup:
+        condition: service_completed_successfully
+    ports:
+      - "3030:3030"
+    expose:
+      - 9090 # prometheus port
+    volumes:
+      - near_cli_data:/root/.near
+      - near_cli_keys:/root/.near-credentials
+    command:
+      - --rmq-address
+      - amqp://rmq:5672
+      - --da-contract-ids
+      - da2.test.near
+      - --da-contract-ids
+      - da3.test.near
+      - --rollup-ids
+      - "2"
+      - --rollup-ids
+      - "3"
+      - --metrics-ip-port-address
+      - "0.0.0.0:9090"
+    networks:
+      - nffl
+
   indexer-setup:
     image: debian:bookworm
     container_name: nffl-indexer-setup
+    profiles: ["default-indexer"]
     volumes:
       - near_cli_data:/near-cli
       - near_cli_keys:/root/.near-credentials
@@ -225,6 +225,7 @@ services:
   near-da-deploy:
     image: node:16
     container_name: nffl-near-da-deploy
+    profiles: ["default-indexer"]
     depends_on:
       indexer:
         condition: service_healthy
