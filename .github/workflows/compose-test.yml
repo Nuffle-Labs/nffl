@@ -73,7 +73,7 @@ jobs:
           cache-to: type=gha,mode=max,scope=operator
 
       - name: Build and start Docker Compose services
-        run: docker-compose --profile default-indexer -f ./docker-compose.yml up --build -d --wait --wait-timeout 150
+        run: docker-compose -f ./docker-compose.yml up --build -d --wait --wait-timeout 150
 
       - name: List running containers
         run: |
@@ -138,7 +138,7 @@ jobs:
         run: sleep 15
 
       - name: Build and start Docker Compose services with FastNear indexer
-        run: docker-compose --profile fast-indexer -f ./docker-compose.yml up --build -d --wait --wait-timeout 150
+        run: docker-compose -f ./docker-compose.yml up --profile fast-indexer --build -d --wait --wait-timeout 150
 
       - name: List running containers
         run: |
