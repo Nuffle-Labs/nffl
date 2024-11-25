@@ -1,4 +1,4 @@
-FROM rust:1.81-bookworm AS builder
+FROM rust:1.82-bookworm AS builder
 WORKDIR /tmp/indexer
 
 # Copy from nearcore:
@@ -14,11 +14,11 @@ RUN apt-get update -qq && \
         llvm \
         clang
 
-COPY ./Cargo.toml .
+COPY ./indexer/Cargo.toml .
 RUN mkdir ./src && echo "fn main() {}" > ./src/main.rs
 RUN cargo build --release -p indexer --features use_fastnear
 
-COPY . .
+COPY ./indexer .
 RUN touch ./src/main.rs
 
 RUN cargo build --release -p indexer --features use_fastnear
@@ -29,7 +29,7 @@ WORKDIR /indexer-app
 RUN apt update && apt install -yy openssl ca-certificates jq curl
 
 COPY --from=builder /tmp/indexer/target/release/indexer .
-COPY entrypoint.sh ./entrypoint.sh
+COPY ./indexer/entrypoint.sh ./entrypoint.sh
 RUN chmod +x ./entrypoint.sh
 
 EXPOSE 3030

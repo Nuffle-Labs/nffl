@@ -50,6 +50,8 @@ bindings: ## generates contract bindings
 ___DOCKER___: ##
 docker-build-indexer:
 	docker build -t nffl-indexer -f ./indexer/Dockerfile .
+docker-build-fastnear-indexer:
+	docker build -t nffl-indexer -f ./indexer/FastIndexer.dockerfile .
 docker-build-relayer:
 	docker build -t nffl-test-relayer -f ./relayer/cmd/Dockerfile .
 docker-build-aggregator:
