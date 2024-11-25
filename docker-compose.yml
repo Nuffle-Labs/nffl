@@ -142,7 +142,7 @@ services:
   indexer:
     image: nffl-indexer:latest
     container_name: nffl-indexer
-    profiles: ["1default-indexer"]
+    profiles: ["default-indexer"]
     depends_on:
       rmq:
         condition: service_healthy
