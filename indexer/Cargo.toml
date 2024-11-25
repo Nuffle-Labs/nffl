@@ -37,3 +37,6 @@ reqwest = { workspace = true }
 
 [dev-dependencies]
 near-crypto = { git = "https://github.com/near/nearcore", rev = "93073d762ff377382ebf54e7cbff448b492e72c6" }
+
+[features]
+use_fastnear = []

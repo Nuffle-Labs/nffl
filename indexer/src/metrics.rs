@@ -3,7 +3,7 @@ use prometheus::core::GenericGauge;
 
 use crate::errors::Result;
 
-const INDEXER_NAMESPACE: &str = "sffl_indexer";
+pub const INDEXER_NAMESPACE: &str = "nffl_indexer";
 const CANDIDATES_SUBSYSTEM: &str = "candidates_validator";
 const LISTENER_SUBSYSTEM: &str = "block_listener";
 const PUBLISHER_SUBSYSTEM: &str = "rabbit_publisher";
