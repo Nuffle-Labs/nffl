@@ -5,6 +5,14 @@ on:
     branches:
       - main
   pull_request:
+    paths:
+      - 'aggregator/**'
+      - 'core/**'
+      - 'indexer/**'
+      - 'offchain/**'
+      - 'operator/**'
+      - 'plugin/**'
+      - 'relayer/**'
 
 jobs:  
   go_test:

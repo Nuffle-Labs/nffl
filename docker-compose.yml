@@ -2,6 +2,7 @@ version: "3"
 
 networks:
   nffl:
+    name: nffl
     driver: bridge
 
 services:
@@ -146,8 +147,6 @@ services:
       rmq:
         condition: service_healthy
       mainnet-anvil-setup:
-        condition: service_completed_successfully
-      indexer-setup:
         condition: service_completed_successfully
     ports:
       - "3030:3030"
