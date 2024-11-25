@@ -51,7 +51,7 @@ ___DOCKER___: ##
 docker-build-indexer:
 	docker build -t nffl-indexer -f ./indexer/Dockerfile .
 docker-build-fastnear-indexer:
-	docker build -t nffl-indexer -f ./indexer/FastIndexer.dockerfile .
+	docker build -t nffl-fast-indexer -f ./indexer/FastIndexer.dockerfile .
 docker-build-relayer:
 	docker build -t nffl-test-relayer -f ./relayer/cmd/Dockerfile .
 docker-build-aggregator:
@@ -62,7 +62,7 @@ docker-build-plugin:
 	docker build -t nffl-operator-plugin -f ./plugin/cmd/Dockerfile .
 docker-build-images: docker-build-indexer docker-build-relayer docker-build-aggregator docker-build-operator docker-build-plugin ## builds and publishes indexer, operator and aggregator docker images
 docker-start-everything: docker-build-images ## starts aggregator and operator docker containers
-	docker compose up
+	docker compose --profile default-indexer up
 
 __CLI__: ##
 
