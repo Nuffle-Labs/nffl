@@ -68,10 +68,10 @@ jobs:
           cache-to: type=gha,mode=max,scope=operator
 
       - name: Build and start Docker Compose services
-        run: docker-compose -f ./docker-compose-fastnear.yml up --build -d --wait --wait-timeout 180
+        run: docker-compose -f ./docker-compose-fastnear.yml up --build -d
 
-      - name: Wait for a minute
-        run: sleep 60
+      - name: Wait for a 3 minutes
+        run: sleep 180
 
       - name: List running containers
         run: |
