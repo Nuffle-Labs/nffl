@@ -27,13 +27,6 @@ const INDEXER: &str = "indexer";
 
 fn run(home_dir: std::path::PathBuf, config: RunConfigArgs) -> Result<()> {
     let addresses_to_rollup_ids = config.compile_addresses_to_ids_map()?;
-    let indexer_config = near_indexer::IndexerConfig {
-        home_dir,
-        sync_mode: near_indexer::SyncModeEnum::LatestSynced,
-        await_for_node_synced: near_indexer::AwaitForNodeSyncedEnum::WaitForFullSync,
-        validate_genesis: true,
-    };
-
     let system = actix::System::new();
     let registry = Registry::new();
     let server_handle = if let Some(metrics_addr) = config.metrics_ip_port_address {
@@ -42,14 +35,21 @@ fn run(home_dir: std::path::PathBuf, config: RunConfigArgs) -> Result<()> {
     } else {
         None
     };
-    // TODO[sasha/firat]: refactor, added some logic to handle the case when fastnear is enabled. 
-    //  Needs tests and maybe refactoring for base case
+    
+    // TODO[sasha/firat]: refactor and tests.
     let block_res = system.block_on(async move {
         let validated_stream: Receiver<PublishData>;
         if cfg!(feature = "use_fastnear") {
             let fastnear_indexer = FastNearIndexer::new(addresses_to_rollup_ids);
             validated_stream = fastnear_indexer.run();
         } else {
+            let indexer_config = near_indexer::IndexerConfig {
+                home_dir,
+                sync_mode: near_indexer::SyncModeEnum::LatestSynced,
+                await_for_node_synced: near_indexer::AwaitForNodeSyncedEnum::WaitForFullSync,
+                validate_genesis: true,
+            };
+
             let mut indexer = IndexerWrapper::new(indexer_config, addresses_to_rollup_ids);
             if config.metrics_ip_port_address.is_some() {
                 indexer.enable_metrics(registry.clone())?;

@@ -165,6 +165,8 @@ services:
       - "2"
       - --rollup-ids
       - "3"
+      - --metrics-ip-port-address
+      - "0.0.0.0:9090"
     networks:
       - nffl
 

@@ -39,14 +39,14 @@ RUN chmod +x ./entrypoint.sh
 
 EXPOSE 3030
 
-HEALTHCHECK --interval=20s --timeout=30s --retries=10000 \
-  CMD (curl -f -s -X POST -H "Content-Type: application/json" \
-    -d '{"jsonrpc":"2.0","method":"block","params":{"finality":"optimistic"},"id":"dontcare"}' \
-    http://localhost:3030 | \
-  jq -es 'if . == [] then null else .[] | (now - (.result.header.timestamp / 1000000000)) < 10 end') && \
-  (curl -f -s -X POST -H "Content-Type: application/json" \
-    -d '{"jsonrpc":"2.0","method":"status","params":[],"id":"dontcare"}' \
-    http://localhost:3030 | \
-  jq -es 'if . == [] then null else .[] | .result.sync_info.syncing == false end')
+#HEALTHCHECK --interval=20s --timeout=30s --retries=10000 \
+#  CMD (curl -f -s -X POST -H "Content-Type: application/json" \
+#    -d '{"jsonrpc":"2.0","method":"block","params":{"finality":"optimistic"},"id":"dontcare"}' \
+#    http://localhost:3030 | \
+#  jq -es 'if . == [] then null else .[] | (now - (.result.header.timestamp / 1000000000)) < 10 end') && \
+#  (curl -f -s -X POST -H "Content-Type: application/json" \
+#    -d '{"jsonrpc":"2.0","method":"status","params":[],"id":"dontcare"}' \
+#    http://localhost:3030 | \
+#  jq -es 'if . == [] then null else .[] | .result.sync_info.syncing == false end')
 
 ENTRYPOINT [ "./entrypoint.sh" ]
