@@ -70,8 +70,8 @@ jobs:
       - name: Build and start Docker Compose services
         run: docker-compose -f ./docker-compose-fastnear.yml up --build -d
 
-      - name: Wait for a 3 minutes
-        run: sleep 180
+      - name: Wait for a couple of minutes
+        run: sleep 240
 
       - name: List running containers
         run: |

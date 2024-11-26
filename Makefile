@@ -48,6 +48,10 @@ bindings: ## generates contract bindings
 	cd contracts && ./generate-go-bindings.sh
 
 ___DOCKER___: ##
+docker-fast-build-indexer:
+	docker build -t nffl-indexer -f ./indexer/Dockerfile --build-arg COMPILATION_MODE="" --build-arg TARGET="debug" .
+docker-fast-build-fastnear-indexer:
+	docker build -t nffl-fast-indexer -f ./indexer/FastIndexer.dockerfile --build-arg COMPILATION_MODE="" --build-arg TARGET="debug" .
 docker-build-indexer:
 	docker build -t nffl-indexer -f ./indexer/Dockerfile .
 docker-build-fastnear-indexer:
@@ -138,6 +142,8 @@ near-da-rpc-sys:
 tests-integration: ## runs all integration tests
 	go test ./tests/integration/integration_test.go -v -count=1
 	go test ./tests/integration/registration_test.go -v -race -count=1
+test-integration-fastnear: ## runs all integration tests
+	go test ./tests/integration/integration_fastnear_test.go -v -count=1
 
 ## runs slither for solidity files
 ## You can install Slither by following the guide at https://github.com/crytic/slither/tree/master?tab=readme-ov-file#how-to-install

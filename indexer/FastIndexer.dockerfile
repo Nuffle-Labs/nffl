@@ -39,7 +39,7 @@ RUN chmod +x ./entrypoint.sh
 
 EXPOSE 3030
 
-HEALTHCHECK --interval=20s --timeout=30s --retries=50 \
-  CMD (wget http://localhost:3030 2>&1 | grep -q "connected" && echo "true" || echo "false" == "true")
+HEALTHCHECK --interval=5m --timeout=10s \
+  CMD (nc -z -v localhost 3030 || exit 1)
 
 ENTRYPOINT [ "./entrypoint.sh" ]
