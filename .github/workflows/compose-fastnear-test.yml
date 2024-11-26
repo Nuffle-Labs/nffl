@@ -9,7 +9,7 @@ on:
       - 'indexer/**' # Temporarily util it becomes prime way to obtain NEAR DA blocks.
 
 jobs:
-  run-docker-compose:
+  run-docker-compose-with-fastnear:
     runs-on: ubuntu-latest
 
     steps:

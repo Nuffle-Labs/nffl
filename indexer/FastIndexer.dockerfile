@@ -12,7 +12,7 @@ RUN apt-get update -qq && \
         g++ \
         pkg-config \
         libssl-dev \
-        curl \
+        wget \
         llvm \
         clang
 
@@ -20,7 +20,7 @@ COPY ./indexer/Cargo.toml .
 RUN mkdir ./src && echo "fn main() {}" > ./src/main.rs
 
 # Hacky approach to cache dependencies
-# RUN cargo build ${COMPILATION_MODE} -p indexer --features use_fastnear
+RUN cargo build ${COMPILATION_MODE} -p indexer --features use_fastnear
 
 COPY ./indexer .
 RUN touch ./src/main.rs
@@ -39,14 +39,7 @@ RUN chmod +x ./entrypoint.sh
 
 EXPOSE 3030
 
-#HEALTHCHECK --interval=20s --timeout=30s --retries=10000 \
-#  CMD (curl -f -s -X POST -H "Content-Type: application/json" \
-#    -d '{"jsonrpc":"2.0","method":"block","params":{"finality":"optimistic"},"id":"dontcare"}' \
-#    http://localhost:3030 | \
-#  jq -es 'if . == [] then null else .[] | (now - (.result.header.timestamp / 1000000000)) < 10 end') && \
-#  (curl -f -s -X POST -H "Content-Type: application/json" \
-#    -d '{"jsonrpc":"2.0","method":"status","params":[],"id":"dontcare"}' \
-#    http://localhost:3030 | \
-#  jq -es 'if . == [] then null else .[] | .result.sync_info.syncing == false end')
+HEALTHCHECK --interval=20s --timeout=30s --retries=50 \
+  CMD (wget http://localhost:3030 2>&1 | grep -q "connected" && echo "true" || echo "false" == "true")
 
 ENTRYPOINT [ "./entrypoint.sh" ]

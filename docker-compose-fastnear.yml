@@ -186,11 +186,11 @@ services:
       - nffl
 
   near-da-deploy:
-    image: node:16
+    image: node:18
     container_name: nffl-near-da-deploy
     depends_on:
       indexer:
-        condition: service_started
+        condition: service_healthy
     volumes:
       - ./:/nffl/
       - near_cli_data:/near-cli

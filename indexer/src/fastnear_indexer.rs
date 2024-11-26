@@ -5,13 +5,15 @@ use tokio::sync::{mpsc::{Sender, Receiver}, mpsc};
 use tracing::{info, error, debug, trace};
 
 use crate::{errors::Error, rmq_publisher::{get_routing_key, PublishData, PublishOptions, PublishPayload, PublisherContext}, types::{BlockWithTxHashes, IndexerExecutionOutcomeWithReceiptAndTxHash, PartialCandidateData, PartialCandidateDataWithBlockTxHash}};
+use crate::metrics::{make_block_listener_metrics, BlockEventListener, Metricable};
+use crate::errors::Result;
 
 const FASTNEAR_ENDPOINT: &str = "https://testnet.neardata.xyz/v0/last_block/final";
 
-#[derive(Debug)]
 pub struct FastNearIndexer {
     client: Client,
     addresses_to_rollup_ids: HashMap<AccountId, u32>,
+    listener: Option<BlockEventListener>,
 }
 
 impl FastNearIndexer {
@@ -20,6 +22,7 @@ impl FastNearIndexer {
         Self { 
             client: Client::new(),
             addresses_to_rollup_ids,
+            listener: None,
         }
     }
 
@@ -191,5 +194,14 @@ impl FastNearIndexer {
                 None
             },
         }
+    }
+}
+
+impl Metricable for FastNearIndexer {
+    fn enable_metrics(&mut self, registry: prometheus::Registry) -> Result<()> {
+        let listener = make_block_listener_metrics(registry)?;
+        self.listener = Some(listener);
+
+        Ok(())
     }
 }
