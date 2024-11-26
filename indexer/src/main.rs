@@ -35,24 +35,14 @@ fn run(home_dir: std::path::PathBuf, config: RunConfigArgs) -> Result<()> {
     } else {
         None
     };
-
-    let mut rmq_publisher = RmqPublisher::new(&config.rmq_address)?;
-    if config.metrics_ip_port_address.is_some() {
-        rmq_publisher.enable_metrics(registry.clone())?;
-    }
-
-    let block_res: Result<(), Error>;
-    if cfg!(feature = "use_fastnear") {
-        block_res = system.block_on(async move {
+    
+    // TODO[sasha/firat]: refactor and tests.
+    let block_res = system.block_on(async move {
+        let validated_stream: Receiver<PublishData>;
+        if cfg!(feature = "use_fastnear") {
             let fastnear_indexer = FastNearIndexer::new(addresses_to_rollup_ids);
-            let validated_stream = fastnear_indexer.run();
-
-            rmq_publisher.run(validated_stream);
-
-            Ok::<_, Error>(())
-        });
-    } else {
-        block_res = system.block_on(async move {
+            validated_stream = fastnear_indexer.run();
+        } else {
             let indexer_config = near_indexer::IndexerConfig {
                 home_dir,
                 sync_mode: near_indexer::SyncModeEnum::LatestSynced,
@@ -72,12 +62,20 @@ fn run(home_dir: std::path::PathBuf, config: RunConfigArgs) -> Result<()> {
                 candidates_validator.enable_metrics(registry.clone())?;
             }
 
-            let validated_stream = candidates_validator.run(candidates_stream);
-            rmq_publisher.run(validated_stream);
+            validated_stream = candidates_validator.run(candidates_stream);
 
-            Ok::<_, Error>(block_handle.await?)
-        });
-    }
+            // TODO: Handle block_handle whether cancelled or panics
+            block_handle.await?;
+        }
+
+        let mut rmq_publisher = RmqPublisher::new(&config.rmq_address)?;
+        if config.metrics_ip_port_address.is_some() {
+            rmq_publisher.enable_metrics(registry.clone())?;
+        }
+        rmq_publisher.run(validated_stream);
+
+        Ok::<_, Error>(())
+    });
 
     if let Some(handle) = server_handle {
         handle.abort();
