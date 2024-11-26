@@ -232,7 +232,7 @@ services:
     networks:
       - nffl
 
-  agreator-health:
+  aggregator-health:
     image: debian:bookworm
     depends_on:
       aggregator:

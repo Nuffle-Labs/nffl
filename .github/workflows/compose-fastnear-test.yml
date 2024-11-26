@@ -1,4 +1,4 @@
-name: Docker Compose Test With FastNear
+name: Docker Compose Test With FastNear Indexer
 
 on:
   push:
@@ -9,7 +9,7 @@ on:
       - 'indexer/**' # Temporarily util it becomes prime way to obtain NEAR DA blocks.
 
 jobs:
-  run-docker-compose-fastnear:
+  run-docker-compose:
     runs-on: ubuntu-latest
 
     steps:
@@ -24,7 +24,7 @@ jobs:
           sudo apt-get update
           sudo apt-get install docker-compose -y
 
-      - name: Build indexer container
+      - name: Build fastnear indexer container
         uses: docker/build-push-action@v5
         with:
           load: true
@@ -89,7 +89,7 @@ jobs:
             "rollup0-relayer"
             "nffl-fast-indexer"
             "nffl-aggregator"
-            "nffl_agreator-health_1"
+            "nffl_aggregator-health_1"
             "mainnet-anvil"
             "prometheus"
             "rollup0-anvil"
@@ -112,7 +112,7 @@ jobs:
           services=(
             "nffl_operator1-health_1"
             "nffl_operator0-health_1"
-            "nffl_agreator-health_1"
+            "nffl_aggregator-health_1"
             "rollup1-anvil"
             "rollup0-anvil"
             "mainnet-anvil"
