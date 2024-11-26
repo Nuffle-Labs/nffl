@@ -190,7 +190,7 @@ services:
     container_name: nffl-near-da-deploy
     depends_on:
       indexer:
-        condition: service_healthy
+        condition: service_started
     volumes:
       - ./:/nffl/
       - near_cli_data:/near-cli
