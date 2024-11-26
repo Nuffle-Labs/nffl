@@ -186,7 +186,7 @@ services:
       - nffl
 
   near-da-deploy:
-    image: node:18
+    image: node:16
     container_name: nffl-near-da-deploy
     depends_on:
       indexer:

@@ -21,7 +21,7 @@ COPY ./indexer/Cargo.toml .
 RUN mkdir ./src && echo "fn main() {}" > ./src/main.rs
 
 # Hacky approach to cache dependencies
-# RUN cargo build ${COMPILATION_MODE} -p indexer
+RUN cargo build ${COMPILATION_MODE} -p indexer
 
 COPY ./indexer .
 RUN touch ./src/main.rs
@@ -31,8 +31,6 @@ RUN cargo build ${COMPILATION_MODE} -p indexer
 FROM debian:bookworm-slim as runtime
 WORKDIR /indexer-app
 ARG TARGET="release"
-
-RUN echo ${TARGET}
 
 RUN apt update && apt install -yy openssl ca-certificates jq curl
 

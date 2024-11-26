@@ -39,7 +39,7 @@ RUN chmod +x ./entrypoint.sh
 
 EXPOSE 3030
 
-HEALTHCHECK --interval=5m --timeout=10s \
-  CMD (nc -z -v localhost 3030 || exit 1)
+HEALTHCHECK \
+  CMD (nc -z -v 0.0.0.0 3030 || exit 1)
 
 ENTRYPOINT [ "./entrypoint.sh" ]

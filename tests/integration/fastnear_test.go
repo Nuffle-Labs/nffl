@@ -1,4 +1,4 @@
-package integration_fastnear
+package integration
 
 import (
 	"context"
@@ -597,7 +597,7 @@ func startIndexer(t *testing.T, ctx context.Context, name string, rollupAnvils [
 		Name:         name,
 		Cmd:          append([]string{"--rmq-address", amqpUrl}, rollupArgs...),
 		ExposedPorts: []string{"3030/tcp"},
-		WaitingFor:   wait.ForLog("Starting Streamer..."),
+		WaitingFor:   wait.ForLog("Starting block stream"),
 		Networks:     []string{networkName},
 	}
 
