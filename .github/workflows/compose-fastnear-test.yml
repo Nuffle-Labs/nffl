@@ -1,4 +1,4 @@
-name: Docker Compose Test With FastNear Indexer
+name: Docker Compose Fastnear Liveness Test
 
 on:
   push:
@@ -68,7 +68,7 @@ jobs:
           cache-to: type=gha,mode=max,scope=operator
 
       - name: Build and start Docker Compose services
-        run: docker-compose -f ./docker-compose-fastnear.yml up --build -d
+        run: docker-compose -f ./docker-compose.yml up --build -d
 
       - name: Wait for a couple of minutes
         run: sleep 240
@@ -130,4 +130,4 @@ jobs:
           done
 
       - name: Tear down Docker Compose services
-        run: docker-compose -f ./docker-compose-fastnear.yml down
+        run: docker-compose down

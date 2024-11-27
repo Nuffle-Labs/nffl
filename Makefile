@@ -66,7 +66,7 @@ docker-build-plugin:
 	docker build -t nffl-operator-plugin -f ./plugin/cmd/Dockerfile .
 docker-build-images: docker-build-indexer docker-build-relayer docker-build-aggregator docker-build-operator docker-build-plugin ## builds and publishes indexer, operator and aggregator docker images
 docker-start-everything: docker-build-images ## starts aggregator and operator docker containers
-	docker compose up
+	docker compose -f ./docker-compose.yml up
 
 __CLI__: ##
 
