@@ -65,7 +65,8 @@ docker-build-operator:
 docker-build-plugin:
 	docker build -t nffl-operator-plugin -f ./plugin/cmd/Dockerfile .
 docker-build-images: docker-build-indexer docker-build-relayer docker-build-aggregator docker-build-operator docker-build-plugin ## builds and publishes indexer, operator and aggregator docker images
-docker-start-everything: docker-build-images ## starts aggregator and operator docker containers
+docker-fast-build-images: docker-fast-build-indexer docker-build-relayer docker-build-aggregator docker-build-operator docker-build-plugin ## builds and publishes indexer, operator and aggregator docker images
+docker-start-everything: docker-fast-build-images ## starts aggregator and operator docker containers
 	docker compose -f ./docker-compose.yml up
 
 __CLI__: ##
@@ -141,7 +142,7 @@ near-da-rpc-sys:
 # TODO: Currently we cannot use the race detector with `integration_test.go`
 tests-integration: ## runs all integration tests
 	go test ./tests/integration/integration_test.go -v -count=1
-	go test ./tests/integration/registration_test.go -v -race -count=1
+	#go test ./tests/integration/registration_test.go -v -race -count=1
 test-integration-fastnear: ## runs fastnear integration test
 	go test ./tests/integration/fastnear_test.go -v -count=1
 

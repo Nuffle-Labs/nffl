@@ -1,6 +1,5 @@
 use clap::Parser;
 use configs::{Opts, SubCommand};
-use fastnear_indexer::FastNearIndexer;
 use prometheus::Registry;
 use tracing::{error, info};
 
@@ -8,6 +7,7 @@ use crate::{
     candidates_validator::CandidatesValidator, configs::RunConfigArgs, errors::Error, errors::Result,
     indexer_wrapper::IndexerWrapper, metrics::Metricable, metrics_server::MetricsServer, rmq_publisher::RmqPublisher,
 };
+use crate::fastnear_indexer::FastNearIndexer;
 use crate::metrics::INDEXER_NAMESPACE;
 
 mod block_listener;
@@ -25,7 +25,6 @@ const INDEXER: &str = "indexer";
 
 fn run(home_dir: std::path::PathBuf, config: RunConfigArgs) -> Result<()> {
     let addresses_to_rollup_ids = config.compile_addresses_to_ids_map()?;
-
     let system = actix::System::new();
     let registry = Registry::new();
     let server_handle = if let Some(metrics_addr) = config.metrics_ip_port_address {
@@ -35,18 +34,17 @@ fn run(home_dir: std::path::PathBuf, config: RunConfigArgs) -> Result<()> {
         None
     };
 
-    let mut rmq_publisher = RmqPublisher::new(&config.rmq_address)?;
-    if config.metrics_ip_port_address.is_some() {
-        rmq_publisher.enable_metrics(registry.clone())?;
-    }
-
     let block_res = system.block_on(async move {
+        let mut rmq_publisher = RmqPublisher::new(&config.rmq_address)?;
+        if config.metrics_ip_port_address.is_some() {
+            rmq_publisher.enable_metrics(registry.clone())?;
+        }
+
         if cfg!(feature = "use_fastnear") {
-            let mut fastnear_indexer = FastNearIndexer::new(addresses_to_rollup_ids);
-            if config.metrics_ip_port_address.is_some() {
-                fastnear_indexer.enable_metrics(registry.clone())?;
-            }
-            rmq_publisher.run(fastnear_indexer.run());
+            let fastnear_indexer = FastNearIndexer::new(addresses_to_rollup_ids);
+            let validated_stream = fastnear_indexer.run();
+
+            rmq_publisher.run(validated_stream);
 
             Ok::<_, Error>(())
         } else {
@@ -69,7 +67,11 @@ fn run(home_dir: std::path::PathBuf, config: RunConfigArgs) -> Result<()> {
                 candidates_validator.enable_metrics(registry.clone())?;
             }
 
-            rmq_publisher.run(candidates_validator.run(candidates_stream));
+            let validated_stream = candidates_validator.run(candidates_stream);
+            
+            rmq_publisher.run(validated_stream);
+
+            // TODO: Handle block_handle whether cancelled or panics
             Ok::<_, Error>(block_handle.await?)
         }
     });
