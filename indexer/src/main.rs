@@ -29,8 +29,10 @@ fn run(home_dir: std::path::PathBuf, config: RunConfigArgs) -> Result<()> {
     let registry = Registry::new();
     let server_handle = if let Some(metrics_addr) = config.metrics_ip_port_address {
         let metrics_server = MetricsServer::new(metrics_addr, registry.clone());
+        info!(target: INDEXER, "Metrics server has started: {}", metrics_addr);
         Some(system.runtime().spawn(metrics_server.run()))
     } else {
+        info!(target: INDEXER, "Metrics server has been disabled");
         None
     };
 
@@ -41,8 +43,11 @@ fn run(home_dir: std::path::PathBuf, config: RunConfigArgs) -> Result<()> {
         }
 
         if cfg!(feature = "use_fastnear") {
-            let fastnear_indexer = FastNearIndexer::new(addresses_to_rollup_ids);
+            let mut fastnear_indexer = FastNearIndexer::new(addresses_to_rollup_ids);
             let validated_stream = fastnear_indexer.run();
+            if config.metrics_ip_port_address.is_some() {
+                fastnear_indexer.enable_metrics(registry.clone())?;
+            }
 
             rmq_publisher.run(validated_stream);
 

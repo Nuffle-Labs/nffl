@@ -2,7 +2,6 @@ version: "3"
 
 networks:
   nffl:
-    name: nffl
     driver: bridge
 
 services:
@@ -81,8 +80,10 @@ services:
     depends_on:
       rollup0-anvil:
         condition: service_healthy
-      indexer:
-        condition: service_started
+      nearcore-health:
+        condition: service_healthy
+      near-da-deploy:
+        condition: service_completed_successfully
     expose:
       - 9091
     volumes:
@@ -125,8 +126,10 @@ services:
     depends_on:
       rollup1-anvil:
         condition: service_healthy
-      indexer:
-        condition: service_started
+      nearcore-health:
+        condition: service_healthy
+      near-da-deploy:
+        condition: service_completed_successfully
     expose:
       - 9091
     volumes:
@@ -139,6 +142,83 @@ services:
     networks:
       - nffl
 
+  nearcore:
+    image: nearprotocol/nearcore:2.4.0-a83c18490cf4dafaedca01458f365dc5871bd293 # The version is important
+    container_name: nearcore
+    depends_on:
+      nearcore-setup:
+        condition: service_completed_successfully
+    ports:
+      - "3030:3030"
+    volumes:
+      - ./:/nffl/
+      - near_cli_data:/near-cli
+      - near_cli_keys:/root/.near-credentials
+    environment:
+      - INIT=1
+      - CHAIN_ID=localnet
+      - ACCOUNT_ID=test.near
+    networks:
+      - nffl
+
+  nearcore-health:
+    image: debian:bookworm
+    depends_on:
+      nearcore:
+        condition: service_started
+    command: sh -c "apt update && apt install -y netcat-traditional && sleep infinity"
+    healthcheck:
+      test: [ "CMD", "nc", "-z", "-v", "nearcore", "3030" ]
+      interval: 15s
+      timeout: 10s
+      retries: 5
+    networks:
+      - nffl
+
+  nearcore-setup:
+    image: debian:bookworm
+    container_name: nearcore-setup
+    volumes:
+      - near_cli_data:/near-cli
+      - near_cli_keys:/root/.near-credentials
+    entrypoint: sh
+    command:
+      - -c
+      - |
+        rm -rf /near-cli/*
+        rm -rf /root/.near-credentials/*       
+
+    networks:
+      - nffl
+
+  near-da-deploy:
+    image: node:16
+    container_name: nffl-near-da-deploy
+    depends_on:
+      nearcore-health:
+        condition: service_healthy
+    volumes:
+      - ./:/nffl/
+      - near_cli_data:/near-cli
+      - near_cli_keys:/root/.near-credentials
+    entrypoint: sh
+    command:
+      - -c
+      - |
+        npm i -g near-cli@3.0.0
+        near create-account da2.test.near --masterAccount test.near
+        near deploy da2.test.near /nffl/tests/near/near_da_blob_store.wasm --initFunction new --initArgs {} --masterAccount test.near -f
+        near create-account da3.test.near --masterAccount test.near
+        near deploy da3.test.near /nffl/tests/near/near_da_blob_store.wasm --initFunction new --initArgs {} --masterAccount test.near -f
+    environment:
+      - NEAR_ENV=localnet
+      - NEAR_CLI_LOCALNET_NETWORK_ID=localnet
+      - NEAR_HELPER_ACCOUNT=near
+      - NEAR_CLI_LOCALNET_KEY_PATH=/near-cli/validator_key.json
+      - NEAR_NODE_URL=http://nearcore:3030
+    networks:
+      - nffl
+
   indexer:
     image: nffl-fast-indexer:latest
     container_name: nffl-indexer
@@ -147,13 +227,10 @@ services:
         condition: service_healthy
       mainnet-anvil-setup:
         condition: service_completed_successfully
-      indexer-setup:
-        condition: service_completed_successfully
-    ports:
-      - "3030:3030"
-    volumes:
-      - near_cli_data:/root/.near
-      - near_cli_keys:/root/.near-credentials
+      nearcore-health:
+        condition: service_healthy
+    expose:
+      - 9090 # prometheus port
     command:
       - --rmq-address
       - amqp://rmq:5672
@@ -165,23 +242,6 @@ services:
       - "2"
       - --rollup-ids
       - "3"
-      - --metrics-ip-port-address
-      - "0.0.0.0:9090"
-    networks:
-      - nffl
-
-  indexer-setup:
-    image: debian:bookworm
-    container_name: nffl-indexer-setup
-    volumes:
-      - near_cli_data:/near-cli
-      - near_cli_keys:/root/.near-credentials
-    entrypoint: sh
-    command:
-      - -c
-      - |
-        rm -rf /near-cli/*
-        rm -rf /root/.near-credentials/*
     networks:
       - nffl
 
@@ -335,5 +395,6 @@ services:
 volumes:
   prometheus_data:
   grafana_data:
+  near:
   near_cli_data:
   near_cli_keys:

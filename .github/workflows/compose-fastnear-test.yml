@@ -6,7 +6,7 @@ on:
       - main
   pull_request:
     paths:
-      - 'indexer/**' # Temporarily util it becomes prime way to obtain NEAR DA blocks.
+      - 'indexer/**'
 
 jobs:
   run-docker-compose-with-fastnear:
