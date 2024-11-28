@@ -37,9 +37,4 @@ COPY --from=builder /tmp/indexer/target/${TARGET}/indexer .
 COPY ./indexer/entrypoint.sh ./entrypoint.sh
 RUN chmod +x ./entrypoint.sh
 
-EXPOSE 3030
-
-#HEALTHCHECK --interval=30s --timeout=30s --retries=10 \
-#  CMD (curl http://localhost:3030/status || exit 1)
-
 ENTRYPOINT [ "./entrypoint.sh" ]
