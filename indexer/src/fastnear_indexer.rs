@@ -1,12 +1,12 @@
-use std::collections::HashMap;
 use near_indexer::near_primitives::{types::AccountId, views::{ActionView, ExecutionStatusView, ReceiptEnumView}};
 use reqwest::Client;
-use tokio::sync::{mpsc::{Sender, Receiver}, mpsc};
-use tracing::{info, error, debug, trace};
+use std::collections::HashMap;
+use tokio::sync::{mpsc, mpsc::{Receiver, Sender}};
+use tracing::{debug, error, info, trace};
 
-use crate::{errors::Error, rmq_publisher::{get_routing_key, PublishData, PublishOptions, PublishPayload, PublisherContext}, types::{BlockWithTxHashes, IndexerExecutionOutcomeWithReceiptAndTxHash, PartialCandidateData, PartialCandidateDataWithBlockTxHash}};
-use crate::metrics::{make_block_listener_metrics, BlockEventListener, Metricable};
 use crate::errors::Result;
+use crate::metrics::{make_block_listener_metrics, BlockEventListener, Metricable};
+use crate::{errors::Error, rmq_publisher::{get_routing_key, PublishData, PublishOptions, PublishPayload, PublisherContext}, types::{BlockWithTxHashes, IndexerExecutionOutcomeWithReceiptAndTxHash, PartialCandidateData, PartialCandidateDataWithBlockTxHash}};
 
 const FASTNEAR_ENDPOINT: &str = "https://testnet.neardata.xyz/v0/last_block/final";
 
@@ -203,5 +203,99 @@ impl Metricable for FastNearIndexer {
         self.listener = Some(listener);
 
         Ok(())
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use near_crypto::{KeyType, PublicKey};
+    use near_indexer::near_primitives::views::{ActionView, ReceiptEnumView};
+    use reqwest::Client;
+    use std::collections::HashMap;
+
+    #[tokio::test]
+    async fn test_run() {
+        let addresses_to_rollup_ids = HashMap::new();
+        let indexer = FastNearIndexer::new(addresses_to_rollup_ids);
+        let receiver = indexer.run();
+        // Since the run method spawns asynchronous tasks, we can check if the receiver is valid
+        assert!(receiver.capacity() > 0);
+    }
+
+    #[tokio::test]
+    async fn test_fetch_latest_block() {
+        let client = Client::new();
+        let result = FastNearIndexer::fetch_latest_block(&client).await;
+        assert!(result.is_ok(), "Failed to fetch latest block");
+        let block = result.unwrap();
+        // Basic assertions about the block
+        assert!(block.block.header.height > 0, "Block height should be greater than 0");
+    }
+
+    #[tokio::test]
+    async fn test_extract_args_with_submit_method() {
+        let action = ActionView::FunctionCall {
+            method_name: "submit".to_string(),
+            args: vec![1, 2, 3].into(),
+            gas: 1000,
+            deposit: 0,
+        };
+        let args = FastNearIndexer::extract_args(action);
+        assert!(args.is_some());
+        assert_eq!(args.unwrap(), vec![1, 2, 3]);
+    }
+
+    #[tokio::test]
+    async fn test_extract_args_with_other_method() {
+        let action = ActionView::FunctionCall {
+            method_name: "other_method".to_string(),
+            args: vec![1, 2, 3].into(),
+            gas: 1000,
+            deposit: 0,
+        };
+        let args = FastNearIndexer::extract_args(action);
+        assert!(args.is_none());
+    }
+
+    #[tokio::test]
+    async fn test_receipt_filter_map_with_matching_rollup_id() {
+        let rollup_id = 1;
+        let action = ActionView::FunctionCall {
+            method_name: "submit".to_string(),
+            args: vec![1, 2, 3].into(),
+            gas: 1000,
+            deposit: 0,
+        };
+        let receipt_enum_view = ReceiptEnumView::Action {
+            signer_id: "signer.near".to_string().try_into().unwrap(),
+            signer_public_key: PublicKey::empty(KeyType::ED25519),
+            gas_price: 0,
+            output_data_receivers: vec![],
+            input_data_ids: vec![],
+            actions: vec![action],
+            is_promise_yield: false,
+        };
+        let result = FastNearIndexer::receipt_filter_map(receipt_enum_view, rollup_id);
+        assert!(result.is_some());
+        let partial_candidate = result.unwrap();
+        assert_eq!(partial_candidate.rollup_id, rollup_id);
+        assert_eq!(partial_candidate.payloads, vec![vec![1, 2, 3]]);
+    }
+
+    #[tokio::test]
+    async fn test_receipt_filter_map_with_non_matching_rollup_id() {
+        let rollup_id = 1;
+        let receipt_enum_view = ReceiptEnumView::Action {
+            signer_id: "signer.near".to_string().try_into().unwrap(),
+            signer_public_key: PublicKey::empty(KeyType::ED25519),
+            gas_price: 0,
+            output_data_receivers: vec![],
+            input_data_ids: vec![],
+            actions: vec![],
+            is_promise_yield: false,
+        };
+        let result = FastNearIndexer::receipt_filter_map(receipt_enum_view, rollup_id);
+        assert!(result.is_none());
     }
 }
