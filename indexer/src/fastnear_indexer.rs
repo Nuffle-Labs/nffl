@@ -118,11 +118,12 @@ impl FastNearIndexer {
             loop {
                 match Self::fetch_latest_block(&client).await {
                     Ok(block) => {
-                        if block_sender.send(block.clone()).await.is_err() {
+                        let block_height = block.block.header.height;
+                        if block_sender.send(block).await.is_err() {
                             error!(FASTNEAR_INDEXER, "Failed to send block to channel");
                             break;
                         }
-                        info!(FASTNEAR_INDEXER, "Successfully fetched and sent latest block with id: {}", block.block.header.height);
+                        info!(FASTNEAR_INDEXER, "Successfully fetched and sent latest block with id: {}", block_height);
                     }
                     Err(e) => error!(FASTNEAR_INDEXER, "Error fetching latest block: {:?}", e),
                 }
