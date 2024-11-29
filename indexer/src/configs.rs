@@ -53,6 +53,8 @@ pub(crate) struct RunConfigArgs {
     /// Metrics socket addr
     #[clap(long)]
     pub metrics_ip_port_address: Option<SocketAddr>,
+    #[clap(long, default_value = "256")]
+    pub channel_width: usize
 }
 
 impl RunConfigArgs {

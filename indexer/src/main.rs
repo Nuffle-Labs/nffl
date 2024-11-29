@@ -41,7 +41,7 @@ fn run(home_dir: std::path::PathBuf, config: RunConfigArgs) -> Result<()> {
         }
 
         if cfg!(feature = "use_fastnear") {
-            let fastnear_indexer = FastNearIndexer::new(addresses_to_rollup_ids);
+            let fastnear_indexer = FastNearIndexer::new(addresses_to_rollup_ids, config.channel_width);
             let validated_stream = fastnear_indexer.run();
 
             rmq_publisher.run(validated_stream);
