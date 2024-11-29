@@ -71,7 +71,6 @@ fn run(home_dir: std::path::PathBuf, config: RunConfigArgs) -> Result<()> {
             
             rmq_publisher.run(validated_stream);
 
-            // TODO: Handle block_handle whether cancelled or panics
             Ok::<_, Error>(block_handle.await?)
         }
     });

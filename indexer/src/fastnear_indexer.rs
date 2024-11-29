@@ -154,7 +154,7 @@ impl FastNearIndexer {
         sender: &Sender<PublishData>,
     ) -> Result<(), Error> {
         trace!(FASTNEAR_INDEXER, "Sending candidate data: {:?}", candidate_data);
-        for data in candidate_data.clone().payloads {
+        for data in &candidate_data.payloads {
             let publish_data = PublishData {
                 publish_options: PublishOptions {
                     routing_key: get_routing_key(candidate_data.rollup_id),
@@ -165,7 +165,7 @@ impl FastNearIndexer {
                 },
                 payload: PublishPayload {
                     transaction_id: candidate_data.tx_hash,
-                    data,
+                    data: data.clone()
                 },
             };
             sender.send(publish_data).await?
@@ -235,6 +235,7 @@ mod tests {
     use std::collections::HashMap;
 
     #[cfg(all(test, feature = "it_tests"))]
+    #[tokio::test]
     async fn test_run() {
         let addresses_to_rollup_ids = HashMap::new();
         let indexer = FastNearIndexer::new(addresses_to_rollup_ids, 128);
@@ -244,6 +245,7 @@ mod tests {
     }
 
     #[cfg(all(test, feature = "it_tests"))]
+    #[tokio::test]
     async fn test_fetch_latest_block() {
         let client = Client::new();
         let result = FastNearIndexer::fetch_latest_block(&client).await;
