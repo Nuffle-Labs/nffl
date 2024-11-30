@@ -37,7 +37,7 @@ impl FastNearIndexer {
         addresses_to_rollup_ids: HashMap<AccountId, u32>,
         channel_width: usize,
     ) -> Self {
-        debug!(FASTNEAR_INDEXER, "Creating new FastNearIndexer");
+        debug!("Creating new FastNearIndexer");
         Self {
             fastnear_address: fastnear_address.to_string(),
             client: Client::new(),
@@ -48,7 +48,7 @@ impl FastNearIndexer {
     }
 
     pub fn run(&self) -> Receiver<PublishData> {
-        info!(FASTNEAR_INDEXER, "Starting FastNearIndexer");
+        info!("Starting FastNearIndexer");
         let block_receiver = self.stream_latest_blocks();
         let (publish_sender, publish_receiver) = mpsc::channel(self.channel_width);
 
@@ -66,11 +66,11 @@ impl FastNearIndexer {
         publish_sender: Sender<PublishData>,
         addresses_to_rollup_ids: HashMap<AccountId, u32>,
     ) {
-        debug!(FASTNEAR_INDEXER, "Starting block processing");
+        debug!("Starting block processing");
         while let Some(block) = block_receiver.recv().await {
-            trace!(FASTNEAR_INDEXER, "Received block: {:?}", block.block.header.height);
+            trace!("Received block: {:?}", block.block.header.height);
             if let Err(e) = Self::parse_and_publish_block(block, &publish_sender, &addresses_to_rollup_ids).await {
-                error!(FASTNEAR_INDEXER, "Error parsing and publishing block: {:?}", e);
+                error!("Error parsing and publishing block: {:?}", e);
             }
         }
     }
@@ -80,13 +80,13 @@ impl FastNearIndexer {
         publish_sender: &Sender<PublishData>,
         addresses_to_rollup_ids: &HashMap<AccountId, u32>,
     ) -> Result<(), Error> {
-        debug!(FASTNEAR_INDEXER, "Parsing block: {:?}", block.block.header.height);
+        debug!("Parsing block: {:?}", block.block.header.height);
         for shard in block.shards {
             for receipt_execution_outcome in shard.receipt_execution_outcomes {
                 let receiver_id = &receipt_execution_outcome.receipt.receiver_id;
-                debug!(FASTNEAR_INDEXER, "Processing receipt for receiver_id: {}", receiver_id);
+                debug!("Processing receipt for receiver_id: {}", receiver_id);
                 if let Some(rollup_id) = addresses_to_rollup_ids.get(receiver_id) {
-                    trace!(FASTNEAR_INDEXER, "Processing receipt for rollup_id: {}", rollup_id);
+                    trace!("Processing receipt for rollup_id: {}", rollup_id);
                     if !Self::is_successful_execution(&receipt_execution_outcome) {
                         trace!(
                             FASTNEAR_INDEXER,
@@ -108,7 +108,7 @@ impl FastNearIndexer {
                             tx_hash,
                             block_hash: block.block.header.hash,
                         };
-                        debug!(FASTNEAR_INDEXER, "Sending candidate data for rollup_id: {}", rollup_id);
+                        debug!("Sending candidate data for rollup_id: {}", rollup_id);
                         Self::send(&candidate_data, publish_sender).await?;
                     }
                 }
@@ -119,7 +119,7 @@ impl FastNearIndexer {
     }
 
     pub fn stream_latest_blocks(&self) -> mpsc::Receiver<BlockWithTxHashes> {
-        info!(FASTNEAR_INDEXER, "Starting block stream");
+        info!("Starting block stream");
         let (block_sender, block_receiver) = mpsc::channel(self.channel_width);
         let client = self.client.clone();
         let fastnear_address = self.fastnear_address.clone();
@@ -130,7 +130,7 @@ impl FastNearIndexer {
                     Ok(block) => {
                         let block_height = block.block.header.height;
                         if block_sender.send(block).await.is_err() {
-                            error!(FASTNEAR_INDEXER, "Failed to send block to channel");
+                            error!("Failed to send block to channel");
                             break;
                         }
                         info!(
@@ -138,7 +138,7 @@ impl FastNearIndexer {
                             "Successfully fetched and sent latest block with id: {}", block_height
                         );
                     }
-                    Err(e) => error!(FASTNEAR_INDEXER, "Error fetching latest block: {:?}", e),
+                    Err(e) => error!("Error fetching latest block: {:?}", e),
                 }
                 tokio::time::sleep(std::time::Duration::from_secs(1)).await;
             }
@@ -148,7 +148,7 @@ impl FastNearIndexer {
     }
 
     async fn fetch_latest_block(client: &Client, fastnear_address: &str) -> Result<BlockWithTxHashes, Error> {
-        debug!(FASTNEAR_INDEXER, "Fetching latest block");
+        debug!("Fetching latest block");
         let response = client
             .get(fastnear_address)
             .send()
@@ -166,7 +166,7 @@ impl FastNearIndexer {
         candidate_data: &PartialCandidateDataWithBlockTxHash,
         sender: &Sender<PublishData>,
     ) -> Result<(), Error> {
-        trace!(FASTNEAR_INDEXER, "Sending candidate data: {:?}", candidate_data);
+        trace!("Sending candidate data: {:?}", candidate_data);
         for data in &candidate_data.payloads {
             let publish_data = PublishData {
                 publish_options: PublishOptions {
@@ -192,12 +192,12 @@ impl FastNearIndexer {
             receipt_execution_outcome.execution_outcome.outcome.status,
             ExecutionStatusView::SuccessValue(ref value) if value.is_empty()
         );
-        trace!(FASTNEAR_INDEXER, "Execution successful: {}", is_successful);
+        trace!("Execution successful: {}", is_successful);
         is_successful
     }
 
     fn receipt_filter_map(receipt_enum_view: ReceiptEnumView, rollup_id: u32) -> Option<PartialCandidateData> {
-        trace!(FASTNEAR_INDEXER, "Filtering receipt for rollup_id: {}", rollup_id);
+        trace!("Filtering receipt for rollup_id: {}", rollup_id);
         let payloads = match receipt_enum_view {
             ReceiptEnumView::Action { actions, .. } => actions
                 .into_iter()
@@ -207,7 +207,7 @@ impl FastNearIndexer {
         };
 
         if payloads.is_empty() {
-            trace!(FASTNEAR_INDEXER, "No payloads found for rollup_id: {}", rollup_id);
+            trace!("No payloads found for rollup_id: {}", rollup_id);
             return None;
         }
 
@@ -217,11 +217,11 @@ impl FastNearIndexer {
     fn extract_args(action: ActionView) -> Option<Vec<u8>> {
         match action {
             ActionView::FunctionCall { method_name, args, .. } if method_name == "submit" => {
-                trace!(FASTNEAR_INDEXER, "Extracted args for 'submit' method");
+                trace!("Extracted args for 'submit' method");
                 Some(args.into())
             }
             _ => {
-                trace!(FASTNEAR_INDEXER, "Skipped non-'submit' method");
+                trace!("Skipped non-'submit' method");
                 None
             }
         }
@@ -247,6 +247,7 @@ mod tests {
     #[cfg(feature = "it_tests")]
     use std::collections::HashMap;
 
+    #[cfg(all(test, feature = "it_tests"))]
     const FASTNEAR_DEFAULT_ENDPOINT: &str = "https://testnet.neardata.xyz/v0/last_block/final";
 
     #[cfg(all(test, feature = "it_tests"))]

@@ -142,21 +142,6 @@ services:
     networks:
       - nffl
 
-  nearcore-setup:
-    image: debian:bookworm
-    container_name: nearcore-setup
-    volumes:
-      - near_cli_data:/near-cli
-      - near_cli_keys:/root/.near-credentials
-    entrypoint: sh
-    command:
-      - -c
-      - |
-        rm -rf /near-cli/*
-        rm -rf /root/.near-credentials/*
-    networks:
-      - nffl
-
   indexer:
     image: nffl-fast-indexer:latest
     container_name: nffl-indexer
@@ -165,11 +150,6 @@ services:
         condition: service_healthy
       mainnet-anvil-setup:
         condition: service_completed_successfully
-      nearcore-setup:
-        condition: service_completed_successfully
-    volumes:
-      - near_cli_data:/root/.near
-      - near_cli_keys:/root/.near-credentials
     expose:
       - 9090 # prometheus port
     command:
@@ -186,14 +166,30 @@ services:
     networks:
       - nffl
 
+  nearcore-setup:
+    image: debian:bookworm
+    container_name: nearcore-setup
+    depends_on:
+      indexer:
+        condition: service_started
+    volumes:
+      - near_cli_data:/near-cli
+      - near_cli_keys:/root/.near-credentials
+    entrypoint: sh
+    command:
+      - -c
+      - |
+        rm -rf /near-cli/*
+        rm -rf /root/.near-credentials/*
+    networks:
+      - nffl
+
   nearcore:
     image: nearprotocol/nearcore:2.4.0-a83c18490cf4dafaedca01458f365dc5871bd293 # The version is important
     container_name: nearcore
     depends_on:
       nearcore-setup:
         condition: service_completed_successfully
-      indexer:
-        condition: service_started
     ports:
       - "3030:3030"
     volumes:
@@ -201,6 +197,9 @@ services:
       - near_cli_keys:/root/.near-credentials
     environment:
       - NEAR_HOME=/root/.near
+      - INIT=1
+      - CHAIN_ID=localnet
+      - ACCOUNT_ID=test.near
     networks:
       - nffl
 
