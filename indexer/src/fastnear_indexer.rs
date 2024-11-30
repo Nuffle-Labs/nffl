@@ -21,20 +21,25 @@ use crate::{
     },
 };
 
-const FASTNEAR_ENDPOINT: &str = "https://testnet.neardata.xyz/v0/last_block/final";
 const FASTNEAR_INDEXER: &str = "fastnear_indexer";
 
 pub struct FastNearIndexer {
     client: Client,
+    fastnear_address: String,
     addresses_to_rollup_ids: HashMap<AccountId, u32>,
     listener: Option<BlockEventListener>,
     channel_width: usize,
 }
 
 impl FastNearIndexer {
-    pub(crate) fn new(addresses_to_rollup_ids: HashMap<AccountId, u32>, channel_width: usize) -> Self {
+    pub(crate) fn new(
+        fastnear_address: &str,
+        addresses_to_rollup_ids: HashMap<AccountId, u32>,
+        channel_width: usize,
+    ) -> Self {
         debug!(FASTNEAR_INDEXER, "Creating new FastNearIndexer");
         Self {
+            fastnear_address: fastnear_address.to_string(),
             client: Client::new(),
             addresses_to_rollup_ids,
             listener: None,
@@ -83,7 +88,11 @@ impl FastNearIndexer {
                 if let Some(rollup_id) = addresses_to_rollup_ids.get(receiver_id) {
                     trace!(FASTNEAR_INDEXER, "Processing receipt for rollup_id: {}", rollup_id);
                     if !Self::is_successful_execution(&receipt_execution_outcome) {
-                        trace!(FASTNEAR_INDEXER, "Skipping unsuccessful execution for rollup_id: {}", rollup_id);
+                        trace!(
+                            FASTNEAR_INDEXER,
+                            "Skipping unsuccessful execution for rollup_id: {}",
+                            rollup_id
+                        );
                         continue;
                     }
 
@@ -113,17 +122,21 @@ impl FastNearIndexer {
         info!(FASTNEAR_INDEXER, "Starting block stream");
         let (block_sender, block_receiver) = mpsc::channel(self.channel_width);
         let client = self.client.clone();
+        let fastnear_address = self.fastnear_address.clone();
 
         tokio::spawn(async move {
             loop {
-                match Self::fetch_latest_block(&client).await {
+                match Self::fetch_latest_block(&client, fastnear_address.as_str()).await {
                     Ok(block) => {
                         let block_height = block.block.header.height;
                         if block_sender.send(block).await.is_err() {
                             error!(FASTNEAR_INDEXER, "Failed to send block to channel");
                             break;
                         }
-                        info!(FASTNEAR_INDEXER, "Successfully fetched and sent latest block with id: {}", block_height);
+                        info!(
+                            FASTNEAR_INDEXER,
+                            "Successfully fetched and sent latest block with id: {}", block_height
+                        );
                     }
                     Err(e) => error!(FASTNEAR_INDEXER, "Error fetching latest block: {:?}", e),
                 }
@@ -134,10 +147,10 @@ impl FastNearIndexer {
         block_receiver
     }
 
-    async fn fetch_latest_block(client: &Client) -> Result<BlockWithTxHashes, Error> {
+    async fn fetch_latest_block(client: &Client, fastnear_address: &str) -> Result<BlockWithTxHashes, Error> {
         debug!(FASTNEAR_INDEXER, "Fetching latest block");
         let response = client
-            .get(FASTNEAR_ENDPOINT)
+            .get(fastnear_address)
             .send()
             .await
             .and_then(|r| r.error_for_status())
@@ -165,7 +178,7 @@ impl FastNearIndexer {
                 },
                 payload: PublishPayload {
                     transaction_id: candidate_data.tx_hash,
-                    data: data.clone()
+                    data: data.clone(),
                 },
             };
             sender.send(publish_data).await?
@@ -234,11 +247,13 @@ mod tests {
     #[cfg(feature = "it_tests")]
     use std::collections::HashMap;
 
+    const FASTNEAR_DEFAULT_ENDPOINT: &str = "https://testnet.neardata.xyz/v0/last_block/final";
+
     #[cfg(all(test, feature = "it_tests"))]
     #[tokio::test]
     async fn test_run() {
         let addresses_to_rollup_ids = HashMap::new();
-        let indexer = FastNearIndexer::new(addresses_to_rollup_ids, 128);
+        let indexer = FastNearIndexer::new(FASTNEAR_DEFAULT_ENDPOINT, addresses_to_rollup_ids, 128);
         let receiver = indexer.run();
         // Since the run method spawns asynchronous tasks, we can check if the receiver is valid
         assert!(receiver.capacity() > 0);
@@ -248,7 +263,7 @@ mod tests {
     #[tokio::test]
     async fn test_fetch_latest_block() {
         let client = Client::new();
-        let result = FastNearIndexer::fetch_latest_block(&client).await;
+        let result = FastNearIndexer::fetch_latest_block(&client, FASTNEAR_DEFAULT_ENDPOINT).await;
         assert!(result.is_ok(), "Failed to fetch latest block");
         let block = result.unwrap();
         // Basic assertions about the block

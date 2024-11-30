@@ -24,7 +24,8 @@ mod fastnear_indexer;
 const INDEXER: &str = "indexer";
 
 fn run(home_dir: std::path::PathBuf, config: RunConfigArgs) -> Result<()> {
-    let addresses_to_rollup_ids = config.compile_addresses_to_ids_map()?;
+    let addr_to_rollup_ids = config.compile_addresses_to_ids_map()?;
+    let fastnear_addr: &str = config.fastnear_address.as_str();
     let system = actix::System::new();
     let registry = Registry::new();
     let server_handle = if let Some(metrics_addr) = config.metrics_ip_port_address {
@@ -41,7 +42,7 @@ fn run(home_dir: std::path::PathBuf, config: RunConfigArgs) -> Result<()> {
         }
 
         if cfg!(feature = "use_fastnear") {
-            let fastnear_indexer = FastNearIndexer::new(addresses_to_rollup_ids, config.channel_width);
+            let fastnear_indexer = FastNearIndexer::new(fastnear_addr, addr_to_rollup_ids, config.channel_width);
             let validated_stream = fastnear_indexer.run();
 
             rmq_publisher.run(validated_stream);
@@ -55,7 +56,7 @@ fn run(home_dir: std::path::PathBuf, config: RunConfigArgs) -> Result<()> {
                 validate_genesis: true,
             };
 
-            let mut indexer = IndexerWrapper::new(indexer_config, addresses_to_rollup_ids);
+            let mut indexer = IndexerWrapper::new(indexer_config, addr_to_rollup_ids);
             if config.metrics_ip_port_address.is_some() {
                 indexer.enable_metrics(registry.clone())?;
             }

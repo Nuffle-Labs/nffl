@@ -78,7 +78,7 @@ jobs:
         run: make tests-integration
 
       - name: Rust Fastnear Integration Test
-        run: cargo test --features it-tests
+        run: cargo test --features it_tests
         working-directory: ./indexer
 
       - name: Rust Integration Test

@@ -53,6 +53,10 @@ pub(crate) struct RunConfigArgs {
     /// Metrics socket addr
     #[clap(long)]
     pub metrics_ip_port_address: Option<SocketAddr>,
+    /// Address of fastnear block producer.
+    #[clap(long, default_value = "https://testnet.neardata.xyz/v0/last_block/final")]
+    pub fastnear_address: String,    
+    /// Internal FastIndexer channels width. 
     #[clap(long, default_value = "256")]
     pub channel_width: usize
 }
