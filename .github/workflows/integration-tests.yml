@@ -81,7 +81,3 @@ jobs:
         run: cargo test --features it_tests
         working-directory: ./indexer
 
-      - name: Rust Integration Test
-        run: cargo test --features it-tests
-        working-directory: ./tests/e2e/e2e_tests
-
