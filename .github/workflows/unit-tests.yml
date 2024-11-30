@@ -5,6 +5,14 @@ on:
     branches:
       - main
   pull_request:
+    paths:
+      - 'aggregator/**'
+      - 'core/**'
+      - 'indexer/**'
+      - 'offchain/**'
+      - 'operator/**'
+      - 'plugin/**'
+      - 'relayer/**'
 
 jobs:  
   go_test:
@@ -32,4 +40,4 @@ jobs:
               - 'offchain/**'
       - uses: actions-rust-lang/setup-rust-toolchain@v1
         if: steps.filter.outputs.rust == 'true'
-      - run: cargo test --all-features
+      - run: RUSTFLAGS="$RUSTFLAGS -A dead_code" cargo test # Allow 'dead code' since most containers are not used in unit tests

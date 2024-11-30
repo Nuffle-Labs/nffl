@@ -4,6 +4,8 @@ networks:
   nffl:
     name: nffl
     driver: bridge
+#    internal: true
+#    enable_ipv6: false
 
 services:
   rmq:
@@ -236,7 +238,7 @@ services:
     networks:
       - nffl
 
-  agreator-health:
+  aggregator-health:
     image: debian:bookworm
     depends_on:
       aggregator:

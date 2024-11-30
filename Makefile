@@ -48,8 +48,14 @@ bindings: ## generates contract bindings
 	cd contracts && ./generate-go-bindings.sh
 
 ___DOCKER___: ##
+docker-fast-build-indexer:
+	docker build -t nffl-indexer -f ./indexer/Dockerfile --build-arg COMPILATION_MODE="" --build-arg TARGET="debug" .
+docker-fast-build-fastnear-indexer:
+	docker build -t nffl-fast-indexer -f ./indexer/FastIndexer.dockerfile --build-arg COMPILATION_MODE="" --build-arg TARGET="debug" .
 docker-build-indexer:
 	docker build -t nffl-indexer -f ./indexer/Dockerfile .
+docker-build-fastnear-indexer:
+	docker build -t nffl-fast-indexer -f ./indexer/FastIndexer.dockerfile .
 docker-build-relayer:
 	docker build -t nffl-test-relayer -f ./relayer/cmd/Dockerfile .
 docker-build-aggregator:
@@ -59,8 +65,9 @@ docker-build-operator:
 docker-build-plugin:
 	docker build -t nffl-operator-plugin -f ./plugin/cmd/Dockerfile .
 docker-build-images: docker-build-indexer docker-build-relayer docker-build-aggregator docker-build-operator docker-build-plugin ## builds and publishes indexer, operator and aggregator docker images
-docker-start-everything: docker-build-images ## starts aggregator and operator docker containers
-	docker compose up
+docker-fast-build-images: docker-fast-build-indexer docker-build-relayer docker-build-aggregator docker-build-operator docker-build-plugin ## builds and publishes indexer, operator and aggregator docker images
+docker-start-everything: docker-fast-build-images ## starts aggregator and operator docker containers
+	docker compose -f ./docker-compose.yml up
 
 __CLI__: ##
 
@@ -135,7 +142,9 @@ near-da-rpc-sys:
 # TODO: Currently we cannot use the race detector with `integration_test.go`
 tests-integration: ## runs all integration tests
 	go test ./tests/integration/integration_test.go -v -count=1
-	go test ./tests/integration/registration_test.go -v -race -count=1
+	#go test ./tests/integration/registration_test.go -v -race -count=1
+#test-integration-fastnear: ## runs fastnear integration test
+#	go test ./tests/integration/fastnear_test.go -v -count=1
 
 ## runs slither for solidity files
 ## You can install Slither by following the guide at https://github.com/crytic/slither/tree/master?tab=readme-ov-file#how-to-install

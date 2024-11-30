@@ -10,7 +10,9 @@
 /// but manual cleanup may be required if tests fail
 mod containers;
 
+#[allow(unused_imports)]
 use testcontainers::runners::AsyncRunner;
+#[allow(unused_imports)]
 use crate::containers::*;
 
 #[cfg(all(test, feature = "it-tests"))]

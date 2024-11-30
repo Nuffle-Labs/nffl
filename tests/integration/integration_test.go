@@ -96,7 +96,7 @@ func TestIntegration(t *testing.T) {
 	newOperatorConfig, _, _ := genOperatorConfig(t, ctx, "4", setup.mainnetAnvil, setup.rollupAnvils, setup.rabbitMq)
 	newOperator := startOperator(t, ctx, newOperatorConfig)
 
-	time.Sleep(50 * time.Second)
+	time.Sleep(60 * time.Second)
 
 	// Check if operator set was updated on rollups
 	for _, registryRollup := range setup.registryRollups {

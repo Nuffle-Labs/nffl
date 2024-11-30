@@ -30,6 +30,10 @@ pub enum Error {
     ActixErrorKind(std::io::ErrorKind),
     #[error{"0"}]
     JoinError(#[from] tokio::task::JoinError),
+    #[error("Network error: {0}")]
+    NetworkError(String),
+    #[error("Deserialize jsonerror: {0}")]
+    DeserializeJsonError(String),
 }
 
 impl<T> From<SendError<T>> for Error {

@@ -1,5 +1,8 @@
-FROM rust:1.81 AS builder 
+FROM rust:1.82 AS builder
 WORKDIR /tmp/indexer
+
+ARG TARGET="release"
+ARG COMPILATION_MODE="--${TARGET}"
 
 # Copy from nearcore:
 # https://github.com/near/nearcore/blob/master/Dockerfile
@@ -16,19 +19,22 @@ RUN apt-get update -qq && \
 
 COPY ./indexer/Cargo.toml .
 RUN mkdir ./src && echo "fn main() {}" > ./src/main.rs
-RUN cargo build --release -p indexer
+
+# Hacky approach to cache dependencies
+RUN cargo build ${COMPILATION_MODE} -p indexer
 
 COPY ./indexer .
 RUN touch ./src/main.rs
 
-RUN cargo build --release -p indexer
+RUN cargo build ${COMPILATION_MODE} -p indexer
 
 FROM debian:bookworm-slim as runtime
 WORKDIR /indexer-app
+ARG TARGET="release"
 
 RUN apt update && apt install -yy openssl ca-certificates jq curl
 
-COPY --from=builder /tmp/indexer/target/release/indexer .
+COPY --from=builder /tmp/indexer/target/${TARGET}/indexer .
 COPY ./indexer/entrypoint.sh ./entrypoint.sh
 RUN chmod +x ./entrypoint.sh
 
