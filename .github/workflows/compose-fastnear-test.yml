@@ -91,11 +91,9 @@ jobs:
             "nffl-aggregator"
             "nffl_aggregator-health_1"
             "mainnet-anvil"
-            "prometheus"
             "rollup0-anvil"
             "rmq"
             "rollup1-anvil"
-            "grafana"
           ) # List of container names
           for container in "${containers[@]}"; do
             if docker inspect -f '{{.State.Running}}' "$container" >/dev/null 2>&1; then

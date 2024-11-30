@@ -141,6 +141,21 @@ services:
     networks:
       - nffl
 
+  indexer-setup:
+    image: debian:bookworm
+    container_name: nffl-indexer-setup
+    volumes:
+      - near_cli_data:/near-cli
+      - near_cli_keys:/root/.near-credentials
+    entrypoint: sh
+    command:
+      - -c
+      - |
+        rm -rf /near-cli/*
+        rm -rf /root/.near-credentials/*
+    networks:
+      - nffl
+
   indexer:
     image: nffl-indexer:latest
     container_name: nffl-indexer
@@ -171,21 +186,6 @@ services:
       - "3"
       - --metrics-ip-port-address
       - "0.0.0.0:9090"
-    networks:
-      - nffl
-
-  indexer-setup:
-    image: debian:bookworm
-    container_name: nffl-indexer-setup
-    volumes:
-      - near_cli_data:/near-cli
-      - near_cli_keys:/root/.near-credentials
-    entrypoint: sh
-    command:
-      - -c
-      - |
-        rm -rf /near-cli/*
-        rm -rf /root/.near-credentials/*
     networks:
       - nffl
 

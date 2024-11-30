@@ -1,8 +1,7 @@
 FROM rust:1.82 AS builder
 WORKDIR /tmp/indexer
 
-ARG TARGET="release"
-ARG COMPILATION_MODE="--${TARGET}"
+ARG COMPILATION_MODE="--release"
 
 # Copy from nearcore:
 # https://github.com/near/nearcore/blob/master/Dockerfile
