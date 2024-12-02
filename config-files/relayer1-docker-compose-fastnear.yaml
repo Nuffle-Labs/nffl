@@ -1,0 +1,6 @@
+production: false
+rpc_url: ws://rollup1-anvil:8547
+da_account_id: da3.test.near
+key_path: /root/.near-credentials/localnet/da3.test.near.json
+network: http://nearcore:3030
+metrics_ip_port_address: rollup1-relayer:9091

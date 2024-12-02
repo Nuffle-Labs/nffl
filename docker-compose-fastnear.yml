@@ -97,7 +97,7 @@ services:
       - --key-path
       - /root/.near-credentials/localnet/da2.test.near.json
       - --network
-      - http://nffl-indexer:3030
+      - http://nearcore:3030
       - --metrics-ip-port-address
       - rollup0-relayer:9091
     networks:
@@ -138,7 +138,7 @@ services:
     command:
       - run-config
       - --path
-      - /etc/relayer/relayer1-docker-compose.yaml
+      - /etc/relayer/relayer1-docker-compose-fastnear.yaml
     networks:
       - nffl
 

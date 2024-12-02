@@ -1,7 +1,13 @@
-package integration
+package fastnear
 
 import (
 	"context"
+	sdklogging "github.com/Layr-Labs/eigensdk-go/logging"
+	"github.com/Nuffle-Labs/nffl/core/chainio"
+	"github.com/Nuffle-Labs/nffl/tests/integration"
+	"github.com/Nuffle-Labs/nffl/tests/integration/utils"
+	"github.com/ethereum/go-ethereum/common"
+	"github.com/testcontainers/testcontainers-go"
 	"github.com/testcontainers/testcontainers-go/modules/rabbitmq"
 	"github.com/testcontainers/testcontainers-go/wait"
 	"log"
@@ -11,20 +17,15 @@ import (
 	"testing"
 	"time"
 
-	sdklogging "github.com/Layr-Labs/eigensdk-go/logging"
 	registryrollup "github.com/Nuffle-Labs/nffl/contracts/bindings/SFFLRegistryRollup"
-	"github.com/Nuffle-Labs/nffl/core/chainio"
 	"github.com/Nuffle-Labs/nffl/core/types"
-	"github.com/Nuffle-Labs/nffl/tests/integration/utils"
 	"github.com/ethereum/go-ethereum/accounts/abi/bind"
-	"github.com/ethereum/go-ethereum/common"
 	"github.com/stretchr/testify/assert"
-	"github.com/testcontainers/testcontainers-go"
 )
 
 func TestIntegration(t *testing.T) {
 	ctx, cancel := context.WithTimeout(context.Background(), 250*time.Second)
-	setup := setupTestEnv(t, ctx)
+	setup := setupFastnearTestEnv(t, ctx)
 	t.Cleanup(func() {
 		cancel()
 
@@ -55,7 +56,7 @@ func TestIntegration(t *testing.T) {
 		t.Fatalf("Cannot get current block height: %s", err.Error())
 	}
 
-	stateRootUpdate, err := GetStateRootUpdateAggregation(setup.AggregatorRestUrl, uint32(setup.RollupAnvils[0].ChainID.Uint64()), stateRootHeight-1)
+	stateRootUpdate, err := integration.GetStateRootUpdateAggregation(setup.AggregatorRestUrl, uint32(setup.RollupAnvils[0].ChainID.Uint64()), stateRootHeight-1)
 	if err != nil {
 		t.Fatalf("Cannot get state root update: %s", err.Error())
 	}
@@ -64,12 +65,12 @@ func TestIntegration(t *testing.T) {
 		t.Fatalf("Error updating state root: %s", err.Error())
 	}
 
-	newOperatorConfig, _, _ := GenOperatorConfig(t, ctx, "4", setup.MainnetAnvil, setup.RollupAnvils, setup.RabbitMq)
-	newOperator := StartOperator(t, ctx, newOperatorConfig)
+	newOperatorConfig, _, _ := integration.GenOperatorConfig(t, ctx, "4", setup.MainnetAnvil, setup.RollupAnvils, setup.RabbitMq)
+	newOperator := integration.StartOperator(t, ctx, newOperatorConfig)
 
 	time.Sleep(60 * time.Second)
 
-	// Check if operator set was updated on rollups
+	// Check if an operator set was updated on rollups
 	for _, registryRollup := range setup.RegistryRollups {
 		nextOperatorSetUpdateId, err := registryRollup.NextOperatorUpdateId(&bind.CallOpts{})
 		if err != nil {
@@ -82,7 +83,7 @@ func TestIntegration(t *testing.T) {
 	}
 
 	stateRootHeight = uint64(16)
-	stateRootUpdate, err = GetStateRootUpdateAggregation(setup.AggregatorRestUrl, uint32(setup.RollupAnvils[0].ChainID.Uint64()), stateRootHeight)
+	stateRootUpdate, err = integration.GetStateRootUpdateAggregation(setup.AggregatorRestUrl, uint32(setup.RollupAnvils[0].ChainID.Uint64()), stateRootHeight)
 	if err != nil {
 		t.Fatalf("Cannot get state root update: %s", err.Error())
 	}
@@ -104,7 +105,7 @@ func TestIntegration(t *testing.T) {
 		t.Fatalf("Cannot get current block height: %s", err.Error())
 	}
 
-	stateRootUpdate, err = GetStateRootUpdateAggregation(setup.AggregatorRestUrl, uint32(setup.RollupAnvils[0].ChainID.Uint64()), stateRootHeight-1)
+	stateRootUpdate, err = integration.GetStateRootUpdateAggregation(setup.AggregatorRestUrl, uint32(setup.RollupAnvils[0].ChainID.Uint64()), stateRootHeight-1)
 	if err != nil {
 		t.Fatalf("Cannot get state root update: %s", err.Error())
 	}
@@ -115,7 +116,7 @@ func TestIntegration(t *testing.T) {
 		t.Fatalf("Error updating state root: %s", err.Error())
 	}
 
-	operatorSetUpdate, err := GetOperatorSetUpdateAggregation(setup.AggregatorRestUrl, operatorSetUpdateCount-1)
+	operatorSetUpdate, err := integration.GetOperatorSetUpdateAggregation(setup.AggregatorRestUrl, operatorSetUpdateCount-1)
 	if err != nil {
 		t.Fatalf("Error getting operator set update: %s", err.Error())
 	}
@@ -132,7 +133,7 @@ func TestIntegration(t *testing.T) {
 	<-ctx.Done()
 }
 
-func setupTestEnv(t *testing.T, ctx context.Context) *TestEnv {
+func setupFastnearTestEnv(t *testing.T, ctx context.Context) *integration.TestEnv {
 	containersCtx, cancelContainersCtx := context.WithCancel(context.Background())
 
 	networkName := "nffl"
@@ -159,24 +160,29 @@ func setupTestEnv(t *testing.T, ctx context.Context) *TestEnv {
 		utils.StartAnvilTestContainer(t, containersCtx, rollup0AnvilContainerName, "8546", "2", false, networkName),
 		utils.StartAnvilTestContainer(t, containersCtx, rollup1AnvilContainerName, "8547", "3", false, networkName),
 	}
-	rabbitMq := StartRabbitMqContainer(t, containersCtx, rmqContainerName, networkName)
-	indexerContainer, relayers := startIndexer(t, containersCtx, indexerContainerName, rollupAnvils, rabbitMq, networkName)
+	rabbitMq := integration.StartRabbitMqContainer(t, containersCtx, rmqContainerName, networkName)
+	indexerContainer := startFastnearIndexer(t, containersCtx, indexerContainerName, rollupAnvils, rabbitMq, networkName)
+	// Note: changes from the original indexer - we are running a nearcore node instead of a indexer-backed one.
 
-	sfflDeploymentRaw := ReadSfflDeploymentRaw()
+	nearcore := startNearcore(t, containersCtx, networkName)
 
-	configRaw := BuildConfigRaw(mainnetAnvil, rollupAnvils)
+	relayers := integration.SetupNearDa(t, ctx, nearcore, rollupAnvils)
+
+	sfflDeploymentRaw := integration.ReadSfflDeploymentRaw()
+
+	configRaw := integration.BuildConfigRaw(mainnetAnvil, rollupAnvils)
 	logger, err := sdklogging.NewZapLogger(configRaw.Environment)
 	if err != nil {
 		t.Fatalf("Failed to create logger: %s", err.Error())
 	}
 
-	nodeConfig, _, _ := GenOperatorConfig(t, ctx, "3", mainnetAnvil, rollupAnvils, rabbitMq)
+	nodeConfig, _, _ := integration.GenOperatorConfig(t, ctx, "3", mainnetAnvil, rollupAnvils, rabbitMq)
 
-	addresses, registryRollups, registryRollupAuths, _ := DeployRegistryRollups(t, rollupAnvils)
-	operator := StartOperator(t, ctx, nodeConfig)
+	addresses, registryRollups, registryRollupAuths, _ := integration.DeployRegistryRollups(t, rollupAnvils)
+	operator := integration.StartOperator(t, ctx, nodeConfig)
 
-	config := BuildConfig(t, sfflDeploymentRaw, addresses, rollupAnvils, configRaw)
-	aggregator := StartAggregator(t, ctx, config, logger)
+	config := integration.BuildConfig(t, sfflDeploymentRaw, addresses, rollupAnvils, configRaw)
+	aggregator := integration.StartAggregator(t, ctx, config, logger)
 
 	avsReader, err := chainio.BuildAvsReader(common.HexToAddress(sfflDeploymentRaw.Addresses.RegistryCoordinatorAddr), common.HexToAddress(sfflDeploymentRaw.Addresses.OperatorStateRetrieverAddr), mainnetAnvil.HttpClient, logger)
 	if err != nil {
@@ -184,7 +190,7 @@ func setupTestEnv(t *testing.T, ctx context.Context) *TestEnv {
 	}
 
 	cleanup := func() {
-		if err := os.RemoveAll(TEST_DATA_DIR); err != nil {
+		if err := os.RemoveAll(integration.TEST_DATA_DIR); err != nil {
 			t.Fatalf("Error cleaning test data dir: %s", err.Error())
 		}
 
@@ -218,7 +224,7 @@ func setupTestEnv(t *testing.T, ctx context.Context) *TestEnv {
 		cancelContainersCtx()
 	}
 
-	return &TestEnv{
+	return &integration.TestEnv{
 		MainnetAnvil:        mainnetAnvil,
 		RollupAnvils:        rollupAnvils,
 		RabbitMq:            rabbitMq,
@@ -233,7 +239,7 @@ func setupTestEnv(t *testing.T, ctx context.Context) *TestEnv {
 	}
 }
 
-func startIndexer(t *testing.T, ctx context.Context, name string, rollupAnvils []*utils.AnvilInstance, rabbitMq *rabbitmq.RabbitMQContainer, networkName string) (testcontainers.Container, []testcontainers.Container) {
+func startFastnearIndexer(t *testing.T, ctx context.Context, name string, rollupAnvils []*utils.AnvilInstance, rabbitMq *rabbitmq.RabbitMQContainer, networkName string) testcontainers.Container {
 	rmqName, err := rabbitMq.Name(ctx)
 	if err != nil {
 		t.Fatalf("Error getting RabbitMQ container name: %s", err.Error())
@@ -255,12 +261,11 @@ func startIndexer(t *testing.T, ctx context.Context, name string, rollupAnvils [
 	}
 
 	req := testcontainers.ContainerRequest{
-		Image:        "nffl-indexer",
-		Name:         name,
-		Cmd:          append([]string{"--rmq-address", amqpUrl}, rollupArgs...),
-		ExposedPorts: []string{"3030/tcp"},
-		WaitingFor:   wait.ForLog("Starting Streamer..."),
-		Networks:     []string{networkName},
+		Image:      "nffl-fast-indexer",
+		Name:       name,
+		Cmd:        append([]string{"--rmq-address", amqpUrl}, rollupArgs...),
+		WaitingFor: wait.ForLog("Starting block processing..."),
+		Networks:   []string{networkName},
 	}
 
 	genericReq := testcontainers.GenericContainerRequest{
@@ -274,6 +279,32 @@ func startIndexer(t *testing.T, ctx context.Context, name string, rollupAnvils [
 		t.Fatalf("Error starting indexer container: %s", err.Error())
 	}
 
-	relayers := SetupNearDa(t, ctx, indexerContainer, rollupAnvils)
-	return indexerContainer, relayers
+	return indexerContainer
+}
+
+func startNearcore(t *testing.T, ctx context.Context, networkName string) testcontainers.Container {
+	req := testcontainers.ContainerRequest{
+		Image:      "nearprotocol/nearcore:2.4.0-a83c18490cf4dafaedca01458f365dc5871bd293",
+		Name:       "nearcore",
+		WaitingFor: wait.ForLog("All validations have passed!"),
+		Env: map[string]string{
+			"NEAR_HOME":  "/root/.near",
+			"INIT":       "1",
+			"CHAIN_ID":   "localnet",
+			"ACCOUNT_ID": "test.near",
+		},
+		Networks: []string{networkName},
+	}
+
+	genericReq := testcontainers.GenericContainerRequest{
+		ContainerRequest: req,
+		Started:          true,
+	}
+
+	nearcoreContainer, err := testcontainers.GenericContainer(ctx, genericReq)
+	if err != nil {
+		t.Fatalf("Error starting nearcore container: %s", err.Error())
+	}
+
+	return nearcoreContainer
 }

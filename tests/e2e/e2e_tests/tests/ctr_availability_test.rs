@@ -8,7 +8,10 @@
 /// # Cleanup
 /// Containers are automatically cleaned up after each test,
 /// but manual cleanup may be required if tests fail
-mod containers;
+///
+/// Current status - prepared to replace Go-based test-containers setup,
+/// but not yet fully implemented and tested. At the state on december 2024,
+/// Go-based test-containers setup is still the most preferable way to do an integration testing.
 
 #[allow(unused_imports)]
 use testcontainers::runners::AsyncRunner;
