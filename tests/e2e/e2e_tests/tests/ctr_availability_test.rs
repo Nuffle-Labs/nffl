@@ -13,6 +13,8 @@
 /// but not yet fully implemented and tested. At the state on december 2024,
 /// Go-based test-containers setup is still the most preferable way to do an integration testing.
 
+mod containers;
+
 #[allow(unused_imports)]
 use testcontainers::runners::AsyncRunner;
 #[allow(unused_imports)]
