@@ -128,4 +128,4 @@ jobs:
           done
 
       - name: Tear down Docker Compose services
-        run: docker-compose down
+        run: docker-compose -f ./docker-compose-fastnear.yml down
