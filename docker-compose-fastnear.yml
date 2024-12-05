@@ -2,10 +2,7 @@ version: "3"
 
 networks:
   nffl:
-    name: nffl
     driver: bridge
-#    internal: true
-#    enable_ipv6: false
 
 services:
   rmq:
@@ -83,6 +80,8 @@ services:
     depends_on:
       rollup0-anvil:
         condition: service_healthy
+      nearcore-health:
+        condition: service_healthy
       near-da-deploy:
         condition: service_completed_successfully
     expose:
@@ -98,7 +97,7 @@ services:
       - --key-path
       - /root/.near-credentials/localnet/da2.test.near.json
       - --network
-      - http://nffl-indexer:3030
+      - http://nearcore:3030
       - --metrics-ip-port-address
       - rollup0-relayer:9091
     networks:
@@ -127,6 +126,8 @@ services:
     depends_on:
       rollup1-anvil:
         condition: service_healthy
+      nearcore-health:
+        condition: service_healthy
       near-da-deploy:
         condition: service_completed_successfully
     expose:
@@ -137,13 +138,40 @@ services:
     command:
       - run-config
       - --path
-      - /etc/relayer/relayer1-docker-compose.yaml
+      - /etc/relayer/relayer1-docker-compose-fastnear.yaml
     networks:
       - nffl
 
-  indexer-setup:
+  indexer:
+    image: nffl-fast-indexer:latest
+    container_name: nffl-indexer
+    depends_on:
+      rmq:
+        condition: service_healthy
+      mainnet-anvil-setup:
+        condition: service_completed_successfully
+    expose:
+      - 9090 # prometheus port
+    command:
+      - --rmq-address
+      - amqp://rmq:5672
+      - --da-contract-ids
+      - da2.test.near
+      - --da-contract-ids
+      - da3.test.near
+      - --rollup-ids
+      - "2"
+      - --rollup-ids
+      - "3"
+    networks:
+      - nffl
+
+  nearcore-setup:
     image: debian:bookworm
-    container_name: nffl-indexer-setup
+    container_name: nearcore-setup
+    depends_on:
+      indexer:
+        condition: service_started
     volumes:
       - near_cli_data:/near-cli
       - near_cli_keys:/root/.near-credentials
@@ -156,36 +184,36 @@ services:
     networks:
       - nffl
 
-  indexer:
-    image: nffl-indexer:latest
-    container_name: nffl-indexer
+  nearcore:
+    image: nearprotocol/nearcore:2.4.0-a83c18490cf4dafaedca01458f365dc5871bd293 # The version is important
+    container_name: nearcore
     depends_on:
-      rmq:
-        condition: service_healthy
-      mainnet-anvil-setup:
-        condition: service_completed_successfully
-      indexer-setup:
+      nearcore-setup:
         condition: service_completed_successfully
     ports:
       - "3030:3030"
-    expose:
-      - 9090 # prometheus port
     volumes:
       - near_cli_data:/root/.near
       - near_cli_keys:/root/.near-credentials
-    command:
-      - --rmq-address
-      - amqp://rmq:5672
-      - --da-contract-ids
-      - da2.test.near
-      - --da-contract-ids
-      - da3.test.near
-      - --rollup-ids
-      - "2"
-      - --rollup-ids
-      - "3"
-      - --metrics-ip-port-address
-      - "0.0.0.0:9090"
+    environment:
+      - NEAR_HOME=/root/.near
+      - INIT=1
+      - CHAIN_ID=localnet
+      - ACCOUNT_ID=test.near
+    networks:
+      - nffl
+
+  nearcore-health:
+    image: debian:bookworm
+    depends_on:
+      nearcore:
+        condition: service_started
+    command: sh -c "apt update && apt install -y netcat-traditional && sleep infinity"
+    healthcheck:
+      test: [ "CMD", "nc", "-z", "-v", "nearcore", "3030" ]
+      interval: 5s
+      timeout: 10s
+      retries: 5
     networks:
       - nffl
 
@@ -193,7 +221,7 @@ services:
     image: node:16
     container_name: nffl-near-da-deploy
     depends_on:
-      indexer:
+      nearcore-health:
         condition: service_healthy
     volumes:
       - ./:/nffl/
@@ -213,7 +241,7 @@ services:
       - NEAR_CLI_LOCALNET_NETWORK_ID=localnet
       - NEAR_HELPER_ACCOUNT=near
       - NEAR_CLI_LOCALNET_KEY_PATH=/near-cli/validator_key.json
-      - NEAR_NODE_URL=http://nffl-indexer:3030
+      - NEAR_NODE_URL=http://nearcore:3030
     networks:
       - nffl
 
@@ -320,52 +348,6 @@ services:
     networks:
       - nffl
 
-  # METRICS RELATED
-  grafana:
-    image: grafana/grafana:9.4.1
-    container_name: grafana
-    volumes:
-      - grafana_data:/var/lib/grafana
-      - ./grafana/provisioning:/etc/grafana/provisioning
-    environment:
-      # See https://grafana.com/docs/grafana/latest/setup-grafana/configure-grafana/#override-configuration-with-environment-variables
-      # and https://grafana.com/docs/grafana/latest/setup-grafana/configure-docker/
-      # They recommend using env vars instead of overwriting config.ini
-      - GF_SECURITY_ADMIN_USER=${ADMIN_USER:-admin}
-      - GF_SECURITY_ADMIN_PASSWORD=${ADMIN_PASSWORD:-admin}
-      - GF_USERS_ALLOW_SIGN_UP=false
-    restart: unless-stopped
-    ports:
-      - 3000:3000
-    networks:
-      - nffl
-
-  prometheus:
-    image: prom/prometheus:v2.42.0
-    container_name: prometheus
-    volumes:
-      - ./prometheus:/etc/prometheus
-      - prometheus_data:/prometheus
-    command:
-      - "--config.file=/etc/prometheus/prometheus.yml"
-      - "--storage.tsdb.path=/prometheus"
-      - "--web.console.libraries=/etc/prometheus/console_libraries"
-      - "--web.console.templates=/etc/prometheus/consoles"
-      - "--storage.tsdb.retention.time=200h"
-      - "--web.enable-lifecycle"
-      - --web.enable-remote-write-receiver
-    restart: unless-stopped
-    ports:
-      - 9090:9090
-    networks:
-      - nffl
-    # so that we can access the host from within the container
-    # needed to get the metrics from host.docker.internal:9184/metrics
-    extra_hosts:
-      - "host.docker.internal:host-gateway"
-
 volumes:
-  prometheus_data:
-  grafana_data:
   near_cli_data:
   near_cli_keys:

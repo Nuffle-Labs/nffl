@@ -1,0 +1,131 @@
+name: Docker Compose Fastnear Liveness Test
+
+on:
+  push:
+    branches:
+      - main
+  pull_request:
+    paths:
+      - 'indexer/**'
+
+jobs:
+  run-docker-compose-with-fastnear:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v3
+
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@v3
+
+      - name: Set up Docker Compose
+        run: |
+          sudo apt-get update
+          sudo apt-get install docker-compose -y
+
+      - name: Build fastnear indexer container
+        uses: docker/build-push-action@v5
+        with:
+          load: true
+          context: .
+          file: ./indexer/FastIndexer.dockerfile
+          tags: nffl-fast-indexer
+          cache-from: type=gha,scope=indexer
+          cache-to: type=gha,mode=max,scope=indexer
+          build-args: |
+            - TARGET="debug"
+            - COMPILATION_MODE=""
+
+      - name: Build relayer container
+        uses: docker/build-push-action@v5
+        with:
+          load: true
+          context: .
+          file: ./relayer/cmd/Dockerfile
+          tags: nffl-test-relayer
+          cache-from: type=gha,scope=relayer
+          cache-to: type=gha,mode=max,scope=relayer
+
+      - name: Build aggregator container
+        uses: docker/build-push-action@v5
+        with:
+          load: true
+          context: .
+          file: ./aggregator/cmd/Dockerfile
+          tags: nffl-aggregator
+          cache-from: type=gha,scope=aggregator
+          cache-to: type=gha,mode=max,scope=aggregator
+
+      - name: Build operator container
+        uses: docker/build-push-action@v5
+        with:
+          load: true
+          context: .
+          file: ./operator/cmd/Dockerfile
+          tags: nffl-operator
+          cache-from: type=gha,scope=operator
+          cache-to: type=gha,mode=max,scope=operator
+
+      - name: Build and start Docker Compose services
+        run: docker-compose -f ./docker-compose-fastnear.yml up --build -d
+
+      - name: Wait for a minute
+        run: sleep 60
+
+      - name: List running containers
+        run: |
+          echo "Running containers:"
+          docker ps --format "{{.Names}}"
+
+      - name: Ensure containers are running
+        run: |
+          containers=(
+            "nffl_operator1-health_1"
+            "nffl-operator1"
+            "nffl_operator0-health_1"
+            "nffl-operator0"
+            "rollup1-relayer"
+            "rollup0-relayer"
+            "nffl-indexer"
+            "nffl-aggregator"
+            "nffl_aggregator-health_1"
+            "mainnet-anvil"
+            "rollup0-anvil"
+            "rmq"
+            "rollup1-anvil"
+          ) # List of container names
+          for container in "${containers[@]}"; do
+            if docker inspect -f '{{.State.Running}}' "$container" >/dev/null 2>&1; then
+              echo "$container is running"
+            else
+              echo "$container is not running"
+              exit 1
+            fi
+          done
+
+
+      - name: Check health status
+        run: |
+          services=(
+            "nffl_operator1-health_1"
+            "nffl_operator0-health_1"
+            "nffl_aggregator-health_1"
+            "rollup1-anvil"
+            "rollup0-anvil"
+            "mainnet-anvil"
+            "rmq"
+          ) # List of services names
+          for service in "${services[@]}"; do
+            status=$(docker inspect -f '{{.State.Health.Status}}' $service)
+            if [ "$status" != "healthy" ]; then
+              echo "Service $service is not healthy"
+              docker-compose -f ./docker-compose-fastnear.yml logs $service
+              exit 1
+            else
+              echo "Service $service is healthy"
+            fi
+          done
+
+      - name: Tear down Docker Compose services
+        run: docker-compose -f ./docker-compose-fastnear.yml down

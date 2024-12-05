@@ -30,8 +30,10 @@ fn run(home_dir: std::path::PathBuf, config: RunConfigArgs) -> Result<()> {
     let registry = Registry::new();
     let server_handle = if let Some(metrics_addr) = config.metrics_ip_port_address {
         let metrics_server = MetricsServer::new(metrics_addr, registry.clone());
+        info!(target: INDEXER, "Metrics server has started: {}", metrics_addr);
         Some(system.runtime().spawn(metrics_server.run()))
     } else {
+        info!(target: INDEXER, "Metrics server has been disabled");
         None
     };
 
@@ -69,7 +71,7 @@ fn run(home_dir: std::path::PathBuf, config: RunConfigArgs) -> Result<()> {
             }
 
             let validated_stream = candidates_validator.run(candidates_stream);
-            
+
             rmq_publisher.run(validated_stream);
 
             Ok::<_, Error>(block_handle.await?)

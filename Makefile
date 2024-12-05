@@ -143,8 +143,8 @@ near-da-rpc-sys:
 tests-integration: ## runs all integration tests
 	go test ./tests/integration/integration_test.go -v -count=1
 	#go test ./tests/integration/registration_test.go -v -race -count=1
-#test-integration-fastnear: ## runs fastnear integration test
-#	go test ./tests/integration/fastnear_test.go -v -count=1
+# test-integration-fastnear: ## runs fastnear integration test
+#	go test ./tests/integration/fastnear/fastnear_integration_test.go -v -count=1
 
 ## runs slither for solidity files
 ## You can install Slither by following the guide at https://github.com/crytic/slither/tree/master?tab=readme-ov-file#how-to-install

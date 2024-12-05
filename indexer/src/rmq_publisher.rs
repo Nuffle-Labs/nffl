@@ -93,6 +93,7 @@ pub struct RmqPublisher {
 impl RmqPublisher {
     pub fn new(addr: &str) -> Result<Self> {
         let connection_pool = create_connection_pool(addr.into())?;
+        info!(target: PUBLISHER, "Connection pool created, RMQ address {}", addr);
 
         Ok(Self {
             connection_pool,

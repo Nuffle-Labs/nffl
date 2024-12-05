@@ -12,7 +12,6 @@ RUN apt-get update -qq && \
         g++ \
         pkg-config \
         libssl-dev \
-        wget \
         llvm \
         clang
 
@@ -31,7 +30,7 @@ FROM debian:bookworm-slim as runtime
 WORKDIR /indexer-app
 ARG TARGET="release"
 
-RUN apt update && apt install -yy openssl ca-certificates jq curl
+RUN apt update && apt install -yy openssl ca-certificates
 
 COPY --from=builder /tmp/indexer/target/${TARGET}/indexer .
 COPY ./indexer/entrypoint.sh ./entrypoint.sh
