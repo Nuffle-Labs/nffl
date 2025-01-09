@@ -39,3 +39,7 @@ reqwest = { version = "0.12.9", features = ["json"] }
 
 [dev-dependencies]
 near-crypto = { git = "https://github.com/near/nearcore", rev = "53063d8e9bfdb06d397a8d1a4c6e341091f144d6" }
+
+[features]
+use_fastnear = []
+it_tests = []
