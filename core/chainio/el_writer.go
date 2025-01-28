@@ -1,6 +1,7 @@
 package chainio
 
 import (
+
 	"github.com/Layr-Labs/eigensdk-go/chainio/clients/elcontracts"
 	"github.com/Layr-Labs/eigensdk-go/chainio/clients/eth"
 	"github.com/Layr-Labs/eigensdk-go/chainio/txmgr"
@@ -9,6 +10,7 @@ import (
 	"github.com/ethereum/go-ethereum/accounts/abi/bind"
 	"github.com/ethereum/go-ethereum/common"
 )
+
 
 func BuildElWriter(
 	registryCoordinatorAddress common.Address,
@@ -32,7 +34,7 @@ func BuildElWriter(
 		return nil, err
 	}
 
-	elContractBindings, err := utils.NewEigenlayerContractBindings(
+	elContractBindings, err := NewEigenlayerContractBindings(
 		delegationManagerAddr,
 		avsDirectoryAddr,
 		ethHttpClient,
