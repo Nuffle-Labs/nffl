@@ -106,7 +106,7 @@ func BuildAvsRegistryChainWriter(
 	if err != nil {
 		return nil, utils.WrapError("Failed to get AvsDirectory address", err)
 	}
-	elReader, err := BuildElReader(delegationManagerAddr, avsDirectoryAddr, ethClient, logger)
+	elReader, err := BuildELChainReader(delegationManagerAddr, avsDirectoryAddr, ethClient, logger)
 	if err != nil {
 		return nil, utils.WrapError("Failed to create ELChainReader", err)
 	}
@@ -134,6 +134,8 @@ func BuildAvsWriter(txMgr txmgr.TxManager, registryCoordinatorAddr, operatorStat
 		return nil, err
 	}
 	avsRegistryWriter, err := BuildAvsRegistryChainWriter(registryCoordinatorAddr, operatorStateRetrieverAddr, logger, ethHttpClient, txMgr)
+	// avsRegistryWriter, err := avsregistry.BuildAvsRegistryChainWriter(registryCoordinatorAddr, operatorStateRetrieverAddr, logger, ethHttpClient, txMgr)
+
 	if err != nil {
 		return nil, err
 	}

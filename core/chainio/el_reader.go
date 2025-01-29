@@ -106,6 +106,30 @@ func NewEigenlayerContractBindings(
 	}, nil
 }
 
+func BuildELChainReader(
+	delegationManagerAddr gethcommon.Address,
+	avsDirectoryAddr gethcommon.Address,
+	ethClient eth.Client,
+	logger logging.Logger,
+) (*elcontracts.ELChainReader, error) {
+	elContractBindings, err := NewEigenlayerContractBindings(
+		delegationManagerAddr,
+		avsDirectoryAddr,
+		ethClient,
+		logger,
+	)
+	if err != nil {
+		return nil, err
+	}
+	return elcontracts.NewELChainReader(
+		elContractBindings.Slasher,
+		elContractBindings.DelegationManager,
+		elContractBindings.StrategyManager,
+		elContractBindings.AvsDirectory,
+		logger,
+		ethClient,
+	), nil
+}
 
 
 func BuildElReader(
@@ -116,18 +140,22 @@ func BuildElReader(
 ) (*elcontracts.ELChainReader, error) {
 	avsRegistryContractBindings, err := utils.NewAVSRegistryContractBindings(registryCoordinatorAddress, operatorStateRetrieverAddress, ethHttpClient, logger)
 	if err != nil {
+		logger.Error("Failed to create AVSRegistryContractBindings", "err", err)
 		return nil, err
 	}
 
 	delegationManagerAddr, err := avsRegistryContractBindings.StakeRegistry.Delegation(&bind.CallOpts{})
 	if err != nil {
+		logger.Error("Failed to get DelegationManager address", "err", err)
 		return nil, err
 	}
 
 	avsDirectoryAddr, err := avsRegistryContractBindings.ServiceManager.AvsDirectory(&bind.CallOpts{})
 	if err != nil {
+		logger.Error("Failed to get AvsDirectory address", "err", err)
 		return nil, err
 	}
+
 
 	elContractBindings, err := NewEigenlayerContractBindings(
 		delegationManagerAddr,
@@ -136,6 +164,7 @@ func BuildElReader(
 		logger,
 	)
 	if err != nil {
+		logger.Error("Failed to create EigenlayerContractBindings", "err", err)
 		return nil, err
 	}
 
