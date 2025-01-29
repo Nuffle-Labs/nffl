@@ -3,17 +3,23 @@ package chainio
 import (
 	"context"
 
-	"github.com/Nuffle-Labs/nffl/core/config"
-	"github.com/Nuffle-Labs/nffl/core/types/messages"
-
 	"github.com/Layr-Labs/eigensdk-go/chainio/clients/avsregistry"
 	"github.com/Layr-Labs/eigensdk-go/chainio/clients/eth"
 	"github.com/Layr-Labs/eigensdk-go/chainio/txmgr"
+	regcoord "github.com/Layr-Labs/eigensdk-go/contracts/bindings/RegistryCoordinator"
 	logging "github.com/Layr-Labs/eigensdk-go/logging"
 	eigentypes "github.com/Layr-Labs/eigensdk-go/types"
+	"github.com/Layr-Labs/eigensdk-go/utils"
+	"github.com/Nuffle-Labs/nffl/core/config"
+	"github.com/Nuffle-Labs/nffl/core/types/messages"
+	"github.com/ethereum/go-ethereum/accounts/abi/bind"
 	gethcommon "github.com/ethereum/go-ethereum/common"
 	"github.com/ethereum/go-ethereum/core/types"
 
+	blsapkregistry "github.com/Layr-Labs/eigensdk-go/contracts/bindings/BLSApkRegistry"
+	opstateretriever "github.com/Layr-Labs/eigensdk-go/contracts/bindings/OperatorStateRetriever"
+	smbase "github.com/Layr-Labs/eigensdk-go/contracts/bindings/ServiceManagerBase"
+	stakeregistry "github.com/Layr-Labs/eigensdk-go/contracts/bindings/StakeRegistry"
 	taskmanager "github.com/Nuffle-Labs/nffl/contracts/bindings/SFFLTaskManager"
 )
 
@@ -50,6 +56,73 @@ type AvsWriter struct {
 
 var _ AvsWriterer = (*AvsWriter)(nil)
 
+func BuildAvsRegistryChainWriter(
+	registryCoordinatorAddr gethcommon.Address,
+	operatorStateRetrieverAddr gethcommon.Address,
+	logger logging.Logger,
+	ethClient eth.Client,
+	txMgr txmgr.TxManager,
+) (*avsregistry.AvsRegistryChainWriter, error) {
+	registryCoordinator, err := regcoord.NewContractRegistryCoordinator(registryCoordinatorAddr, ethClient)
+	if err != nil {
+		return nil, utils.WrapError("Failed to create RegistryCoordinator contract", err)
+	}
+	operatorStateRetriever, err := opstateretriever.NewContractOperatorStateRetriever(
+		operatorStateRetrieverAddr,
+		ethClient,
+	)
+	if err != nil {
+		return nil, utils.WrapError("Failed to create OperatorStateRetriever contract", err)
+	}
+	serviceManagerAddr, err := registryCoordinator.ServiceManager(&bind.CallOpts{})
+	if err != nil {
+		return nil, utils.WrapError("Failed to get ServiceManager address", err)
+	}
+	serviceManager, err := smbase.NewContractServiceManagerBase(serviceManagerAddr, ethClient)
+	if err != nil {
+		return nil, utils.WrapError("Failed to create ServiceManager contract", err)
+	}
+	blsApkRegistryAddr, err := registryCoordinator.BlsApkRegistry(&bind.CallOpts{})
+	if err != nil {
+		return nil, utils.WrapError("Failed to get BLSApkRegistry address", err)
+	}
+	blsApkRegistry, err := blsapkregistry.NewContractBLSApkRegistry(blsApkRegistryAddr, ethClient)
+	if err != nil {
+		return nil, utils.WrapError("Failed to create BLSApkRegistry contract", err)
+	}
+	stakeRegistryAddr, err := registryCoordinator.StakeRegistry(&bind.CallOpts{})
+	if err != nil {
+		return nil, utils.WrapError("Failed to get StakeRegistry address", err)
+	}
+	stakeRegistry, err := stakeregistry.NewContractStakeRegistry(stakeRegistryAddr, ethClient)
+	if err != nil {
+		return nil, utils.WrapError("Failed to create StakeRegistry contract", err)
+	}
+	delegationManagerAddr, err := stakeRegistry.Delegation(&bind.CallOpts{})
+	if err != nil {
+		return nil, utils.WrapError("Failed to get DelegationManager address", err)
+	}
+	avsDirectoryAddr, err := serviceManager.AvsDirectory(&bind.CallOpts{})
+	if err != nil {
+		return nil, utils.WrapError("Failed to get AvsDirectory address", err)
+	}
+	elReader, err := BuildELChainReader(delegationManagerAddr, avsDirectoryAddr, ethClient, logger)
+	if err != nil {
+		return nil, utils.WrapError("Failed to create ELChainReader", err)
+	}
+	return avsregistry.NewAvsRegistryChainWriter(
+		serviceManagerAddr,
+		registryCoordinator,
+		operatorStateRetriever,
+		stakeRegistry,
+		blsApkRegistry,
+		elReader,
+		logger,
+		ethClient,
+		txMgr,
+	)
+}
+
 func BuildAvsWriterFromConfig(txMgr txmgr.TxManager, config *config.Config, client eth.Client, logger logging.Logger) (*AvsWriter, error) {
 	return BuildAvsWriter(txMgr, config.SFFLRegistryCoordinatorAddr, config.OperatorStateRetrieverAddr, client, logger)
 }
@@ -60,7 +133,9 @@ func BuildAvsWriter(txMgr txmgr.TxManager, registryCoordinatorAddr, operatorStat
 		logger.Error("Failed to create contract bindings", "err", err)
 		return nil, err
 	}
-	avsRegistryWriter, err := avsregistry.BuildAvsRegistryChainWriter(registryCoordinatorAddr, operatorStateRetrieverAddr, logger, ethHttpClient, txMgr)
+	avsRegistryWriter, err := BuildAvsRegistryChainWriter(registryCoordinatorAddr, operatorStateRetrieverAddr, logger, ethHttpClient, txMgr)
+	// avsRegistryWriter, err := avsregistry.BuildAvsRegistryChainWriter(registryCoordinatorAddr, operatorStateRetrieverAddr, logger, ethHttpClient, txMgr)
+
 	if err != nil {
 		return nil, err
 	}
