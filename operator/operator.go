@@ -1,3 +1,4 @@
+// Package operator implements the NFFL operator lifecycle, task processing, and signing flow.
 package operator
 
 import (
@@ -38,6 +39,7 @@ const (
 	SEM_VER  = "0.0.1"
 )
 
+// Operator receives checkpoint tasks, signs responses, and reports them to the aggregator.
 type Operator struct {
 	config    optypes.NodeConfig
 	logger    sdklogging.Logger
@@ -84,6 +86,8 @@ func createLogger(config *optypes.NodeConfig) (sdklogging.Logger, error) {
 // TODO(samlaf): config is a mess right now, since the chainio client constructors
 //
 //	take the config in core (which is shared with aggregator and challenger)
+//
+// NewOperatorFromConfig builds an operator and its external clients from a node configuration.
 func NewOperatorFromConfig(c optypes.NodeConfig) (*Operator, error) {
 	logger, err := createLogger(&c)
 	if err != nil {
@@ -259,6 +263,7 @@ func NewOperatorFromConfig(c optypes.NodeConfig) (*Operator, error) {
 	return operator, nil
 }
 
+// EnableMetrics registers operator, attestor, and aggregator metrics with registry.
 func (o *Operator) EnableMetrics(registry *prometheus.Registry) error {
 	listener, err := MakeOperatorMetrics(registry)
 	if err != nil {
@@ -277,6 +282,7 @@ func (o *Operator) EnableMetrics(registry *prometheus.Registry) error {
 	return nil
 }
 
+// Start begins operator services and processes events until ctx is canceled or a service stops.
 func (o *Operator) Start(ctx context.Context) error {
 	o.logger.Info("Starting operator")
 
@@ -349,6 +355,7 @@ func (o *Operator) Start(ctx context.Context) error {
 	}
 }
 
+// Close stops the attestor and closes the Ethereum client used by the operator.
 func (o *Operator) Close() error {
 	if err := o.attestor.Close(); err != nil {
 		return err
@@ -359,6 +366,7 @@ func (o *Operator) Close() error {
 	return nil
 }
 
+// SignTaskResponse signs a checkpoint task response with the operator BLS key.
 func (o *Operator) SignTaskResponse(taskResponse *messages.CheckpointTaskResponse) (*messages.SignedCheckpointTaskResponse, error) {
 	taskResponseHash, err := taskResponse.Digest()
 	if err != nil {
@@ -377,6 +385,7 @@ func (o *Operator) SignTaskResponse(taskResponse *messages.CheckpointTaskRespons
 	return signedCheckpointTaskResponse, nil
 }
 
+// SignOperatorSetUpdate signs an operator-set update with the supplied BLS key and operator ID.
 func SignOperatorSetUpdate(message messages.OperatorSetUpdateMessage, blsKeyPair *bls.KeyPair, operatorId eigentypes.OperatorId) (*messages.SignedOperatorSetUpdateMessage, error) {
 	messageHash, err := message.Digest()
 	if err != nil {
@@ -392,6 +401,7 @@ func SignOperatorSetUpdate(message messages.OperatorSetUpdateMessage, blsKeyPair
 	return &signedOperatorSetUpdate, nil
 }
 
+// ProcessCheckpointTask collects messages for a task, signs the resulting response, and sends it to the aggregator.
 func (o *Operator) ProcessCheckpointTask(event *taskmanager.ContractSFFLTaskManagerCheckpointTaskCreated) {
 	o.listener.OnTasksReceived()
 
@@ -426,20 +436,24 @@ func (o *Operator) ProcessCheckpointTask(event *taskmanager.ContractSFFLTaskMana
 	go o.aggregatorRpcClient.SendSignedCheckpointTaskResponseToAggregator(signedCheckpointTaskResponse)
 }
 
+// RegisterOperatorWithAvs registers the operator with the configured AVS contracts.
 func (o *Operator) RegisterOperatorWithAvs(
 	operatorEcdsaKeyPair *ecdsa.PrivateKey,
 ) error {
 	return o.avsManager.RegisterOperatorWithAvs(o.ethClient, operatorEcdsaKeyPair, o.blsKeypair)
 }
 
+// DepositIntoStrategy deposits amount into the configured strategy contract.
 func (o *Operator) DepositIntoStrategy(strategyAddr common.Address, amount *big.Int) error {
 	return o.avsManager.DepositIntoStrategy(o.operatorAddr, strategyAddr, amount)
 }
 
+// RegisterOperatorWithEigenlayer registers the operator with EigenLayer.
 func (o *Operator) RegisterOperatorWithEigenlayer() error {
 	return o.avsManager.RegisterOperatorWithEigenlayer(o.operatorAddr)
 }
 
+// OperatorStatus contains the account, public-key, and registration state reported by an operator.
 type OperatorStatus struct {
 	EcdsaAddress string
 	// pubkey compendium related
@@ -451,6 +465,7 @@ type OperatorStatus struct {
 	OperatorId        string
 }
 
+// PrintOperatorStatus writes the operator registration state as formatted JSON.
 func (o *Operator) PrintOperatorStatus() error {
 	fmt.Println("Printing operator status")
 	operatorId, err := o.avsManager.GetOperatorId(&bind.CallOpts{}, o.operatorAddr)
@@ -515,6 +530,7 @@ func (o *Operator) registerOperatorOnStartup(
 	}
 }
 
+// BlsPubkeyG1 returns the operator BLS public key in G1.
 func (o *Operator) BlsPubkeyG1() *bls.G1Point {
 	return o.blsKeypair.GetPubKeyG1()
 }
