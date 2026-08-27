@@ -6,17 +6,20 @@ import (
 	"github.com/prometheus/client_golang/prometheus"
 )
 
+// Prometheus metric namespace and subsystem used by the operator.
 const (
 	OperatorNamespace = "sffl_operator"
 	OperatorSubsytem  = "operator"
 )
 
+// OperatorEventListener receives lifecycle events from the operator.
 type OperatorEventListener interface {
 	OnTasksReceived()
 	IncInitializationCount()
 	ObserveLastInitializedTime()
 }
 
+// SelectiveOperatorListener delegates lifecycle events to optional callbacks.
 type SelectiveOperatorListener struct {
 	OnTasksReceivedCb            func()
 	IncInitializationCountCb     func()
@@ -41,6 +44,7 @@ func (l *SelectiveOperatorListener) ObserveLastInitializedTime() {
 	}
 }
 
+// RpcClientEventListener receives metrics events from the aggregator RPC client.
 type RpcClientEventListener interface {
 	OnMessagesReceived()
 	ObserveResendQueueSize(size int)
@@ -54,6 +58,7 @@ type RpcClientEventListener interface {
 	IncErroredCheckpointSubmissions(resend bool)
 }
 
+// SelectiveRpcClientListener delegates RPC metrics events to optional callbacks.
 type SelectiveRpcClientListener struct {
 	OnMessagesReceivedCb                      func()
 	ObserveResendQueueSizeCb                  func(size int)
@@ -127,6 +132,7 @@ func (l *SelectiveRpcClientListener) IncErroredOperatorSetUpdateSubmissions(rese
 	}
 }
 
+// MakeOperatorMetrics registers operator lifecycle metrics and returns their event listener.
 func MakeOperatorMetrics(registry *prometheus.Registry) (OperatorEventListener, error) {
 	numTasksReceived := prometheus.NewCounter(
 		prometheus.CounterOpts{
@@ -174,6 +180,7 @@ func MakeOperatorMetrics(registry *prometheus.Registry) (OperatorEventListener, 
 	}, nil
 }
 
+// MakeRpcClientMetrics registers aggregator RPC metrics and returns their event listener.
 func MakeRpcClientMetrics(registry *prometheus.Registry) (RpcClientEventListener, error) {
 	numMessagesReceived := prometheus.NewCounter(
 		prometheus.CounterOpts{
